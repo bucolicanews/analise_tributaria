@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react"; // Adicionado 'React' aqui
 import { Upload, FileText, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -22,7 +22,7 @@ const Index = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
@@ -41,7 +41,7 @@ const Index = () => {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 flex-grow">
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Left Column - Upload and Parameters */}
           <div className="lg:col-span-1 space-y-6">
@@ -72,7 +72,7 @@ const Index = () => {
           {/* Right Column - Results */}
           <div className="lg:col-span-2 space-y-6">
             {products.length > 0 && params ? (
-              <>
+              <React.Fragment>
                 <Card className="shadow-elegant">
                   <div className="p-6">
                     <div className="mb-4 flex items-center justify-between">
@@ -98,7 +98,7 @@ const Index = () => {
                     </div>
                   </Card>
                 )}
-              </>
+              </React.Fragment>
             ) : (
               <Card className="shadow-card">
                 <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
@@ -118,6 +118,13 @@ const Index = () => {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="border-t border-border bg-card py-4 text-center text-sm text-muted-foreground">
+        <div className="container mx-auto px-4">
+          Desenvolvido por Jota Empresas - app_Dyad - ai Gemini
+        </div>
+      </footer>
     </div>
   );
 };
