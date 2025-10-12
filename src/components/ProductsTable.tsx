@@ -65,7 +65,6 @@ const calculateGlobalSummary = (
         (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + currentParams.profitMargin) / 100 +
         CBS_RATE + IBS_RATE;
     } else {
-      // Corrected: Added + currentParams.profitMargin
       currentTotalPercentageForGlobalMarkup =
         (totalVariableExpensesPercent + currentParams.simplesNacionalRate + currentParams.profitMargin) / 100;
     }
@@ -142,7 +141,6 @@ const calculateGlobalSummary = (
     
     let taxRatioForBEP = 0;
     if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      // Corrected: Added IRPJ and CSLL rates
       taxRatioForBEP = CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
     } else { // Simples Nacional
       if (currentParams.generateIvaCredit) {
@@ -307,16 +305,21 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
               <TableHead className="text-right" rowSpan={2}>Custo Fixo Rateado (Unit)</TableHead>
               <TableHead className="text-right" rowSpan={2}>Custo Total Base (Unit)</TableHead>
               <TableHead className="text-right" rowSpan={2}>Markup %</TableHead>
+              {/* Novas colunas para unidade interna */}
+              <TableHead className="text-right" rowSpan={2}>Qtd. Interna</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Custo Unid. Int.</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Venda Mín. Unid. Int.</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Venda Sug. Unid. Int.</TableHead>
               
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
-                  <TableHead colSpan={5} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
-                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
+                  <TableHead colSpan={5} className="text-center border-l border-r">Simples Nacional Padrão</TableHead> {/* 5 colunas */}
+                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead> {/* 6 colunas */}
                   <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  <TableHead colSpan={10} className="text-center">Lucro Presumido</TableHead>
+                  <TableHead colSpan={10} className="text-center">Lucro Presumido</TableHead> {/* 10 colunas */}
                 </React.Fragment>
               )}
             </TableRow>
@@ -386,6 +389,17 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                     <TableCell className="text-right font-mono text-sm text-accent">
                       {formatPercent(productStandard.markupPercentage)}
                     </TableCell>
+                    {/* Dados de unidade interna */}
+                    <TableCell className="text-right font-mono text-xs">{productStandard.innerQuantity}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(productStandard.costPerInnerUnit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-yellow-500">
+                      {formatCurrency(productStandard.minSellingPricePerInnerUnit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-primary">
+                      {formatCurrency(productStandard.sellingPricePerInnerUnit)}
+                    </TableCell>
 
                     {/* Simples Nacional Padrão */}
                     <TableCell className="text-right font-bold text-primary">
@@ -453,6 +467,17 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-accent">
                       {formatPercent(product.markupPercentage)}
+                    </TableCell>
+                    {/* Dados de unidade interna */}
+                    <TableCell className="text-right font-mono text-xs">{product.innerQuantity}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(product.costPerInnerUnit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-yellow-500">
+                      {formatCurrency(product.minSellingPricePerInnerUnit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-primary">
+                      {formatCurrency(product.sellingPricePerInnerUnit)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-success">
                       {formatCurrency(product.cbsCredit)}

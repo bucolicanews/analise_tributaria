@@ -6,7 +6,7 @@ import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
 import { ProductsTable } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-import { ProductRetailInfo } from "@/components/ProductRetailInfo"; // Importar o novo componente
+// import { ProductRetailInfo } from "@/components/ProductRetailInfo"; // Importar o novo componente - REMOVIDO
 import { Product, CalculationParams, TaxRegime, CalculatedProduct } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing"; // Importar calculatePricing para calcular o primeiro produto
 
@@ -103,10 +103,10 @@ const Index = () => {
                   </div>
                 </Card>
 
-                {/* Novo bloco de informações de varejo */}
-                {firstCalculatedProduct && (
+                {/* Novo bloco de informações de varejo - REMOVIDO */}
+                {/* {firstCalculatedProduct && (
                   <ProductRetailInfo product={firstCalculatedProduct} />
-                )}
+                )} */}
 
                 {showMemory && (
                   <Card className="shadow-card">
