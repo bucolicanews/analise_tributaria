@@ -1,12 +1,13 @@
 export interface Product {
   code: string;
   name: string;
-  cost: number;
-  unit: string; // New field: Unidade de medida
-  quantity: number; // New field: Quantidade comercial
-  pisCredit: number;
-  cofinsCredit: number;
-  icmsCredit: number;
+  cost: number; // Custo por unidade comercial (e.g., por caixa)
+  unit: string; // Unidade de medida comercial (e.g., CX, UN)
+  quantity: number; // Quantidade de unidades comerciais (e.g., número de caixas)
+  innerQuantity: number; // Nova: Quantidade de unidades internas por unidade comercial (e.g., 30 de '30X300G')
+  pisCredit: number; // Crédito PIS por unidade comercial
+  cofinsCredit: number; // Crédito COFINS por unidade comercial
+  icmsCredit: number; // Crédito ICMS por unidade comercial
   cfop?: string;
   cst?: string;
 }
@@ -30,17 +31,32 @@ export interface CalculationParams {
 }
 
 export interface CalculatedProduct extends Product {
+  // Valores por Unidade Comercial
   effectiveCost: number;
   sellingPrice: number;
-  minSellingPrice: number; // New field: Menor valor a ser vendido (cobre custo efetivo + despesas variáveis + simples nacional)
+  minSellingPrice: number;
   cbsCredit: number;
   ibsCredit: number;
   cbsDebit: number;
   ibsDebit: number;
-  taxToPay: number; // Total tax to pay
-  cbsTaxToPay: number; // New field: CBS a pagar (débito - crédito)
-  ibsTaxToPay: number; // New field: IBS a pagar (débito - crédito)
-  markupPercentage: number; // New field: Porcentagem de markup aplicada
+  taxToPay: number;
+  cbsTaxToPay: number;
+  ibsTaxToPay: number;
+  markupPercentage: number;
+
+  // Novos campos: Valores por Unidade Interna
+  costPerInnerUnit: number;
+  effectiveCostPerInnerUnit: number;
+  sellingPricePerInnerUnit: number;
+  minSellingPricePerInnerUnit: number;
+  cbsCreditPerInnerUnit: number;
+  ibsCreditPerInnerUnit: number;
+  cbsDebitPerInnerUnit: number;
+  ibsDebitPerInnerUnit: number;
+  taxToPayPerInnerUnit: number;
+  cbsTaxToPayPerInnerUnit: number;
+  ibsTaxToPayPerInnerUnit: number;
+
   cfop: string;
   cst: string;
 }

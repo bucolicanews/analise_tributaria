@@ -101,22 +101,27 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Produto</TableHead>
-              <TableHead>Unid.</TableHead>
-              <TableHead className="text-right">Qtd.</TableHead>
+              <TableHead>Unid. Com.</TableHead>
+              <TableHead className="text-right">Qtd. Com.</TableHead>
+              <TableHead className="text-right">Qtd. Int.</TableHead>
               <TableHead>CFOP</TableHead>
               <TableHead>CST</TableHead>
-              <TableHead className="text-right">Custo Un.</TableHead>
+              <TableHead className="text-right">Custo Com.</TableHead>
+              <TableHead className="text-right">Custo Int.</TableHead>
               <TableHead className="text-right">Créd. CBS</TableHead>
               <TableHead className="text-right">Créd. IBS</TableHead>
-              <TableHead className="text-right">Custo Efetivo</TableHead>
+              <TableHead className="text-right">Custo Efetivo Com.</TableHead>
+              <TableHead className="text-right">Custo Efetivo Int.</TableHead>
               <TableHead className="text-right">Markup %</TableHead>
               <TableHead className="text-right">Déb. CBS</TableHead>
               <TableHead className="text-right">Déb. IBS</TableHead>
               <TableHead className="text-right">CBS a Pagar</TableHead>
               <TableHead className="text-right">IBS a Pagar</TableHead>
               <TableHead className="text-right">Imposto Líq.</TableHead>
-              <TableHead className="text-right">Venda Mín.</TableHead>
-              <TableHead className="text-right">Venda Sug.</TableHead>
+              <TableHead className="text-right">Venda Mín. Com.</TableHead>
+              <TableHead className="text-right">Venda Mín. Int.</TableHead>
+              <TableHead className="text-right">Venda Sug. Com.</TableHead>
+              <TableHead className="text-right">Venda Sug. Int.</TableHead>
               <TableHead className="text-right">Margem %</TableHead>
             </TableRow>
           </TableHeader>
@@ -132,10 +137,14 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                   <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
+                  <TableCell className="text-right font-mono text-xs text-muted-foreground">{product.innerQuantity}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cfop}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cst}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
                     {formatCurrency(product.cost)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                    {formatCurrency(product.costPerInnerUnit)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
                     {formatCurrency(product.cbsCredit)}
@@ -145,6 +154,9 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-muted-foreground">
                     {formatCurrency(product.effectiveCost)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                    {formatCurrency(product.effectiveCostPerInnerUnit)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-accent">
                     {formatPercent(product.markupPercentage)}
@@ -167,8 +179,14 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="text-right font-mono text-sm text-yellow-500">
                     {formatCurrency(product.minSellingPrice)}
                   </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-yellow-500">
+                    {formatCurrency(product.minSellingPricePerInnerUnit)}
+                  </TableCell>
                   <TableCell className="text-right font-mono text-sm font-bold text-primary">
                     {formatCurrency(product.sellingPrice)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm font-bold text-primary">
+                    {formatCurrency(product.sellingPricePerInnerUnit)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
                     {formatPercent(productProfitMargin)}

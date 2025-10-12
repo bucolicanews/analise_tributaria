@@ -31,6 +31,13 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const quantity = parseFloat(quantityStr); // Extract commercial quantity
         const cfop = prod?.querySelector("CFOP")?.textContent || "";
         
+        // Extract inner quantity from product name (e.g., "30" from "30X300G")
+        let innerQuantity = 1;
+        const innerQuantityMatch = name.match(/(\d+)[xX]\d+G?/); // Matches "30X300G" and captures "30"
+        if (innerQuantityMatch && innerQuantityMatch[1]) {
+          innerQuantity = parseInt(innerQuantityMatch[1], 10);
+        }
+
         // Tax info - PIS
         const pisAliq = det.querySelector("PISAliq");
         const pisNT = det.querySelector("PISNT");
@@ -59,6 +66,7 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
           cost,
           unit,
           quantity,
+          innerQuantity: innerQuantity > 0 ? innerQuantity : 1, // Ensure innerQuantity is at least 1
           pisCredit,
           cofinsCredit,
           icmsCredit,
