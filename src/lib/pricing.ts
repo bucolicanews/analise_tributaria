@@ -6,8 +6,7 @@ export const IBS_RATE = 0.177; // 17.7%
 export const calculatePricing = (
   product: Product,
   params: CalculationParams,
-  totalFixedExpenses: number, // Novo parâmetro
-  totalProductCost: number // Novo parâmetro
+  cfu: number // Novo parâmetro: Custo Fixo por Unidade
 ): CalculatedProduct => {
   // 1. Créditos (do XML) - por unidade comercial
   const cbsCredit = product.pisCredit + product.cofinsCredit;
@@ -17,15 +16,8 @@ export const calculatePricing = (
   // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)
   const effectiveCost = product.cost - totalCredit;
 
-  // 3. Rateio das Despesas Fixas por produto
-  let fixedExpenseAllocationPerProduct = 0;
-  if (totalProductCost > 0) {
-    const fixedExpenseAllocationRate = totalFixedExpenses / totalProductCost;
-    fixedExpenseAllocationPerProduct = product.cost * fixedExpenseAllocationRate;
-  }
-  
-  // Custo Base para o Markup Divisor: Custo de Compra + Despesa Fixa Rateada
-  const baseCostForMarkup = product.cost + fixedExpenseAllocationPerProduct;
+  // 3. Custo Base para o Markup Divisor: Custo de Aquisição Unitário (CAU) + Custo Fixo por Unidade (CFU)
+  const baseCostForMarkup = product.cost + cfu;
 
   // 4. Soma das alíquotas percentuais (variável por regime)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
@@ -60,6 +52,13 @@ export const calculatePricing = (
   let markupPercentage = 0;
   let status: "OK" | "PREÇO CORRIGIDO" = "OK";
 
+  // Detalhamento do Preço de Venda
+  let valueForTaxes = 0;
+  let valueForVariableExpenses = 0;
+  let valueForFixedCost = 0;
+  let valueForProfit = 0;
+  let contributionMargin = 0;
+
   if (markupDivisor <= 0) {
     // Se o markupDivisor for inviável (<= 0), a operação é matematicamente impossível.
     // Definimos os valores de venda e impostos como 0 e marcamos o status.
@@ -68,7 +67,6 @@ export const calculatePricing = (
     status = "PREÇO CORRIGIDO";
   } else {
     // 6. Preço de venda sugerido - por unidade comercial
-    // A base é o custo de compra do produto + despesa fixa rateada
     sellingPrice = baseCostForMarkup / markupDivisor;
     
     // 7. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
@@ -79,7 +77,7 @@ export const calculatePricing = (
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
     }
     
-    minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
+    minSellingPrice = minSellingDivisor > 0 ? product.cost / minSellingDivisor : product.cost;
 
     // 8. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
     if (params.taxRegime === TaxRegime.LucroPresumido) {
@@ -89,10 +87,8 @@ export const calculatePricing = (
       csllToPay = sellingPrice * (params.csllRate / 100);
     } else { // Simples Nacional
       simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
-      // CBS e IBS não são aplicáveis diretamente no Simples Nacional, mas podem ser considerados no custo
-      // Para simplificar, vamos zerar os débitos de CBS/IBS para o Simples Nacional na saída
-      cbsDebit = 0;
-      ibsDebit = 0;
+      cbsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
+      ibsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
     }
 
     // 9. Imposto a pagar (líquido) - por unidade comercial
@@ -107,6 +103,15 @@ export const calculatePricing = (
 
     // 10. Porcentagem de markup (sobre o custo de compra original)
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
+
+    // 11. Detalhamento do Preço de Venda (por Unidade Comercial)
+    valueForTaxes = taxToPay;
+    valueForVariableExpenses = sellingPrice * (totalVariableExpensesPercentage / 100);
+    valueForFixedCost = cfu; // O valor do CFU é a parcela do custo fixo por unidade
+    valueForProfit = sellingPrice * (params.profitMargin / 100);
+    
+    // Margem de Contribuição (Unit): Preço de Venda - (Custo de Aquisição + Despesas Variáveis)
+    contributionMargin = sellingPrice - (product.cost + valueForVariableExpenses);
   }
 
   // Cálculos por Unidade Interna
@@ -147,6 +152,13 @@ export const calculatePricing = (
     cfop: product.cfop || "5102",
     cst: product.cst || "101",
     status,
+
+    // Detalhamento do Preço de Venda (por Unidade Comercial)
+    valueForTaxes: Math.max(0, valueForTaxes),
+    valueForVariableExpenses: Math.max(0, valueForVariableExpenses),
+    valueForFixedCost: Math.max(0, valueForFixedCost),
+    valueForProfit: Math.max(0, valueForProfit),
+    contributionMargin: contributionMargin, // Pode ser negativo para análise
 
     // Valores por Unidade Interna
     costPerInnerUnit,

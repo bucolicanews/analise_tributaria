@@ -19,6 +19,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [irpjRate, setIrpjRate] = useState<string>("1.2"); // Default from prompt
   const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
   const [payroll, setPayroll] = useState<string>("10000");
+  const [totalStockUnits, setTotalStockUnits] = useState<string>("5000"); // Novo: Estoque Total de Unidades
   
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
@@ -59,7 +60,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll) {
+    if (!profitMargin || !payroll || !totalStockUnits) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais.",
       });
@@ -85,6 +86,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       fixedExpenses,
       variableExpenses,
       payroll: parseFloat(payroll),
+      totalStockUnits: parseInt(totalStockUnits, 10), // Novo: Passando o estoque total
       taxRegime,
       simplesNacionalRate: parseFloat(simplesNacionalRate),
       irpjRate: parseFloat(irpjRate),
@@ -170,6 +172,18 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           step="0.01"
           value={payroll}
           onChange={(e) => setPayroll(e.target.value)}
+          disabled={disabled}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="totalStockUnits">Estoque Total de Unidades (ETU)</Label>
+        <Input
+          id="totalStockUnits"
+          type="number"
+          step="1"
+          value={totalStockUnits}
+          onChange={(e) => setTotalStockUnits(e.target.value)}
           disabled={disabled}
         />
       </div>

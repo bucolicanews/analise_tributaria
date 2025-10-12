@@ -32,6 +32,7 @@ export interface CalculationParams {
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
   payroll: number;
+  totalStockUnits: number; // Novo: Estoque Total de Unidades para rateio de custos fixos
   
   // Novos campos para regimes tributários
   taxRegime: TaxRegime;
@@ -56,6 +57,13 @@ export interface CalculatedProduct extends Product {
   csllToPay: number; // Novo: CSLL a pagar
   simplesToPay: number; // Novo: Simples Nacional a pagar
   markupPercentage: number;
+
+  // Novos campos: Detalhamento do Preço de Venda (por Unidade Comercial)
+  valueForTaxes: number;
+  valueForVariableExpenses: number;
+  valueForFixedCost: number;
+  valueForProfit: number;
+  contributionMargin: number; // Margem de Contribuição por Unidade Comercial
 
   // Novos campos: Valores por Unidade Interna
   costPerInnerUnit: number;

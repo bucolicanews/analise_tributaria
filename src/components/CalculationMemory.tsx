@@ -7,16 +7,19 @@ interface CalculationMemoryProps {
 }
 
 export const CalculationMemory = ({ products, params }: CalculationMemoryProps) => {
-  // 1. Consolidar Custos e Despesas Fixas (globais)
+  // 1. Consolidar Custos Fixos Totais (CFT)
   const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
 
-  // Custo do Produto (total dos produtos)
-  const totalProductCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  // 2. Calcular Custo Fixo por Unidade (CFU)
+  let cfu = 0;
+  if (params.totalStockUnits > 0) {
+    cfu = totalFixedExpenses / params.totalStockUnits;
+  }
 
   if (products.length === 0) return null;
 
   const firstProduct = products[0];
-  const calculated: CalculatedProduct = calculatePricing(firstProduct, params, totalFixedExpenses, totalProductCost);
+  const calculated: CalculatedProduct = calculatePricing(firstProduct, params, cfu);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -46,15 +49,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
   const markupDivisor = 1 - totalPercentageForMarkup;
 
-  // Cálculo da taxa de rateio de despesas fixas para o produto de exemplo
-  let fixedExpenseAllocationPerProduct = 0;
-  let fixedExpenseAllocationRate = 0;
-  if (totalProductCost > 0) {
-    fixedExpenseAllocationRate = totalFixedExpenses / totalProductCost;
-    fixedExpenseAllocationPerProduct = firstProduct.cost * fixedExpenseAllocationRate;
-  }
-
-  const baseCostForMarkupExample = firstProduct.cost + fixedExpenseAllocationPerProduct;
+  const baseCostForMarkupExample = firstProduct.cost + cfu;
 
 
   return (
@@ -78,8 +73,9 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
                 <strong>Alíquota:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
               </>
             )}<br/>
-            <strong>Despesas Fixas Totais:</strong> {formatCurrency(totalFixedExpenses)}<br/>
-            <strong>Custo Total dos Produtos:</strong> {formatCurrency(totalProductCost)}
+            <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
+            <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
+            <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}
           </p>
         </div>
       </div>
@@ -124,15 +120,18 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">3. Rateio de Despesas Fixas por Produto</p>
+            <p className="font-semibold mb-2">3. Custo Fixo por Unidade (CFU)</p>
             <p className="ml-4">
-              • Taxa de Rateio Global: Despesas Fixas Totais ({formatCurrency(totalFixedExpenses)}) ÷ Custo Total dos Produtos ({formatCurrency(totalProductCost)}) = {fixedExpenseAllocationRate.toFixed(4)}
+              • Custos Fixos Totais (CFT): {formatCurrency(totalFixedExpenses)}
             </p>
             <p className="ml-4">
-              • Despesa Fixa Rateada por Unid. Com.: Custo de Compra ({formatCurrency(firstProduct.cost)}) × {fixedExpenseAllocationRate.toFixed(4)} = {formatCurrency(fixedExpenseAllocationPerProduct)}
+              • Estoque Total de Unidades (ETU): {params.totalStockUnits.toLocaleString('pt-BR')}
+            </p>
+            <p className="ml-4 font-semibold">
+              CFU = CFT ÷ ETU = {formatCurrency(totalFixedExpenses)} ÷ {params.totalStockUnits.toLocaleString('pt-BR')} = {formatCurrency(cfu)}
             </p>
             <p className="ml-4 mt-2 font-semibold">
-              Custo Base para Markup (Unid. Com.): Custo de Compra ({formatCurrency(firstProduct.cost)}) + Despesa Fixa Rateada ({formatCurrency(fixedExpenseAllocationPerProduct)}) = {formatCurrency(baseCostForMarkupExample)}
+              Custo Base para Markup (Unid. Com.): Custo de Aquisição ({formatCurrency(firstProduct.cost)}) + CFU ({formatCurrency(cfu)}) = {formatCurrency(baseCostForMarkupExample)}
             </p>
           </div>
 
@@ -168,10 +167,10 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           <div>
             <p className="font-semibold mb-2">6. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
             <p className="ml-4">
-              Custo Base para Markup por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
+              Custo de Aquisição por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
             </p>
             <p className="ml-4">
-              {formatCurrency(baseCostForMarkupExample)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
+              {formatCurrency(firstProduct.cost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
             </p>
             <p className="ml-4 font-semibold text-yellow-500">
               = {formatCurrency(calculated.minSellingPrice)} (por Unid. Com.)
@@ -182,44 +181,22 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">7. Débitos de Tributos (Venda)</p>
-            {params.taxRegime === TaxRegime.LucroPresumido ? (
-              <>
-                <p className="ml-4">
-                  • Débito CBS ({formatPercent(CBS_RATE * 100)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(CBS_RATE * 100)} = {formatCurrency(calculated.cbsDebit)}
-                </p>
-                <p className="ml-4">
-                  • Débito IBS ({formatPercent(IBS_RATE * 100)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(IBS_RATE * 100)} = {formatCurrency(calculated.ibsDebit)}
-                </p>
-                <p className="ml-4">
-                  • IRPJ ({formatPercent(params.irpjRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.irpjRate)} = {formatCurrency(calculated.irpjToPay)}
-                </p>
-                <p className="ml-4">
-                  • CSLL ({formatPercent(params.csllRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.csllRate)} = {formatCurrency(calculated.csllToPay)}
-                </p>
-                <p className="ml-4 text-muted-foreground">
-                  Débito CBS por Unid. Interna: {formatCurrency(calculated.cbsDebitPerInnerUnit)}
-                </p>
-                <p className="ml-4 text-muted-foreground">
-                  Débito IBS por Unid. Interna: {formatCurrency(calculated.ibsDebitPerInnerUnit)}
-                </p>
-                <p className="ml-4 text-muted-foreground">
-                  IRPJ por Unid. Interna: {formatCurrency(calculated.irpjToPayPerInnerUnit)}
-                </p>
-                <p className="ml-4 text-muted-foreground">
-                  CSLL por Unid. Interna: {formatCurrency(calculated.csllToPayPerInnerUnit)}
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="ml-4">
-                  • Simples Nacional ({formatPercent(params.simplesNacionalRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.simplesNacionalRate)} = {formatCurrency(calculated.simplesToPay)}
-                </p>
-                <p className="ml-4 text-muted-foreground">
-                  Simples Nacional por Unid. Interna: {formatCurrency(calculated.simplesToPayPerInnerUnit)}
-                </p>
-              </>
-            )}
+            <p className="font-semibold mb-2">7. Detalhamento do Preço de Venda (Unid. Com.)</p>
+            <p className="ml-4">
+              • Valor para Impostos: {formatCurrency(calculated.valueForTaxes)}
+            </p>
+            <p className="ml-4">
+              • Valor para Despesas Variáveis: {formatCurrency(calculated.valueForVariableExpenses)}
+            </p>
+            <p className="ml-4">
+              • Valor para Custo Fixo (CFU): {formatCurrency(calculated.valueForFixedCost)}
+            </p>
+            <p className="ml-4">
+              • Valor para Lucro Líquido: {formatCurrency(calculated.valueForProfit)}
+            </p>
+            <p className="ml-4 mt-2 font-semibold">
+              Margem de Contribuição (Unid. Com.): {formatCurrency(calculated.contributionMargin)}
+            </p>
           </div>
 
           <div>
@@ -254,7 +231,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           <div className="border-t border-border pt-4 mt-4">
             <p className="font-semibold mb-2">Resumo da Operação Unitária</p>
             <p className="ml-4">
-              • Custo de Compra por Unid. Com.: {formatCurrency(firstProduct.cost)}
+              • Custo de Aquisição por Unid. Com.: {formatCurrency(firstProduct.cost)}
             </p>
             <p className="ml-4">
               • Preço de Venda Sugerido por Unid. Com.: {formatCurrency(calculated.sellingPrice)}
@@ -269,7 +246,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               • Lucro por Unid. Com.: {formatCurrency(calculated.sellingPrice - firstProduct.cost - calculated.taxToPay - (calculated.sellingPrice * (totalVariableExpensesPercentage / 100)))}
             </p>
             <p className="ml-4 mt-2 text-muted-foreground">
-              • Custo de Compra por Unid. Interna: {formatCurrency(calculated.costPerInnerUnit)}
+              • Custo de Aquisição por Unid. Interna: {formatCurrency(calculated.costPerInnerUnit)}
             </p>
             <p className="ml-4 text-muted-foreground">
               • Preço de Venda Sugerido por Unid. Interna: {formatCurrency(calculated.sellingPricePerInnerUnit)}

@@ -17,14 +17,22 @@ interface ProductsTableProps {
 }
 
 export const ProductsTable = ({ products, params }: ProductsTableProps) => {
-  // 1. Consolidar Custos e Despesas Fixas (globais)
+  // 1. Consolidar Custos Fixos Totais (CFT)
   const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
 
-  // Custo do Produto (total dos produtos)
-  const totalProductCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  // 2. Calcular Custo Fixo por Unidade (CFU)
+  let cfu = 0;
+  if (params.totalStockUnits > 0) {
+    cfu = totalFixedExpenses / params.totalStockUnits;
+  } else {
+    toast.warning("Estoque Total de Unidades (ETU) é zero.", {
+      description: "O rateio de custos fixos não será aplicado. Por favor, insira um valor maior que zero para o ETU.",
+      duration: 5000,
+    });
+  }
 
   const calculatedProducts: CalculatedProduct[] = products.map((product) =>
-    calculatePricing(product, params, totalFixedExpenses, totalProductCost) // Passar novos parâmetros
+    calculatePricing(product, params, cfu) // Passar CFU
   );
 
   const formatCurrency = (value: number) => {
@@ -67,6 +75,9 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
   let profitMarginPercent = 0;
   let breakEvenPoint = 0;
 
+  // Custo Total dos Produtos (apenas custo de aquisição)
+  const totalProductAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+
   if (globalMarkupDivisor <= 0) {
     toast.error("Cálculo Global Inviável", {
       description: "A soma das despesas percentuais e margem de lucro é igual ou superior a 100%. Ajuste os parâmetros para um cálculo global válido.",
@@ -75,8 +86,8 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     // Os valores de resumo permanecerão 0 como inicializados
   } else {
     // 4. Calcular o Preço de Venda Total (Método de Markup Divisor)
-    // A base para o cálculo global agora inclui o custo total dos produtos e as despesas fixas totais
-    totalSelling = (totalFixedExpenses + totalProductCost) / globalMarkupDivisor;
+    // A base para o cálculo global agora inclui o custo total de aquisição dos produtos e as despesas fixas totais
+    totalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
 
     // Calcular Impostos Líquidos (CBS e IBS a pagar)
     let totalCbsDebit = 0;
@@ -110,11 +121,11 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
 
     // Calcular Lucro Líquido
-    totalProfit = totalSelling - totalFixedExpenses - totalProductCost - totalTax - totalVariableExpensesValue;
+    totalProfit = totalSelling - totalFixedExpenses - totalProductAcquisitionCost - totalTax - totalVariableExpensesValue;
     profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
 
     // Ponto de Equilíbrio (usando a fórmula do prompt)
-    const totalVariableCostsForBEP = totalProductCost + totalVariableExpensesValue;
+    const totalVariableCostsForBEP = totalProductAcquisitionCost + totalVariableExpensesValue;
     const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
     
     let taxRatioForBEP = 0;
@@ -143,7 +154,10 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
             <>
               <strong>Alíquota Aplicada:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
             </>
-          )}
+          )}<br/>
+          <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
+          <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
+          <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}
         </p>
       </div>
 
@@ -154,12 +168,13 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
               <TableHead>Código</TableHead>
               <TableHead>Produto</TableHead>
               <TableHead>Unid. Com.</TableHead>
-              <TableHead className="text-right">Qtd. Com.</TableHead>
+              <TableHead className="text-right">Qtd. Estoque</TableHead> {/* Nova Coluna */}
               <TableHead className="text-right">Qtd. Int.</TableHead>
               <TableHead>CFOP</TableHead>
               <TableHead>CST</TableHead>
-              <TableHead className="text-right">Custo Com.</TableHead>
-              <TableHead className="text-right">Custo Int.</TableHead>
+              <TableHead className="text-right">Custo Aquisição (Unit)</TableHead> {/* Renomeado */}
+              <TableHead className="text-right">Custo Fixo Rateado (Unit)</TableHead> {/* Nova Coluna */}
+              <TableHead className="text-right">Custo Total Base (Unit)</TableHead> {/* Nova Coluna */}
               <TableHead className="text-right">Créd. CBS</TableHead>
               <TableHead className="text-right">Créd. IBS</TableHead>
               <TableHead className="text-right">Custo Efetivo Com.</TableHead>
@@ -182,6 +197,11 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
               <TableHead className="text-right">Venda Mín. Int.</TableHead>
               <TableHead className="text-right">Venda Sug. Com.</TableHead>
               <TableHead className="text-right">Venda Sug. Int.</TableHead>
+              <TableHead className="text-right">Valor p/ Impostos (R$)</TableHead> {/* Nova Coluna */}
+              <TableHead className="text-right">Valor p/ Desp. Variáveis (R$)</TableHead> {/* Nova Coluna */}
+              <TableHead className="text-right">Valor p/ Custo Fixo (R$)</TableHead> {/* Nova Coluna */}
+              <TableHead className="text-right">Valor p/ Lucro Líquido (R$)</TableHead> {/* Nova Coluna */}
+              <TableHead className="text-right">Margem Contribuição (Unit)</TableHead> {/* Nova Coluna */}
               <TableHead className="text-right">Margem %</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -199,7 +219,7 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="font-mono text-xs">{product.code}</TableCell>
                   <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
-                  <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell> {/* Qtd. Estoque */}
                   <TableCell className="text-right font-mono text-xs text-muted-foreground">{product.innerQuantity}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cfop}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cst}</TableCell>
@@ -207,7 +227,10 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                     {formatCurrency(product.cost)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                    {formatCurrency(product.costPerInnerUnit)}
+                    {formatCurrency(cfu)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm font-semibold">
+                    {formatCurrency(product.cost + cfu)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
                     {formatCurrency(product.cbsCredit)}
@@ -265,6 +288,21 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="text-right font-mono text-sm font-bold text-primary">
                     {formatCurrency(product.sellingPricePerInnerUnit)}
                   </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatCurrency(product.valueForTaxes)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatCurrency(product.valueForVariableExpenses)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatCurrency(product.valueForFixedCost)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm">
+                    {formatCurrency(product.valueForProfit)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm font-semibold">
+                    {formatCurrency(product.contributionMargin)}
+                  </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
                     {formatPercent(productProfitMargin)}
                   </TableCell>
@@ -283,8 +321,8 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Custo Total Produtos</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalProductCost)}</p>
+          <p className="text-sm text-muted-foreground mb-1">Custo Total Aquisição</p>
+          <p className="text-2xl font-bold">{formatCurrency(totalProductAcquisitionCost)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Valor de Venda Total</p>
