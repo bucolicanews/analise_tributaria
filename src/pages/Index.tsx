@@ -27,12 +27,12 @@ const Index = () => {
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-3">
-            <div className="rounded-lg bg-white/10 p-2 backdrop-blur">
-              <Calculator className="h-8 w-8 text-white" />
+            <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
+              <Calculator className="h-8 w-8 text-black" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white">SISPLE</h1>
-              <p className="text-sm text-white/80">
+              <h1 className="text-3xl font-bold text-black">SISPLE</h1>
+              <p className="text-sm text-black/70">
                 Sistema Inteligente de Precificação - Lei 214/2025
               </p>
             </div>

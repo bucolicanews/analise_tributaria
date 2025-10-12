@@ -62,10 +62,10 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
 
       <div
         onClick={() => fileInputRef.current?.click()}
-        className="cursor-pointer rounded-lg border-2 border-dashed border-border bg-muted/30 p-8 text-center transition-colors hover:border-primary hover:bg-muted/50"
+        className="cursor-pointer rounded-lg border-2 border-dashed border-primary/30 bg-muted/30 p-8 text-center transition-colors hover:border-primary hover:bg-muted/50"
       >
-        <Upload className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-sm font-medium mb-1">
+        <Upload className="mx-auto h-12 w-12 text-primary mb-4" />
+        <p className="text-sm font-medium mb-1 text-foreground">
           Clique para selecionar o arquivo XML
         </p>
         <p className="text-xs text-muted-foreground">

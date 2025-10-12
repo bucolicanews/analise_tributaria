@@ -195,7 +195,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         ))}
       </div>
 
-      <Button type="submit" className="w-full" disabled={disabled}>
+      <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled}>
         Gerar Relatório
       </Button>
     </form>
