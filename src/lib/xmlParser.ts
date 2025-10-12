@@ -26,6 +26,9 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const name = prod?.querySelector("xProd")?.textContent || "";
         const costStr = prod?.querySelector("vUnCom")?.textContent || "0";
         const cost = parseFloat(costStr);
+        const unit = prod?.querySelector("uCom")?.textContent || "UN"; // Extract commercial unit
+        const quantityStr = prod?.querySelector("qCom")?.textContent || "0";
+        const quantity = parseFloat(quantityStr); // Extract commercial quantity
         const cfop = prod?.querySelector("CFOP")?.textContent || "";
         
         // Tax info - PIS
@@ -54,6 +57,8 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
           code,
           name,
           cost,
+          unit,
+          quantity,
           pisCredit,
           cofinsCredit,
           icmsCredit,

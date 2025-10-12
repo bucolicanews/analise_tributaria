@@ -23,19 +23,21 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
     return `${value.toFixed(2)}%`;
   };
 
-  const totalVariableExpenses = params.variableExpenses.reduce(
+  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
   );
 
-  const markupDivisor = 1 - (totalVariableExpenses + params.simplesNacional + params.profitMargin) / 100;
+  const markupDivisor = 1 - (totalVariableExpensesPercentage + params.simplesNacional + params.profitMargin) / 100;
+  const minSellingDivisor = 1 - (totalVariableExpensesPercentage + params.simplesNacional) / 100;
+
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-4">Memória de Cálculo Detalhada</h3>
         <p className="text-sm text-muted-foreground mb-4">
-          Exemplo: {firstProduct.name} (Cód. {firstProduct.code})
+          Exemplo: {firstProduct.name} (Cód. {firstProduct.code}) - {firstProduct.quantity} {firstProduct.unit}
         </p>
       </div>
 
@@ -46,7 +48,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
             • Crédito CBS (PIS + COFINS): {formatCurrency(firstProduct.pisCredit)} + {formatCurrency(firstProduct.cofinsCredit)} = {formatCurrency(calculated.cbsCredit)}
           </p>
           <p className="ml-4">
-            • Crédito IBS (17,5% do custo): {formatCurrency(firstProduct.cost)} × 17,5% = {formatCurrency(calculated.ibsCredit)}
+            • Crédito IBS (ICMS do XML): {formatCurrency(firstProduct.icmsCredit)}
           </p>
           <p className="ml-4 mt-2 font-semibold">
             Total de Créditos: {formatCurrency(calculated.cbsCredit + calculated.ibsCredit)}
@@ -54,7 +56,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         </div>
 
         <div>
-          <p className="font-semibold mb-2">2. Custo Efetivo</p>
+          <p className="font-semibold mb-2">2. Custo Efetivo Unitário</p>
           <p className="ml-4">
             Custo de Compra - Créditos Totais
           </p>
@@ -64,12 +66,12 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         </div>
 
         <div>
-          <p className="font-semibold mb-2">3. Markup Divisor</p>
+          <p className="font-semibold mb-2">3. Markup Divisor (para Preço Sugerido)</p>
           <p className="ml-4">
             1 - (Despesas Variáveis% + Simples Nacional% + Lucro%)
           </p>
           <p className="ml-4">
-            1 - ({formatPercent(totalVariableExpenses)} + {formatPercent(params.simplesNacional)} + {formatPercent(params.profitMargin)})
+            1 - ({formatPercent(totalVariableExpensesPercentage)} + {formatPercent(params.simplesNacional)} + {formatPercent(params.profitMargin)})
           </p>
           <p className="ml-4 font-semibold">
             = {markupDivisor.toFixed(4)}
@@ -77,17 +79,33 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         </div>
 
         <div>
-          <p className="font-semibold mb-2">4. Preço de Venda Sugerido</p>
+          <p className="font-semibold mb-2">4. Preço de Venda Sugerido Unitário</p>
           <p className="ml-4">
             Custo Efetivo ÷ Markup Divisor
           </p>
           <p className="ml-4">
             {formatCurrency(calculated.effectiveCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(calculated.sellingPrice)}
           </p>
+          <p className="ml-4 mt-2 font-semibold">
+            Markup Aplicado: {formatPercent(calculated.markupPercentage)}
+          </p>
         </div>
 
         <div>
-          <p className="font-semibold mb-2">5. Débitos de Tributos (Venda)</p>
+          <p className="font-semibold mb-2">5. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Simples Nacional)</p>
+          <p className="ml-4">
+            Custo Efetivo ÷ (1 - (Despesas Variáveis% + Simples Nacional%))
+          </p>
+          <p className="ml-4">
+            {formatCurrency(calculated.effectiveCost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {formatPercent(params.simplesNacional)}))
+          </p>
+          <p className="ml-4 font-semibold text-yellow-500">
+            = {formatCurrency(calculated.minSellingPrice)}
+          </p>
+        </div>
+
+        <div>
+          <p className="font-semibold mb-2">6. Débitos de Tributos (Venda)</p>
           <p className="ml-4">
             • Débito CBS (8,8% do preço): {formatCurrency(calculated.sellingPrice)} × 8,8% = {formatCurrency(calculated.cbsDebit)}
           </p>
@@ -97,25 +115,25 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         </div>
 
         <div>
-          <p className="font-semibold mb-2">6. Imposto a Pagar (Líquido)</p>
+          <p className="font-semibold mb-2">7. Imposto a Pagar (Líquido)</p>
           <p className="ml-4">
-            (Débito CBS + Débito IBS) - (Crédito CBS + Crédito IBS)
+            • CBS a Pagar: Débito CBS - Crédito CBS = {formatCurrency(calculated.cbsDebit)} - {formatCurrency(calculated.cbsCredit)} = {formatCurrency(calculated.cbsTaxToPay)}
           </p>
           <p className="ml-4">
-            ({formatCurrency(calculated.cbsDebit)} + {formatCurrency(calculated.ibsDebit)}) - ({formatCurrency(calculated.cbsCredit)} + {formatCurrency(calculated.ibsCredit)})
+            • IBS a Pagar: Débito IBS - Crédito IBS = {formatCurrency(calculated.ibsDebit)} - {formatCurrency(calculated.ibsCredit)} = {formatCurrency(calculated.ibsTaxToPay)}
           </p>
           <p className="ml-4 font-semibold text-destructive">
-            = {formatCurrency(calculated.taxToPay)}
+            Total Imposto a Pagar: {formatCurrency(calculated.cbsTaxToPay + calculated.ibsTaxToPay)}
           </p>
         </div>
 
         <div className="border-t border-border pt-4 mt-4">
-          <p className="font-semibold mb-2">Resumo da Operação</p>
+          <p className="font-semibold mb-2">Resumo da Operação Unitária</p>
           <p className="ml-4">
             • Custo de Compra: {formatCurrency(firstProduct.cost)}
           </p>
           <p className="ml-4">
-            • Preço de Venda: {formatCurrency(calculated.sellingPrice)}
+            • Preço de Venda Sugerido: {formatCurrency(calculated.sellingPrice)}
           </p>
           <p className="ml-4">
             • Margem Bruta: {formatCurrency(calculated.sellingPrice - firstProduct.cost)}

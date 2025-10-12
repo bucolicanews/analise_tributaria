@@ -34,9 +34,9 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     }).format(value / 100);
   };
 
-  const totalCost = calculatedProducts.reduce((sum, p) => sum + p.cost, 0);
-  const totalSelling = calculatedProducts.reduce((sum, p) => sum + p.sellingPrice, 0);
-  const totalTax = calculatedProducts.reduce((sum, p) => sum + p.taxToPay, 0);
+  const totalCost = calculatedProducts.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  const totalSelling = calculatedProducts.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
+  const totalTax = calculatedProducts.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   
   // Calcular despesas variáveis totais
   const totalVariableExpensesPercent = params.variableExpenses.reduce(
@@ -61,29 +61,35 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
             <TableRow>
               <TableHead>Código</TableHead>
               <TableHead>Produto</TableHead>
+              <TableHead>Unid.</TableHead>
+              <TableHead className="text-right">Qtd.</TableHead>
               <TableHead>CFOP</TableHead>
               <TableHead>CST</TableHead>
-              <TableHead className="text-right">Custo</TableHead>
+              <TableHead className="text-right">Custo Un.</TableHead>
               <TableHead className="text-right">Créd. CBS</TableHead>
               <TableHead className="text-right">Créd. IBS</TableHead>
               <TableHead className="text-right">Custo Efetivo</TableHead>
               <TableHead className="text-right">Markup %</TableHead>
               <TableHead className="text-right">Déb. CBS</TableHead>
               <TableHead className="text-right">Déb. IBS</TableHead>
+              <TableHead className="text-right">CBS a Pagar</TableHead>
+              <TableHead className="text-right">IBS a Pagar</TableHead>
               <TableHead className="text-right">Imposto Líq.</TableHead>
+              <TableHead className="text-right">Venda Mín.</TableHead>
               <TableHead className="text-right">Venda Sug.</TableHead>
               <TableHead className="text-right">Margem %</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {calculatedProducts.map((product, index) => {
-              const markup = product.cost > 0 ? ((product.sellingPrice - product.effectiveCost) / product.effectiveCost) * 100 : 0;
               const profitMargin = product.sellingPrice > 0 ? ((product.sellingPrice - product.cost - product.taxToPay) / product.sellingPrice) * 100 : 0;
               
               return (
                 <TableRow key={index}>
                   <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                  <TableCell className="max-w-[200px] truncate">{product.name}</TableCell>
+                  <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
+                  <TableCell className="font-mono text-xs">{product.unit}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cfop}</TableCell>
                   <TableCell className="font-mono text-xs">{product.cst}</TableCell>
                   <TableCell className="text-right font-mono text-sm">
@@ -99,7 +105,7 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                     {formatCurrency(product.effectiveCost)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-accent">
-                    {formatPercent(markup)}
+                    {formatPercent(product.markupPercentage)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-destructive">
                     {formatCurrency(product.cbsDebit)}
@@ -107,8 +113,17 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="text-right font-mono text-sm text-destructive">
                     {formatCurrency(product.ibsDebit)}
                   </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-destructive">
+                    {formatCurrency(product.cbsTaxToPay)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-destructive">
+                    {formatCurrency(product.ibsTaxToPay)}
+                  </TableCell>
                   <TableCell className="text-right font-mono text-sm font-semibold">
                     {formatCurrency(product.taxToPay)}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-sm text-yellow-500">
+                    {formatCurrency(product.minSellingPrice)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm font-bold text-primary">
                     {formatCurrency(product.sellingPrice)}
