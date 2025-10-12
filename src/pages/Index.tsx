@@ -1,4 +1,4 @@
-import React, { useState } from "react"; // Adicionado 'React' aqui
+import React, { useState } from "react";
 import { Upload, FileText, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -6,7 +6,9 @@ import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
 import { ProductsTable } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
+import { ProductRetailInfo } from "@/components/ProductRetailInfo"; // Importar o novo componente
+import { Product, CalculationParams, TaxRegime, CalculatedProduct } from "@/types/pricing";
+import { calculatePricing } from "@/lib/pricing"; // Importar calculatePricing para calcular o primeiro produto
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -20,6 +22,16 @@ const Index = () => {
   const handleCalculate = (calculationParams: CalculationParams) => {
     setParams(calculationParams);
   };
+
+  // Calcular o CFU para o ProductRetailInfo
+  const totalFixedExpenses = params ? params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll : 0;
+  const cfu = params && params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
+
+  // Calcular o primeiro produto para exibir no ProductRetailInfo
+  const firstCalculatedProduct: CalculatedProduct | null = 
+    products.length > 0 && params 
+      ? calculatePricing(products[0], params, cfu) 
+      : null;
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -90,6 +102,11 @@ const Index = () => {
                     <ProductsTable products={products} params={params} />
                   </div>
                 </Card>
+
+                {/* Novo bloco de informações de varejo */}
+                {firstCalculatedProduct && (
+                  <ProductRetailInfo product={firstCalculatedProduct} />
+                )}
 
                 {showMemory && (
                   <Card className="shadow-card">
