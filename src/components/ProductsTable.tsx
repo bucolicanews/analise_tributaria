@@ -6,9 +6,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
+import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing"; // Import CBS_RATE and IBS_RATE
 import { toast } from "sonner"; // Import toast for error messages
+import { cn } from "@/lib/utils"; // Import cn for conditional classnames
 
 interface ProductsTableProps {
   products: Product[];
@@ -41,15 +42,24 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
   // Custo do Produto (total dos produtos)
   const totalProductCost = calculatedProducts.reduce((sum, p) => sum + p.cost * p.quantity, 0);
 
-  // Soma das alíquotas percentuais
+  // Soma das alíquotas percentuais para o cálculo global
   const totalVariableExpensesPercent = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
   );
-  const totalPercentageForGlobalCalc = (totalVariableExpensesPercent + params.simplesNacional + params.profitMargin) / 100;
+  
+  let totalPercentageForGlobalMarkup = 0;
+  if (params.taxRegime === TaxRegime.LucroPresumido) {
+    totalPercentageForGlobalMarkup =
+      (totalVariableExpensesPercent + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
+      CBS_RATE + IBS_RATE;
+  } else { // Simples Nacional
+    totalPercentageForGlobalMarkup =
+      (totalVariableExpensesPercent + params.simplesNacionalRate + params.profitMargin) / 100;
+  }
 
   // Markup Divisor Global
-  const globalMarkupDivisor = 1 - totalPercentageForGlobalCalc;
+  const globalMarkupDivisor = 1 - totalPercentageForGlobalMarkup;
 
   let totalSelling = 0;
   let totalTax = 0;
@@ -68,14 +78,32 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     totalSelling = (totalFixedExpenses + totalProductCost) / globalMarkupDivisor;
 
     // Calcular Impostos Líquidos (CBS e IBS a pagar)
-    const totalCbsDebit = totalSelling * CBS_RATE;
-    const totalIbsDebit = totalSelling * IBS_RATE;
+    let totalCbsDebit = 0;
+    let totalIbsDebit = 0;
+    let totalIrpjToPay = 0;
+    let totalCsllToPay = 0;
+    let totalSimplesToPay = 0;
+
+    if (params.taxRegime === TaxRegime.LucroPresumido) {
+      totalCbsDebit = totalSelling * CBS_RATE;
+      totalIbsDebit = totalSelling * IBS_RATE;
+      totalIrpjToPay = totalSelling * (params.irpjRate / 100);
+      totalCsllToPay = totalSelling * (params.csllRate / 100);
+    } else { // Simples Nacional
+      totalSimplesToPay = totalSelling * (params.simplesNacionalRate / 100);
+    }
+
     const totalCbsCredit = calculatedProducts.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
     const totalIbsCredit = calculatedProducts.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
     
     const totalCbsTaxToPay = totalCbsDebit - totalCbsCredit;
     const totalIbsTaxToPay = totalIbsDebit - totalIbsCredit;
-    totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay); // Garante que não seja negativo
+    
+    if (params.taxRegime === TaxRegime.LucroPresumido) {
+      totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay + totalIrpjToPay + totalCsllToPay);
+    } else { // Simples Nacional
+      totalTax = Math.max(0, totalSimplesToPay);
+    }
 
     // Calcular Despesas Variáveis em valor (baseado no totalSelling)
     const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
@@ -85,16 +113,39 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
 
     // Ponto de Equilíbrio (usando a fórmula do prompt)
-    // Custo Variável Total para BEP = Custo do Produto Total + Despesas Variáveis em Valor
     const totalVariableCostsForBEP = totalProductCost + totalVariableExpensesValue;
     const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
-    const simplesNacionalRatioForBEP = params.simplesNacional / 100;
-    const denominatorBEP = 1 - (variableCostRatioForBEP + simplesNacionalRatioForBEP);
+    
+    let taxRatioForBEP = 0;
+    if (params.taxRegime === TaxRegime.LucroPresumido) {
+      taxRatioForBEP = CBS_RATE + IBS_RATE;
+    } else { // Simples Nacional
+      taxRatioForBEP = params.simplesNacionalRate / 100;
+    }
+
+    const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
     breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
   }
 
   return (
     <div className="space-y-6">
+      <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
+        <h2 className="text-lg font-semibold mb-2">Parâmetros da Simulação</h2>
+        <p className="text-sm text-muted-foreground">
+          <strong>Regime Tributário:</strong> {params.taxRegime}<br/>
+          <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
+          {params.taxRegime === TaxRegime.LucroPresumido ? (
+            <>
+              <strong>Alíquotas Aplicadas:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)})
+            </>
+          ) : (
+            <>
+              <strong>Alíquota Aplicada:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
+            </>
+          )}
+        </p>
+      </div>
+
       <div className="overflow-x-auto rounded-lg border border-border">
         <Table>
           <TableHeader>
@@ -113,16 +164,25 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
               <TableHead className="text-right">Custo Efetivo Com.</TableHead>
               <TableHead className="text-right">Custo Efetivo Int.</TableHead>
               <TableHead className="text-right">Markup %</TableHead>
-              <TableHead className="text-right">Déb. CBS</TableHead>
-              <TableHead className="text-right">Déb. IBS</TableHead>
-              <TableHead className="text-right">CBS a Pagar</TableHead>
-              <TableHead className="text-right">IBS a Pagar</TableHead>
+              {params.taxRegime === TaxRegime.LucroPresumido ? (
+                <>
+                  <TableHead className="text-right">Déb. CBS</TableHead>
+                  <TableHead className="text-right">Déb. IBS</TableHead>
+                  <TableHead className="text-right">CBS a Pagar</TableHead>
+                  <TableHead className="text-right">IBS a Pagar</TableHead>
+                  <TableHead className="text-right">IRPJ a Pagar</TableHead>
+                  <TableHead className="text-right">CSLL a Pagar</TableHead>
+                </>
+              ) : (
+                <TableHead className="text-right">Simples a Pagar</TableHead>
+              )}
               <TableHead className="text-right">Imposto Líq.</TableHead>
               <TableHead className="text-right">Venda Mín. Com.</TableHead>
               <TableHead className="text-right">Venda Mín. Int.</TableHead>
               <TableHead className="text-right">Venda Sug. Com.</TableHead>
               <TableHead className="text-right">Venda Sug. Int.</TableHead>
               <TableHead className="text-right">Margem %</TableHead>
+              <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -132,7 +192,9 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
               const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
               
               return (
-                <TableRow key={index}>
+                <TableRow key={index} className={cn(
+                  product.status === "PREÇO CORRIGIDO" ? "bg-yellow-900/20" : ""
+                )}>
                   <TableCell className="font-mono text-xs">{product.code}</TableCell>
                   <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
@@ -161,18 +223,32 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   <TableCell className="text-right font-mono text-sm text-accent">
                     {formatPercent(product.markupPercentage)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-destructive">
-                    {formatCurrency(product.cbsDebit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-destructive">
-                    {formatCurrency(product.ibsDebit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-destructive">
-                    {formatCurrency(product.cbsTaxToPay)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-destructive">
-                    {formatCurrency(product.ibsTaxToPay)}
-                  </TableCell>
+                  {params.taxRegime === TaxRegime.LucroPresumido ? (
+                    <>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.cbsDebit)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.ibsDebit)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.cbsTaxToPay)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.ibsTaxToPay)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.irpjToPay)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm text-destructive">
+                        {formatCurrency(product.csllToPay)}
+                      </TableCell>
+                    </>
+                  ) : (
+                    <TableCell className="text-right font-mono text-sm text-destructive">
+                      {formatCurrency(product.simplesToPay)}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right font-mono text-sm font-semibold">
                     {formatCurrency(product.taxToPay)}
                   </TableCell>
@@ -190,6 +266,12 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
                     {formatPercent(productProfitMargin)}
+                  </TableCell>
+                  <TableCell className={cn(
+                    "font-semibold",
+                    product.status === "PREÇO CORRIGIDO" ? "text-yellow-500" : "text-success"
+                  )}>
+                    {product.status}
                   </TableCell>
                 </TableRow>
               );

@@ -6,7 +6,7 @@ import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
 import { ProductsTable } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-import { Product, CalculationParams } from "@/types/pricing";
+import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);

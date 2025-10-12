@@ -3,8 +3,9 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalculationParams, FixedExpense, VariableExpense } from "@/types/pricing";
+import { CalculationParams, FixedExpense, VariableExpense, TaxRegime } from "@/types/pricing";
 import { toast } from "sonner";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
@@ -12,8 +13,11 @@ interface ParametersFormProps {
 }
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
-  const [profitMargin, setProfitMargin] = useState<string>("30");
-  const [simplesNacional, setSimplesNacional] = useState<string>("6");
+  const [profitMargin, setProfitMargin] = useState<string>("9.5"); // Default from prompt
+  const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido); // Default from prompt
+  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10"); // Default from prompt
+  const [irpjRate, setIrpjRate] = useState<string>("1.2"); // Default from prompt
+  const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
   const [payroll, setPayroll] = useState<string>("10000");
   
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
@@ -55,9 +59,23 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !simplesNacional || !payroll) {
+    if (!profitMargin || !payroll) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais.",
+      });
+      return;
+    }
+
+    if (taxRegime === TaxRegime.SimplesNacional && !simplesNacionalRate) {
+      toast.error("Campo obrigatório", {
+        description: "Preencha a alíquota do Simples Nacional.",
+      });
+      return;
+    }
+
+    if (taxRegime === TaxRegime.LucroPresumido && (!irpjRate || !csllRate)) {
+      toast.error("Campos obrigatórios", {
+        description: "Preencha as alíquotas de IRPJ e CSLL.",
       });
       return;
     }
@@ -66,8 +84,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       profitMargin: parseFloat(profitMargin),
       fixedExpenses,
       variableExpenses,
-      simplesNacional: parseFloat(simplesNacional),
       payroll: parseFloat(payroll),
+      taxRegime,
+      simplesNacionalRate: parseFloat(simplesNacionalRate),
+      irpjRate: parseFloat(irpjRate),
+      csllRate: parseFloat(csllRate),
     });
 
     toast.success("Cálculos realizados com sucesso!");
@@ -76,7 +97,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <Label htmlFor="profit">Margem de Lucro (%)</Label>
+        <Label htmlFor="profit">Margem de Lucro Líquida Alvo (%)</Label>
         <Input
           id="profit"
           type="number"
@@ -88,16 +109,58 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="simples">Simples Nacional (%)</Label>
-        <Input
-          id="simples"
-          type="number"
-          step="0.01"
-          value={simplesNacional}
-          onChange={(e) => setSimplesNacional(e.target.value)}
-          disabled={disabled}
-        />
+        <Label htmlFor="taxRegime">Regime Tributário</Label>
+        <Select onValueChange={(value: TaxRegime) => setTaxRegime(value)} value={taxRegime} disabled={disabled}>
+          <SelectTrigger id="taxRegime">
+            <SelectValue placeholder="Selecione o regime" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={TaxRegime.SimplesNacional}>Simples Nacional</SelectItem>
+            <SelectItem value={TaxRegime.LucroPresumido}>Lucro Presumido</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
+
+      {taxRegime === TaxRegime.SimplesNacional && (
+        <div className="space-y-2">
+          <Label htmlFor="simples">Alíquota Simples Nacional (%)</Label>
+          <Input
+            id="simples"
+            type="number"
+            step="0.01"
+            value={simplesNacionalRate}
+            onChange={(e) => setSimplesNacionalRate(e.target.value)}
+            disabled={disabled}
+          />
+        </div>
+      )}
+
+      {taxRegime === TaxRegime.LucroPresumido && (
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="irpj">Alíquota IRPJ (%)</Label>
+            <Input
+              id="irpj"
+              type="number"
+              step="0.01"
+              value={irpjRate}
+              onChange={(e) => setIrpjRate(e.target.value)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="csll">Alíquota CSLL (%)</Label>
+            <Input
+              id="csll"
+              type="number"
+              step="0.01"
+              value={csllRate}
+              onChange={(e) => setCsllRate(e.target.value)}
+              disabled={disabled}
+            />
+          </div>
+        </>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="payroll">Folha de Pagamento (R$)</Label>

@@ -1,3 +1,8 @@
+export enum TaxRegime {
+  SimplesNacional = "Simples Nacional",
+  LucroPresumido = "Lucro Presumido",
+}
+
 export interface Product {
   code: string;
   name: string;
@@ -26,8 +31,13 @@ export interface CalculationParams {
   profitMargin: number;
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
-  simplesNacional: number;
   payroll: number;
+  
+  // Novos campos para regimes tributários
+  taxRegime: TaxRegime;
+  simplesNacionalRate: number; // Alíquota total do Simples Nacional
+  irpjRate: number; // Alíquota IRPJ para Lucro Presumido
+  csllRate: number; // Alíquota CSLL para Lucro Presumido
 }
 
 export interface CalculatedProduct extends Product {
@@ -39,9 +49,12 @@ export interface CalculatedProduct extends Product {
   ibsCredit: number;
   cbsDebit: number;
   ibsDebit: number;
-  taxToPay: number;
-  cbsTaxToPay: number;
-  ibsTaxToPay: number;
+  taxToPay: number; // Total tax to pay
+  cbsTaxToPay: number; // CBS a pagar (débito - crédito)
+  ibsTaxToPay: number; // IBS a pagar (débito - crédito)
+  irpjToPay: number; // Novo: IRPJ a pagar
+  csllToPay: number; // Novo: CSLL a pagar
+  simplesToPay: number; // Novo: Simples Nacional a pagar
   markupPercentage: number;
 
   // Novos campos: Valores por Unidade Interna
@@ -56,7 +69,11 @@ export interface CalculatedProduct extends Product {
   taxToPayPerInnerUnit: number;
   cbsTaxToPayPerInnerUnit: number;
   ibsTaxToPayPerInnerUnit: number;
+  irpjToPayPerInnerUnit: number;
+  csllToPayPerInnerUnit: number;
+  simplesToPayPerInnerUnit: number;
 
   cfop: string;
   cst: string;
+  status: "OK" | "PREÇO CORRIGIDO"; // Novo: Status do produto
 }

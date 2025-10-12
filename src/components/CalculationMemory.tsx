@@ -1,5 +1,5 @@
-import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
-import { calculatePricing } from "@/lib/pricing";
+import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
+import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing";
 
 interface CalculationMemoryProps {
   products: Product[];
@@ -28,8 +28,17 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
     0
   );
 
-  const markupDivisor = 1 - (totalVariableExpensesPercentage + params.simplesNacional + params.profitMargin) / 100;
-  // const minSellingDivisor = 1 - (totalVariableExpensesPercentage + params.simplesNacional) / 100; // Not directly used here, but kept for context
+  let totalPercentageForMarkup = 0;
+  if (params.taxRegime === TaxRegime.LucroPresumido) {
+    totalPercentageForMarkup =
+      (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
+      CBS_RATE + IBS_RATE;
+  } else { // Simples Nacional
+    totalPercentageForMarkup =
+      (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
+  }
+
+  const markupDivisor = 1 - totalPercentageForMarkup;
 
   return (
     <div className="space-y-6">
@@ -38,13 +47,29 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         <p className="text-sm text-muted-foreground mb-4">
           Exemplo: {firstProduct.name} (Cód. {firstProduct.code}) - {firstProduct.quantity} {firstProduct.unit} ({firstProduct.innerQuantity} unidades internas)
         </p>
+        <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-4">
+          <h4 className="text-md font-semibold mb-2">Parâmetros Aplicados</h4>
+          <p className="text-xs text-muted-foreground">
+            <strong>Regime Tributário:</strong> {params.taxRegime}<br/>
+            <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
+            {params.taxRegime === TaxRegime.LucroPresumido ? (
+              <>
+                <strong>Alíquotas:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)})
+              </>
+            ) : (
+              <>
+                <strong>Alíquota:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
+              </>
+            )}
+          </p>
+        </div>
       </div>
 
       {markupDivisor <= 0 ? (
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
           <p className="font-semibold mb-2">⚠️ Cálculo Inviável para este Produto</p>
           <p>
-            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), Simples Nacional ({formatPercent(params.simplesNacional)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%.
+            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(CBS_RATE * 100)}), IBS (${formatPercent(IBS_RATE * 100)})`} e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%.
             Isso torna a precificação inviável para este produto com os parâmetros atuais. Ajuste os valores para obter um resultado válido.
           </p>
         </div>
@@ -82,10 +107,10 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           <div>
             <p className="font-semibold mb-2">3. Markup Divisor (para Preço Sugerido)</p>
             <p className="ml-4">
-              1 - (Despesas Variáveis% + Simples Nacional% + Lucro%)
+              1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `IRPJ% + CSLL% + CBS% + IBS%`} + Lucro%)
             </p>
             <p className="ml-4">
-              1 - ({formatPercent(totalVariableExpensesPercentage)} + {formatPercent(params.simplesNacional)} + {formatPercent(params.profitMargin)})
+              1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(params.irpjRate)} + ${formatPercent(params.csllRate)} + ${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`} + {formatPercent(params.profitMargin)})
             </p>
             <p className="ml-4 font-semibold">
               = {markupDivisor.toFixed(4)}
@@ -109,12 +134,12 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">5. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Simples Nacional)</p>
+            <p className="font-semibold mb-2">5. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
             <p className="ml-4">
-              Custo Efetivo por Unid. Com. ÷ (1 - (Despesas Variáveis% + Simples Nacional%))
+              Custo Efetivo por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
             </p>
             <p className="ml-4">
-              {formatCurrency(calculated.effectiveCost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {formatPercent(params.simplesNacional)}))
+              {formatCurrency(calculated.effectiveCost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
             </p>
             <p className="ml-4 font-semibold text-yellow-500">
               = {formatCurrency(calculated.minSellingPrice)} (por Unid. Com.)
@@ -126,34 +151,72 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
           <div>
             <p className="font-semibold mb-2">6. Débitos de Tributos (Venda)</p>
-            <p className="ml-4">
-              • Débito CBS (8,8% do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × 8,8% = {formatCurrency(calculated.cbsDebit)}
-            </p>
-            <p className="ml-4">
-              • Débito IBS (17,7% do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × 17,7% = {formatCurrency(calculated.ibsDebit)}
-            </p>
-            <p className="ml-4 text-muted-foreground">
-              Débito CBS por Unid. Interna: {formatCurrency(calculated.cbsDebitPerInnerUnit)}
-            </p>
-            <p className="ml-4 text-muted-foreground">
-              Débito IBS por Unid. Interna: {formatCurrency(calculated.ibsDebitPerInnerUnit)}
-            </p>
+            {params.taxRegime === TaxRegime.LucroPresumido ? (
+              <>
+                <p className="ml-4">
+                  • Débito CBS ({formatPercent(CBS_RATE * 100)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(CBS_RATE * 100)} = {formatCurrency(calculated.cbsDebit)}
+                </p>
+                <p className="ml-4">
+                  • Débito IBS ({formatPercent(IBS_RATE * 100)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(IBS_RATE * 100)} = {formatCurrency(calculated.ibsDebit)}
+                </p>
+                <p className="ml-4">
+                  • IRPJ ({formatPercent(params.irpjRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.irpjRate)} = {formatCurrency(calculated.irpjToPay)}
+                </p>
+                <p className="ml-4">
+                  • CSLL ({formatPercent(params.csllRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.csllRate)} = {formatCurrency(calculated.csllToPay)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  Débito CBS por Unid. Interna: {formatCurrency(calculated.cbsDebitPerInnerUnit)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  Débito IBS por Unid. Interna: {formatCurrency(calculated.ibsDebitPerInnerUnit)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  IRPJ por Unid. Interna: {formatCurrency(calculated.irpjToPayPerInnerUnit)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  CSLL por Unid. Interna: {formatCurrency(calculated.csllToPayPerInnerUnit)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="ml-4">
+                  • Simples Nacional ({formatPercent(params.simplesNacionalRate)} do preço) por Unid. Com.: {formatCurrency(calculated.sellingPrice)} × {formatPercent(params.simplesNacionalRate)} = {formatCurrency(calculated.simplesToPay)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  Simples Nacional por Unid. Interna: {formatCurrency(calculated.simplesToPayPerInnerUnit)}
+                </p>
+              </>
+            )}
           </div>
 
           <div>
             <p className="font-semibold mb-2">7. Imposto a Pagar (Líquido)</p>
-            <p className="ml-4">
-              • CBS a Pagar por Unid. Com.: Débito CBS - Crédito CBS = {formatCurrency(calculated.cbsDebit)} - {formatCurrency(calculated.cbsCredit)} = {formatCurrency(calculated.cbsTaxToPay)}
-            </p>
-            <p className="ml-4">
-              • IBS a Pagar por Unid. Com.: Débito IBS - Crédito IBS = {formatCurrency(calculated.ibsDebit)} - {formatCurrency(calculated.ibsCredit)} = {formatCurrency(calculated.ibsTaxToPay)}
-            </p>
-            <p className="ml-4 font-semibold text-destructive">
-              Total Imposto a Pagar por Unid. Com.: {formatCurrency(calculated.cbsTaxToPay + calculated.ibsTaxToPay)}
-            </p>
-            <p className="ml-4 text-muted-foreground">
-              Total Imposto a Pagar por Unid. Interna: {formatCurrency(calculated.cbsTaxToPayPerInnerUnit + calculated.ibsTaxToPayPerInnerUnit)}
-            </p>
+            {params.taxRegime === TaxRegime.LucroPresumido ? (
+              <>
+                <p className="ml-4">
+                  • CBS a Pagar por Unid. Com.: Débito CBS - Crédito CBS = {formatCurrency(calculated.cbsDebit)} - {formatCurrency(calculated.cbsCredit)} = {formatCurrency(calculated.cbsTaxToPay)}
+                </p>
+                <p className="ml-4">
+                  • IBS a Pagar por Unid. Com.: Débito IBS - Crédito IBS = {formatCurrency(calculated.ibsDebit)} - {formatCurrency(calculated.ibsCredit)} = {formatCurrency(calculated.ibsTaxToPay)}
+                </p>
+                <p className="ml-4 font-semibold text-destructive">
+                  Total Imposto a Pagar por Unid. Com.: {formatCurrency(calculated.cbsTaxToPay + calculated.ibsTaxToPay + calculated.irpjToPay + calculated.csllToPay)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  Total Imposto a Pagar por Unid. Interna: {formatCurrency(calculated.cbsTaxToPayPerInnerUnit + calculated.ibsTaxToPayPerInnerUnit + calculated.irpjToPayPerInnerUnit + calculated.csllToPayPerInnerUnit)}
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="ml-4 font-semibold text-destructive">
+                  Total Imposto a Pagar por Unid. Com.: {formatCurrency(calculated.simplesToPay)}
+                </p>
+                <p className="ml-4 text-muted-foreground">
+                  Total Imposto a Pagar por Unid. Interna: {formatCurrency(calculated.simplesToPayPerInnerUnit)}
+                </p>
+              </>
+            )}
           </div>
 
           <div className="border-t border-border pt-4 mt-4">
