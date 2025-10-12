@@ -37,7 +37,9 @@ export interface CalculationParams {
   
   // Novos campos para regimes tributários
   taxRegime: TaxRegime;
-  simplesNacionalRate: number; // Alíquota total do Simples Nacional
+  simplesNacionalRate: number; // Alíquota total do Simples Nacional (cheia)
+  simplesNacionalRemanescenteRate: number; // Novo: Alíquota do Simples Nacional Remanescente (IRPJ, CSLL, CPP)
+  generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
   irpjRate: number; // Alíquota IRPJ para Lucro Presumido
   csllRate: number; // Alíquota CSLL para Lucro Presumido
 }
@@ -65,6 +67,7 @@ export interface CalculatedProduct extends Product {
   valueForFixedCost: number;
   valueForProfit: number;
   contributionMargin: number; // Margem de Contribuição por Unidade Comercial
+  ivaCreditForClient: number; // Novo: Crédito de IVA gerado para o cliente (se aplicável)
 
   // Novos campos: Valores por Unidade Interna
   costPerInnerUnit: number;

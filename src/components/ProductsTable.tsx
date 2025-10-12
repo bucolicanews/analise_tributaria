@@ -1,3 +1,4 @@
+import React from 'react'; // Import React for React.FC type
 import {
   Table,
   TableBody,
@@ -7,16 +8,35 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
-import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing"; // Import CBS_RATE and IBS_RATE
-import { toast } from "sonner"; // Import toast for error messages
-import { cn } from "@/lib/utils"; // Import cn for conditional classnames
+import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 interface ProductsTableProps {
   products: Product[];
   params: CalculationParams;
 }
 
-export const ProductsTable = ({ products, params }: ProductsTableProps) => {
+// Define a type for the summary data to ensure consistency
+interface GlobalSummaryData {
+  totalSelling: number;
+  totalTax: number;
+  totalProfit: number;
+  profitMarginPercent: number;
+  breakEvenPoint: number;
+  totalVariableExpensesValue: number;
+  totalContributionMargin: number;
+  totalTaxPercent: number;
+  totalCbsCredit: number;
+  totalIbsCredit: number;
+  totalCbsDebit: number;
+  totalIbsDebit: number;
+  totalCbsTaxToPay: number;
+  totalIbsTaxToPay: number;
+  totalIvaCreditForClient: number;
+}
+
+export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }) => {
   // 1. Consolidar Custos Fixos Totais (CFT)
   const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
 
@@ -30,10 +50,6 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
       duration: 5000,
     });
   }
-
-  const calculatedProducts: CalculatedProduct[] = products.map((product) =>
-    calculatePricing(product, params, cfu) // Passar CFU
-  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -50,131 +66,213 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     }).format(value / 100);
   };
 
-  // Soma das alíquotas percentuais para o cálculo global
+  // --- Cálculo dos Produtos para os Cenários ---
+  let calculatedProductsStandard: CalculatedProduct[] = [];
+  let calculatedProductsHybrid: CalculatedProduct[] = [];
+  let calculatedProductsPresumido: CalculatedProduct[] = [];
+
+  if (params.taxRegime === TaxRegime.SimplesNacional) {
+    calculatedProductsStandard = products.map((product) =>
+      calculatePricing(product, { ...params, generateIvaCredit: false }, cfu)
+    );
+    calculatedProductsHybrid = products.map((product) =>
+      calculatePricing(product, { ...params, generateIvaCredit: true }, cfu)
+    );
+  } else { // Lucro Presumido
+    calculatedProductsPresumido = products.map((product) =>
+      calculatePricing(product, params, cfu)
+    );
+  }
+
+  // --- Cálculos para o Resumo Global ---
   const totalVariableExpensesPercent = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
   );
-  
-  let totalPercentageForGlobalMarkup = 0;
-  if (params.taxRegime === TaxRegime.LucroPresumido) {
-    totalPercentageForGlobalMarkup =
-      (totalVariableExpensesPercent + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
-      CBS_RATE + IBS_RATE;
-  } else { // Simples Nacional
-    totalPercentageForGlobalMarkup =
-      (totalVariableExpensesPercent + params.simplesNacionalRate + params.profitMargin) / 100;
-  }
 
-  // Markup Divisor Global
-  const globalMarkupDivisor = 1 - totalPercentageForGlobalMarkup;
-
-  let totalSelling = 0;
-  let totalTax = 0;
-  let totalProfit = 0;
-  let profitMarginPercent = 0;
-  let breakEvenPoint = 0;
-
-  // Custo Total dos Produtos (apenas custo de aquisição)
   let totalProductAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
-
-  // Ajustar o custo total de aquisição globalmente pela porcentagem de perdas
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
     totalProductAcquisitionCost = totalProductAcquisitionCost / (1 - params.lossPercentage / 100);
   } else if (params.lossPercentage >= 100) {
-    totalProductAcquisitionCost = Infinity; // Torna o cálculo inviável
+    totalProductAcquisitionCost = Infinity;
   }
 
+  // Helper function to calculate global summary for a given set of products and parameters
+  const calculateGlobalSummary = (productsToSummarize: CalculatedProduct[], currentParams: CalculationParams): GlobalSummaryData => {
+    let globalMarkupDivisor = 0;
+    let currentTotalSelling = 0;
+    let currentTotalTax = 0;
+    let currentTotalProfit = 0;
+    let currentProfitMarginPercent = 0;
+    let currentBreakEvenPoint = 0;
+    let currentTotalVariableExpensesValue = 0;
+    let currentTotalContributionMargin = 0;
+    let currentTotalTaxPercent = 0;
 
-  if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
-    toast.error("Cálculo Global Inviável", {
-      description: "A soma das despesas percentuais e margem de lucro é igual ou superior a 100%, ou a porcentagem de perdas é inviável. Ajuste os parâmetros para um cálculo global válido.",
-      duration: 5000,
-    });
-    // Os valores de resumo permanecerão 0 como inicializados
-  } else {
-    // 4. Calcular o Preço de Venda Total (Método de Markup Divisor)
-    // A base para o cálculo global agora inclui o custo total de aquisição dos produtos e as despesas fixas totais
-    totalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
-
-    // Calcular Impostos Líquidos (CBS e IBS a pagar)
-    let totalCbsDebit = 0;
-    let totalIbsDebit = 0;
-    let totalIrpjToPay = 0;
-    let totalCsllToPay = 0;
-    let totalSimplesToPay = 0;
-
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
-      totalCbsDebit = totalSelling * CBS_RATE;
-      totalIbsDebit = totalSelling * IBS_RATE;
-      totalIrpjToPay = totalSelling * (params.irpjRate / 100);
-      totalCsllToPay = totalSelling * (params.csllRate / 100);
+    let currentTotalPercentageForGlobalMarkup = 0;
+    if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+      currentTotalPercentageForGlobalMarkup =
+        (totalVariableExpensesPercent + currentParams.irpjRate + currentParams.csllRate + currentParams.profitMargin) / 100 +
+        CBS_RATE + IBS_RATE;
     } else { // Simples Nacional
-      totalSimplesToPay = totalSelling * (params.simplesNacionalRate / 100);
+      if (currentParams.generateIvaCredit) {
+        currentTotalPercentageForGlobalMarkup =
+          (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + currentParams.profitMargin) / 100 +
+          CBS_RATE + IBS_RATE;
+      } else {
+        currentTotalPercentageForGlobalMarkup =
+          (totalVariableExpensesPercent + currentParams.simplesNacionalRate + currentParams.profitMargin) / 100;
+      }
     }
+    globalMarkupDivisor = 1 - currentTotalPercentageForGlobalMarkup;
 
-    const totalCbsCredit = calculatedProducts.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-    const totalIbsCredit = calculatedProducts.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+    // Default summary data for invalid calculations
+    const defaultSummary: GlobalSummaryData = {
+      totalSelling: 0,
+      totalTax: 0,
+      totalProfit: 0,
+      profitMarginPercent: 0,
+      breakEvenPoint: 0,
+      totalVariableExpensesValue: 0,
+      totalContributionMargin: 0,
+      totalTaxPercent: 0,
+      totalCbsCredit: 0,
+      totalIbsCredit: 0,
+      totalCbsDebit: 0,
+      totalIbsDebit: 0,
+      totalCbsTaxToPay: 0,
+      totalIbsTaxToPay: 0,
+      totalIvaCreditForClient: 0,
+    };
+
+    if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
+      // No toast here, as it's handled by the main component for the primary scenario
+      return defaultSummary;
+    } else {
+      currentTotalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
+
+      let currentTotalCbsDebit = 0;
+      let currentTotalIbsDebit = 0;
+      let currentTotalIrpjToPay = 0;
+      let currentTotalCsllToPay = 0;
+      let currentTotalSimplesToPay = 0;
+
+      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+        currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
+        currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
+        currentTotalIrpjToPay = currentTotalSelling * (currentParams.irpjRate / 100);
+        currentTotalCsllToPay = currentTotalSelling * (currentParams.csllRate / 100);
+      } else { // Simples Nacional
+        if (currentParams.generateIvaCredit) {
+          currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRemanescenteRate / 100);
+          currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
+          currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
+        } else {
+          currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRate / 100);
+        }
+      }
+
+      const currentTotalCbsCredit = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+      const currentTotalIbsCredit = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+      
+      const currentTotalCbsTaxToPay = currentTotalCbsDebit - currentTotalCbsCredit;
+      const currentTotalIbsTaxToPay = currentTotalIbsDebit - currentTotalIbsCredit;
+      
+      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+        currentTotalTax = Math.max(0, currentTotalCbsTaxToPay + currentTotalIbsTaxToPay + currentTotalIrpjToPay + currentTotalCsllToPay);
+      } else { // Simples Nacional
+        if (currentParams.generateIvaCredit) {
+          currentTotalTax = Math.max(0, currentTotalSimplesToPay + currentTotalCbsTaxToPay + currentTotalIbsTaxToPay);
+        } else {
+          currentTotalTax = Math.max(0, currentTotalSimplesToPay);
+        }
+      }
+
+      currentTotalVariableExpensesValue = currentTotalSelling * (totalVariableExpensesPercent / 100);
+      currentTotalProfit = currentTotalSelling - totalFixedExpenses - totalProductAcquisitionCost - currentTotalTax - currentTotalVariableExpensesValue;
+      currentProfitMarginPercent = currentTotalSelling > 0 ? (currentTotalProfit / currentTotalSelling) * 100 : 0;
+
+      const totalVariableCostsForBEP = totalProductAcquisitionCost + currentTotalVariableExpensesValue;
+      const variableCostRatioForBEP = currentTotalSelling > 0 ? totalVariableCostsForBEP / currentTotalSelling : 0;
+      
+      let taxRatioForBEP = 0;
+      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+        taxRatioForBEP = CBS_RATE + IBS_RATE;
+      } else { // Simples Nacional
+        if (currentParams.generateIvaCredit) {
+          taxRatioForBEP = (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
+        } else {
+          taxRatioForBEP = currentParams.simplesNacionalRate / 100;
+        }
+      }
+
+      const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
+      currentBreakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
+
+      currentTotalContributionMargin = currentTotalSelling - totalProductAcquisitionCost - currentTotalVariableExpensesValue;
+      currentTotalTaxPercent = currentTotalSelling > 0 ? (currentTotalTax / currentTotalSelling) * 100 : 0;
+
+      return {
+        totalSelling: currentTotalSelling,
+        totalTax: currentTotalTax,
+        totalProfit: currentTotalProfit,
+        profitMarginPercent: currentProfitMarginPercent,
+        breakEvenPoint: currentBreakEvenPoint,
+        totalVariableExpensesValue: currentTotalVariableExpensesValue,
+        totalContributionMargin: currentTotalContributionMargin,
+        totalTaxPercent: currentTotalTaxPercent,
+        totalCbsCredit: currentTotalCbsCredit,
+        totalIbsCredit: currentTotalIbsCredit,
+        totalCbsDebit: currentTotalCbsDebit,
+        totalIbsDebit: currentTotalIbsDebit,
+        totalCbsTaxToPay: currentTotalCbsTaxToPay,
+        totalIbsTaxToPay: currentTotalIbsTaxToPay,
+        totalIvaCreditForClient: productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0),
+      };
+  };
+
+  // Determine which summary to display
+  let summaryData: GlobalSummaryData;
+  let totalOptionCost = 0;
+
+  if (params.taxRegime === TaxRegime.SimplesNacional) {
+    const summaryStandard = calculateGlobalSummary(calculatedProductsStandard, { ...params, generateIvaCredit: false });
+    const summaryHybrid = calculateGlobalSummary(calculatedProductsHybrid, { ...params, generateIvaCredit: true });
     
-    const totalCbsTaxToPay = totalCbsDebit - totalCbsCredit;
-    const totalIbsTaxToPay = totalIbsDebit - totalIbsCredit;
+    // Decide which summary to use for display based on current params.generateIvaCredit
+    summaryData = params.generateIvaCredit ? summaryHybrid : summaryStandard;
     
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
-      totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay + totalIrpjToPay + totalCsllToPay);
-    } else { // Simples Nacional
-      totalTax = Math.max(0, totalSimplesToPay);
+    // Calculate totalOptionCost only if both scenarios are valid
+    if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) { // Check if at least one scenario produced a non-zero tax
+      totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     }
-
-    // Calcular Despesas Variáveis em valor (baseado no totalSelling)
-    const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
-
-    // Calcular Lucro Líquido
-    totalProfit = totalSelling - totalFixedExpenses - totalProductAcquisitionCost - totalTax - totalVariableExpensesValue;
-    profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
-
-    // Ponto de Equilíbrio (usando a fórmula do prompt)
-    const totalVariableCostsForBEP = totalProductAcquisitionCost + totalVariableExpensesValue;
-    const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
-    
-    let taxRatioForBEP = 0;
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
-      taxRatioForBEP = CBS_RATE + IBS_RATE;
-    } else { // Simples Nacional
-      taxRatioForBEP = params.simplesNacionalRate / 100;
-    }
-
-    const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
-    breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
+  } else { // Lucro Presumido
+    summaryData = calculateGlobalSummary(calculatedProductsPresumido, params);
   }
-
-  // Novas métricas para o resumo
-  const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
-  const totalContributionMargin = totalSelling - totalProductAcquisitionCost - totalVariableExpensesValue;
-  const totalTaxPercent = totalSelling > 0 ? (totalTax / totalSelling) * 100 : 0;
-
-  // Totais de CBS e IBS
-  const totalCbsCredit = calculatedProducts.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-  const totalIbsCredit = calculatedProducts.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
-  const totalCbsDebit = calculatedProducts.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
-  const totalIbsDebit = calculatedProducts.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
-  const totalCbsTaxToPay = calculatedProducts.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
-  const totalIbsTaxToPay = calculatedProducts.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
-
 
   return (
     <div className="space-y-6">
       <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
         <h2 className="text-lg font-semibold mb-2">Parâmetros da Simulação</h2>
         <p className="text-sm text-muted-foreground">
-          <strong>Regime Tributário:</strong> {params.taxRegime}<br/>
+          <strong>Regime Tributário:</strong> {params.taxRegime}
+          {params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit && " (Híbrido - Gerando Crédito IVA)"}
+          {params.taxRegime === TaxRegime.SimplesNacional && !params.generateIvaCredit && " (Padrão - Sem Crédito IVA)"}
+          <br/>
           <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
           {params.taxRegime === TaxRegime.LucroPresumido ? (
             <>
-              <strong>Alíquotas Aplicadas:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)})
+              <strong>Alíquotas:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)})
             </>
           ) : (
             <>
-              <strong>Alíquota Aplicada:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
+              <strong>Alíquota Cheia Simples:</strong> {formatPercent(params.simplesNacionalRate)}
+              {params.generateIvaCredit && (
+                <>
+                  <br/><strong>Alíquota Remanescente Simples:</strong> {formatPercent(params.simplesNacionalRemanescenteRate)}
+                  <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)})
+                </>
+              )}
             </>
           )}<br/>
           <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
@@ -188,156 +286,193 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Código</TableHead>
-              <TableHead>Produto</TableHead>
-              <TableHead>Unid. Com.</TableHead>
-              <TableHead className="text-right">Qtd. Estoque</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Qtd. Int.</TableHead>
-              <TableHead>CFOP</TableHead>
-              <TableHead>CST</TableHead>
-              <TableHead className="text-right">Custo Aquisição (Unit)</TableHead> {/* Renomeado */}
-              <TableHead className="text-right">Custo Fixo Rateado (Unit)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Custo Total Base (Unit)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Créd. CBS</TableHead>
-              <TableHead className="text-right">Créd. IBS</TableHead>
-              <TableHead className="text-right">Custo Efetivo Com.</TableHead>
-              <TableHead className="text-right">Custo Efetivo Int.</TableHead>
-              <TableHead className="text-right">Markup %</TableHead>
-              {params.taxRegime === TaxRegime.LucroPresumido ? (
+              <TableHead rowSpan={2}>Código</TableHead>
+              <TableHead rowSpan={2}>Produto</TableHead>
+              <TableHead rowSpan={2}>Unid. Com.</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Qtd. Estoque</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Custo Aquisição (Unit)</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Custo Fixo Rateado (Unit)</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Custo Total Base (Unit)</TableHead>
+              <TableHead className="text-right" rowSpan={2}>Markup %</TableHead>
+              
+              {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <>
-                  <TableHead className="text-right">Déb. CBS</TableHead>
-                  <TableHead className="text-right">Déb. IBS</TableHead>
-                  <TableHead className="text-right">CBS a Pagar</TableHead>
-                  <TableHead className="text-right">IBS a Pagar</TableHead>
-                  <TableHead className="text-right">IRPJ a Pagar</TableHead>
-                  <TableHead className="text-right">CSLL a Pagar</TableHead>
+                  <TableHead colSpan={5} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
+                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
+                  <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
                 </>
               ) : (
-                <TableHead className="text-right">Simples a Pagar</TableHead>
+                <TableHead colSpan={10} className="text-center">Lucro Presumido</TableHead>
               )}
-              <TableHead className="text-right">Imposto Líq.</TableHead>
-              <TableHead className="text-right">Venda Mín. Com.</TableHead>
-              <TableHead className="text-right">Venda Mín. Int.</TableHead>
-              <TableHead className="text-right">Venda Sug. Com.</TableHead>
-              <TableHead className="text-right">Venda Sug. Int.</TableHead>
-              <TableHead className="text-right">Valor p/ Impostos (R$)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Valor p/ Desp. Variáveis (R$)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Valor p/ Custo Fixo (R$)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Valor p/ Lucro Líquido (R$)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Margem Contribuição (Unit)</TableHead> {/* Nova Coluna */}
-              <TableHead className="text-right">Margem %</TableHead>
-              <TableHead>Status</TableHead>
+            </TableRow>
+            <TableRow>
+              {params.taxRegime === TaxRegime.SimplesNacional ? (
+                <>
+                  {/* Simples Nacional Padrão */}
+                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
+                  <TableHead className="text-right">Imposto Total</TableHead>
+                  <TableHead className="text-right">Lucro Líq.</TableHead>
+                  <TableHead className="text-right">Margem %</TableHead>
+                  <TableHead className="text-right">Crédito Cliente</TableHead>
+                  {/* Simples Nacional Híbrido */}
+                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
+                  <TableHead className="text-right">Imposto Total</TableHead>
+                  <TableHead className="text-right">Lucro Líq.</TableHead>
+                  <TableHead className="text-right">Margem %</TableHead>
+                  <TableHead className="text-right">Crédito Cliente</TableHead>
+                  <TableHead className="text-right">Simples a Pagar</TableHead>
+                </>
+              ) : (
+                <>
+                  {/* Lucro Presumido */}
+                  <TableHead className="text-right">Créd. CBS</TableHead>
+                  <TableHead className="text-right">Créd. IBS</TableHead>
+                  <TableHead className="text-right">Déb. CBS</TableHead>
+                  <TableHead className="text-right">Déb. IBS</TableHead>
+                  <TableHead className="text-right">IRPJ a Pagar</TableHead>
+                  <TableHead className="text-right">CSLL a Pagar</TableHead>
+                  <TableHead className="text-right">Imposto Líq.</TableHead>
+                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
+                  <TableHead className="text-right">Margem %</TableHead>
+                  <TableHead className="text-right">Crédito Cliente</TableHead>
+                </>
+              )}
             </TableRow>
           </TableHeader>
           <TableBody>
-            {calculatedProducts.map((product, index) => {
-              // Margem de lucro por produto (baseada no preço de venda sugerido individual)
-              const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100));
-              const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
-              
-              return (
-                <TableRow key={index} className={cn(
-                  product.status === "PREÇO CORRIGIDO" ? "bg-yellow-900/20" : ""
-                )}>
-                  <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                  <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
-                  <TableCell className="font-mono text-xs">{product.unit}</TableCell>
-                  <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell> {/* Qtd. Estoque */}
-                  <TableCell className="text-right font-mono text-xs text-muted-foreground">{product.innerQuantity}</TableCell>
-                  <TableCell className="font-mono text-xs">{product.cfop}</TableCell>
-                  <TableCell className="font-mono text-xs">{product.cst}</TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatCurrency(product.cost)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                    {formatCurrency(cfu)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-semibold">
-                    {formatCurrency(product.cost + cfu)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-success">
-                    {formatCurrency(product.cbsCredit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-success">
-                    {formatCurrency(product.ibsCredit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                    {formatCurrency(product.effectiveCost)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                    {formatCurrency(product.effectiveCostPerInnerUnit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-accent">
-                    {formatPercent(product.markupPercentage)}
-                  </TableCell>
-                  {params.taxRegime === TaxRegime.LucroPresumido ? (
-                    <>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.cbsDebit)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.ibsDebit)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.cbsTaxToPay)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.ibsTaxToPay)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.irpjToPay)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-sm text-destructive">
-                        {formatCurrency(product.csllToPay)}
-                      </TableCell>
-                    </>
-                  ) : (
-                    <TableCell className="text-right font-mono text-sm text-destructive">
-                      {formatCurrency(product.simplesToPay)}
-                    </TableCell>
-                  )}
-                  <TableCell className="text-right font-mono text-sm font-semibold">
-                    {formatCurrency(product.taxToPay)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-yellow-500">
-                    {formatCurrency(product.minSellingPrice)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-yellow-500">
-                    {formatCurrency(product.minSellingPricePerInnerUnit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-bold text-primary">
-                    {formatCurrency(product.sellingPrice)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-bold text-primary">
-                    {formatCurrency(product.sellingPricePerInnerUnit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatCurrency(product.valueForTaxes)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatCurrency(product.valueForVariableExpenses)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatCurrency(product.valueForFixedCost)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm">
-                    {formatCurrency(product.valueForProfit)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm font-semibold">
-                    {formatCurrency(product.contributionMargin)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono text-sm text-success">
-                    {formatPercent(productProfitMargin)}
-                  </TableCell>
-                  <TableCell className={cn(
-                    "font-semibold",
-                    product.status === "PREÇO CORRIGIDO" ? "text-yellow-500" : "text-success"
+            {params.taxRegime === TaxRegime.SimplesNacional ? (
+              calculatedProductsStandard.map((productStandard, index) => {
+                const productHybrid = calculatedProductsHybrid[index];
+                const productProfitStandard = productStandard.sellingPrice - productStandard.cost - productStandard.taxToPay - (productStandard.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu;
+                const productProfitMarginStandard = productStandard.sellingPrice > 0 ? (productProfitStandard / productStandard.sellingPrice) * 100 : 0;
+
+                const productProfitHybrid = productHybrid.sellingPrice - productHybrid.cost - productHybrid.taxToPay - (productHybrid.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu;
+                const productProfitMarginHybrid = productHybrid.sellingPrice > 0 ? (productProfitHybrid / productHybrid.sellingPrice) * 100 : 0;
+
+                const optionCostPerProduct = productHybrid.taxToPay - productStandard.taxToPay;
+
+                return (
+                  <TableRow key={index} className={cn(
+                    productStandard.status === "PREÇO CORRIGIDO" || productHybrid.status === "PREÇO CORRIGIDO" ? "bg-yellow-900/20" : ""
                   )}>
-                    {product.status}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
+                    <TableCell className="font-mono text-xs">{productStandard.code}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">{productStandard.name}</TableCell>
+                    <TableCell className="font-mono text-xs">{productStandard.unit}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{productStandard.quantity}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(productStandard.cost)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                      {formatCurrency(cfu)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">
+                      {formatCurrency(productStandard.cost + cfu)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-accent">
+                      {formatPercent(productStandard.markupPercentage)}
+                    </TableCell>
+
+                    {/* Simples Nacional Padrão */}
+                    <TableCell className="text-right font-bold text-primary">
+                      {formatCurrency(productStandard.sellingPrice)}
+                    </TableCell>
+                    <TableCell className="text-right text-destructive">
+                      {formatCurrency(productStandard.taxToPay)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      {formatCurrency(productProfitStandard)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      {formatPercent(productProfitMarginStandard)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">
+                      {formatCurrency(productStandard.ivaCreditForClient)}
+                    </TableCell>
+
+                    {/* Simples Nacional Híbrido */}
+                    <TableCell className="text-right font-bold text-primary">
+                      {formatCurrency(productHybrid.sellingPrice)}
+                    </TableCell>
+                    <TableCell className="text-right text-destructive">
+                      {formatCurrency(productHybrid.taxToPay)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      {formatCurrency(productProfitHybrid)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      {formatPercent(productProfitMarginHybrid)}
+                    </TableCell>
+                    <TableCell className="text-right text-success">
+                      {formatCurrency(productHybrid.ivaCreditForClient)}
+                    </TableCell>
+                    <TableCell className="text-right text-destructive">
+                      {formatCurrency(productHybrid.simplesToPay)}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-yellow-500">
+                      {formatCurrency(optionCostPerProduct)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            ) : (
+              calculatedProductsPresumido.map((product, index) => {
+                const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu;
+                const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
+                
+                return (
+                  <TableRow key={index} className={cn(
+                    product.status === "PREÇO CORRIGIDO" ? "bg-yellow-900/20" : ""
+                  )}>
+                    <TableCell className="font-mono text-xs">{product.code}</TableCell>
+                    <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
+                    <TableCell className="font-mono text-xs">{product.unit}</TableCell>
+                    <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
+                    <TableCell className="text-right font-mono text-sm">
+                      {formatCurrency(product.cost)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
+                      {formatCurrency(cfu)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">
+                      {formatCurrency(product.cost + cfu)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-accent">
+                      {formatPercent(product.markupPercentage)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-success">
+                      {formatCurrency(product.cbsCredit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-success">
+                      {formatCurrency(product.ibsCredit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-destructive">
+                      {formatCurrency(product.cbsDebit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-destructive">
+                      {formatCurrency(product.ibsDebit)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-destructive">
+                      {formatCurrency(product.irpjToPay)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-destructive">
+                      {formatCurrency(product.csllToPay)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-semibold">
+                      {formatCurrency(product.taxToPay)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-bold text-primary">
+                      {formatCurrency(product.sellingPrice)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-success">
+                      {formatPercent(productProfitMargin)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm text-success">
+                      {formatCurrency(product.ivaCreditForClient)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
           </TableBody>
         </Table>
       </div>
@@ -353,61 +488,79 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Despesas Variáveis Totais</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalVariableExpensesValue)}</p>
+          <p className="text-2xl font-bold">{formatCurrency(summaryData.totalVariableExpensesValue)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Margem de Contribuição Total</p>
-          <p className="text-2xl font-bold text-accent">{formatCurrency(totalContributionMargin)}</p>
+          <p className="text-2xl font-bold text-accent">{formatCurrency(summaryData.totalContributionMargin)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Valor de Venda Total</p>
-          <p className="text-2xl font-bold text-primary">{formatCurrency(totalSelling)}</p>
+          <p className="text-2xl font-bold text-primary">{formatCurrency(summaryData.totalSelling)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Impostos Líquidos</p>
-          <p className="text-2xl font-bold text-destructive">{formatCurrency(totalTax)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{formatPercent(totalTaxPercent)}</p>
+          <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalTax)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{formatPercent(summaryData.totalTaxPercent)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Lucro Líquido</p>
-          <p className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{formatPercent(profitMarginPercent)}</p>
+          <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalProfit)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{formatPercent(summaryData.profitMarginPercent)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Ponto de Equilíbrio</p>
-          <p className="text-2xl font-bold text-yellow-500">{formatCurrency(breakEvenPoint)}</p>
+          <p className="text-2xl font-bold text-yellow-500">{formatCurrency(summaryData.breakEvenPoint)}</p>
         </div>
 
         {/* Novos Cards para CBS e IBS */}
-        {params.taxRegime === TaxRegime.LucroPresumido && (
+        {params.taxRegime === TaxRegime.LucroPresumido || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit) ? (
           <>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">Crédito CBS Total</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(totalCbsCredit)}</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalCbsCredit)}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">Débito CBS Total</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalCbsDebit)}</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalCbsDebit)}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">CBS a Pagar Total</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalCbsTaxToPay)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(summaryData.totalCbsTaxToPay)}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">Crédito IBS Total</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(totalIbsCredit)}</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalIbsCredit)}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">Débito IBS Total</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalIbsDebit)}</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalIbsDebit)}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-4">
               <p className="text-sm text-muted-foreground mb-1">IBS a Pagar Total</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalIbsTaxToPay)}</p>
+              <p className="text-2xl font-bold">{formatCurrency(summaryData.totalIbsTaxToPay)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">IVA Crédito p/ Cliente</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalIvaCreditForClient)}</p>
             </div>
           </>
+        ) : (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground mb-1">IVA Crédito p/ Cliente</p>
+            <p className="text-2xl font-bold text-muted-foreground">{formatCurrency(0)}</p>
+          </div>
+        )}
+        {params.taxRegime === TaxRegime.SimplesNacional && (
+          <div className="rounded-lg border border-border bg-card p-4">
+            <p className="text-sm text-muted-foreground mb-1">Custo da Opção Híbrida</p>
+            <p className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOptionCost)}</p>
+          </div>
         )}
       </div>
+      <p className="text-xs text-muted-foreground mt-4">
+        *Esta é uma simulação baseada nas propostas da Reforma Tributária. Os valores e regras finais dependem da aprovação das Leis Complementares.
+      </p>
     </div>
   );
 };

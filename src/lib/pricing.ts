@@ -6,7 +6,7 @@ export const IBS_RATE = 0.177; // 17.7%
 export const calculatePricing = (
   product: Product,
   params: CalculationParams,
-  cfu: number // Novo parâmetro: Custo Fixo por Unidade
+  cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
   // 1. Créditos (do XML) - por unidade comercial
   const cbsCredit = product.pisCredit + product.cofinsCredit;
@@ -23,11 +23,10 @@ export const calculatePricing = (
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
     baseCostForMarkup = baseCostForMarkup / (1 - params.lossPercentage / 100);
   } else if (params.lossPercentage >= 100) {
-    // Se a perda for 100% ou mais, o produto não pode ser precificado para cobrir o custo
     baseCostForMarkup = Infinity; 
   }
 
-  // 5. Soma das alíquotas percentuais (variável por regime)
+  // 5. Soma das alíquotas percentuais (variável por regime e cenário)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
@@ -39,14 +38,21 @@ export const calculatePricing = (
   let simplesToPay = 0;
   let cbsDebit = 0;
   let ibsDebit = 0;
+  let ivaCreditForClient = 0; // Novo: Crédito de IVA para o cliente
 
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     totalPercentageForMarkup =
       (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
-      CBS_RATE + IBS_RATE; // CBS e IBS são fixos para Lucro Presumido
+      CBS_RATE + IBS_RATE;
   } else { // Simples Nacional
-    totalPercentageForMarkup =
-      (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
+    if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
+      totalPercentageForMarkup =
+        (totalVariableExpensesPercentage + params.simplesNacionalRemanescenteRate + params.profitMargin) / 100 +
+        CBS_RATE + IBS_RATE;
+    } else { // Simples Nacional Padrão (não gera crédito de IVA)
+      totalPercentageForMarkup =
+        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
+    }
   }
 
   // 6. Markup divisor
@@ -68,7 +74,6 @@ export const calculatePricing = (
   let contributionMargin = 0;
 
   if (markupDivisor <= 0 || baseCostForMarkup === Infinity) {
-    // Se o markupDivisor for inviável (<= 0) ou o custo base for infinito devido a perdas, a operação é matematicamente impossível.
     sellingPrice = 0;
     minSellingPrice = 0;
     status = "PREÇO CORRIGIDO";
@@ -81,10 +86,13 @@ export const calculatePricing = (
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + CBS_RATE + IBS_RATE);
     } else { // Simples Nacional
-      minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
+      if (params.generateIvaCredit) {
+        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRemanescenteRate / 100 + CBS_RATE + IBS_RATE);
+      } else {
+        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
+      }
     }
     
-    // O menor preço de venda também deve considerar o custo base ajustado pelas perdas
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
     // 9. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
@@ -93,10 +101,19 @@ export const calculatePricing = (
       ibsDebit = sellingPrice * IBS_RATE;
       irpjToPay = sellingPrice * (params.irpjRate / 100);
       csllToPay = sellingPrice * (params.csllRate / 100);
+      ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
     } else { // Simples Nacional
-      simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
-      cbsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
-      ibsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
+      if (params.generateIvaCredit) { // Simples Nacional Híbrido
+        simplesToPay = sellingPrice * (params.simplesNacionalRemanescenteRate / 100);
+        cbsDebit = sellingPrice * CBS_RATE;
+        ibsDebit = sellingPrice * IBS_RATE;
+        ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
+      } else { // Simples Nacional Padrão
+        simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
+        cbsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
+        ibsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
+        ivaCreditForClient = 0; // Não gera crédito de IVA
+      }
     }
 
     // 10. Imposto a pagar (líquido) - por unidade comercial
@@ -106,7 +123,11 @@ export const calculatePricing = (
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay;
     } else { // Simples Nacional
-      taxToPay = simplesToPay;
+      if (params.generateIvaCredit) {
+        taxToPay = simplesToPay + cbsTaxToPay + ibsTaxToPay;
+      } else {
+        taxToPay = simplesToPay;
+      }
     }
 
     // 11. Porcentagem de markup (sobre o custo de compra original)
@@ -143,16 +164,16 @@ export const calculatePricing = (
 
   return {
     ...product,
-    effectiveCost, // Mantém o valor real (pode ser negativo) para fins de análise de custo
-    sellingPrice: Math.max(0, sellingPrice), // Garante que não seja negativo
-    minSellingPrice: Math.max(0, minSellingPrice), // Garante que não seja negativo
+    effectiveCost,
+    sellingPrice: Math.max(0, sellingPrice),
+    minSellingPrice: Math.max(0, minSellingPrice),
     cbsCredit,
     ibsCredit,
-    cbsDebit: Math.max(0, cbsDebit), // Garante que o débito CBS não seja negativo
-    ibsDebit: Math.max(0, ibsDebit), // Garante que o débito IBS não seja negativo
-    taxToPay: Math.max(0, taxToPay), // Garante que o imposto líquido total não seja negativo
-    cbsTaxToPay: Math.max(0, cbsTaxToPay), // Garante que o CBS a pagar não seja negativo
-    ibsTaxToPay: Math.max(0, ibsTaxToPay), // Garante que o IBS a pagar não seja negativo
+    cbsDebit: Math.max(0, cbsDebit),
+    ibsDebit: Math.max(0, ibsDebit),
+    taxToPay: Math.max(0, taxToPay),
+    cbsTaxToPay: Math.max(0, cbsTaxToPay),
+    ibsTaxToPay: Math.max(0, ibsTaxToPay),
     irpjToPay: Math.max(0, irpjToPay),
     csllToPay: Math.max(0, csllToPay),
     simplesToPay: Math.max(0, simplesToPay),
@@ -166,17 +187,18 @@ export const calculatePricing = (
     valueForVariableExpenses: Math.max(0, valueForVariableExpenses),
     valueForFixedCost: Math.max(0, valueForFixedCost),
     valueForProfit: Math.max(0, valueForProfit),
-    contributionMargin: contributionMargin, // Pode ser negativo para análise
+    contributionMargin: contributionMargin,
+    ivaCreditForClient: Math.max(0, ivaCreditForClient), // Garante que não seja negativo
 
     // Valores por Unidade Interna
     costPerInnerUnit,
-    effectiveCostPerInnerUnit, // Mantém o valor real (pode ser negativo)
-    sellingPricePerInnerUnit: Math.max(0, sellingPricePerInnerUnit), // Garante que não seja negativo
-    minSellingPricePerInnerUnit: Math.max(0, minSellingPricePerInnerUnit), // Garante que não seja negativo
+    effectiveCostPerInnerUnit,
+    sellingPricePerInnerUnit: Math.max(0, sellingPricePerInnerUnit),
+    minSellingPricePerInnerUnit: Math.max(0, minSellingPricePerInnerUnit),
     cbsCreditPerInnerUnit,
     ibsCreditPerInnerUnit,
-    cbsDebitPerInnerUnit: Math.max(0, cbsDebitPerInnerUnit), // Garante que o débito CBS por unidade interna não seja negativo
-    ibsDebitPerInnerUnit: Math.max(0, ibsDebitPerInnerUnit), // Garante que o débito IBS por unidade interna não seja negativo
+    cbsDebitPerInnerUnit: Math.max(0, cbsDebitPerInnerUnit),
+    ibsDebitPerInnerUnit: Math.max(0, ibsDebitPerInnerUnit),
     taxToPayPerInnerUnit: Math.max(0, taxToPayPerInnerUnit),
     cbsTaxToPayPerInnerUnit: Math.max(0, cbsTaxToPayPerInnerUnit),
     ibsTaxToPayPerInnerUnit: Math.max(0, ibsTaxToPayPerInnerUnit),

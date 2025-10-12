@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { CalculationParams, FixedExpense, VariableExpense, TaxRegime } from "@/types/pricing";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch"; // Import Switch component
 
 interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
@@ -15,7 +16,9 @@ interface ParametersFormProps {
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
   const [profitMargin, setProfitMargin] = useState<string>("9.5"); // Default from prompt
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido); // Default from prompt
-  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10"); // Default from prompt
+  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10"); // Default from prompt (Alíquota Cheia)
+  const [simplesNacionalRemanescenteRate, setSimplesNacionalRemanescenteRate] = useState<string>("4.5"); // Novo: Default para Remanescente
+  const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false); // Novo: Flag para gerar crédito IVA
   const [irpjRate, setIrpjRate] = useState<string>("1.2"); // Default from prompt
   const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
   const [payroll, setPayroll] = useState<string>("10000");
@@ -26,7 +29,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     { name: "Aluguel", value: 3000 },
   ]);
   
-  const [variableExpenses, setVariableExpense] = useState<VariableExpense[]>([
+  const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
     { name: "Comissão", percentage: 5 },
   ]);
 
@@ -45,17 +48,17 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   };
 
   const addVariableExpense = () => {
-    setVariableExpense([...variableExpenses, { name: "", percentage: 0 }]);
+    setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }]);
   };
 
   const removeVariableExpense = (index: number) => {
-    setVariableExpense(variableExpenses.filter((_, i) => i !== index));
+    setVariableExpenses(variableExpenses.filter((_, i) => i !== index));
   };
 
   const updateVariableExpense = (index: number, field: keyof VariableExpense, value: string | number) => {
     const updated = [...variableExpenses];
     updated[index] = { ...updated[index], [field]: value };
-    setVariableExpense(updated);
+    setVariableExpenses(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -68,11 +71,19 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       return;
     }
 
-    if (taxRegime === TaxRegime.SimplesNacional && !simplesNacionalRate) {
-      toast.error("Campo obrigatório", {
-        description: "Preencha a alíquota do Simples Nacional.",
-      });
-      return;
+    if (taxRegime === TaxRegime.SimplesNacional) {
+      if (!simplesNacionalRate) {
+        toast.error("Campo obrigatório", {
+          description: "Preencha a Alíquota Cheia do Simples Nacional.",
+        });
+        return;
+      }
+      if (generateIvaCredit && !simplesNacionalRemanescenteRate) {
+        toast.error("Campo obrigatório", {
+          description: "Preencha a Alíquota Remanescente do Simples Nacional para gerar crédito IVA.",
+        });
+        return;
+      }
     }
 
     if (taxRegime === TaxRegime.LucroPresumido && (!irpjRate || !csllRate)) {
@@ -88,9 +99,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       variableExpenses,
       payroll: parseFloat(payroll),
       totalStockUnits: parseInt(totalStockUnits, 10),
-      lossPercentage: parseFloat(lossPercentage), // Novo: Passando a porcentagem de perdas
+      lossPercentage: parseFloat(lossPercentage),
       taxRegime,
       simplesNacionalRate: parseFloat(simplesNacionalRate),
+      simplesNacionalRemanescenteRate: parseFloat(simplesNacionalRemanescenteRate), // Novo
+      generateIvaCredit, // Novo
       irpjRate: parseFloat(irpjRate),
       csllRate: parseFloat(csllRate),
     });
@@ -114,7 +127,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
       <div className="space-y-2">
         <Label htmlFor="taxRegime">Regime Tributário</Label>
-        <Select onValueChange={(value: TaxRegime) => setTaxRegime(value)} value={taxRegime} disabled={disabled}>
+        <Select onValueChange={(value: TaxRegime) => {
+          setTaxRegime(value);
+          // Reset generateIvaCredit if not Simples Nacional
+          if (value !== TaxRegime.SimplesNacional) {
+            setGenerateIvaCredit(false);
+          }
+        }} value={taxRegime} disabled={disabled}>
           <SelectTrigger id="taxRegime">
             <SelectValue placeholder="Selecione o regime" />
           </SelectTrigger>
@@ -126,17 +145,49 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       </div>
 
       {taxRegime === TaxRegime.SimplesNacional && (
-        <div className="space-y-2">
-          <Label htmlFor="simples">Alíquota Simples Nacional (%)</Label>
-          <Input
-            id="simples"
-            type="number"
-            step="0.01"
-            value={simplesNacionalRate}
-            onChange={(e) => setSimplesNacionalRate(e.target.value)}
-            disabled={disabled}
-          />
-        </div>
+        <>
+          <div className="space-y-2">
+            <Label htmlFor="simples">Alíquota Cheia do Simples Nacional (%)</Label>
+            <Input
+              id="simples"
+              type="number"
+              step="0.01"
+              value={simplesNacionalRate}
+              onChange={(e) => setSimplesNacionalRate(e.target.value)}
+              disabled={disabled}
+            />
+          </div>
+          <div className="flex items-center justify-between space-x-2 rounded-md border p-4">
+            <Label htmlFor="generateIvaCredit" className="flex flex-col space-y-1">
+              <span>Gerar Crédito de IVA para Cliente (B2B)</span>
+              <span className="font-normal leading-snug text-muted-foreground text-xs">
+                (Empresa do Simples pagará IBS/CBS por fora, além do Simples Remanescente)
+              </span>
+            </Label>
+            <Switch
+              id="generateIvaCredit"
+              checked={generateIvaCredit}
+              onCheckedChange={setGenerateIvaCredit}
+              disabled={disabled}
+            />
+          </div>
+          {generateIvaCredit && (
+            <div className="space-y-2">
+              <Label htmlFor="simplesRemanescente">Alíquota Simples Remanescente (%)</Label>
+              <Input
+                id="simplesRemanescente"
+                type="number"
+                step="0.01"
+                value={simplesNacionalRemanescenteRate}
+                onChange={(e) => setSimplesNacionalRemanescenteRate(e.target.value)}
+                disabled={disabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                (Alíquota do Simples que corresponde apenas a IRPJ, CSLL, CPP)
+              </p>
+            </div>
+          )}
+        </>
       )}
 
       {taxRegime === TaxRegime.LucroPresumido && (
