@@ -4,6 +4,9 @@ export interface Product {
   cost: number;
   pisCredit: number;
   cofinsCredit: number;
+  icmsCredit: number;
+  cfop?: string;
+  cst?: string;
 }
 
 export interface FixedExpense {

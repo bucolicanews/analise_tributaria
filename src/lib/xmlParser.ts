@@ -26,7 +26,8 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const name = prod?.querySelector("xProd")?.textContent || "";
         const costStr = prod?.querySelector("vUnCom")?.textContent || "0";
         const cost = parseFloat(costStr);
-
+        const cfop = prod?.querySelector("CFOP")?.textContent || "";
+        
         // Tax info - PIS
         const pisAliq = det.querySelector("PISAliq");
         const pisNT = det.querySelector("PISNT");
@@ -40,6 +41,14 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const cofinsElement = cofinsAliq || cofinsNT;
         const cofinsCreditStr = cofinsElement?.querySelector("vCOFINS")?.textContent || "0";
         const cofinsCredit = parseFloat(cofinsCreditStr);
+        
+        // Tax info - ICMS (IBS)
+        const icms = det.querySelector("ICMS");
+        const icmsCreditStr = icms?.querySelector("vICMS, vCredICMSSN")?.textContent || "0";
+        const icmsCredit = parseFloat(icmsCreditStr);
+        
+        // CST/CSOSN
+        const cst = icms?.querySelector("CST, CSOSN")?.textContent || "";
 
         return {
           code,
@@ -47,6 +56,9 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
           cost,
           pisCredit,
           cofinsCredit,
+          icmsCredit,
+          cfop,
+          cst,
         };
       });
 

@@ -8,9 +8,9 @@ export const calculatePricing = (
   product: Product,
   params: CalculationParams
 ): CalculatedProduct => {
-  // 1. Créditos
+  // 1. Créditos (do XML)
   const cbsCredit = product.pisCredit + product.cofinsCredit;
-  const ibsCredit = product.cost * IBS_CREDIT_RATE;
+  const ibsCredit = product.icmsCredit || 0; // Usar ICMS do XML
   const totalCredit = cbsCredit + ibsCredit;
 
   // 2. Custo efetivo
@@ -45,7 +45,7 @@ export const calculatePricing = (
     cbsDebit,
     ibsDebit,
     taxToPay: Math.max(0, taxToPay), // Não pode ser negativo
-    cfop: "5102", // CFOP padrão para venda
-    cst: "101", // CST padrão para Simples Nacional
+    cfop: product.cfop || "5102", // CFOP do XML ou padrão
+    cst: product.cst || "101", // CST do XML ou padrão
   };
 };
