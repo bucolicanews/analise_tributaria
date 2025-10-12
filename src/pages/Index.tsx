@@ -28,12 +28,12 @@ const Index = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-3">
             <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
-              <Calculator className="h-8 w-8 text-black" />
+              <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-black">SISPLE</h1>
+              <h1 className="text-3xl font-bold text-black">Análise Reforma Tributária</h1>
               <p className="text-sm text-black/70">
-                Sistema Inteligente de Precificação - Lei 214/2025
+                Jota Contabilidade - Rua Coronel José do Ó, nº1645, Mosqueiro/PA, CEP:66910010 - Fone: 91996293532
               </p>
             </div>
           </div>
