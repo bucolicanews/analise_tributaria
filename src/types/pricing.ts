@@ -33,6 +33,7 @@ export interface CalculationParams {
   variableExpenses: VariableExpense[];
   payroll: number;
   totalStockUnits: number; // Novo: Estoque Total de Unidades para rateio de custos fixos
+  lossPercentage: number; // Novo: Porcentagem de perdas e quebras
   
   // Novos campos para regimes tributários
   taxRegime: TaxRegime;

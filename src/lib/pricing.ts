@@ -17,9 +17,17 @@ export const calculatePricing = (
   const effectiveCost = product.cost - totalCredit;
 
   // 3. Custo Base para o Markup Divisor: Custo de Aquisição Unitário (CAU) + Custo Fixo por Unidade (CFU)
-  const baseCostForMarkup = product.cost + cfu;
+  let baseCostForMarkup = product.cost + cfu;
 
-  // 4. Soma das alíquotas percentuais (variável por regime)
+  // 4. Incorporar a porcentagem de perdas e quebras ao custo base
+  if (params.lossPercentage > 0 && params.lossPercentage < 100) {
+    baseCostForMarkup = baseCostForMarkup / (1 - params.lossPercentage / 100);
+  } else if (params.lossPercentage >= 100) {
+    // Se a perda for 100% ou mais, o produto não pode ser precificado para cobrir o custo
+    baseCostForMarkup = Infinity; 
+  }
+
+  // 5. Soma das alíquotas percentuais (variável por regime)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
@@ -41,7 +49,7 @@ export const calculatePricing = (
       (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
   }
 
-  // 5. Markup divisor
+  // 6. Markup divisor
   const markupDivisor = 1 - totalPercentageForMarkup;
 
   let sellingPrice = 0;
@@ -59,17 +67,16 @@ export const calculatePricing = (
   let valueForProfit = 0;
   let contributionMargin = 0;
 
-  if (markupDivisor <= 0) {
-    // Se o markupDivisor for inviável (<= 0), a operação é matematicamente impossível.
-    // Definimos os valores de venda e impostos como 0 e marcamos o status.
+  if (markupDivisor <= 0 || baseCostForMarkup === Infinity) {
+    // Se o markupDivisor for inviável (<= 0) ou o custo base for infinito devido a perdas, a operação é matematicamente impossível.
     sellingPrice = 0;
     minSellingPrice = 0;
     status = "PREÇO CORRIGIDO";
   } else {
-    // 6. Preço de venda sugerido - por unidade comercial
+    // 7. Preço de venda sugerido - por unidade comercial
     sellingPrice = baseCostForMarkup / markupDivisor;
     
-    // 7. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
+    // 8. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
     let minSellingDivisor = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + CBS_RATE + IBS_RATE);
@@ -77,9 +84,10 @@ export const calculatePricing = (
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
     }
     
-    minSellingPrice = minSellingDivisor > 0 ? product.cost / minSellingDivisor : product.cost;
+    // O menor preço de venda também deve considerar o custo base ajustado pelas perdas
+    minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
-    // 8. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
+    // 9. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       cbsDebit = sellingPrice * CBS_RATE;
       ibsDebit = sellingPrice * IBS_RATE;
@@ -91,7 +99,7 @@ export const calculatePricing = (
       ibsDebit = 0; // Não aplicável diretamente no Simples Nacional para débitos de saída
     }
 
-    // 9. Imposto a pagar (líquido) - por unidade comercial
+    // 10. Imposto a pagar (líquido) - por unidade comercial
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
@@ -101,10 +109,10 @@ export const calculatePricing = (
       taxToPay = simplesToPay;
     }
 
-    // 10. Porcentagem de markup (sobre o custo de compra original)
+    // 11. Porcentagem de markup (sobre o custo de compra original)
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
 
-    // 11. Detalhamento do Preço de Venda (por Unidade Comercial)
+    // 12. Detalhamento do Preço de Venda (por Unidade Comercial)
     valueForTaxes = taxToPay;
     valueForVariableExpenses = sellingPrice * (totalVariableExpensesPercentage / 100);
     valueForFixedCost = cfu; // O valor do CFU é a parcela do custo fixo por unidade

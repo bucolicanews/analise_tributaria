@@ -49,7 +49,15 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
   const markupDivisor = 1 - totalPercentageForMarkup;
 
-  const baseCostForMarkupExample = firstProduct.cost + cfu;
+  // Custo Base para o Markup Divisor antes da perda
+  let baseCostBeforeLoss = firstProduct.cost + cfu;
+  // Custo Base para o Markup Divisor após a perda
+  let baseCostForMarkupExample = baseCostBeforeLoss;
+  if (params.lossPercentage > 0 && params.lossPercentage < 100) {
+    baseCostForMarkupExample = baseCostBeforeLoss / (1 - params.lossPercentage / 100);
+  } else if (params.lossPercentage >= 100) {
+    baseCostForMarkupExample = Infinity;
+  }
 
 
   return (
@@ -75,16 +83,17 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
             )}<br/>
             <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
             <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
-            <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}
+            <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}<br/>
+            <strong>Perdas e Quebras:</strong> {formatPercent(params.lossPercentage)}
           </p>
         </div>
       </div>
 
-      {markupDivisor <= 0 ? (
+      {markupDivisor <= 0 || baseCostForMarkupExample === Infinity ? (
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
           <p className="font-semibold mb-2">⚠️ Cálculo Inviável para este Produto</p>
           <p>
-            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(CBS_RATE * 100)}), IBS (${formatPercent(IBS_RATE * 100)})`} e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%.
+            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(CBS_RATE * 100)}), IBS (${formatPercent(IBS_RATE * 100)})`} e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
             Isso torna a precificação inviável para este produto com os parâmetros atuais. Ajuste os valores para obter um resultado válido.
           </p>
         </div>
@@ -130,13 +139,23 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
             <p className="ml-4 font-semibold">
               CFU = CFT ÷ ETU = {formatCurrency(totalFixedExpenses)} ÷ {params.totalStockUnits.toLocaleString('pt-BR')} = {formatCurrency(cfu)}
             </p>
-            <p className="ml-4 mt-2 font-semibold">
-              Custo Base para Markup (Unid. Com.): Custo de Aquisição ({formatCurrency(firstProduct.cost)}) + CFU ({formatCurrency(cfu)}) = {formatCurrency(baseCostForMarkupExample)}
+          </div>
+
+          <div>
+            <p className="font-semibold mb-2">4. Ajuste do Custo Base para Perdas e Quebras</p>
+            <p className="ml-4">
+              • Custo Base antes das Perdas (Unid. Com.): Custo de Aquisição ({formatCurrency(firstProduct.cost)}) + CFU ({formatCurrency(cfu)}) = {formatCurrency(baseCostBeforeLoss)}
+            </p>
+            <p className="ml-4 font-semibold">
+              • Custo Base para Markup (Unid. Com.) = Custo Base antes das Perdas ÷ (1 - Perdas%)
+            </p>
+            <p className="ml-4">
+              {formatCurrency(baseCostBeforeLoss)} ÷ (1 - {formatPercent(params.lossPercentage)}) = {formatCurrency(baseCostForMarkupExample)}
             </p>
           </div>
 
           <div>
-            <p className="font-semibold mb-2">4. Markup Divisor (para Preço Sugerido)</p>
+            <p className="font-semibold mb-2">5. Markup Divisor (para Preço Sugerido)</p>
             <p className="ml-4">
               1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `IRPJ% + CSLL% + CBS% + IBS%`} + Lucro%)
             </p>
@@ -149,7 +168,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">5. Preço de Venda Sugerido Unitário</p>
+            <p className="font-semibold mb-2">6. Preço de Venda Sugerido Unitário</p>
             <p className="ml-4">
               Custo Base para Markup por Unid. Com. ÷ Markup Divisor
             </p>
@@ -165,12 +184,12 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">6. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
+            <p className="font-semibold mb-2">7. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
             <p className="ml-4">
-              Custo de Aquisição por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
+              Custo Base para Markup por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
             </p>
             <p className="ml-4">
-              {formatCurrency(firstProduct.cost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
+              {formatCurrency(baseCostForMarkupExample)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
             </p>
             <p className="ml-4 font-semibold text-yellow-500">
               = {formatCurrency(calculated.minSellingPrice)} (por Unid. Com.)
@@ -181,7 +200,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">7. Detalhamento do Preço de Venda (Unid. Com.)</p>
+            <p className="font-semibold mb-2">8. Detalhamento do Preço de Venda (Unid. Com.)</p>
             <p className="ml-4">
               • Valor para Impostos: {formatCurrency(calculated.valueForTaxes)}
             </p>
@@ -200,7 +219,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">8. Imposto a Pagar (Líquido)</p>
+            <p className="font-semibold mb-2">9. Imposto a Pagar (Líquido)</p>
             {params.taxRegime === TaxRegime.LucroPresumido ? (
               <>
                 <p className="ml-4">

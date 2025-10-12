@@ -20,12 +20,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
   const [payroll, setPayroll] = useState<string>("10000");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("5000"); // Novo: Estoque Total de Unidades
+  const [lossPercentage, setLossPercentage] = useState<string>("1"); // Novo: Porcentagem de perdas e quebras
   
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
   ]);
   
-  const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
+  const [variableExpenses, setVariableExpense] = useState<VariableExpense[]>([
     { name: "Comissão", percentage: 5 },
   ]);
 
@@ -44,23 +45,23 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   };
 
   const addVariableExpense = () => {
-    setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }]);
+    setVariableExpense([...variableExpenses, { name: "", percentage: 0 }]);
   };
 
   const removeVariableExpense = (index: number) => {
-    setVariableExpenses(variableExpenses.filter((_, i) => i !== index));
+    setVariableExpense(variableExpenses.filter((_, i) => i !== index));
   };
 
   const updateVariableExpense = (index: number, field: keyof VariableExpense, value: string | number) => {
     const updated = [...variableExpenses];
     updated[index] = { ...updated[index], [field]: value };
-    setVariableExpenses(updated);
+    setVariableExpense(updated);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !totalStockUnits) {
+    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais.",
       });
@@ -86,7 +87,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       fixedExpenses,
       variableExpenses,
       payroll: parseFloat(payroll),
-      totalStockUnits: parseInt(totalStockUnits, 10), // Novo: Passando o estoque total
+      totalStockUnits: parseInt(totalStockUnits, 10),
+      lossPercentage: parseFloat(lossPercentage), // Novo: Passando a porcentagem de perdas
       taxRegime,
       simplesNacionalRate: parseFloat(simplesNacionalRate),
       irpjRate: parseFloat(irpjRate),
@@ -184,6 +186,18 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           step="1"
           value={totalStockUnits}
           onChange={(e) => setTotalStockUnits(e.target.value)}
+          disabled={disabled}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="lossPercentage">Porcentagem de Perdas e Quebras (%)</Label>
+        <Input
+          id="lossPercentage"
+          type="number"
+          step="0.01"
+          value={lossPercentage}
+          onChange={(e) => setLossPercentage(e.target.value)}
           disabled={disabled}
         />
       </div>

@@ -76,11 +76,19 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
   let breakEvenPoint = 0;
 
   // Custo Total dos Produtos (apenas custo de aquisição)
-  const totalProductAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  let totalProductAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
 
-  if (globalMarkupDivisor <= 0) {
+  // Ajustar o custo total de aquisição globalmente pela porcentagem de perdas
+  if (params.lossPercentage > 0 && params.lossPercentage < 100) {
+    totalProductAcquisitionCost = totalProductAcquisitionCost / (1 - params.lossPercentage / 100);
+  } else if (params.lossPercentage >= 100) {
+    totalProductAcquisitionCost = Infinity; // Torna o cálculo inviável
+  }
+
+
+  if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
     toast.error("Cálculo Global Inviável", {
-      description: "A soma das despesas percentuais e margem de lucro é igual ou superior a 100%. Ajuste os parâmetros para um cálculo global válido.",
+      description: "A soma das despesas percentuais e margem de lucro é igual ou superior a 100%, ou a porcentagem de perdas é inviável. Ajuste os parâmetros para um cálculo global válido.",
       duration: 5000,
     });
     // Os valores de resumo permanecerão 0 como inicializados
@@ -171,7 +179,8 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
           )}<br/>
           <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
           <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
-          <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}
+          <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}<br/>
+          <strong>Perdas e Quebras:</strong> {formatPercent(params.lossPercentage)}
         </p>
       </div>
 
