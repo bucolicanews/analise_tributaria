@@ -1,4 +1,4 @@
-import React from 'react'; // Import React for React.FC type
+import React from 'react';
 import {
   Table,
   TableBody,
@@ -17,7 +17,6 @@ interface ProductsTableProps {
   params: CalculationParams;
 }
 
-// Define a type for the summary data to ensure consistency
 interface GlobalSummaryData {
   totalSelling: number;
   totalTax: number;
@@ -97,159 +96,64 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
     totalProductAcquisitionCost = Infinity;
   }
 
-  // Helper function to calculate global summary for a given set of products and parameters
-  const calculateGlobalSummary = (productsToSummarize: CalculatedProduct[], currentParams: CalculationParams): GlobalSummaryData => {
-    let globalMarkupDivisor = 0;
-    let currentTotalSelling = 0;
-    let currentTotalTax = 0;
-    let currentTotalProfit = 0;
-    let currentProfitMarginPercent = 0;
-    let currentBreakEvenPoint = 0;
-    let currentTotalVariableExpensesValue = 0;
-    let currentTotalContributionMargin = 0;
-    let currentTotalTaxPercent = 0;
-
-    let currentTotalPercentageForGlobalMarkup = 0;
-    if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      currentTotalPercentageForGlobalMarkup =
-        (totalVariableExpensesPercent + currentParams.irpjRate + currentParams.csllRate + currentParams.profitMargin) / 100 +
-        CBS_RATE + IBS_RATE;
-    } else { // Simples Nacional
-      if (currentParams.generateIvaCredit) {
-        currentTotalPercentageForGlobalMarkup =
-          (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + currentParams.profitMargin) / 100 +
-          CBS_RATE + IBS_RATE;
-      } else {
-        currentTotalPercentageForGlobalMarkup =
-          (totalVariableExpensesPercent + currentParams.simplesNacionalRate + currentParams.profitMargin) / 100;
-      }
-    }
-    globalMarkupDivisor = 1 - currentTotalPercentageForGlobalMarkup;
-
-    // Default summary data for invalid calculations
-    const defaultSummary: GlobalSummaryData = {
-      totalSelling: 0,
-      totalTax: 0,
-      totalProfit: 0,
-      profitMarginPercent: 0,
-      breakEvenPoint: 0,
-      totalVariableExpensesValue: 0,
-      totalContributionMargin: 0,
-      totalTaxPercent: 0,
-      totalCbsCredit: 0,
-      totalIbsCredit: 0,
-      totalCbsDebit: 0,
-      totalIbsDebit: 0,
-      totalCbsTaxToPay: 0,
-      totalIbsTaxToPay: 0,
-      totalIvaCreditForClient: 0,
-    };
-
-    if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
-      // No toast here, as it's handled by the main component for the primary scenario
-      return defaultSummary;
-    } else {
-      currentTotalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
-
-      let currentTotalCbsDebit = 0;
-      let currentTotalIbsDebit = 0;
-      let currentTotalIrpjToPay = 0;
-      let currentTotalCsllToPay = 0;
-      let currentTotalSimplesToPay = 0;
-
-      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-        currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
-        currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
-        currentTotalIrpjToPay = currentTotalSelling * (currentParams.irpjRate / 100);
-        currentTotalCsllToPay = currentTotalSelling * (currentParams.csllRate / 100);
-      } else { // Simples Nacional
-        if (currentParams.generateIvaCredit) {
-          currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRemanescenteRate / 100);
-          currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
-          currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
-        } else {
-          currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRate / 100);
-        }
-      }
-
-      const currentTotalCbsCredit = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-      const currentTotalIbsCredit = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
-      
-      const currentTotalCbsTaxToPay = currentTotalCbsDebit - currentTotalCbsCredit;
-      const currentTotalIbsTaxToPay = currentTotalIbsDebit - currentTotalIbsCredit;
-      
-      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-        currentTotalTax = Math.max(0, currentTotalCbsTaxToPay + currentTotalIbsTaxToPay + currentTotalIrpjToPay + currentTotalCsllToPay);
-      } else { // Simples Nacional
-        if (currentParams.generateIvaCredit) {
-          currentTotalTax = Math.max(0, currentTotalSimplesToPay + currentTotalCbsTaxToPay + currentTotalIbsTaxToPay);
-        } else {
-          currentTotalTax = Math.max(0, currentTotalSimplesToPay);
-        }
-      }
-
-      currentTotalVariableExpensesValue = currentTotalSelling * (totalVariableExpensesPercent / 100);
-      currentTotalProfit = currentTotalSelling - totalFixedExpenses - totalProductAcquisitionCost - currentTotalTax - currentTotalVariableExpensesValue;
-      currentProfitMarginPercent = currentTotalSelling > 0 ? (currentTotalProfit / currentTotalSelling) * 100 : 0;
-
-      const totalVariableCostsForBEP = totalProductAcquisitionCost + currentTotalVariableExpensesValue;
-      const variableCostRatioForBEP = currentTotalSelling > 0 ? totalVariableCostsForBEP / currentTotalSelling : 0;
-      
-      let taxRatioForBEP = 0;
-      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-        taxRatioForBEP = CBS_RATE + IBS_RATE;
-      } else { // Simples Nacional
-        if (currentParams.generateIvaCredit) {
-          taxRatioForBEP = (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
-        } else {
-          taxRatioForBEP = currentParams.simplesNacionalRate / 100;
-        }
-      }
-
-      const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
-      currentBreakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
-
-      currentTotalContributionMargin = currentTotalSelling - totalProductAcquisitionCost - currentTotalVariableExpensesValue;
-      currentTotalTaxPercent = currentTotalSelling > 0 ? (currentTotalTax / currentTotalSelling) * 100 : 0;
-
-      return {
-        totalSelling: currentTotalSelling,
-        totalTax: currentTotalTax,
-        totalProfit: currentTotalProfit,
-        profitMarginPercent: currentProfitMarginPercent,
-        breakEvenPoint: currentBreakEvenPoint,
-        totalVariableExpensesValue: currentTotalVariableExpensesValue,
-        totalContributionMargin: currentTotalContributionMargin,
-        totalTaxPercent: currentTotalTaxPercent,
-        totalCbsCredit: currentTotalCbsCredit,
-        totalIbsCredit: currentTotalIbsCredit,
-        totalCbsDebit: currentTotalCbsDebit,
-        totalIbsDebit: currentTotalIbsDebit,
-        totalCbsTaxToPay: currentTotalCbsTaxToPay,
-        totalIbsTaxToPay: currentTotalIbsTaxToPay,
-        totalIvaCreditForClient: productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0),
-      };
+  // Default summary data for invalid calculations
+  const defaultSummary: GlobalSummaryData = {
+    totalSelling: 0,
+    totalTax: 0,
+    totalProfit: 0,
+    profitMarginPercent: 0,
+    breakEvenPoint: 0,
+    totalVariableExpensesValue: 0,
+    totalContributionMargin: 0,
+    totalTaxPercent: 0,
+    totalCbsCredit: 0,
+    totalIbsCredit: 0,
+    totalCbsDebit: 0,
+    totalIbsDebit: 0,
+    totalCbsTaxToPay: 0,
+    totalIbsTaxToPay: 0,
+    totalIvaCreditForClient: 0,
   };
 
-  // Determine which summary to display
-  let summaryData: GlobalSummaryData;
+  let summaryData: GlobalSummaryData = defaultSummary; // Initialize with default
   let totalOptionCost = 0;
+  let isGlobalCalculationInviable = false;
 
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     const summaryStandard = calculateGlobalSummary(calculatedProductsStandard, { ...params, generateIvaCredit: false });
     const summaryHybrid = calculateGlobalSummary(calculatedProductsHybrid, { ...params, generateIvaCredit: true });
     
-    // Decide which summary to use for display based on current params.generateIvaCredit
     summaryData = params.generateIvaCredit ? summaryHybrid : summaryStandard;
     
-    // Calculate totalOptionCost only if both scenarios are valid
-    if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) { // Check if at least one scenario produced a non-zero tax
+    // Check if either scenario resulted in an inviable calculation
+    if ((summaryStandard.totalSelling === 0 && summaryStandard.totalTax === 0 && summaryStandard.totalProfit === 0) ||
+        (summaryHybrid.totalSelling === 0 && summaryHybrid.totalTax === 0 && summaryHybrid.totalProfit === 0)) {
+        isGlobalCalculationInviable = true;
+    }
+    
+    if (!isGlobalCalculationInviable && (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0)) {
       totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     }
   } else { // Lucro Presumido
     summaryData = calculateGlobalSummary(calculatedProductsPresumido, params);
+    if (summaryData.totalSelling === 0 && summaryData.totalTax === 0 && summaryData.totalProfit === 0) {
+        isGlobalCalculationInviable = true;
+    }
   }
 
+  // If global calculation is inviable, render an error message
+  if (isGlobalCalculationInviable) {
+    return (
+      <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
+        <p className="font-semibold mb-2">⚠️ Cálculo Global Inviável</p>
+        <p>
+          A soma das despesas percentuais e margem de lucro é igual ou superior a 100%, ou a porcentagem de perdas é inviável. Ajuste os parâmetros para um cálculo global válido.
+        </p>
+      </div>
+    );
+  }
+
+  // Otherwise, render the full table and summary
   return (
     <div className="space-y-6">
       <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
@@ -513,7 +417,6 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
           <p className="text-2xl font-bold text-yellow-500">{formatCurrency(summaryData.breakEvenPoint)}</p>
         </div>
 
-        {/* Novos Cards para CBS e IBS */}
         {params.taxRegime === TaxRegime.LucroPresumido || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit) ? (
           <>
             <div className="rounded-lg border border-border bg-card p-4">
