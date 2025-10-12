@@ -17,8 +17,14 @@ interface ProductsTableProps {
 }
 
 export const ProductsTable = ({ products, params }: ProductsTableProps) => {
+  // 1. Consolidar Custos e Despesas Fixas (globais)
+  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
+
+  // Custo do Produto (total dos produtos)
+  const totalProductCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+
   const calculatedProducts: CalculatedProduct[] = products.map((product) =>
-    calculatePricing(product, params)
+    calculatePricing(product, params, totalFixedExpenses, totalProductCost) // Passar novos parâmetros
   );
 
   const formatCurrency = (value: number) => {
@@ -35,12 +41,6 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
       maximumFractionDigits: 2,
     }).format(value / 100);
   };
-
-  // 1. Consolidar Custos e Despesas Fixas
-  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
-
-  // Custo do Produto (total dos produtos)
-  const totalProductCost = calculatedProducts.reduce((sum, p) => sum + p.cost * p.quantity, 0);
 
   // Soma das alíquotas percentuais para o cálculo global
   const totalVariableExpensesPercent = params.variableExpenses.reduce(
@@ -75,6 +75,7 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     // Os valores de resumo permanecerão 0 como inicializados
   } else {
     // 4. Calcular o Preço de Venda Total (Método de Markup Divisor)
+    // A base para o cálculo global agora inclui o custo total dos produtos e as despesas fixas totais
     totalSelling = (totalFixedExpenses + totalProductCost) / globalMarkupDivisor;
 
     // Calcular Impostos Líquidos (CBS e IBS a pagar)

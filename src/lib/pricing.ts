@@ -5,7 +5,9 @@ export const IBS_RATE = 0.177; // 17.7%
 
 export const calculatePricing = (
   product: Product,
-  params: CalculationParams
+  params: CalculationParams,
+  totalFixedExpenses: number, // Novo parâmetro
+  totalProductCost: number // Novo parâmetro
 ): CalculatedProduct => {
   // 1. Créditos (do XML) - por unidade comercial
   const cbsCredit = product.pisCredit + product.cofinsCredit;
@@ -15,7 +17,17 @@ export const calculatePricing = (
   // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)
   const effectiveCost = product.cost - totalCredit;
 
-  // 3. Soma das alíquotas percentuais (variável por regime)
+  // 3. Rateio das Despesas Fixas por produto
+  let fixedExpenseAllocationPerProduct = 0;
+  if (totalProductCost > 0) {
+    const fixedExpenseAllocationRate = totalFixedExpenses / totalProductCost;
+    fixedExpenseAllocationPerProduct = product.cost * fixedExpenseAllocationRate;
+  }
+  
+  // Custo Base para o Markup Divisor: Custo de Compra + Despesa Fixa Rateada
+  const baseCostForMarkup = product.cost + fixedExpenseAllocationPerProduct;
+
+  // 4. Soma das alíquotas percentuais (variável por regime)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
@@ -37,7 +49,7 @@ export const calculatePricing = (
       (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
   }
 
-  // 4. Markup divisor
+  // 5. Markup divisor
   const markupDivisor = 1 - totalPercentageForMarkup;
 
   let sellingPrice = 0;
@@ -55,11 +67,11 @@ export const calculatePricing = (
     minSellingPrice = 0;
     status = "PREÇO CORRIGIDO";
   } else {
-    // 5. Preço de venda sugerido - por unidade comercial
-    // A base é o custo de compra do produto (product.cost), garantindo um preço de venda positivo.
-    sellingPrice = product.cost / markupDivisor;
+    // 6. Preço de venda sugerido - por unidade comercial
+    // A base é o custo de compra do produto + despesa fixa rateada
+    sellingPrice = baseCostForMarkup / markupDivisor;
     
-    // 6. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
+    // 7. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
     let minSellingDivisor = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + CBS_RATE + IBS_RATE);
@@ -67,9 +79,9 @@ export const calculatePricing = (
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
     }
     
-    minSellingPrice = minSellingDivisor > 0 ? product.cost / minSellingDivisor : product.cost;
+    minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
-    // 7. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
+    // 8. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       cbsDebit = sellingPrice * CBS_RATE;
       ibsDebit = sellingPrice * IBS_RATE;
@@ -83,7 +95,7 @@ export const calculatePricing = (
       ibsDebit = 0;
     }
 
-    // 8. Imposto a pagar (líquido) - por unidade comercial
+    // 9. Imposto a pagar (líquido) - por unidade comercial
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
@@ -93,7 +105,7 @@ export const calculatePricing = (
       taxToPay = simplesToPay;
     }
 
-    // 9. Porcentagem de markup (sobre o custo de compra original)
+    // 10. Porcentagem de markup (sobre o custo de compra original)
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
   }
 

@@ -7,10 +7,16 @@ interface CalculationMemoryProps {
 }
 
 export const CalculationMemory = ({ products, params }: CalculationMemoryProps) => {
+  // 1. Consolidar Custos e Despesas Fixas (globais)
+  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
+
+  // Custo do Produto (total dos produtos)
+  const totalProductCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+
   if (products.length === 0) return null;
 
   const firstProduct = products[0];
-  const calculated: CalculatedProduct = calculatePricing(firstProduct, params);
+  const calculated: CalculatedProduct = calculatePricing(firstProduct, params, totalFixedExpenses, totalProductCost);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -40,6 +46,17 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
   const markupDivisor = 1 - totalPercentageForMarkup;
 
+  // Cálculo da taxa de rateio de despesas fixas para o produto de exemplo
+  let fixedExpenseAllocationPerProduct = 0;
+  let fixedExpenseAllocationRate = 0;
+  if (totalProductCost > 0) {
+    fixedExpenseAllocationRate = totalFixedExpenses / totalProductCost;
+    fixedExpenseAllocationPerProduct = firstProduct.cost * fixedExpenseAllocationRate;
+  }
+
+  const baseCostForMarkupExample = firstProduct.cost + fixedExpenseAllocationPerProduct;
+
+
   return (
     <div className="space-y-6">
       <div>
@@ -60,7 +77,9 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               <>
                 <strong>Alíquota:</strong> Simples Nacional ({formatPercent(params.simplesNacionalRate)})
               </>
-            )}
+            )}<br/>
+            <strong>Despesas Fixas Totais:</strong> {formatCurrency(totalFixedExpenses)}<br/>
+            <strong>Custo Total dos Produtos:</strong> {formatCurrency(totalProductCost)}
           </p>
         </div>
       </div>
@@ -105,7 +124,20 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">3. Markup Divisor (para Preço Sugerido)</p>
+            <p className="font-semibold mb-2">3. Rateio de Despesas Fixas por Produto</p>
+            <p className="ml-4">
+              • Taxa de Rateio Global: Despesas Fixas Totais ({formatCurrency(totalFixedExpenses)}) ÷ Custo Total dos Produtos ({formatCurrency(totalProductCost)}) = {fixedExpenseAllocationRate.toFixed(4)}
+            </p>
+            <p className="ml-4">
+              • Despesa Fixa Rateada por Unid. Com.: Custo de Compra ({formatCurrency(firstProduct.cost)}) × {fixedExpenseAllocationRate.toFixed(4)} = {formatCurrency(fixedExpenseAllocationPerProduct)}
+            </p>
+            <p className="ml-4 mt-2 font-semibold">
+              Custo Base para Markup (Unid. Com.): Custo de Compra ({formatCurrency(firstProduct.cost)}) + Despesa Fixa Rateada ({formatCurrency(fixedExpenseAllocationPerProduct)}) = {formatCurrency(baseCostForMarkupExample)}
+            </p>
+          </div>
+
+          <div>
+            <p className="font-semibold mb-2">4. Markup Divisor (para Preço Sugerido)</p>
             <p className="ml-4">
               1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `IRPJ% + CSLL% + CBS% + IBS%`} + Lucro%)
             </p>
@@ -118,12 +150,12 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">4. Preço de Venda Sugerido Unitário</p>
+            <p className="font-semibold mb-2">5. Preço de Venda Sugerido Unitário</p>
             <p className="ml-4">
-              Custo Efetivo por Unid. Com. ÷ Markup Divisor
+              Custo Base para Markup por Unid. Com. ÷ Markup Divisor
             </p>
             <p className="ml-4">
-              {formatCurrency(calculated.effectiveCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(calculated.sellingPrice)} (por Unid. Com.)
+              {formatCurrency(baseCostForMarkupExample)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(calculated.sellingPrice)} (por Unid. Com.)
             </p>
             <p className="ml-4 mt-2 font-semibold">
               Markup Aplicado: {formatPercent(calculated.markupPercentage)}
@@ -134,12 +166,12 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">5. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
+            <p className="font-semibold mb-2">6. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
             <p className="ml-4">
-              Custo Efetivo por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
+              Custo Base para Markup por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional%` : `CBS% + IBS%`}))
             </p>
             <p className="ml-4">
-              {formatCurrency(calculated.effectiveCost)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
+              {formatCurrency(baseCostForMarkupExample)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? formatPercent(params.simplesNacionalRate) : `${formatPercent(CBS_RATE * 100)} + ${formatPercent(IBS_RATE * 100)}`}))
             </p>
             <p className="ml-4 font-semibold text-yellow-500">
               = {formatCurrency(calculated.minSellingPrice)} (por Unid. Com.)
@@ -150,7 +182,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">6. Débitos de Tributos (Venda)</p>
+            <p className="font-semibold mb-2">7. Débitos de Tributos (Venda)</p>
             {params.taxRegime === TaxRegime.LucroPresumido ? (
               <>
                 <p className="ml-4">
@@ -191,7 +223,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           </div>
 
           <div>
-            <p className="font-semibold mb-2">7. Imposto a Pagar (Líquido)</p>
+            <p className="font-semibold mb-2">8. Imposto a Pagar (Líquido)</p>
             {params.taxRegime === TaxRegime.LucroPresumido ? (
               <>
                 <p className="ml-4">
