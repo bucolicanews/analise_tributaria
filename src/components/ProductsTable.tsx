@@ -7,7 +7,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
-import { calculatePricing } from "@/lib/pricing";
+import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing"; // Import CBS_RATE and IBS_RATE
+import { toast } from "sonner"; // Import toast for error messages
 
 interface ProductsTableProps {
   products: Product[];
@@ -34,24 +35,63 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     }).format(value / 100);
   };
 
-  const totalCost = calculatedProducts.reduce((sum, p) => sum + p.cost * p.quantity, 0);
-  const totalSelling = calculatedProducts.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
-  const totalTax = calculatedProducts.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  
-  // Calcular despesas variáveis totais
+  // 1. Consolidar Custos e Despesas Fixas
+  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
+
+  // Custo do Produto (total dos produtos)
+  const totalProductCost = calculatedProducts.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+
+  // Soma das alíquotas percentuais
   const totalVariableExpensesPercent = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
     0
   );
-  const totalExpenses = (totalSelling * (totalVariableExpensesPercent + params.simplesNacional) / 100);
-  
-  const totalProfit = totalSelling - totalCost - totalTax - totalExpenses;
-  const profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
-  
-  // Ponto de equilíbrio
-  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
-  const contributionMarginPercent = 100 - totalVariableExpensesPercent - params.simplesNacional;
-  const breakEvenPoint = contributionMarginPercent > 0 ? totalFixedExpenses / (contributionMarginPercent / 100) : 0;
+  const totalPercentageForGlobalCalc = (totalVariableExpensesPercent + params.simplesNacional + params.profitMargin) / 100;
+
+  // Markup Divisor Global
+  const globalMarkupDivisor = 1 - totalPercentageForGlobalCalc;
+
+  let totalSelling = 0;
+  let totalTax = 0;
+  let totalProfit = 0;
+  let profitMarginPercent = 0;
+  let breakEvenPoint = 0;
+
+  if (globalMarkupDivisor <= 0) {
+    toast.error("Cálculo Global Inviável", {
+      description: "A soma das despesas percentuais e margem de lucro é igual ou superior a 100%. Ajuste os parâmetros para um cálculo global válido.",
+      duration: 5000,
+    });
+    // Os valores de resumo permanecerão 0 como inicializados
+  } else {
+    // 4. Calcular o Preço de Venda Total (Método de Markup Divisor)
+    totalSelling = (totalFixedExpenses + totalProductCost) / globalMarkupDivisor;
+
+    // Calcular Impostos Líquidos (CBS e IBS a pagar)
+    const totalCbsDebit = totalSelling * CBS_RATE;
+    const totalIbsDebit = totalSelling * IBS_RATE;
+    const totalCbsCredit = calculatedProducts.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+    const totalIbsCredit = calculatedProducts.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+    
+    const totalCbsTaxToPay = totalCbsDebit - totalCbsCredit;
+    const totalIbsTaxToPay = totalIbsDebit - totalIbsCredit;
+    totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay); // Garante que não seja negativo
+
+    // Calcular Despesas Variáveis em valor (baseado no totalSelling)
+    const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
+
+    // Calcular Lucro Líquido
+    totalProfit = totalSelling - totalFixedExpenses - totalProductCost - totalTax - totalVariableExpensesValue;
+    profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
+
+    // Ponto de Equilíbrio (usando a fórmula do prompt)
+    // Custo Variável Total para BEP = Custo do Produto Total + Despesas Variáveis em Valor
+    const totalVariableCostsForBEP = totalProductCost + totalVariableExpensesValue;
+    const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
+    const simplesNacionalRatioForBEP = params.simplesNacional / 100;
+    const denominatorBEP = 1 - (variableCostRatioForBEP + simplesNacionalRatioForBEP);
+    breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
+  }
 
   return (
     <div className="space-y-6">
@@ -82,7 +122,9 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
           </TableHeader>
           <TableBody>
             {calculatedProducts.map((product, index) => {
-              const profitMargin = product.sellingPrice > 0 ? ((product.sellingPrice - product.cost - product.taxToPay) / product.sellingPrice) * 100 : 0;
+              // Margem de lucro por produto (baseada no preço de venda sugerido individual)
+              const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100));
+              const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
               
               return (
                 <TableRow key={index}>
@@ -129,7 +171,7 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
                     {formatCurrency(product.sellingPrice)}
                   </TableCell>
                   <TableCell className="text-right font-mono text-sm text-success">
-                    {formatPercent(profitMargin)}
+                    {formatPercent(productProfitMargin)}
                   </TableCell>
                 </TableRow>
               );
@@ -140,8 +182,8 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Custo Total</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalCost)}</p>
+          <p className="text-sm text-muted-foreground mb-1">Custo Total Produtos</p>
+          <p className="text-2xl font-bold">{formatCurrency(totalProductCost)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Valor de Venda Total</p>
