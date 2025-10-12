@@ -12,8 +12,8 @@ export const calculatePricing = (
   const ibsCredit = product.icmsCredit || 0;
   const totalCredit = cbsCredit + ibsCredit;
 
-  // 2. Custo efetivo - por unidade comercial
-  const effectiveCost = product.cost - totalCredit; // Este valor pode ser negativo se os créditos forem maiores que o custo.
+  // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)
+  const effectiveCost = product.cost - totalCredit;
 
   // 3. Soma das alíquotas percentuais (variável por regime)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
@@ -49,23 +49,17 @@ export const calculatePricing = (
   let status: "OK" | "PREÇO CORRIGIDO" = "OK";
 
   if (markupDivisor <= 0) {
-    // Se o markupDivisor for inviável (<= 0), a operação não é lucrativa ou é impossível.
-    // Definimos os valores dependentes como 0 para evitar NaN/Infinity na exibição.
+    // Se o markupDivisor for inviável (<= 0), a operação é matematicamente impossível.
+    // Definimos os valores de venda e impostos como 0 e marcamos o status.
     sellingPrice = 0;
     minSellingPrice = 0;
-    status = "PREÇO CORRIGIDO"; // Indica que o preço original seria inviável
+    status = "PREÇO CORRIGIDO";
   } else {
     // 5. Preço de venda sugerido - por unidade comercial
-    sellingPrice = effectiveCost / markupDivisor;
+    // A base é o custo de compra do produto (product.cost), garantindo um preço de venda positivo.
+    sellingPrice = product.cost / markupDivisor;
     
-    // Se o preço de venda calculado for negativo, significa que o custo efetivo é muito baixo (ou negativo)
-    // e o markup divisor é muito pequeno. Limitamos a 0 para evitar vendas com preço negativo.
-    if (sellingPrice < 0) {
-      sellingPrice = 0;
-      status = "PREÇO CORRIGIDO";
-    }
-
-    // 6. Menor valor a ser vendido (cobre custo efetivo + despesas variáveis + impostos diretos) - por unidade comercial
+    // 6. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
     let minSellingDivisor = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + CBS_RATE + IBS_RATE);
@@ -73,10 +67,7 @@ export const calculatePricing = (
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
     }
     
-    minSellingPrice = minSellingDivisor > 0 ? effectiveCost / minSellingDivisor : effectiveCost;
-    if (minSellingPrice < 0) {
-      minSellingPrice = 0;
-    }
+    minSellingPrice = minSellingDivisor > 0 ? product.cost / minSellingDivisor : product.cost;
 
     // 7. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
     if (params.taxRegime === TaxRegime.LucroPresumido) {
@@ -102,15 +93,15 @@ export const calculatePricing = (
       taxToPay = simplesToPay;
     }
 
-    // 9. Porcentagem de markup
-    markupPercentage = effectiveCost > 0 ? ((sellingPrice - effectiveCost) / effectiveCost) * 100 : 0;
+    // 9. Porcentagem de markup (sobre o custo de compra original)
+    markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
   }
 
   // Cálculos por Unidade Interna
   const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1;
 
   const costPerInnerUnit = product.cost / innerQty;
-  const effectiveCostPerInnerUnit = effectiveCost / innerQty;
+  const effectiveCostPerInnerUnit = effectiveCost / innerQty; // Pode ser negativo
   const sellingPricePerInnerUnit = sellingPrice / innerQty;
   const minSellingPricePerInnerUnit = minSellingPrice / innerQty;
   const cbsCreditPerInnerUnit = cbsCredit / innerQty;
