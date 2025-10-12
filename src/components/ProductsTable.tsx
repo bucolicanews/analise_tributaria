@@ -144,6 +144,14 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
   const totalContributionMargin = totalSelling - totalProductAcquisitionCost - totalVariableExpensesValue;
   const totalTaxPercent = totalSelling > 0 ? (totalTax / totalSelling) * 100 : 0;
 
+  // Totais de CBS e IBS
+  const totalCbsCredit = calculatedProducts.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+  const totalIbsCredit = calculatedProducts.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+  const totalCbsDebit = calculatedProducts.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
+  const totalIbsDebit = calculatedProducts.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
+  const totalCbsTaxToPay = calculatedProducts.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
+  const totalIbsTaxToPay = calculatedProducts.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
+
 
   return (
     <div className="space-y-6">
@@ -325,7 +333,7 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
         </Table>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"> {/* Changed to lg:grid-cols-4 for 8 cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Custo Total Aquisição</p>
           <p className="text-2xl font-bold">{formatCurrency(totalProductAcquisitionCost)}</p>
@@ -360,6 +368,36 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
           <p className="text-sm text-muted-foreground mb-1">Ponto de Equilíbrio</p>
           <p className="text-2xl font-bold text-yellow-500">{formatCurrency(breakEvenPoint)}</p>
         </div>
+
+        {/* Novos Cards para CBS e IBS */}
+        {params.taxRegime === TaxRegime.LucroPresumido && (
+          <>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">Crédito CBS Total</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(totalCbsCredit)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">Débito CBS Total</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalCbsDebit)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">CBS a Pagar Total</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalCbsTaxToPay)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">Crédito IBS Total</p>
+              <p className="text-2xl font-bold text-success">{formatCurrency(totalIbsCredit)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">Débito IBS Total</p>
+              <p className="text-2xl font-bold text-destructive">{formatCurrency(totalIbsDebit)}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-card p-4">
+              <p className="text-sm text-muted-foreground mb-1">IBS a Pagar Total</p>
+              <p className="text-2xl font-bold">{formatCurrency(totalIbsTaxToPay)}</p>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
