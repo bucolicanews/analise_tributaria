@@ -13,7 +13,7 @@ export const calculatePricing = (
   const totalCredit = cbsCredit + ibsCredit;
 
   // 2. Custo efetivo - por unidade comercial
-  const effectiveCost = product.cost - totalCredit;
+  const effectiveCost = product.cost - totalCredit; // Este valor pode ser negativo se os créditos forem maiores que o custo.
 
   // 3. Markup divisor
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
@@ -36,17 +36,20 @@ export const calculatePricing = (
 
   if (markupDivisor <= 0) {
     // Se o markupDivisor for inviável (<= 0), a operação não é lucrativa ou é impossível.
-    // Definimos os valores dependentes como 0 para evitar NaN/Infinity na exibição.
-    // Uma mensagem de erro mais abrangente será exibida no nível da tabela de produtos.
+    // O preço de venda deve ser no mínimo 0, mesmo que o custo efetivo seja negativo.
+    sellingPrice = Math.max(0, effectiveCost);
+    minSellingPrice = Math.max(0, effectiveCost);
   } else {
     // 4. Preço de venda sugerido - por unidade comercial
-    sellingPrice = effectiveCost / markupDivisor;
+    // Garante que o preço de venda seja não-negativo, mesmo que o custo efetivo seja negativo.
+    sellingPrice = Math.max(0, effectiveCost / markupDivisor);
 
     // 5. Menor valor a ser vendido (cobre custo efetivo + despesas variáveis + simples nacional) - por unidade comercial
     const minSellingDivisor = 1 - (totalVariableExpensesPercentage + params.simplesNacional) / 100;
-    minSellingPrice = minSellingDivisor > 0 ? effectiveCost / minSellingDivisor : effectiveCost;
+    minSellingPrice = minSellingDivisor > 0 ? Math.max(0, effectiveCost / minSellingDivisor) : Math.max(0, effectiveCost);
 
     // 6. Débitos na venda - por unidade comercial
+    // Calculado a partir do sellingPrice (que já é não-negativo)
     cbsDebit = sellingPrice * CBS_RATE;
     ibsDebit = sellingPrice * IBS_RATE;
 
@@ -56,14 +59,15 @@ export const calculatePricing = (
     taxToPay = cbsTaxToPay + ibsTaxToPay;
 
     // 8. Porcentagem de markup
+    // O markup só é significativo se o custo efetivo for positivo.
     markupPercentage = effectiveCost > 0 ? ((sellingPrice - effectiveCost) / effectiveCost) * 100 : 0;
   }
 
   // Cálculos por Unidade Interna
-  const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1; // Garante divisão por no mínimo 1
+  const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1;
 
   const costPerInnerUnit = product.cost / innerQty;
-  const effectiveCostPerInnerUnit = effectiveCost / innerQty;
+  const effectiveCostPerInnerUnit = effectiveCost / innerQty; // Pode ser negativo
   const sellingPricePerInnerUnit = sellingPrice / innerQty;
   const minSellingPricePerInnerUnit = minSellingPrice / innerQty;
   const cbsCreditPerInnerUnit = cbsCredit / innerQty;
@@ -77,29 +81,29 @@ export const calculatePricing = (
 
   return {
     ...product,
-    effectiveCost,
-    sellingPrice: Math.max(0, sellingPrice),
-    minSellingPrice: Math.max(0, minSellingPrice),
+    effectiveCost, // Mantém o valor real (pode ser negativo) para fins de análise de custo
+    sellingPrice, // Já é Math.max(0, ...) acima
+    minSellingPrice, // Já é Math.max(0, ...) acima
     cbsCredit,
     ibsCredit,
-    cbsDebit,
-    ibsDebit,
-    taxToPay: Math.max(0, taxToPay),
-    cbsTaxToPay: Math.max(0, cbsTaxToPay),
-    ibsTaxToPay: Math.max(0, ibsTaxToPay),
+    cbsDebit: Math.max(0, cbsDebit), // Garante que o débito CBS não seja negativo
+    ibsDebit: Math.max(0, ibsDebit), // Garante que o débito IBS não seja negativo
+    taxToPay: Math.max(0, taxToPay), // Garante que o imposto líquido total não seja negativo
+    cbsTaxToPay: Math.max(0, cbsTaxToPay), // Garante que o CBS a pagar não seja negativo
+    ibsTaxToPay: Math.max(0, ibsTaxToPay), // Garante que o IBS a pagar não seja negativo
     markupPercentage,
     cfop: product.cfop || "5102",
     cst: product.cst || "101",
 
     // Valores por Unidade Interna
     costPerInnerUnit,
-    effectiveCostPerInnerUnit,
-    sellingPricePerInnerUnit: Math.max(0, sellingPricePerInnerUnit),
-    minSellingPricePerInnerUnit: Math.max(0, minSellingPricePerInnerUnit),
+    effectiveCostPerInnerUnit, // Mantém o valor real (pode ser negativo)
+    sellingPricePerInnerUnit, // Já é Math.max(0, ...) acima
+    minSellingPricePerInnerUnit, // Já é Math.max(0, ...) acima
     cbsCreditPerInnerUnit,
     ibsCreditPerInnerUnit,
-    cbsDebitPerInnerUnit,
-    ibsDebitPerInnerUnit,
+    cbsDebitPerInnerUnit: Math.max(0, cbsDebitPerInnerUnit), // Garante que o débito CBS por unidade interna não seja negativo
+    ibsDebitPerInnerUnit: Math.max(0, ibsDebitPerInnerUnit), // Garante que o débito IBS por unidade interna não seja negativo
     taxToPayPerInnerUnit: Math.max(0, taxToPayPerInnerUnit),
     cbsTaxToPayPerInnerUnit: Math.max(0, cbsTaxToPayPerInnerUnit),
     ibsTaxToPayPerInnerUnit: Math.max(0, ibsTaxToPayPerInnerUnit),
