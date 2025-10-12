@@ -139,6 +139,12 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
     breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
   }
 
+  // Novas métricas para o resumo
+  const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
+  const totalContributionMargin = totalSelling - totalProductAcquisitionCost - totalVariableExpensesValue;
+  const totalTaxPercent = totalSelling > 0 ? (totalTax / totalSelling) * 100 : 0;
+
+
   return (
     <div className="space-y-6">
       <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
@@ -319,10 +325,22 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
         </Table>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"> {/* Changed to lg:grid-cols-4 for 8 cards */}
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Custo Total Aquisição</p>
           <p className="text-2xl font-bold">{formatCurrency(totalProductAcquisitionCost)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground mb-1">Despesas Fixas Totais</p>
+          <p className="text-2xl font-bold">{formatCurrency(totalFixedExpenses)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground mb-1">Despesas Variáveis Totais</p>
+          <p className="text-2xl font-bold">{formatCurrency(totalVariableExpensesValue)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground mb-1">Margem de Contribuição Total</p>
+          <p className="text-2xl font-bold text-accent">{formatCurrency(totalContributionMargin)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Valor de Venda Total</p>
@@ -331,15 +349,16 @@ export const ProductsTable = ({ products, params }: ProductsTableProps) => {
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Impostos Líquidos</p>
           <p className="text-2xl font-bold text-destructive">{formatCurrency(totalTax)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Ponto de Equilíbrio</p>
-          <p className="text-2xl font-bold text-accent">{formatCurrency(breakEvenPoint)}</p>
+          <p className="text-xs text-muted-foreground mt-1">{formatPercent(totalTaxPercent)}</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4">
           <p className="text-sm text-muted-foreground mb-1">Lucro Líquido</p>
           <p className="text-2xl font-bold text-success">{formatCurrency(totalProfit)}</p>
           <p className="text-xs text-muted-foreground mt-1">{formatPercent(profitMarginPercent)}</p>
+        </div>
+        <div className="rounded-lg border border-border bg-card p-4">
+          <p className="text-sm text-muted-foreground mb-1">Ponto de Equilíbrio</p>
+          <p className="text-2xl font-bold text-yellow-500">{formatCurrency(breakEvenPoint)}</p>
         </div>
       </div>
     </div>
