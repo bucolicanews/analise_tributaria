@@ -1,4 +1,8 @@
-# Welcome to your Lovable project
+# JOTA - Sistema de Precificação Inteligente
+
+## Sobre o Projeto
+
+Este é um **Sistema Inteligente de Precificação** desenvolvido para auxiliar na análise e cálculo de preços de venda, considerando as propostas da **Reforma Tributária Brasileira (Lei 214/2025)**. A ferramenta permite o upload de arquivos XML de Notas Fiscais Eletrônicas (NFe) e a definição de parâmetros de cálculo para gerar relatórios detalhados de precificação, incluindo custos, impostos e margens de lucro, tanto por unidade comercial quanto por unidade interna.
 
 ## Project info
 
