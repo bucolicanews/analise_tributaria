@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
-import { ProductsTable } from "@/components/ProductsTable";
+import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable"; // Importar GlobalSummaryData
 import { CalculationMemory } from "@/components/CalculationMemory";
 import { Product, CalculationParams, TaxRegime, CalculatedProduct } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing"; // Importar calculatePricing para calcular o primeiro produto
@@ -13,6 +13,7 @@ const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
+  const [globalSummary, setGlobalSummary] = useState<GlobalSummaryData | null>(null); // Novo estado para o resumo global
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     setProducts(parsedProducts);
@@ -20,6 +21,10 @@ const Index = () => {
 
   const handleCalculate = (calculationParams: CalculationParams) => {
     setParams(calculationParams);
+  };
+
+  const handleSummaryCalculated = (summary: GlobalSummaryData) => {
+    setGlobalSummary(summary);
   };
 
   // Calcular o CFU para o ProductRetailInfo
@@ -32,12 +37,19 @@ const Index = () => {
       ? calculatePricing(products[0], params, cfu) 
       : null;
 
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    }).format(value);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:text-left"> {/* Alterado aqui */}
+          <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:text-left">
             <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
               <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
             </div>
@@ -46,6 +58,12 @@ const Index = () => {
               <p className="text-sm text-black/70">
                 Jota Contabilidade - Rua Coronel José do Ó, nº1645, Mosqueiro/PA, CEP:66910010 - Fone: 91996293532
               </p>
+              {globalSummary && globalSummary.breakEvenPoint > 0 && (
+                <p className="text-sm text-black/70 mt-1">
+                  <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
+                  <span className="text-yellow-800 font-bold">{formatCurrency(globalSummary.breakEvenPoint)}</span>
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -98,7 +116,7 @@ const Index = () => {
                         {showMemory ? "Ocultar" : "Exibir"} Memória de Cálculo
                       </Button>
                     </div>
-                    <ProductsTable products={products} params={params} />
+                    <ProductsTable products={products} params={params} onSummaryCalculated={handleSummaryCalculated} />
                   </div>
                 </Card>
 

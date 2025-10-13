@@ -5,13 +5,13 @@ import { SummaryCard } from './SummaryCard';
 interface SalesSummaryProps {
   totalSellingBestSale: number;
   totalSellingMinSale: number;
-  breakEvenPoint: number;
+  // breakEvenPoint: number; // Removido
 }
 
 export const SalesSummary: React.FC<SalesSummaryProps> = ({
   totalSellingBestSale,
   totalSellingMinSale,
-  breakEvenPoint,
+  // breakEvenPoint, // Removido
 }) => {
   return (
     <SummarySection title="Vendas">
@@ -26,12 +26,7 @@ export const SalesSummary: React.FC<SalesSummaryProps> = ({
         valueClassName="text-yellow-500"
         description="Cobre custos variáveis e impostos diretos"
       />
-      <SummaryCard
-        title="Ponto de Equilíbrio"
-        value={breakEvenPoint}
-        valueClassName="text-yellow-500"
-        description="Faturamento mínimo para cobrir custos"
-      />
+      {/* Card Ponto de Equilíbrio removido daqui */}
     </SummarySection>
   );
 };

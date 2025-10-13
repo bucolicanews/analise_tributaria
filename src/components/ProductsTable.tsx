@@ -21,6 +21,7 @@ import { OverallResultSummary } from './summary/OverallResultSummary';
 interface ProductsTableProps {
   products: Product[];
   params: CalculationParams;
+  onSummaryCalculated: (summary: GlobalSummaryData) => void; // Novo prop para passar o resumo
 }
 
 // Define a type for the summary data to ensure consistency
@@ -150,7 +151,7 @@ const calculateGlobalSummary = (
   };
 };
 
-export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }) => {
+export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, onSummaryCalculated }) => {
   // Early return if no products to display
   if (!products || products.length === 0) {
     return null;
@@ -238,6 +239,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
     totalQuantityOfAllProductsInXML,
     params.profitMargin
   );
+
+  // Use useEffect to call onSummaryCalculated when summaryDataBestSale changes
+  React.useEffect(() => {
+    if (summaryDataBestSale) {
+      onSummaryCalculated(summaryDataBestSale);
+    }
+  }, [summaryDataBestSale, onSummaryCalculated]);
+
 
   // Calculate summary for "Minimum Sale" (with 0% profit margin)
   const paramsForMinSale = { ...params, profitMargin: 0 };
@@ -379,7 +388,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                   <TableHead className="text-right">IRPJ a Pagar</TableHead>
                   <TableHead className="text-right">CSLL a Pagar</TableHead>
                   <TableHead className="text-right">Imposto Líq.</TableHead>
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova célula */}
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead className="text-right">Crédito Cliente</TableHead>
@@ -567,7 +576,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
           totalSellingMinSale={summaryDataMinSale.totalSelling}
-          breakEvenPoint={summaryDataBestSale.breakEvenPoint}
+          // breakEvenPoint={summaryDataBestSale.breakEvenPoint} // Removido
         />
         <ExpenseSummary
           totalFixedExpenses={totalFixedExpenses}
