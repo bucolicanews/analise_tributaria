@@ -11,6 +11,12 @@ import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/type
 import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { SummarySection } from './summary/SummarySection';
+import { CostSummary } from './summary/CostSummary';
+import { SalesSummary } from './summary/SalesSummary';
+import { TaxSummary } from './summary/TaxSummary';
+import { ExpenseSummary } from './summary/ExpenseSummary';
+import { OverallResultSummary } from './summary/OverallResultSummary';
 
 interface ProductsTableProps {
   products: Product[];
@@ -18,7 +24,7 @@ interface ProductsTableProps {
 }
 
 // Define a type for the summary data to ensure consistency
-interface GlobalSummaryData {
+export interface GlobalSummaryData {
   totalSelling: number;
   totalTax: number;
   totalProfit: number;
@@ -27,12 +33,17 @@ interface GlobalSummaryData {
   totalVariableExpensesValue: number;
   totalContributionMargin: number;
   totalTaxPercent: number;
+
+  // Detailed Tax Info
   totalCbsCredit: number;
   totalIbsCredit: number;
   totalCbsDebit: number;
   totalIbsDebit: number;
   totalCbsTaxToPay: number;
   totalIbsTaxToPay: number;
+  totalIrpjToPay: number;
+  totalCsllToPay: number;
+  totalSimplesToPay: number;
   totalIvaCreditForClient: number;
 }
 
@@ -42,34 +53,27 @@ const calculateGlobalSummary = (
   currentParams: CalculationParams,
   totalFixedExpenses: number,
   totalProductAcquisitionCost: number,
-  totalVariableExpensesPercent: number
+  totalVariableExpensesPercent: number,
+  profitMarginOverride?: number // New parameter to allow overriding profit margin for min sale
 ): GlobalSummaryData => {
-  let globalMarkupDivisor = 0;
-  let currentTotalSelling = 0;
-  let currentTotalTax = 0;
-  let currentTotalProfit = 0;
-  let currentProfitMarginPercent = 0;
-  let currentBreakEvenPoint = 0;
-  let currentTotalVariableExpensesValue = 0;
-  let currentTotalContributionMargin = 0;
-  let currentTotalTaxPercent = 0;
+  const effectiveProfitMargin = profitMarginOverride !== undefined ? profitMarginOverride : currentParams.profitMargin;
 
-  let currentTotalPercentageForGlobalMarkup = 0;
+  let totalPercentageForGlobalMarkup = 0;
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    currentTotalPercentageForGlobalMarkup =
-      (totalVariableExpensesPercent + currentParams.irpjRate + currentParams.csllRate + currentParams.profitMargin) / 100 +
+    totalPercentageForGlobalMarkup =
+      (totalVariableExpensesPercent + currentParams.irpjRate + currentParams.csllRate + effectiveProfitMargin) / 100 +
       CBS_RATE + IBS_RATE;
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
-      currentTotalPercentageForGlobalMarkup =
-        (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + currentParams.profitMargin) / 100 +
+      totalPercentageForGlobalMarkup =
+        (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + effectiveProfitMargin) / 100 +
         CBS_RATE + IBS_RATE;
     } else {
-      currentTotalPercentageForGlobalMarkup =
-        (totalVariableExpensesPercent + currentParams.simplesNacionalRate + currentParams.profitMargin) / 100;
+      totalPercentageForGlobalMarkup =
+        (totalVariableExpensesPercent + currentParams.simplesNacionalRate + effectiveProfitMargin) / 100;
     }
   }
-  globalMarkupDivisor = 1 - currentTotalPercentageForGlobalMarkup;
+  const globalMarkupDivisor = 1 - totalPercentageForGlobalMarkup;
 
   // Default summary data for invalid calculations
   const defaultSummary: GlobalSummaryData = {
@@ -87,57 +91,66 @@ const calculateGlobalSummary = (
     totalIbsDebit: 0,
     totalCbsTaxToPay: 0,
     totalIbsTaxToPay: 0,
+    totalIrpjToPay: 0,
+    totalCsllToPay: 0,
+    totalSimplesToPay: 0,
     totalIvaCreditForClient: 0,
   };
 
   if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
     return defaultSummary;
   } else {
-    currentTotalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
+    const totalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
 
-    let currentTotalCbsDebit = 0;
-    let currentTotalIbsDebit = 0;
-    let currentTotalIrpjToPay = 0;
-    let currentTotalCsllToPay = 0;
-    let currentTotalSimplesToPay = 0;
+    let totalCbsDebit = 0;
+    let totalIbsDebit = 0;
+    let totalIrpjToPay = 0;
+    let totalCsllToPay = 0;
+    let totalSimplesToPay = 0;
+    let totalIvaCreditForClient = 0;
 
-    if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
-      currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
-      currentTotalIrpjToPay = currentTotalSelling * (currentParams.irpjRate / 100);
-      currentTotalCsllToPay = currentTotalSelling * (currentParams.csllRate / 100);
-    } else { // Simples Nacional
-      if (currentParams.generateIvaCredit) {
-        currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRemanescenteRate / 100);
-        currentTotalCbsDebit = currentTotalSelling * CBS_RATE;
-        currentTotalIbsDebit = currentTotalSelling * IBS_RATE;
-      } else {
-        currentTotalSimplesToPay = currentTotalSelling * (currentParams.simplesNacionalRate / 100);
+    if (totalSelling > 0) {
+      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+        totalCbsDebit = totalSelling * CBS_RATE;
+        totalIbsDebit = totalSelling * IBS_RATE;
+        totalIrpjToPay = totalSelling * (currentParams.irpjRate / 100);
+        totalCsllToPay = totalSelling * (currentParams.csllRate / 100);
+        totalIvaCreditForClient = totalCbsDebit + totalIbsDebit;
+      } else { // Simples Nacional
+        if (currentParams.generateIvaCredit) {
+          totalSimplesToPay = totalSelling * (currentParams.simplesNacionalRemanescenteRate / 100);
+          totalCbsDebit = totalSelling * CBS_RATE;
+          totalIbsDebit = totalSelling * IBS_RATE;
+          totalIvaCreditForClient = totalCbsDebit + totalIbsDebit;
+        } else {
+          totalSimplesToPay = totalSelling * (currentParams.simplesNacionalRate / 100);
+        }
       }
     }
 
-    const currentTotalCbsCredit = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-    const currentTotalIbsCredit = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+    const totalCbsCredit = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+    const totalIbsCredit = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
     
-    const currentTotalCbsTaxToPay = currentTotalCbsDebit - currentTotalCbsCredit;
-    const currentTotalIbsTaxToPay = currentTotalIbsDebit - currentTotalIbsCredit;
+    const totalCbsTaxToPay = totalCbsDebit - totalCbsCredit;
+    const totalIbsTaxToPay = totalIbsDebit - totalIbsCredit;
     
+    let totalTax = 0;
     if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      currentTotalTax = Math.max(0, currentTotalCbsTaxToPay + currentTotalIbsTaxToPay + currentTotalIrpjToPay + currentTotalCsllToPay);
+      totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay + totalIrpjToPay + totalCsllToPay);
     } else { // Simples Nacional
       if (currentParams.generateIvaCredit) {
-        currentTotalTax = Math.max(0, currentTotalSimplesToPay + currentTotalCbsTaxToPay + currentTotalIbsTaxToPay);
+        totalTax = Math.max(0, totalSimplesToPay + totalCbsTaxToPay + totalIbsTaxToPay);
       } else {
-        currentTotalTax = Math.max(0, currentTotalSimplesToPay);
+        totalTax = Math.max(0, totalSimplesToPay);
       }
     }
 
-    currentTotalVariableExpensesValue = currentTotalSelling * (totalVariableExpensesPercent / 100);
-    currentTotalProfit = currentTotalSelling - totalFixedExpenses - totalProductAcquisitionCost - currentTotalTax - currentTotalVariableExpensesValue;
-    currentProfitMarginPercent = currentTotalSelling > 0 ? (currentTotalProfit / currentTotalSelling) * 100 : 0;
+    const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
+    const totalProfit = totalSelling - totalFixedExpenses - totalProductAcquisitionCost - totalTax - totalVariableExpensesValue;
+    const profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
 
-    const totalVariableCostsForBEP = totalProductAcquisitionCost + currentTotalVariableExpensesValue;
-    const variableCostRatioForBEP = currentTotalSelling > 0 ? totalVariableCostsForBEP / currentTotalSelling : 0;
+    const totalVariableCostsForBEP = totalProductAcquisitionCost + totalVariableExpensesValue;
+    const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
     
     let taxRatioForBEP = 0;
     if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
@@ -151,27 +164,30 @@ const calculateGlobalSummary = (
     }
 
     const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
-    currentBreakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
+    const breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
 
-    currentTotalContributionMargin = currentTotalSelling - totalProductAcquisitionCost - currentTotalVariableExpensesValue;
-    currentTotalTaxPercent = currentTotalSelling > 0 ? (currentTotalTax / currentTotalSelling) * 100 : 0;
+    const totalContributionMargin = totalSelling - totalProductAcquisitionCost - totalVariableExpensesValue;
+    const totalTaxPercent = totalSelling > 0 ? (totalTax / totalSelling) * 100 : 0;
 
     return {
-      totalSelling: currentTotalSelling,
-      totalTax: currentTotalTax,
-      totalProfit: currentTotalProfit,
-      profitMarginPercent: currentProfitMarginPercent,
-      breakEvenPoint: currentBreakEvenPoint,
-      totalVariableExpensesValue: currentTotalVariableExpensesValue,
-      totalContributionMargin: currentTotalContributionMargin,
-      totalTaxPercent: currentTotalTaxPercent,
-      totalCbsCredit: currentTotalCbsCredit,
-      totalIbsCredit: currentTotalIbsCredit,
-      totalCbsDebit: currentTotalCbsDebit,
-      totalIbsDebit: currentTotalIbsDebit,
-      totalCbsTaxToPay: currentTotalCbsTaxToPay,
-      totalIbsTaxToPay: currentTotalIbsTaxToPay,
-      totalIvaCreditForClient: productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0),
+      totalSelling: totalSelling,
+      totalTax: totalTax,
+      totalProfit: totalProfit,
+      profitMarginPercent: profitMarginPercent,
+      breakEvenPoint: breakEvenPoint,
+      totalVariableExpensesValue: totalVariableExpensesValue,
+      totalContributionMargin: totalContributionMargin,
+      totalTaxPercent: totalTaxPercent,
+      totalCbsCredit: totalCbsCredit,
+      totalIbsCredit: totalIbsCredit,
+      totalCbsDebit: totalCbsDebit,
+      totalIbsDebit: totalIbsDebit,
+      totalCbsTaxToPay: totalCbsTaxToPay,
+      totalIbsTaxToPay: totalIbsTaxToPay,
+      totalIrpjToPay: totalIrpjToPay,
+      totalCsllToPay: totalCsllToPay,
+      totalSimplesToPay: totalSimplesToPay,
+      totalIvaCreditForClient: totalIvaCreditForClient,
     };
   }
 };
@@ -242,23 +258,39 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
     totalProductAcquisitionCost = Infinity;
   }
 
-  // Determine which summary to display
-  let summaryData: GlobalSummaryData;
-  let totalOptionCost = 0;
+  // Calculate summary for "Best Sale" (with target profit margin)
+  let summaryDataBestSale: GlobalSummaryData;
+  let calculatedProductsForBestSale: CalculatedProduct[];
 
+  if (params.taxRegime === TaxRegime.SimplesNacional) {
+    calculatedProductsForBestSale = params.generateIvaCredit ? calculatedProductsHybrid : calculatedProductsStandard;
+  } else {
+    calculatedProductsForBestSale = calculatedProductsPresumido;
+  }
+  summaryDataBestSale = calculateGlobalSummary(calculatedProductsForBestSale, params, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent, params.profitMargin);
+
+  // Calculate summary for "Minimum Sale" (with 0% profit margin)
+  const paramsForMinSale = { ...params, profitMargin: 0 };
+  let calculatedProductsForMinSale: CalculatedProduct[];
+
+  if (params.taxRegime === TaxRegime.SimplesNacional) {
+    calculatedProductsForMinSale = params.generateIvaCredit ? 
+      products.map((product) => calculatePricing(product, { ...paramsForMinSale, generateIvaCredit: true }, cfu)) :
+      products.map((product) => calculatePricing(product, { ...paramsForMinSale, generateIvaCredit: false }, cfu));
+  } else {
+    calculatedProductsForMinSale = products.map((product) => calculatePricing(product, paramsForMinSale, cfu));
+  }
+  const summaryDataMinSale = calculateGlobalSummary(calculatedProductsForMinSale, paramsForMinSale, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent, 0);
+
+  // Calculate totalOptionCost only if both Simples Nacional scenarios are valid
+  let totalOptionCost = 0;
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     const summaryStandard = calculateGlobalSummary(calculatedProductsStandard, { ...params, generateIvaCredit: false }, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent);
     const summaryHybrid = calculateGlobalSummary(calculatedProductsHybrid, { ...params, generateIvaCredit: true }, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent);
     
-    // Decide which summary to use for display based on current params.generateIvaCredit
-    summaryData = params.generateIvaCredit ? summaryHybrid : summaryStandard;
-    
-    // Calculate totalOptionCost only if both scenarios are valid
-    if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) { // Check if at least one scenario produced a non-zero tax
+    if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) {
       totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     }
-  } else { // Lucro Presumido
-    summaryData = calculateGlobalSummary(calculatedProductsPresumido, params, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent);
   }
 
   return (
@@ -517,87 +549,39 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
         </Table>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Custo Total Aquisição</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalProductAcquisitionCost)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Despesas Fixas Totais</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalFixedExpenses)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Despesas Variáveis Totais</p>
-          <p className="text-2xl font-bold">{formatCurrency(summaryData.totalVariableExpensesValue)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Margem de Contribuição Total</p>
-          <p className="text-2xl font-bold text-accent">{formatCurrency(summaryData.totalContributionMargin)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Valor de Venda Total</p>
-          <p className="text-2xl font-bold text-primary">{formatCurrency(summaryData.totalSelling)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Impostos Líquidos</p>
-          <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalTax)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{formatPercent(summaryData.totalTaxPercent)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Lucro Líquido</p>
-          <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalProfit)}</p>
-          <p className="text-xs text-muted-foreground mt-1">{formatPercent(summaryData.profitMarginPercent)}</p>
-        </div>
-        <div className="rounded-lg border border-border bg-card p-4">
-          <p className="text-sm text-muted-foreground mb-1">Ponto de Equilíbrio</p>
-          <p className="text-2xl font-bold text-yellow-500">{formatCurrency(summaryData.breakEvenPoint)}</p>
-        </div>
-
-        {/* Novos Cards para CBS e IBS */}
-        {params.taxRegime === TaxRegime.LucroPresumido || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit) ? (
-          <React.Fragment>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">Crédito CBS Total</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalCbsCredit)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">Débito CBS Total</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalCbsDebit)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">CBS a Pagar Total</p>
-              <p className="text-2xl font-bold">{formatCurrency(summaryData.totalCbsTaxToPay)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">Crédito IBS Total</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalIbsCredit)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">Débito IBS Total</p>
-              <p className="text-2xl font-bold text-destructive">{formatCurrency(summaryData.totalIbsDebit)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">IBS a Pagar Total</p>
-              <p className="text-2xl font-bold">{formatCurrency(summaryData.totalIbsTaxToPay)}</p>
-            </div>
-            <div className="rounded-lg border border-border bg-card p-4">
-              <p className="text-sm text-muted-foreground mb-1">IVA Crédito p/ Cliente</p>
-              <p className="text-2xl font-bold text-success">{formatCurrency(summaryData.totalIvaCreditForClient)}</p>
-            </div>
-          </React.Fragment>
-        ) : (
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-sm text-muted-foreground mb-1">IVA Crédito p/ Cliente</p>
-            <p className="text-2xl font-bold text-muted-foreground">{formatCurrency(0)}</p>
-          </div>
-        )}
-        {params.taxRegime === TaxRegime.SimplesNacional && (
-          <div className="rounded-lg border border-border bg-card p-4">
-            <p className="text-sm text-muted-foreground mb-1">Custo da Opção Híbrida</p>
-            <p className="text-2xl font-bold text-yellow-500">{formatCurrency(totalOptionCost)}</p>
-          </div>
-        )}
+      {/* New Summary Sections */}
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+        <CostSummary
+          totalProductAcquisitionCost={totalProductAcquisitionCost}
+          totalFixedExpenses={totalFixedExpenses}
+          cfu={cfu}
+        />
+        <SalesSummary
+          totalSellingBestSale={summaryDataBestSale.totalSelling}
+          totalSellingMinSale={summaryDataMinSale.totalSelling}
+          breakEvenPoint={summaryDataBestSale.breakEvenPoint}
+        />
+        <ExpenseSummary
+          totalFixedExpenses={totalFixedExpenses}
+          totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
+          totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue}
+        />
+        <TaxSummary
+          params={params}
+          summaryDataBestSale={summaryDataBestSale}
+          summaryDataMinSale={summaryDataMinSale}
+          totalOptionCost={totalOptionCost}
+        />
       </div>
+
+      <OverallResultSummary
+        totalProductAcquisitionCost={totalProductAcquisitionCost}
+        totalFixedExpenses={totalFixedExpenses}
+        totalVariableExpensesPercent={totalVariableExpensesPercent}
+        summaryDataBestSale={summaryDataBestSale}
+        summaryDataMinSale={summaryDataMinSale}
+      />
+
       <p className="text-xs text-muted-foreground mt-4">
         *Esta é uma simulação baseada nas propostas da Reforma Tributária. Os valores e regras finais dependem da aprovação das Leis Complementares.
       </p>
