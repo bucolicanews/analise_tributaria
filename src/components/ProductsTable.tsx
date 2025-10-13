@@ -558,6 +558,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
           totalProductAcquisitionCost={totalProductAcquisitionCost}
           totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
+          totalQuantityOfAllProducts={totalQuantityOfAllProducts}
         />
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
