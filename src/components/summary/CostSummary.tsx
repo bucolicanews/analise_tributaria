@@ -16,6 +16,7 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
   totalQuantityOfAllProducts,
 }) => {
   const fixedCostContributionOfNote = cfu * totalQuantityOfAllProducts;
+  const totalCost = totalProductAcquisitionCost + fixedCostContributionOfNote; // Novo cálculo para Custo Total
 
   return (
     <SummarySection title="Custos">
@@ -32,6 +33,12 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
         title="Custo Fixo por Unidade (CFU)"
         value={cfu}
         description="Rateio dos custos fixos por unidade de estoque"
+      />
+      <SummaryCard
+        title="Custo Total"
+        value={totalCost}
+        valueClassName="text-primary"
+        description="Aquisição + Contribuição Despesas Fixas"
       />
     </SummarySection>
   );
