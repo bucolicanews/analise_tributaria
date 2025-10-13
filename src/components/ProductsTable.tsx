@@ -51,29 +51,15 @@ export interface GlobalSummaryData {
 const calculateGlobalSummary = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
-  totalFixedExpenses: number,
-  totalProductAcquisitionCost: number,
+  globalFixedExpenses: number, // This is the total fixed expenses of the company
+  xmlProductAcquisitionCost: number, // This is the total acquisition cost of products in THIS XML
   totalVariableExpensesPercent: number,
+  cfu: number, // Custo Fixo por Unidade
+  totalQuantityOfAllProductsInXML: number, // Total quantity of units in THIS XML
   profitMarginOverride?: number // New parameter to allow overriding profit margin for min sale
 ): GlobalSummaryData => {
-  const effectiveProfitMargin = profitMarginOverride !== undefined ? profitMarginOverride : currentParams.profitMargin;
 
-  let totalPercentageForGlobalMarkup = 0;
-  if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    totalPercentageForGlobalMarkup =
-      (totalVariableExpensesPercent + currentParams.irpjRate + currentParams.csllRate + effectiveProfitMargin) / 100 +
-      CBS_RATE + IBS_RATE;
-  } else { // Simples Nacional
-    if (currentParams.generateIvaCredit) {
-      totalPercentageForGlobalMarkup =
-        (totalVariableExpensesPercent + currentParams.simplesNacionalRemanescenteRate + effectiveProfitMargin) / 100 +
-        CBS_RATE + IBS_RATE;
-    } else {
-      totalPercentageForGlobalMarkup =
-        (totalVariableExpensesPercent + currentParams.simplesNacionalRate + effectiveProfitMargin) / 100;
-    }
-  }
-  const globalMarkupDivisor = 1 - totalPercentageForGlobalMarkup;
+  const effectiveProfitMargin = profitMarginOverride !== undefined ? profitMarginOverride : currentParams.profitMargin;
 
   // Default summary data for invalid calculations
   const defaultSummary: GlobalSummaryData = {
@@ -97,99 +83,74 @@ const calculateGlobalSummary = (
     totalIvaCreditForClient: 0,
   };
 
-  if (globalMarkupDivisor <= 0 || totalProductAcquisitionCost === Infinity) {
+  if (productsToSummarize.length === 0) {
     return defaultSummary;
-  } else {
-    const totalSelling = (totalFixedExpenses + totalProductAcquisitionCost) / globalMarkupDivisor;
-
-    let totalCbsDebit = 0;
-    let totalIbsDebit = 0;
-    let totalIrpjToPay = 0;
-    let totalCsllToPay = 0;
-    let totalSimplesToPay = 0;
-    let totalIvaCreditForClient = 0;
-
-    if (totalSelling > 0) {
-      if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-        totalCbsDebit = totalSelling * CBS_RATE;
-        totalIbsDebit = totalSelling * IBS_RATE;
-        totalIrpjToPay = totalSelling * (currentParams.irpjRate / 100);
-        totalCsllToPay = totalSelling * (currentParams.csllRate / 100);
-        totalIvaCreditForClient = totalCbsDebit + totalIbsDebit;
-      } else { // Simples Nacional
-        if (currentParams.generateIvaCredit) {
-          totalSimplesToPay = totalSelling * (currentParams.simplesNacionalRemanescenteRate / 100);
-          totalCbsDebit = totalSelling * CBS_RATE;
-          totalIbsDebit = totalSelling * IBS_RATE;
-          totalIvaCreditForClient = totalCbsDebit + totalIbsDebit;
-        } else {
-          totalSimplesToPay = totalSelling * (currentParams.simplesNacionalRate / 100);
-        }
-      }
-    }
-
-    const totalCbsCredit = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-    const totalIbsCredit = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
-    
-    const totalCbsTaxToPay = totalCbsDebit - totalCbsCredit;
-    const totalIbsTaxToPay = totalIbsDebit - totalIbsCredit;
-    
-    let totalTax = 0;
-    if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      totalTax = Math.max(0, totalCbsTaxToPay + totalIbsTaxToPay + totalIrpjToPay + totalCsllToPay);
-    } else { // Simples Nacional
-      if (currentParams.generateIvaCredit) {
-        totalTax = Math.max(0, totalSimplesToPay + totalCbsTaxToPay + totalIbsTaxToPay);
-      } else {
-        totalTax = Math.max(0, totalSimplesToPay);
-      }
-    }
-
-    const totalVariableExpensesValue = totalSelling * (totalVariableExpensesPercent / 100);
-    const totalProfit = totalSelling - totalFixedExpenses - totalProductAcquisitionCost - totalTax - totalVariableExpensesValue;
-    const profitMarginPercent = totalSelling > 0 ? (totalProfit / totalSelling) * 100 : 0;
-
-    const totalVariableCostsForBEP = totalProductAcquisitionCost + totalVariableExpensesValue;
-    const variableCostRatioForBEP = totalSelling > 0 ? totalVariableCostsForBEP / totalSelling : 0;
-    
-    let taxRatioForBEP = 0;
-    if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-      taxRatioForBEP = CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
-    } else { // Simples Nacional
-      if (currentParams.generateIvaCredit) {
-        taxRatioForBEP = (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
-      } else {
-        taxRatioForBEP = currentParams.simplesNacionalRate / 100;
-      }
-    }
-
-    const denominatorBEP = 1 - (variableCostRatioForBEP + taxRatioForBEP);
-    const breakEvenPoint = denominatorBEP > 0 ? totalFixedExpenses / denominatorBEP : 0;
-
-    const totalContributionMargin = totalSelling - totalProductAcquisitionCost - totalVariableExpensesValue;
-    const totalTaxPercent = totalSelling > 0 ? (totalTax / totalSelling) * 100 : 0;
-
-    return {
-      totalSelling: totalSelling,
-      totalTax: totalTax,
-      totalProfit: totalProfit,
-      profitMarginPercent: profitMarginPercent,
-      breakEvenPoint: breakEvenPoint,
-      totalVariableExpensesValue: totalVariableExpensesValue,
-      totalContributionMargin: totalContributionMargin,
-      totalTaxPercent: totalTaxPercent,
-      totalCbsCredit: totalCbsCredit,
-      totalIbsCredit: totalIbsCredit,
-      totalCbsDebit: totalCbsDebit,
-      totalIbsDebit: totalIbsDebit,
-      totalCbsTaxToPay: totalCbsTaxToPay,
-      totalIbsTaxToPay: totalIbsTaxToPay,
-      totalIrpjToPay: totalIrpjToPay,
-      totalCsllToPay: totalCsllToPay,
-      totalSimplesToPay: totalSimplesToPay,
-      totalIvaCreditForClient: totalIvaCreditForClient,
-    };
   }
+
+  // Summing up values directly from the calculated products
+  const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
+  const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
+  // Profit based on target margin (valueForProfit already includes the target margin)
+  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
+  const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
+  const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
+
+  const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+  const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+  const totalCbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
+  const totalIbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
+  const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
+  const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
+  const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
+  const totalCsllToPaySum = productsToSummarize.reduce((sum, p) => sum + p.csllToPay * p.quantity, 0);
+  const totalSimplesToPaySum = productsToSummarize.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
+  const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
+
+  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
+  const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
+
+  // Break-even point calculation (this is a global company-wide metric, using global fixed expenses)
+  // The ratios for variable costs and taxes should be derived from the *average* of the products in the XML,
+  // or from the overall parameters.
+  const totalVariableExpensesRatio = totalVariableExpensesPercent / 100;
+  let taxRatioForBEP = 0;
+  if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+    taxRatioForBEP = CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
+  } else { // Simples Nacional
+    if (currentParams.generateIvaCredit) {
+      taxRatioForBEP = (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
+    } else {
+      taxRatioForBEP = currentParams.simplesNacionalRate / 100;
+    }
+  }
+
+  // Average acquisition cost ratio for the XML (total acquisition cost of XML products / total selling of XML products)
+  const avgAcquisitionCostRatio = totalSellingSum > 0 ? xmlProductAcquisitionCost / totalSellingSum : 0;
+
+  const denominatorBEP = 1 - (totalVariableExpensesRatio + taxRatioForBEP + avgAcquisitionCostRatio);
+  const breakEvenPoint = denominatorBEP > 0 ? globalFixedExpenses / denominatorBEP : 0;
+
+
+  return {
+    totalSelling: totalSellingSum,
+    totalTax: totalTaxSum,
+    totalProfit: totalProfitSum,
+    profitMarginPercent: profitMarginPercent,
+    breakEvenPoint: breakEvenPoint,
+    totalVariableExpensesValue: totalVariableExpensesValueSum,
+    totalContributionMargin: totalContributionMarginSum,
+    totalTaxPercent: totalTaxPercent,
+    totalCbsCredit: totalCbsCreditSum,
+    totalIbsCredit: totalIbsCreditSum,
+    totalCbsDebit: totalCbsDebitSum,
+    totalIbsDebit: totalIbsDebitSum,
+    totalCbsTaxToPay: totalCbsTaxToPaySum,
+    totalIbsTaxToPay: totalIbsTaxToPaySum,
+    totalIrpjToPay: totalIrpjToPaySum,
+    totalCsllToPay: totalCsllToPaySum,
+    totalSimplesToPay: totalSimplesToPaySum,
+    totalIvaCreditForClient: totalIvaCreditForClientSum,
+  };
 };
 
 export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }) => {
@@ -251,12 +212,15 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
     0
   );
 
-  let totalProductAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  let totalProductAcquisitionCostInXML = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
-    totalProductAcquisitionCost = totalProductAcquisitionCost / (1 - params.lossPercentage / 100);
+    totalProductAcquisitionCostInXML = totalProductAcquisitionCostInXML / (1 - params.lossPercentage / 100);
   } else if (params.lossPercentage >= 100) {
-    totalProductAcquisitionCost = Infinity;
+    totalProductAcquisitionCostInXML = Infinity;
   }
+
+  // Calculate total quantity of all products in the XML
+  const totalQuantityOfAllProductsInXML = products.reduce((sum, p) => sum + p.quantity, 0);
 
   // Calculate summary for "Best Sale" (with target profit margin)
   let summaryDataBestSale: GlobalSummaryData;
@@ -267,7 +231,16 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
   } else {
     calculatedProductsForBestSale = calculatedProductsPresumido;
   }
-  summaryDataBestSale = calculateGlobalSummary(calculatedProductsForBestSale, params, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent, params.profitMargin);
+  summaryDataBestSale = calculateGlobalSummary(
+    calculatedProductsForBestSale,
+    params,
+    totalFixedExpenses,
+    totalProductAcquisitionCostInXML,
+    totalVariableExpensesPercent,
+    cfu,
+    totalQuantityOfAllProductsInXML,
+    params.profitMargin
+  );
 
   // Calculate summary for "Minimum Sale" (with 0% profit margin)
   const paramsForMinSale = { ...params, profitMargin: 0 };
@@ -280,21 +253,43 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
   } else {
     calculatedProductsForMinSale = products.map((product) => calculatePricing(product, paramsForMinSale, cfu));
   }
-  const summaryDataMinSale = calculateGlobalSummary(calculatedProductsForMinSale, paramsForMinSale, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent, 0);
+  const summaryDataMinSale = calculateGlobalSummary(
+    calculatedProductsForMinSale,
+    paramsForMinSale,
+    totalFixedExpenses,
+    totalProductAcquisitionCostInXML,
+    totalVariableExpensesPercent,
+    cfu,
+    totalQuantityOfAllProductsInXML,
+    0
+  );
 
   // Calculate totalOptionCost only if both Simples Nacional scenarios are valid
   let totalOptionCost = 0;
   if (params.taxRegime === TaxRegime.SimplesNacional) {
-    const summaryStandard = calculateGlobalSummary(calculatedProductsStandard, { ...params, generateIvaCredit: false }, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent);
-    const summaryHybrid = calculateGlobalSummary(calculatedProductsHybrid, { ...params, generateIvaCredit: true }, totalFixedExpenses, totalProductAcquisitionCost, totalVariableExpensesPercent);
+    const summaryStandard = calculateGlobalSummary(
+      calculatedProductsStandard,
+      { ...params, generateIvaCredit: false },
+      totalFixedExpenses,
+      totalProductAcquisitionCostInXML,
+      totalVariableExpensesPercent,
+      cfu,
+      totalQuantityOfAllProductsInXML
+    );
+    const summaryHybrid = calculateGlobalSummary(
+      calculatedProductsHybrid,
+      { ...params, generateIvaCredit: true },
+      totalFixedExpenses,
+      totalProductAcquisitionCostInXML,
+      totalVariableExpensesPercent,
+      cfu,
+      totalQuantityOfAllProductsInXML
+    );
     
     if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) {
       totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     }
   }
-
-  // Calculate total quantity of all products in the XML
-  const totalQuantityOfAllProducts = products.reduce((sum, p) => sum + p.quantity, 0);
 
   return (
     <div className="space-y-6">
@@ -555,10 +550,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
       {/* New Summary Sections - now stacked vertically */}
       <div className="space-y-6">
         <CostSummary
-          totalProductAcquisitionCost={totalProductAcquisitionCost}
+          totalProductAcquisitionCost={totalProductAcquisitionCostInXML}
           totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
-          totalQuantityOfAllProducts={totalQuantityOfAllProducts}
+          totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
         />
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
@@ -570,7 +565,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
           totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
           totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue}
           cfu={cfu}
-          totalQuantityOfAllProducts={totalQuantityOfAllProducts}
+          totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
         />
         <TaxSummary
           params={params}
@@ -581,13 +576,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
       </div>
 
       <OverallResultSummary
-        totalProductAcquisitionCost={totalProductAcquisitionCost}
+        totalProductAcquisitionCost={totalProductAcquisitionCostInXML}
         totalFixedExpenses={totalFixedExpenses}
         totalVariableExpensesPercent={totalVariableExpensesPercent}
         summaryDataBestSale={summaryDataBestSale}
         summaryDataMinSale={summaryDataMinSale}
         cfu={cfu}
-        totalQuantityOfAllProducts={totalQuantityOfAllProducts}
+        totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
       />
 
       <p className="text-xs text-muted-foreground mt-4">
