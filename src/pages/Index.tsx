@@ -65,7 +65,7 @@ const Index = () => {
               <div className="text-center sm:text-right mt-3 sm:mt-0 animate-pulse"> {/* Adicionado animação e alinhamento */}
                 <h1 className="text-lg text-black/70"> {/* Alterado para h1 e tamanho de texto */}
                   <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
-                  <span className="text-xl text-black font-extrabold">{formatCurrency(globalSummary.breakEvenPoint)}</span> {/* Alterado para text-xl, text-black e font-extrabold */}
+                  <span className="text-xl text-yellow-500 font-extrabold">{formatCurrency(globalSummary.breakEvenPoint)}</span> {/* Alterado para text-xl, text-yellow-500 e font-extrabold */}
                 </h1>
               </div>
             )}
