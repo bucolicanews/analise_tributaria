@@ -2,7 +2,6 @@ import { useRef, useState } from "react";
 import { Upload, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { parseXml } from "@/lib/xmlParser";
-import { parseZipXmls } from "@/lib/archiveParser";
 import { Product } from "@/types/pricing";
 import { toast } from "sonner";
 
@@ -15,7 +14,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [productCount, setProductCount] = useState<number>(0);
-  const [totalXmlCount, setTotalXmlCount] = useState<number>(0);
+  const [totalXmlCount, setTotalXmlCount] = useState<number>(0); // State for total XMLs processed
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -27,7 +26,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
     setTotalXmlCount(0);
 
     let allProducts: Product[] = [];
-    let currentProcessedXmlCount = 0; // Use a temporary variable for accumulation
+    let currentProcessedXmlCount = 0;
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -39,13 +38,9 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
           const text = await file.text();
           const products = await parseXml(text);
           allProducts.push(...products);
-        } else if (file.name.toLowerCase().endsWith(".zip")) {
-          const { products, xmlCount } = await parseZipXmls(file);
-          allProducts.push(...products);
-          currentProcessedXmlCount += xmlCount; // Add the count of XMLs from the ZIP
         } else {
           toast.error("Formato inválido", {
-            description: `O arquivo '${file.name}' não é um XML ou ZIP.`,
+            description: `O arquivo '${file.name}' não é um XML. Por favor, selecione apenas arquivos XML.`,
           });
           continue;
         }
@@ -56,7 +51,6 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
           description: `Foram processados ${currentProcessedXmlCount} arquivos XML, mas o limite é de 100.`,
         });
         // Truncate products if the limit is exceeded, to prevent processing too many
-        // This is a simplification; a more robust solution might involve stopping earlier
         allProducts = allProducts.slice(0, 100 * 100); 
       }
 
@@ -84,7 +78,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xml,.zip"
+        accept=".xml"
         multiple
         onChange={handleFileSelect}
         className="hidden"
@@ -96,7 +90,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
       >
         <Upload className="mx-auto h-12 w-12 text-primary mb-4" />
         <p className="text-sm font-medium mb-1 text-foreground">
-          Clique para selecionar arquivos XML ou ZIP
+          Clique para selecionar arquivos XML
         </p>
         <p className="text-xs text-muted-foreground">
           Até 100 Notas Fiscais Eletrônicas (NFe)
