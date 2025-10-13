@@ -4,17 +4,19 @@ import { Product } from "@/types/pricing";
 
 const MAX_XML_FILES = 100;
 
-export const parseZipXmls = async (zipFile: File): Promise<Product[]> => {
+export const parseZipXmls = async (zipFile: File): Promise<{ products: Product[]; xmlCount: number }> => {
   const zip = await JSZip.loadAsync(zipFile);
   const xmlFiles: { name: string; content: string }[] = [];
+  let internalXmlCount = 0;
 
   for (const filename in zip.files) {
     if (zip.files.hasOwnProperty(filename) && filename.toLowerCase().endsWith(".xml")) {
-      if (xmlFiles.length >= MAX_XML_FILES) {
+      if (internalXmlCount >= MAX_XML_FILES) {
         throw new Error(`Limite de ${MAX_XML_FILES} arquivos XML excedido no ZIP.`);
       }
       const content = await zip.files[filename].async("text");
       xmlFiles.push({ name: filename, content });
+      internalXmlCount++;
     }
   }
 
@@ -33,5 +35,5 @@ export const parseZipXmls = async (zipFile: File): Promise<Product[]> => {
     }
   }
 
-  return allProducts;
+  return { products: allProducts, xmlCount: internalXmlCount };
 };

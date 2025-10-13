@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Upload, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { parseXml } from "@/lib/xmlParser";
-import { parseZipXmls } from "@/lib/archiveParser"; // Import the new parser
+import { parseZipXmls } from "@/lib/archiveParser";
 import { Product } from "@/types/pricing";
 import { toast } from "sonner";
 
@@ -13,9 +13,9 @@ interface XmlUploaderProps {
 export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [fileNames, setFileNames] = useState<string[]>([]); // Array for multiple file names
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const [productCount, setProductCount] = useState<number>(0);
-  const [totalXmlCount, setTotalXmlCount] = useState<number>(0); // New state for total XMLs processed
+  const [totalXmlCount, setTotalXmlCount] = useState<number>(0);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -27,7 +27,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
     setTotalXmlCount(0);
 
     let allProducts: Product[] = [];
-    let processedXmlCount = 0;
+    let currentProcessedXmlCount = 0; // Use a temporary variable for accumulation
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -35,15 +35,14 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
         setFileNames((prev) => [...prev, file.name]);
 
         if (file.name.toLowerCase().endsWith(".xml")) {
-          processedXmlCount++;
+          currentProcessedXmlCount++;
           const text = await file.text();
           const products = await parseXml(text);
           allProducts.push(...products);
         } else if (file.name.toLowerCase().endsWith(".zip")) {
-          const productsFromZip = await parseZipXmls(file);
-          allProducts.push(...productsFromZip);
-          // Estimate XML count from zip for display, actual count is inside parseZipXmls
-          processedXmlCount += productsFromZip.length > 0 ? 1 : 0; // Count zip as one "source" for now, or refine later
+          const { products, xmlCount } = await parseZipXmls(file);
+          allProducts.push(...products);
+          currentProcessedXmlCount += xmlCount; // Add the count of XMLs from the ZIP
         } else {
           toast.error("Formato inválido", {
             description: `O arquivo '${file.name}' não é um XML ou ZIP.`,
@@ -52,20 +51,21 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
         }
       }
 
-      if (processedXmlCount > 100) {
+      if (currentProcessedXmlCount > 100) {
         toast.error("Limite de arquivos excedido", {
-          description: `Foram processados ${processedXmlCount} arquivos XML, mas o limite é de 100.`,
+          description: `Foram processados ${currentProcessedXmlCount} arquivos XML, mas o limite é de 100.`,
         });
-        // Optionally, truncate allProducts here or handle as an error
-        allProducts = allProducts.slice(0, 100 * 100); // Assuming average 100 products per XML, just to prevent huge arrays
+        // Truncate products if the limit is exceeded, to prevent processing too many
+        // This is a simplification; a more robust solution might involve stopping earlier
+        allProducts = allProducts.slice(0, 100 * 100); 
       }
 
       setProductCount(allProducts.length);
-      setTotalXmlCount(processedXmlCount);
+      setTotalXmlCount(currentProcessedXmlCount);
       onXmlParsed(allProducts);
 
       toast.success("Arquivos processados com sucesso!", {
-        description: `${allProducts.length} produto(s) encontrado(s) em ${processedXmlCount} arquivo(s).`,
+        description: `${allProducts.length} produto(s) encontrado(s) em ${currentProcessedXmlCount} arquivo(s) XML.`,
       });
     } catch (error: any) {
       toast.error("Erro ao processar arquivos", {
@@ -85,7 +85,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
         ref={fileInputRef}
         type="file"
         accept=".xml,.zip"
-        multiple // Allow multiple file selection
+        multiple
         onChange={handleFileSelect}
         className="hidden"
       />
