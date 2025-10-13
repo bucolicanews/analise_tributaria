@@ -4,16 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
-import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable"; // Importar GlobalSummaryData
+import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-import { Product, CalculationParams, TaxRegime, CalculatedProduct } from "@/types/pricing";
-import { calculatePricing } from "@/lib/pricing"; // Importar calculatePricing para calcular o primeiro produto
+import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
+import { calculatePricing } from "@/lib/pricing";
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
-  const [globalSummary, setGlobalSummary] = useState<GlobalSummaryData | null>(null); // Novo estado para o resumo global
+  const [globalSummary, setGlobalSummary] = useState<GlobalSummaryData | null>(null);
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     setProducts(parsedProducts);
@@ -27,11 +27,11 @@ const Index = () => {
     setGlobalSummary(summary);
   };
 
-  // Calcular o CFU para o ProductRetailInfo
+  // Calcular o CFU para o ProductRetailInfo e CalculationMemory
   const totalFixedExpenses = params ? params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll : 0;
   const cfu = params && params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
 
-  // Calcular o primeiro produto para exibir no ProductRetailInfo
+  // Calcular o primeiro produto para exibir na Memória de Cálculo (se houver produtos)
   const firstCalculatedProduct: CalculatedProduct | null = 
     products.length > 0 && params 
       ? calculatePricing(products[0], params, cfu) 
@@ -49,8 +49,8 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3"> {/* Ajustado para flex-row e justify-between em sm */}
-            <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-3"> {/* Grupo logo e título principal */}
+          <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
+            <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-3">
               <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
                 <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
               </div>
@@ -62,10 +62,10 @@ const Index = () => {
               </div>
             </div>
             {globalSummary && globalSummary.breakEvenPoint > 0 && (
-              <div className="text-center sm:text-right mt-3 sm:mt-0 animate-pulse"> {/* Adicionado animação e alinhamento */}
-                <h1 className="text-lg text-black/70"> {/* Alterado para h1 e tamanho de texto */}
+              <div className="text-center sm:text-right mt-3 sm:mt-0 animate-pulse">
+                <h1 className="text-lg text-black/70">
                   <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
-                  <span className="text-xl text-black font-extrabold">{formatCurrency(globalSummary.breakEvenPoint)}</span> {/* Alterado para text-xl, text-black e font-extrabold */}
+                  <span className="text-xl text-black font-extrabold">{formatCurrency(globalSummary.breakEvenPoint)}</span>
                 </h1>
               </div>
             )}
@@ -124,15 +124,10 @@ const Index = () => {
                   </div>
                 </Card>
 
-                {/* Novo bloco de informações de varejo - REMOVIDO */}
-                {/* {firstCalculatedProduct && (
-                  <ProductRetailInfo product={firstCalculatedProduct} />
-                )} */}
-
-                {showMemory && (
+                {showMemory && firstCalculatedProduct && ( // Only show memory if there's a product to display
                   <Card className="shadow-card">
                     <div className="p-6">
-                      <CalculationMemory products={products} params={params} />
+                      <CalculationMemory products={[firstCalculatedProduct]} params={params} />
                     </div>
                   </Card>
                 )}
@@ -147,7 +142,7 @@ const Index = () => {
                     Nenhum cálculo realizado
                   </h3>
                   <p className="text-muted-foreground max-w-md">
-                    Faça o upload de um arquivo XML e preencha os parâmetros de
+                    Faça o upload de um arquivo XML ou ZIP e preencha os parâmetros de
                     cálculo para gerar o relatório de precificação.
                   </p>
                 </div>

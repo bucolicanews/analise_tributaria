@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { Upload, CheckCircle2, AlertCircle, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { parseXml } from "@/lib/xmlParser";
+import { parseZipXmls } from "@/lib/archiveParser"; // Import the new parser
 import { Product } from "@/types/pricing";
 import { toast } from "sonner";
 
@@ -12,39 +13,67 @@ interface XmlUploaderProps {
 export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [fileName, setFileName] = useState<string>("");
+  const [fileNames, setFileNames] = useState<string[]>([]); // Array for multiple file names
   const [productCount, setProductCount] = useState<number>(0);
+  const [totalXmlCount, setTotalXmlCount] = useState<number>(0); // New state for total XMLs processed
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.name.endsWith(".xml")) {
-      toast.error("Formato inválido", {
-        description: "Por favor, selecione um arquivo XML.",
-      });
-      return;
-    }
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
     setIsLoading(true);
-    setFileName(file.name);
+    setFileNames([]);
+    setProductCount(0);
+    setTotalXmlCount(0);
+
+    let allProducts: Product[] = [];
+    let processedXmlCount = 0;
 
     try {
-      const text = await file.text();
-      const products = await parseXml(text);
-      
-      setProductCount(products.length);
-      onXmlParsed(products);
-      
-      toast.success("XML processado com sucesso!", {
-        description: `${products.length} produto(s) encontrado(s).`,
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setFileNames((prev) => [...prev, file.name]);
+
+        if (file.name.toLowerCase().endsWith(".xml")) {
+          processedXmlCount++;
+          const text = await file.text();
+          const products = await parseXml(text);
+          allProducts.push(...products);
+        } else if (file.name.toLowerCase().endsWith(".zip")) {
+          const productsFromZip = await parseZipXmls(file);
+          allProducts.push(...productsFromZip);
+          // Estimate XML count from zip for display, actual count is inside parseZipXmls
+          processedXmlCount += productsFromZip.length > 0 ? 1 : 0; // Count zip as one "source" for now, or refine later
+        } else {
+          toast.error("Formato inválido", {
+            description: `O arquivo '${file.name}' não é um XML ou ZIP.`,
+          });
+          continue;
+        }
+      }
+
+      if (processedXmlCount > 100) {
+        toast.error("Limite de arquivos excedido", {
+          description: `Foram processados ${processedXmlCount} arquivos XML, mas o limite é de 100.`,
+        });
+        // Optionally, truncate allProducts here or handle as an error
+        allProducts = allProducts.slice(0, 100 * 100); // Assuming average 100 products per XML, just to prevent huge arrays
+      }
+
+      setProductCount(allProducts.length);
+      setTotalXmlCount(processedXmlCount);
+      onXmlParsed(allProducts);
+
+      toast.success("Arquivos processados com sucesso!", {
+        description: `${allProducts.length} produto(s) encontrado(s) em ${processedXmlCount} arquivo(s).`,
       });
-    } catch (error) {
-      toast.error("Erro ao processar XML", {
-        description: "Verifique se o arquivo está no formato correto.",
+    } catch (error: any) {
+      toast.error("Erro ao processar arquivos", {
+        description: error.message || "Verifique se os arquivos estão no formato correto.",
       });
-      setFileName("");
+      setFileNames([]);
       setProductCount(0);
+      setTotalXmlCount(0);
     } finally {
       setIsLoading(false);
     }
@@ -55,7 +84,8 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".xml"
+        accept=".xml,.zip"
+        multiple // Allow multiple file selection
         onChange={handleFileSelect}
         className="hidden"
       />
@@ -66,14 +96,14 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
       >
         <Upload className="mx-auto h-12 w-12 text-primary mb-4" />
         <p className="text-sm font-medium mb-1 text-foreground">
-          Clique para selecionar o arquivo XML
+          Clique para selecionar arquivos XML ou ZIP
         </p>
         <p className="text-xs text-muted-foreground">
-          Nota Fiscal Eletrônica (NFe)
+          Até 100 Notas Fiscais Eletrônicas (NFe)
         </p>
       </div>
 
-      {fileName && (
+      {fileNames.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4">
           <div className="flex items-start gap-3">
             {productCount > 0 ? (
@@ -82,21 +112,35 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
               <AlertCircle className="h-5 w-5 text-muted-foreground mt-0.5" />
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate">{fileName}</p>
-              {productCount > 0 && (
+              <p className="text-sm font-medium truncate">
+                {fileNames.length === 1 ? fileNames[0] : `${fileNames.length} arquivos selecionados`}
+              </p>
+              {totalXmlCount > 0 && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  {productCount} produto(s) encontrado(s)
+                  {productCount} produto(s) encontrado(s) em {totalXmlCount} arquivo(s) XML
                 </p>
               )}
             </div>
           </div>
+          {fileNames.length > 1 && (
+            <div className="mt-3 border-t border-border pt-3">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Arquivos:</p>
+              <ul className="max-h-24 overflow-y-auto text-xs text-muted-foreground space-y-1">
+                {fileNames.map((name, idx) => (
+                  <li key={idx} className="flex items-center gap-1">
+                    <FileText className="h-3 w-3" /> {name}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 
       {isLoading && (
         <div className="text-center">
           <div className="inline-block h-6 w-6 animate-spin rounded-full border-4 border-solid border-primary border-r-transparent"></div>
-          <p className="mt-2 text-sm text-muted-foreground">Processando XML...</p>
+          <p className="mt-2 text-sm text-muted-foreground">Processando arquivos...</p>
         </div>
       )}
     </div>
