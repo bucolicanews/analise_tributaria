@@ -9,6 +9,7 @@ Este é um **Sistema Inteligente de Precificação** desenvolvido para auxiliar 
 ## Project info
 
 **URL**: https://lovable.dev/projects/aa692e2a-5c5c-4342-a53e-a486eb1b3bfe
+Site: <https://jotaempresas.com>
 
 ## How can I edit this code?
 
