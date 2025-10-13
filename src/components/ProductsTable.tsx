@@ -187,7 +187,7 @@ const calculateGlobalSummary = (
       totalIrpjToPay: totalIrpjToPay,
       totalCsllToPay: totalCsllToPay,
       totalSimplesToPay: totalSimplesToPay,
-      totalIvaCreditForClient: 0, // This is calculated per product, not globally in this summary
+      totalIvaCreditForClient: totalIvaCreditForClient,
     };
   }
 };
@@ -292,6 +292,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
       totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     }
   }
+
+  // Calculate total quantity of all products in the XML
+  const totalQuantityOfAllProducts = products.reduce((sum, p) => sum + p.quantity, 0);
 
   return (
     <div className="space-y-6">
@@ -550,7 +553,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
       </div>
 
       {/* New Summary Sections - now stacked vertically */}
-      <div className="space-y-6"> {/* Removed grid classes here */}
+      <div className="space-y-6">
         <CostSummary
           totalProductAcquisitionCost={totalProductAcquisitionCost}
           totalFixedExpenses={totalFixedExpenses}
@@ -580,6 +583,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
         totalVariableExpensesPercent={totalVariableExpensesPercent}
         summaryDataBestSale={summaryDataBestSale}
         summaryDataMinSale={summaryDataMinSale}
+        cfu={cfu}
+        totalQuantityOfAllProducts={totalQuantityOfAllProducts}
       />
 
       <p className="text-xs text-muted-foreground mt-4">

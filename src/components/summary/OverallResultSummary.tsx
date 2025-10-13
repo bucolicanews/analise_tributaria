@@ -9,6 +9,8 @@ interface OverallResultSummaryProps {
   totalVariableExpensesPercent: number;
   summaryDataBestSale: GlobalSummaryData;
   summaryDataMinSale: GlobalSummaryData;
+  cfu: number; // New prop
+  totalQuantityOfAllProducts: number; // New prop
 }
 
 const formatCurrency = (value: number) => {
@@ -24,18 +26,20 @@ export const OverallResultSummary: React.FC<OverallResultSummaryProps> = ({
   totalVariableExpensesPercent,
   summaryDataBestSale,
   summaryDataMinSale,
+  cfu,
+  totalQuantityOfAllProducts,
 }) => {
   // Calculations for Best Sale
   const grossProfitBestSale = summaryDataBestSale.totalSelling - totalProductAcquisitionCost;
   const variablePaymentsBestSale = summaryDataBestSale.totalVariableExpensesValue;
-  const fixedPaymentsBestSale = totalFixedExpenses;
+  const fixedCostContributionBestSale = cfu * totalQuantityOfAllProducts; // Contribution of current XML to fixed costs
   const contributionBestSale = summaryDataBestSale.totalContributionMargin;
   const netProfitBestSale = summaryDataBestSale.totalProfit;
 
   // Calculations for Minimum Sale
   const grossProfitMinSale = summaryDataMinSale.totalSelling - totalProductAcquisitionCost;
   const variablePaymentsMinSale = summaryDataMinSale.totalVariableExpensesValue;
-  const fixedPaymentsMinSale = totalFixedExpenses;
+  const fixedCostContributionMinSale = cfu * totalQuantityOfAllProducts; // Contribution of current XML to fixed costs
   const contributionMinSale = summaryDataMinSale.totalContributionMargin;
   const netProfitMinSale = summaryDataMinSale.totalProfit;
 
@@ -71,10 +75,15 @@ export const OverallResultSummary: React.FC<OverallResultSummaryProps> = ({
           <div className="py-2 border-t border-border text-right">{formatCurrency(variablePaymentsBestSale)}</div>
           <div className="py-2 border-t border-border text-right">{formatCurrency(variablePaymentsMinSale)}</div>
 
-          {/* Pagamento das Fixas (já incluído no custo total, mas para visualização) */}
-          <div className="py-2 border-t border-border">Despesas Fixas</div>
-          <div className="py-2 border-t border-border text-right">{formatCurrency(fixedPaymentsBestSale)}</div>
-          <div className="py-2 border-t border-border text-right">{formatCurrency(fixedPaymentsMinSale)}</div>
+          {/* Contribuição da Nota para Despesas Fixas */}
+          <div className="py-2 border-t border-border">Contrib. Nota p/ Desp. Fixas</div>
+          <div className="py-2 border-t border-border text-right">{formatCurrency(fixedCostContributionBestSale)}</div>
+          <div className="py-2 border-t border-border text-right">{formatCurrency(fixedCostContributionMinSale)}</div>
+
+          {/* Custo Fixo Rateado por Unidade (CFU) */}
+          <div className="py-2 border-t border-border">Custo Fixo Rateado (Unit)</div>
+          <div className="py-2 border-t border-border text-right">{formatCurrency(cfu)}</div>
+          <div className="py-2 border-t border-border text-right">{formatCurrency(cfu)}</div>
 
           {/* Impostos Totais */}
           <div className="py-2 border-t border-border">Impostos Líquidos</div>
