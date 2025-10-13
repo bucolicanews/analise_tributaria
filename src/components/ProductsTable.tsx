@@ -187,7 +187,7 @@ const calculateGlobalSummary = (
       totalIrpjToPay: totalIrpjToPay,
       totalCsllToPay: totalCsllToPay,
       totalSimplesToPay: totalSimplesToPay,
-      totalIvaCreditForClient: totalIvaCreditForClient,
+      totalIvaCreditForClient: 0, // This is calculated per product, not globally in this summary
     };
   }
 };
@@ -549,8 +549,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
         </Table>
       </div>
 
-      {/* New Summary Sections */}
-      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+      {/* New Summary Sections - now stacked vertically */}
+      <div className="space-y-6"> {/* Removed grid classes here */}
         <CostSummary
           totalProductAcquisitionCost={totalProductAcquisitionCost}
           totalFixedExpenses={totalFixedExpenses}
