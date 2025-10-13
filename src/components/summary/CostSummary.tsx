@@ -29,11 +29,7 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
         value={fixedCostContributionOfNote}
         description="Contribuição desta nota para as despesas fixas"
       />
-      <SummaryCard
-        title="Custo Fixo por Unidade (CFU)"
-        value={cfu}
-        description="Rateio dos custos fixos por unidade de estoque"
-      />
+      {/* Removido o card 'Custo Fixo por Unidade (CFU)' */}
       <SummaryCard
         title="Custo Total"
         value={totalCost}
