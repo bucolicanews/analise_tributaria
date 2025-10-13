@@ -6,7 +6,6 @@ import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
 import { ProductsTable } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-// import { ProductRetailInfo } from "@/components/ProductRetailInfo"; // Importar o novo componente - REMOVIDO
 import { Product, CalculationParams, TaxRegime, CalculatedProduct } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing"; // Importar calculatePricing para calcular o primeiro produto
 
@@ -38,7 +37,7 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:text-left"> {/* Alterado aqui */}
             <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
               <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
             </div>
