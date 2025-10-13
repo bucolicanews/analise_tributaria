@@ -49,22 +49,26 @@ const Index = () => {
       {/* Header */}
       <header className="border-b border-border bg-gradient-primary">
         <div className="container mx-auto px-4 py-6">
-          <div className="flex flex-col items-center text-center gap-3 sm:flex-row sm:text-left">
-            <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
-              <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
+          <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3"> {/* Ajustado para flex-row e justify-between em sm */}
+            <div className="flex flex-col sm:flex-row items-center text-center sm:text-left gap-3"> {/* Grupo logo e título principal */}
+              <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
+                <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-black">Análise Reforma Tributária</h1>
+                <p className="text-sm text-black/70">
+                  Jota Contabilidade - Rua Coronel José do Ó, nº1645, Mosqueiro/PA, CEP:66910010 - Fone: 91996293532
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-black">Análise Reforma Tributária</h1>
-              <p className="text-sm text-black/70">
-                Jota Contabilidade - Rua Coronel José do Ó, nº1645, Mosqueiro/PA, CEP:66910010 - Fone: 91996293532
-              </p>
-              {globalSummary && globalSummary.breakEvenPoint > 0 && (
-                <p className="text-sm text-black/70 mt-1">
+            {globalSummary && globalSummary.breakEvenPoint > 0 && (
+              <div className="text-center sm:text-right mt-3 sm:mt-0 animate-pulse"> {/* Adicionado animação e alinhamento */}
+                <p className="text-sm text-black/70">
                   <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
                   <span className="text-yellow-800 font-bold">{formatCurrency(globalSummary.breakEvenPoint)}</span>
                 </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
