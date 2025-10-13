@@ -568,6 +568,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
           totalFixedExpenses={totalFixedExpenses}
           totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
           totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue}
+          cfu={cfu}
+          totalQuantityOfAllProducts={totalQuantityOfAllProducts}
         />
         <TaxSummary
           params={params}
