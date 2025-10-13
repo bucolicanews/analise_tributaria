@@ -63,10 +63,10 @@ const Index = () => {
             </div>
             {globalSummary && globalSummary.breakEvenPoint > 0 && (
               <div className="text-center sm:text-right mt-3 sm:mt-0 animate-pulse"> {/* Adicionado animação e alinhamento */}
-                <p className="text-sm text-black/70">
+                <h1 className="text-lg text-black/70"> {/* Alterado para h1 e tamanho de texto */}
                   <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
-                  <span className="text-yellow-800 font-bold">{formatCurrency(globalSummary.breakEvenPoint)}</span>
-                </p>
+                  <span className="text-primary font-bold">{formatCurrency(globalSummary.breakEvenPoint)}</span> {/* Alterado para text-primary */}
+                </h1>
               </div>
             )}
           </div>
