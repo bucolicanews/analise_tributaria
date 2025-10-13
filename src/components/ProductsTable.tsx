@@ -109,26 +109,23 @@ const calculateGlobalSummary = (
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
   const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
 
-  // Break-even point calculation (this is a global company-wide metric, using global fixed expenses)
-  // The ratios for variable costs and taxes should be derived from the *average* of the products in the XML,
-  // or from the overall parameters.
-  const totalVariableExpensesRatio = totalVariableExpensesPercent / 100;
-  let taxRatioForBEP = 0;
+  // Recalculate total variable expenses ratio including taxes that vary with sales
+  let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    taxRatioForBEP = CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
+    totalVariableCostsRatio += CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
-      taxRatioForBEP = (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
     } else {
-      taxRatioForBEP = currentParams.simplesNacionalRate / 100;
+      totalVariableCostsRatio += currentParams.simplesNacionalRate / 100;
     }
   }
 
-  // Average acquisition cost ratio for the XML (total acquisition cost of XML products / total selling of XML products)
-  const avgAcquisitionCostRatio = totalSellingSum > 0 ? xmlProductAcquisitionCost / totalSellingSum : 0;
+  // Contribution Margin Ratio (CMR)
+  const contributionMarginRatio = 1 - totalVariableCostsRatio;
 
-  const denominatorBEP = 1 - (totalVariableExpensesRatio + taxRatioForBEP + avgAcquisitionCostRatio);
-  const breakEvenPoint = denominatorBEP > 0 ? globalFixedExpenses / denominatorBEP : 0;
+  // Break-even point calculation (using global fixed expenses and company-wide contribution margin ratio)
+  const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
 
 
   return {
@@ -343,13 +340,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
               
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
-                  <TableHead colSpan={5} className="text-center border-l border-r">Simples Nacional Padrão</TableHead> {/* 5 colunas */}
+                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Padrão</TableHead> {/* 6 colunas */}
                   <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead> {/* 6 colunas */}
                   <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  <TableHead colSpan={10} className="text-center">Lucro Presumido</TableHead> {/* 10 colunas */}
+                  <TableHead colSpan={11} className="text-center">Lucro Presumido</TableHead> {/* 11 colunas */}
                 </React.Fragment>
               )}
             </TableRow>
@@ -357,12 +354,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
                   {/* Simples Nacional Padrão */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead className="text-right">Crédito Cliente</TableHead>
                   {/* Simples Nacional Híbrido */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
@@ -380,6 +379,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                   <TableHead className="text-right">IRPJ a Pagar</TableHead>
                   <TableHead className="text-right">CSLL a Pagar</TableHead>
                   <TableHead className="text-right">Imposto Líq.</TableHead>
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead className="text-right">Crédito Cliente</TableHead>
@@ -432,6 +432,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                     </TableCell>
 
                     {/* Simples Nacional Padrão */}
+                    <TableCell className="text-right font-bold text-yellow-500"> {/* Nova célula */}
+                      {formatCurrency(productStandard.minSellingPrice)}
+                    </TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatCurrency(productStandard.sellingPrice)}
                     </TableCell>
@@ -449,6 +452,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                     </TableCell>
 
                     {/* Simples Nacional Híbrido */}
+                    <TableCell className="text-right font-bold text-yellow-500"> {/* Nova célula */}
+                      {formatCurrency(productHybrid.minSellingPrice)}
+                    </TableCell>
                     <TableCell className="text-right font-bold text-primary">
                       {formatCurrency(productHybrid.sellingPrice)}
                     </TableCell>
@@ -529,6 +535,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params }
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">
                       {formatCurrency(product.taxToPay)}
+                    </TableCell>
+                    <TableCell className="text-right font-mono text-sm font-bold text-yellow-500"> {/* Nova célula */}
+                      {formatCurrency(product.minSellingPrice)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-bold text-primary">
                       {formatCurrency(product.sellingPrice)}
