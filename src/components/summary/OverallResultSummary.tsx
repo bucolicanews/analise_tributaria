@@ -45,7 +45,7 @@ export const OverallResultSummary: React.FC<OverallResultSummaryProps> = ({
         <CardTitle className="text-xl">Resultado Geral da Operação</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-3 gap-4 text-sm font-mono">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm font-mono">
           {/* Headers */}
           <div className="font-semibold text-muted-foreground">Métrica</div>
           <div className="font-semibold text-primary text-right">Cenário Alvo</div>
