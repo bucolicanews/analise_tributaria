@@ -107,7 +107,7 @@ const SummaryCardWithDetail: React.FC<{
 };
 
 
-// Componente auxiliar para detalhamento da distribuição (AGORA SEM BOTÃO EXPANSÍVEL)
+// Componente auxiliar para detalhamento da distribuição (AGORA COM LÓGICA DE CARD SEPARADO)
 const DistributionDetail: React.FC<{ 
   totalSelling: number; 
   totalTax: number; 
@@ -172,7 +172,7 @@ const DistributionDetail: React.FC<{
   };
 
   return (
-    <div className="mt-3 space-y-1 text-xs font-mono">
+    <div className="mt-2 space-y-1 text-xs font-mono">
       <p className="font-bold text-foreground mb-2">
         Total Distribuído (Venda): {formatCurrency(totalSelling)}
       </p>
@@ -200,6 +200,70 @@ const DistributionDetail: React.FC<{
       <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
         <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
         <span>{formatCurrency(profitItem.value)}</span>
+      </div>
+    </div>
+  );
+};
+
+// NOVO COMPONENTE DE CARD PARA DISTRIBUIÇÃO
+const DistributionSummaryCard: React.FC<{
+  title: string;
+  totalSelling: number;
+  totalTax: number;
+  totalVariableExpensesValue: number;
+  totalProfit: number;
+  totalFixedCostContribution: number;
+  params: CalculationParams;
+  isUnitary: boolean;
+}> = ({
+  title,
+  totalSelling,
+  totalTax,
+  totalVariableExpensesValue,
+  totalProfit,
+  totalFixedCostContribution,
+  params,
+  isUnitary,
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
+        <div className={cn("p-3 rounded-full bg-primary/20")}>
+          <TrendingUp className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className={cn("text-xl font-extrabold text-primary")}>{formatCurrency(totalSelling)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Distribuição da Receita de Venda</p>
+        </div>
+      </div>
+      
+      {/* Detalhe Expansível */}
+      <div className="border-t border-border pt-2">
+        <button 
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Detalhe da Distribuição ({isUnitary ? "Unid." : "Total"})
+          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        
+        {isOpen && (
+          <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
+            <DistributionDetail
+              totalSelling={totalSelling}
+              totalTax={totalTax}
+              totalVariableExpensesValue={totalVariableExpensesValue}
+              totalProfit={totalProfit}
+              totalFixedCostContribution={totalFixedCostContribution}
+              params={params}
+              isUnitary={isUnitary}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
@@ -360,15 +424,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate + params.profitMargin;
   const markupDivisor = 1 - (totalOtherPercentages / 100);
   
-  // Custo Base para Markup (Total)
-  const totalCostBaseForMarkup = totalCost / (1 - params.lossPercentage / 100); // Simplificação, pois o cálculo real é feito por unidade comercial no pricing.ts
-  
-  // Usamos o Custo Total Ajustado (Custo Aquisição Ajustado + Contribuição Fixa)
-  const totalCostBaseForMarkupAdjusted = totalCost; 
-  
-  // Para fins de exibição da fórmula, precisamos do Custo Base Unitário
-  const unitCostBaseForMarkup = unitCost / (1 - params.lossPercentage / 100);
-  
   const detailSellingPriceTotal = (
     <>
       <p className="font-semibold mb-2">1. Markup Divisor</p>
@@ -397,17 +452,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className="ml-4 font-bold text-primary">
         {formatCurrency(totalCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(totalSelling)}
       </p>
-      
-      <p className="font-semibold mt-4 mb-2 border-t border-border/50 pt-2">Detalhe da Distribuição (Total)</p>
-      <DistributionDetail 
-        totalSelling={totalSelling}
-        totalTax={summaryDataBestSale.totalTax}
-        totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
-        totalProfit={totalProfitWithFixed}
-        totalFixedCostContribution={totalFixedCostContribution}
-        params={params}
-        isUnitary={false}
-      />
     </>
   );
 
@@ -440,17 +484,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className="ml-4 font-bold text-primary">
         {formatCurrency(unitCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(unitSelling)}
       </p>
-      
-      <p className="font-semibold mt-4 mb-2 border-t border-border/50 pt-2">Detalhe da Distribuição (Unid.)</p>
-      <DistributionDetail 
-        totalSelling={unitSelling}
-        totalTax={unitTax}
-        totalVariableExpensesValue={unitVariableExpenses}
-        totalProfit={unitProfitWithFixed}
-        totalFixedCostContribution={unitFixedCostContribution}
-        params={params}
-        isUnitary={true}
-      />
     </>
   );
 
@@ -556,6 +589,18 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   detailContent={detailSellingPriceTotal}
                 />
               </div>
+              
+              {/* NOVO CARD: Detalhe da Distribuição (Total) */}
+              <DistributionSummaryCard
+                title="Distribuição da Venda (Nota)"
+                totalSelling={totalSelling}
+                totalTax={summaryDataBestSale.totalTax}
+                totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
+                totalProfit={totalProfitWithFixed}
+                totalFixedCostContribution={totalFixedCostContribution}
+                params={params}
+                isUnitary={false}
+              />
 
               {/* 2. Custo Total (Nota) */}
               <SummaryCardWithDetail
@@ -622,6 +667,18 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   detailContent={detailSellingPriceUnitary}
                 />
               </div>
+
+              {/* NOVO CARD: Detalhe da Distribuição (Unitário) */}
+              <DistributionSummaryCard
+                title="Distribuição da Venda (Unitário)"
+                totalSelling={unitSelling}
+                totalTax={unitTax}
+                totalVariableExpensesValue={unitVariableExpenses}
+                totalProfit={unitProfitWithFixed}
+                totalFixedCostContribution={unitFixedCostContribution}
+                params={params}
+                isUnitary={true}
+              />
 
               {/* 2. Custo Unitário (CUMP) */}
               <SummaryCardWithDetail
