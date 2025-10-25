@@ -385,9 +385,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
 
   // Lógica de Paginação
   const totalItems = allCalculatedProducts.length;
-  const totalPages = Math.ceil(totalItems / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  
+  // Se itemsPerPage for MAX_SAFE_INTEGER, tratamos como "Todos"
+  const effectiveItemsPerPage = itemsPerPage === Number.MAX_SAFE_INTEGER ? totalItems : itemsPerPage;
+  
+  const totalPages = Math.ceil(totalItems / effectiveItemsPerPage);
+  const startIndex = (currentPage - 1) * effectiveItemsPerPage;
+  const endIndex = startIndex + effectiveItemsPerPage;
   
   const productsToRender = allCalculatedProducts.slice(startIndex, endIndex);
 
@@ -409,7 +413,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   };
 
   const handleItemsPerPageChange = (value: string) => {
-    setItemsPerPage(parseInt(value, 10));
+    // Usamos um valor especial para 'Todos'
+    const newLimit = value === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(value, 10);
+    setItemsPerPage(newLimit);
   };
 
 
@@ -713,15 +719,18 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         <div className="flex flex-col sm:flex-row items-center justify-between py-2 gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Itens por página:
-            <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
-              <SelectTrigger className="w-[80px]">
+            <Select value={String(itemsPerPage === Number.MAX_SAFE_INTEGER ? 'all' : itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-[100px]">
                 <SelectValue placeholder="100" />
               </SelectTrigger>
               <SelectContent>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="30">30</SelectItem>
                 <SelectItem value="50">50</SelectItem>
                 <SelectItem value="100">100</SelectItem>
+                <SelectItem value="150">150</SelectItem>
                 <SelectItem value="200">200</SelectItem>
-                <SelectItem value="500">500</SelectItem>
+                <SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
           </div>
