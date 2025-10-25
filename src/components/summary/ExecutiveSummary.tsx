@@ -241,13 +241,13 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const totalAcquisitionCost = totalProductAcquisitionCostAdjusted; 
   
   // Lucro Bruto Total: Venda Total - Custo de Aquisição Ajustado (Custo + Perdas)
-  const totalGrossProfit = totalSelling - totalAcquisitionCost;
+  const totalGrossProfitWithoutFixed = totalSelling - totalAcquisitionCost;
 
-  // NOVO CÁLCULO: Resultado Operacional = Venda Sugerida - Custo Total
-  const totalOperationalResult = totalSelling - totalCost;
+  // Lucro Bruto com Fixo (Resultado Operacional) = Venda Sugerida - Custo Total
+  const totalGrossProfitWithFixed = totalSelling - totalCost;
 
-  // Margem de Contribuição Líquida (Lucro antes do Custo Fixo)
-  const totalContributionMarginLiquid = totalOperationalResult + totalFixedCostContribution - summaryDataBestSale.totalTax - summaryDataBestSale.totalVariableExpensesValue;
+  // Margem de Contribuição Líquida (Lucro Líquido sem Fixo)
+  const totalNetProfitWithoutFixed = totalGrossProfitWithoutFixed - summaryDataBestSale.totalTax - summaryDataBestSale.totalVariableExpensesValue;
   
   // Valores Unitários (CUMP - por unidade interna)
   const unitCost = cumpData?.cumpTotal || 0;
@@ -257,15 +257,15 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const unitVariableExpenses = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalVariableExpensesValue / totalInnerUnitsInXML : 0;
   const unitFixedCostContribution = cumpData?.cfu || 0;
   
-  // Lucro Bruto Unitário: Venda Unitária - Custo de Aquisição Unitário Ajustado (CUMP Plus Loss)
+  // Lucro Bruto Unitário sem Fixo: Venda Unitária - Custo de Aquisição Unitário Ajustado (CUMP Plus Loss)
   const unitAcquisitionCostAdjusted = cumpData?.cumpPlusLoss || 0;
-  const unitGrossProfit = unitSelling - unitAcquisitionCostAdjusted;
+  const unitGrossProfitWithoutFixed = unitSelling - unitAcquisitionCostAdjusted;
 
-  // NOVO CÁLCULO UNITÁRIO: Resultado Operacional Unitário = Venda Unitária - Custo Unitário Total
-  const unitOperationalResult = unitSelling - unitCost;
+  // Lucro Bruto Unitário com Fixo (Resultado Operacional Unitário) = Venda Unitária - Custo Unitário Total
+  const unitGrossProfitWithFixed = unitSelling - unitCost;
 
-  // Margem de Contribuição Líquida Unitária
-  const unitContributionMarginLiquid = totalInnerUnitsInXML > 0 ? totalContributionMarginLiquid / totalInnerUnitsInXML : 0;
+  // Lucro Líquido Unitário sem Fixo
+  const unitNetProfitWithoutFixed = unitGrossProfitWithoutFixed - unitTax - unitVariableExpenses;
 
 
   // --- Conteúdos de Detalhe (Memória de Cálculo) ---
@@ -291,55 +291,57 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </>
   );
   
-  // NOVO DETALHE: Resultado Operacional Total
-  const detailOperationalResultTotal = (
+  // DETALHE: Lucro Bruto com Fixo (Resultado Operacional)
+  const detailGrossProfitWithFixed = (
     <>
       <p>• Venda Sugerida: {formatCurrency(totalSelling)}</p>
       <p>• Custo Total (Aquisição Ajustada + Contribuição Fixa): {formatCurrency(totalCost)}</p>
-      <p className={cn("font-bold pt-1 border-t border-border/50", totalOperationalResult < 0 ? "text-destructive" : "text-success")}>
-        Resultado Operacional = {formatCurrency(totalSelling)} (Venda) - {formatCurrency(totalCost)} (Custo Total) = {formatCurrency(totalOperationalResult)}
+      <p className={cn("font-bold pt-1 border-t border-border/50", totalGrossProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
+        Lucro Bruto com Fixo = {formatCurrency(totalSelling)} (Venda) - {formatCurrency(totalCost)} (Custo Total) = {formatCurrency(totalGrossProfitWithFixed)}
       </p>
-      {totalOperationalResult < 0 && (
+      {totalGrossProfitWithFixed < 0 && (
         <p className="text-destructive mt-2 flex items-center gap-1">
           <AlertTriangle className="h-4 w-4" />
-          Alerta: O Resultado Operacional está negativo. Sugerimos diminuir os custos fixos ou aumentar o preço de venda.
+          Alerta: O Lucro Bruto com Fixo está negativo. Sugerimos diminuir os custos fixos ou aumentar o preço de venda.
         </p>
       )}
     </>
   );
 
-  const detailGrossProfitTotal = (
+  // DETALHE: Lucro Bruto sem Fixo
+  const detailGrossProfitWithoutFixed = (
     <>
       <p>• Venda Sugerida: {formatCurrency(totalSelling)}</p>
       <p>• Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalAcquisitionCost)}</p>
-      <p className="font-bold pt-1 border-t border-border/50">
-        Lucro Bruto = {formatCurrency(totalSelling)} (Venda Sugerida) - {formatCurrency(totalAcquisitionCost)} (Custo Aquisição Ajustado) = {formatCurrency(totalGrossProfit)}
+      <p className={cn("font-bold pt-1 border-t border-border/50", totalGrossProfitWithoutFixed < 0 ? "text-destructive" : "text-success")}>
+        Lucro Bruto sem Fixo = {formatCurrency(totalSelling)} (Venda Sugerida) - {formatCurrency(totalAcquisitionCost)} (Custo Aquisição Ajustado) = {formatCurrency(totalGrossProfitWithoutFixed)}
       </p>
     </>
   );
 
-  const detailNetProfitTotal = (
+  // DETALHE: Lucro Líquido sem Fixo
+  const detailNetProfitWithoutFixed = (
     <>
-      <p>• Resultado Operacional: {formatCurrency(totalOperationalResult)}</p>
+      <p>• Lucro Bruto sem Fixo: {formatCurrency(totalGrossProfitWithoutFixed)}</p>
+      <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
+      <p>• Despesas Variáveis: {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", totalNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent")}>
+        Lucro Líquido sem Fixo = {formatCurrency(totalGrossProfitWithoutFixed)} (Lucro Bruto sem Fixo) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) = {formatCurrency(totalNetProfitWithoutFixed)}
+      </p>
+    </>
+  );
+
+  // DETALHE: Lucro Líquido com Fixo
+  const detailNetProfitWithFixed = (
+    <>
+      <p>• Lucro Bruto com Fixo: {formatCurrency(totalGrossProfitWithFixed)}</p>
       <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
       <p>• Despesas Variáveis: {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)}</p>
       <p className={cn("font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-        Lucro Líquido = {formatCurrency(totalOperationalResult)} (Resultado Operacional) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) = {formatCurrency(totalProfit)}
+        Lucro Líquido com Fixo = {formatCurrency(totalGrossProfitWithFixed)} (Lucro Bruto com Fixo) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) = {formatCurrency(totalProfit)}
       </p>
     </>
   );
-  
-  // NOVO DETALHE: Margem de Contribuição Líquida Total
-  const detailContributionMarginLiquidTotal = (
-    <>
-      <p>• Margem de Contribuição Bruta: {formatCurrency(summaryDataBestSale.totalContributionMargin)}</p>
-      <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
-      <p className={cn("font-bold pt-1 border-t border-border/50", totalContributionMarginLiquid < 0 ? "text-destructive" : "text-accent")}>
-        Margem de Contribuição Líquida = {formatCurrency(summaryDataBestSale.totalContributionMargin)} (Margem Bruta) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) = {formatCurrency(totalContributionMarginLiquid)}
-      </p>
-    </>
-  );
-
 
   // Cálculo do Custo de Aquisição Ajustado (Unitário)
   const unitAcquisitionCostBeforeLoss = cumpData?.cumpBruto || 0;
@@ -358,45 +360,48 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </>
   );
   
-  // NOVO DETALHE: Resultado Operacional Unitário
-  const detailOperationalResultUnitary = (
+  // DETALHE: Lucro Bruto Unitário com Fixo (Resultado Operacional Unitário)
+  const detailGrossProfitWithFixedUnitary = (
     <>
       <p>• Venda Unitária Sugerida: {formatCurrency(unitSelling)}</p>
       <p>• Custo Unitário Total (CUMP): {formatCurrency(unitCost)}</p>
-      <p className={cn("font-bold pt-1 border-t border-border/50", unitOperationalResult < 0 ? "text-destructive" : "text-success")}>
-        Resultado Operacional Unitário = {formatCurrency(unitSelling)} (Venda) - {formatCurrency(unitCost)} (Custo Total) = {formatCurrency(unitOperationalResult)}
+      <p className={cn("font-bold pt-1 border-t border-border/50", unitGrossProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
+        Lucro Bruto com Fixo Unitário = {formatCurrency(unitSelling)} (Venda) - {formatCurrency(unitCost)} (Custo Total) = {formatCurrency(unitGrossProfitWithFixed)}
       </p>
     </>
   );
 
-  const detailGrossProfitUnitary = (
+  // DETALHE: Lucro Bruto Unitário sem Fixo
+  const detailGrossProfitWithoutFixedUnitary = (
     <>
       <p>• Venda Unitária Sugerida: {formatCurrency(unitSelling)}</p>
       <p>• Custo de Aquisição Unitário Ajustado: {formatCurrency(unitAcquisitionCostAdjusted)}</p>
       <p className="font-bold pt-1 border-t border-border/50">
-        Lucro Bruto Unitário = {formatCurrency(unitSelling)} (Venda Unitária) - {formatCurrency(unitAcquisitionCostAdjusted)} (Custo Aquisição Ajustado) = {formatCurrency(unitGrossProfit)}
+        Lucro Bruto sem Fixo Unitário = {formatCurrency(unitSelling)} (Venda Unitária) - {formatCurrency(unitAcquisitionCostAdjusted)} (Custo Aquisição Ajustado) = {formatCurrency(unitGrossProfitWithoutFixed)}
       </p>
     </>
   );
 
-  const detailNetProfitUnitary = (
+  // DETALHE: Lucro Líquido Unitário sem Fixo
+  const detailNetProfitWithoutFixedUnitary = (
     <>
-      <p>• Resultado Operacional Unitário: {formatCurrency(unitOperationalResult)}</p>
+      <p>• Lucro Bruto sem Fixo Unitário: {formatCurrency(unitGrossProfitWithoutFixed)}</p>
       <p>• Impostos Líquidos Unitários: {formatCurrency(unitTax)}</p>
       <p>• Despesas Variáveis Unitárias: {formatCurrency(unitVariableExpenses)}</p>
-      <p className={cn("font-bold pt-1 border-t border-border/50", unitProfit < 0 ? "text-destructive" : "text-success")}>
-        Lucro Líquido Unitário = {formatCurrency(unitOperationalResult)} (Resultado Operacional) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitProfit)}
+      <p className={cn("font-bold pt-1 border-t border-border/50", unitNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent")}>
+        Lucro Líquido sem Fixo Unitário = {formatCurrency(unitGrossProfitWithoutFixed)} (Lucro Bruto sem Fixo) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitNetProfitWithoutFixed)}
       </p>
     </>
   );
-  
-  // NOVO DETALHE: Margem de Contribuição Líquida Unitária
-  const detailContributionMarginLiquidUnitary = (
+
+  // DETALHE: Lucro Líquido Unitário com Fixo
+  const detailNetProfitWithFixedUnitary = (
     <>
-      <p>• Margem de Contribuição Bruta Unitária: {formatCurrency(summaryDataBestSale.totalContributionMargin / totalInnerUnitsInXML)}</p>
+      <p>• Lucro Bruto com Fixo Unitário: {formatCurrency(unitGrossProfitWithFixed)}</p>
       <p>• Impostos Líquidos Unitários: {formatCurrency(unitTax)}</p>
-      <p className={cn("font-bold pt-1 border-t border-border/50", unitContributionMarginLiquid < 0 ? "text-destructive" : "text-accent")}>
-        Margem de Contribuição Líquida Unitária = {formatCurrency(summaryDataBestSale.totalContributionMargin / totalInnerUnitsInXML)} (Margem Bruta) - {formatCurrency(unitTax)} (Impostos) = {formatCurrency(unitContributionMarginLiquid)}
+      <p>• Despesas Variáveis Unitárias: {formatCurrency(unitVariableExpenses)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", unitProfit < 0 ? "text-destructive" : "text-success")}>
+        Lucro Líquido com Fixo Unitário = {formatCurrency(unitGrossProfitWithFixed)} (Lucro Bruto com Fixo) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitProfit)}
       </p>
     </>
   );
@@ -445,44 +450,44 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 detailContent={detailCostTotal}
               />
               
-              {/* NOVO CARD: Resultado Operacional (Nota) */}
+              {/* 3. Lucro Bruto com Fixo (Resultado Operacional) */}
               <SummaryCardWithDetail
-                title="Resultado Operacional (Nota)"
-                value={totalOperationalResult}
+                title="Lucro Bruto com Fixo (Nota)"
+                value={totalGrossProfitWithFixed}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={totalOperationalResult < 0 ? "text-destructive" : "text-success"}
+                valueClassName={totalGrossProfitWithFixed < 0 ? "text-destructive" : "text-success"}
                 description="Venda Sugerida - Custo Total (Cobre todos os custos)"
-                detailContent={detailOperationalResultTotal}
+                detailContent={detailGrossProfitWithFixed}
               />
 
-              {/* 3. Lucro Bruto (Nota) - Mantido, mas agora é o terceiro item */}
+              {/* 4. Lucro Bruto sem Fixo */}
               <SummaryCardWithDetail
-                title="Lucro Bruto (Nota)"
-                value={totalGrossProfit}
+                title="Lucro Bruto sem Fixo (Nota)"
+                value={totalGrossProfitWithoutFixed}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName={totalGrossProfitWithoutFixed < 0 ? "text-destructive" : "text-success"}
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
-                detailContent={detailGrossProfitTotal}
+                detailContent={detailGrossProfitWithoutFixed}
               />
               
-              {/* NOVO CARD: Margem de Contribuição Líquida (Lucro antes do Custo Fixo) */}
+              {/* 5. Lucro Líquido sem Fixo (Margem de Contribuição Líquida) */}
               <SummaryCardWithDetail
-                title="Margem de Contribuição Líquida (Nota)"
-                value={totalContributionMarginLiquid}
+                title="Lucro Líquido sem Fixo (Nota)"
+                value={totalNetProfitWithoutFixed}
                 icon={<Package className="h-5 w-5 text-accent" />}
-                valueClassName={totalContributionMarginLiquid < 0 ? "text-destructive" : "text-accent"}
-                description="Margem de Contribuição Bruta - Impostos Líquidos"
-                detailContent={detailContributionMarginLiquidTotal}
+                valueClassName={totalNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent"}
+                description="Lucro Bruto sem Fixo - Impostos - Variáveis"
+                detailContent={detailNetProfitWithoutFixed}
               />
 
-              {/* 4. Lucro Líquido (Nota) */}
+              {/* 6. Lucro Líquido com Fixo (Lucro Líquido Final) */}
               <SummaryCardWithDetail
-                title="Lucro Líquido (Nota)"
+                title="Lucro Líquido com Fixo (Nota)"
                 value={totalProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
                 valueClassName={totalProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Margem de Lucro Alvo: ${params.profitMargin.toFixed(2)}%`}
-                detailContent={detailNetProfitTotal}
+                detailContent={detailNetProfitWithFixed}
               />
             </div>
 
@@ -521,44 +526,44 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 detailContent={detailCostUnitary}
               />
               
-              {/* NOVO CARD: Resultado Operacional Unitário */}
+              {/* 3. Lucro Bruto Unitário com Fixo */}
               <SummaryCardWithDetail
-                title="Resultado Operacional (Unitário)"
-                value={unitOperationalResult}
+                title="Lucro Bruto com Fixo (Unitário)"
+                value={unitGrossProfitWithFixed}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={unitOperationalResult < 0 ? "text-destructive" : "text-success"}
+                valueClassName={unitGrossProfitWithFixed < 0 ? "text-destructive" : "text-success"}
                 description="Venda Unitária - Custo Unitário Total"
-                detailContent={detailOperationalResultUnitary}
+                detailContent={detailGrossProfitWithFixedUnitary}
               />
 
-              {/* 3. Lucro Bruto Unitário - Mantido, mas agora é o terceiro item */}
+              {/* 4. Lucro Bruto Unitário sem Fixo */}
               <SummaryCardWithDetail
-                title="Lucro Bruto (Unitário)"
-                value={unitGrossProfit}
+                title="Lucro Bruto sem Fixo (Unitário)"
+                value={unitGrossProfitWithoutFixed}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName={unitGrossProfitWithoutFixed < 0 ? "text-destructive" : "text-success"}
                 description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
-                detailContent={detailGrossProfitUnitary}
+                detailContent={detailGrossProfitWithoutFixedUnitary}
               />
               
-              {/* NOVO CARD: Margem de Contribuição Líquida Unitária */}
+              {/* 5. Lucro Líquido Unitário sem Fixo */}
               <SummaryCardWithDetail
-                title="Margem de Contribuição Líquida (Unitário)"
-                value={unitContributionMarginLiquid}
+                title="Lucro Líquido sem Fixo (Unitário)"
+                value={unitNetProfitWithoutFixed}
                 icon={<Package className="h-5 w-5 text-accent" />}
-                valueClassName={unitContributionMarginLiquid < 0 ? "text-destructive" : "text-accent"}
-                description="Margem de Contribuição Bruta - Impostos Líquidos"
-                detailContent={detailContributionMarginLiquidUnitary}
+                valueClassName={unitNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent"}
+                description="Lucro Bruto sem Fixo - Impostos - Variáveis"
+                detailContent={detailNetProfitWithoutFixedUnitary}
               />
 
-              {/* 4. Lucro Unitário (CUMP) */}
+              {/* 6. Lucro Unitário com Fixo (Lucro Líquido Final) */}
               <SummaryCardWithDetail
-                title="Lucro Unitário (CUMP)"
+                title="Lucro Líquido com Fixo (Unitário)"
                 value={unitProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
                 valueClassName={unitProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Lucro médio por unidade interna`}
-                detailContent={detailNetProfitUnitary}
+                detailContent={detailNetProfitWithFixedUnitary}
               />
             </div>
           </div>
