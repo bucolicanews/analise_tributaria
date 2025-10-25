@@ -34,18 +34,31 @@ const SummaryItem: React.FC<{ title: string; value: number; icon: React.ReactNod
   icon,
   valueClassName,
   description,
-}) => (
-  <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-    <div className={cn("p-3 rounded-full", valueClassName === 'text-success' ? 'bg-success/20' : valueClassName === 'text-primary' ? 'bg-primary/20' : 'bg-muted/50')}>
-      {icon}
+}) => {
+  
+  let effectiveValueClassName = valueClassName;
+  
+  // Se for Lucro Bruto ou Lucro Líquido (que usam text-success por padrão), verifica se é negativo
+  if (value < 0 && (valueClassName === 'text-success' || valueClassName === 'text-primary')) {
+    effectiveValueClassName = 'text-destructive';
+  } else if (value >= 0 && effectiveValueClassName === 'text-destructive') {
+    // Se for um valor que deve ser destrutivo (como imposto a pagar), mas é zero ou positivo, mantém a cor original
+    effectiveValueClassName = 'text-success';
+  }
+
+  return (
+    <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
+      <div className={cn("p-3 rounded-full", effectiveValueClassName === 'text-success' ? 'bg-success/20' : effectiveValueClassName === 'text-primary' ? 'bg-primary/20' : effectiveValueClassName === 'text-destructive' ? 'bg-destructive/20' : 'bg-muted/50')}>
+        {icon}
+      </div>
+      <div>
+        <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <p className={cn("text-xl font-extrabold", effectiveValueClassName)}>{formatCurrency(value)}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      </div>
     </div>
-    <div>
-      <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(value)}</p>
-      <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
-    </div>
-  </div>
-);
+  );
+};
 
 // Novo componente para detalhamento da distribuição
 const DistributionDetail: React.FC<{ 
@@ -67,15 +80,15 @@ const DistributionDetail: React.FC<{
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   
-  // O valor total distribuído é o Preço de Venda
-  const totalDistributed = totalSelling;
-  
   // Impostos (já calculados no summaryDataBestSale)
   const taxItems = [];
   if (params.taxRegime === TaxRegime.LucroPresumido) {
+    // Simplificando a exibição para usar os totais líquidos do summaryDataBestSale, divididos pela venda total
+    // Nota: A distribuição deve somar 100% do PV.
+    // Para manter a precisão, usaremos as alíquotas sobre o PV.
     taxItems.push(
-      { name: "CBS Líquido", value: totalSelling * CBS_RATE, credit: totalSelling * CBS_RATE - totalTax * (totalSelling * CBS_RATE / totalTax) },
-      { name: "IBS Líquido", value: totalSelling * IBS_RATE, credit: totalSelling * IBS_RATE - totalTax * (totalSelling * IBS_RATE / totalTax) },
+      { name: "CBS Líquido", value: totalSelling * CBS_RATE },
+      { name: "IBS Líquido", value: totalSelling * IBS_RATE },
       { name: "IRPJ", value: totalSelling * (params.irpjRate / 100) },
       { name: "CSLL", value: totalSelling * (params.csllRate / 100) }
     );
@@ -146,7 +159,7 @@ const DistributionDetail: React.FC<{
             <span>{formatCurrency(fixedCostItem.value)}</span>
           </div>
 
-          <div className="flex justify-between font-bold text-success pt-1 border-t border-border/50">
+          <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
             <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
             <span>{formatCurrency(profitItem.value)}</span>
           </div>
@@ -201,15 +214,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
               <h3 className="text-lg font-semibold text-foreground">Valores Totais da Nota</h3>
               
-                   <div className="space-y-2">
-                <SummaryItem
-                  title="Venda Sugerida (Nota)"
-                  value={totalSelling}
-                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
-                  valueClassName="text-primary"
-                  description="Valor total de venda para atingir o lucro alvo"
-                    />
-                    
               <SummaryItem
                 title="Custo Total (Nota)"
                 value={totalCost}
@@ -217,16 +221,23 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 description="Aquisição Ajustada + Contribuição Fixa"
               />
               
-              {/* NOVO: Lucro Bruto Total */}
+              {/* Lucro Bruto Total */}
               <SummaryItem
                 title="Lucro Bruto (Nota)"
                 value={totalGrossProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
               />
 
-           
+              <div className="space-y-2">
+                <SummaryItem
+                  title="Venda Sugerida (Nota)"
+                  value={totalSelling}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
+                  valueClassName="text-primary"
+                  description="Valor total de venda para atingir o lucro alvo"
+                />
                 <DistributionDetail 
                   totalSelling={totalSelling}
                   totalTax={summaryDataBestSale.totalTax}
@@ -241,16 +252,31 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Líquido (Nota)"
                 value={totalProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={totalProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Margem de Lucro Alvo: ${params.profitMargin.toFixed(2)}%`}
               />
             </div>
 
-{/* Coluna 2: Unitários (CUMP) */ }
-            
-              <div className="space-y-4 pt-6 lg:pt-0" >
-  <h3 className="text-lg font-semibold text-foreground" > Valores Unitários Médios(CUMP) </h3>
-                 <div className="space-y-2">
+            {/* Coluna 2: Unitários (CUMP) */}
+            <div className="space-y-4 pt-6 lg:pt-0">
+              <h3 className="text-lg font-semibold text-foreground">Valores Unitários Médios (CUMP)</h3>
+              <SummaryItem
+                title="Custo Unitário (CUMP)"
+                value={unitCost}
+                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
+                description="Custo médio por unidade interna (varejo)"
+              />
+              
+              {/* Lucro Bruto Unitário */}
+              <SummaryItem
+                title="Lucro Bruto (Unitário)"
+                value={unitGrossProfit}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
+                description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
+              />
+
+              <div className="space-y-2">
                 <SummaryItem
                   title="Venda Unitária (CUMP)"
                   value={unitSelling}
@@ -258,24 +284,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   valueClassName="text-primary"
                   description="Preço médio sugerido por unidade interna"
                 />
-             
-             < SummaryItem
-                title="Custo Unitário (CUMP)"
-                value={unitCost}
-                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
-                description="Custo médio por unidade interna (varejo)"
-              />
-              
-              {/* NOVO: Lucro Bruto Unitário */}
-              <SummaryItem
-                title="Lucro Bruto (Unitário)"
-                value={unitGrossProfit}
-                icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
-                description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
-              />
-
-             
                 <DistributionDetail 
                   totalSelling={unitSelling}
                   totalTax={unitTax}
@@ -290,7 +298,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Unitário (CUMP)"
                 value={unitProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={unitProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Lucro médio por unidade interna`}
               />
             </div>
