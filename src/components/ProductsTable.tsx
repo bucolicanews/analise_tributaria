@@ -12,7 +12,8 @@ import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SummarySection } from './summary/SummarySection';
-import { CostSummary } from './summary/CostSummary';
+import { CostSummaryUnitary } from './summary/CostSummaryUnitary';
+import { CostSummaryTotal } from './summary/CostSummaryTotal'; // Importando o novo componente
 import { SalesSummary } from './summary/SalesSummary';
 import { TaxSummary } from './summary/TaxSummary';
 import { ExpenseSummary } from './summary/ExpenseSummary';
@@ -642,14 +643,21 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
 
       {/* New Summary Sections - now stacked vertically */}
       <div className="space-y-6">
-        <CostSummary
+        {/* 1. Resumo de Custos Totais da Nota */}
+        <CostSummaryTotal
           totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss}
           totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
-          totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
           totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
-          cumpData={cumpData} // Passando os dados CUMP
         />
+        
+        {/* 2. Resumo de Custos Unitários (CUMP) - Só aparece se houver produtos selecionados */}
+        {cumpData && (
+          <CostSummaryUnitary
+            cumpData={cumpData}
+          />
+        )}
+
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
           totalSellingMinSale={summaryDataMinSale.totalSelling}

@@ -2,20 +2,11 @@ import React from 'react';
 import { SummarySection } from './SummarySection';
 import { SummaryCard } from './SummaryCard';
 
-interface CumpData {
-  cumpBruto: number;
-  cumpPlusLoss: number;
-  cumpTotal: number;
-  cfu: number;
-}
-
-interface CostSummaryProps {
+interface CostSummaryTotalProps {
   totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total
   totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total
-  totalFixedExpenses: number; 
   cfu: number;
   totalQuantityOfAllProducts: number;
-  cumpData: CumpData | null; // Dados CUMP se houver produtos selecionados
 }
 
 const formatCurrency = (value: number) => {
@@ -25,25 +16,19 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-export const CostSummary: React.FC<CostSummaryProps> = ({
+export const CostSummaryTotal: React.FC<CostSummaryTotalProps> = ({
   totalProductAcquisitionCostBeforeLoss,
   totalProductAcquisitionCostAdjusted,
   cfu,
   totalQuantityOfAllProducts,
-  cumpData,
 }) => {
   
-  const hasSelectedProducts = cumpData !== null;
-
-  // Determine values based on view mode (CUMP if products selected, Total if no products selected)
-  // Note: If products are selected, we show CUMP. If no products are selected, all totals are 0.
-  
-  const costBruto = hasSelectedProducts ? cumpData.cumpBruto : totalProductAcquisitionCostBeforeLoss;
-  const costPlusLoss = hasSelectedProducts ? cumpData.cumpPlusLoss : totalProductAcquisitionCostAdjusted;
-  const fixedContribution = hasSelectedProducts ? cumpData.cfu : (cfu * totalQuantityOfAllProducts);
-  const totalCost = hasSelectedProducts ? cumpData.cumpTotal : (totalProductAcquisitionCostAdjusted + fixedContribution);
+  const fixedCostContributionOfNote = cfu * totalQuantityOfAllProducts;
+  const totalCost = totalProductAcquisitionCostAdjusted + fixedCostContributionOfNote;
 
   // Calculate loss details
+  const costBruto = totalProductAcquisitionCostBeforeLoss;
+  const costPlusLoss = totalProductAcquisitionCostAdjusted;
   const lossValue = costPlusLoss - costBruto;
   const lossPercentageIncrease = costBruto > 0 
     ? ((costPlusLoss / costBruto) - 1) * 100 
@@ -57,23 +42,16 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
     ? `Custo de aquisição ajustado pela % de perdas. Valor para perdas: ${formatCurrency(lossValue)}`
     : "Custo de aquisição ajustado pela % de perdas.";
 
-  // Determine titles
-  const titleSuffix = hasSelectedProducts ? " (Unitário Médio Ponderado)" : " (Total da Nota)";
-  const fixedTitle = hasSelectedProducts ? "Contrib. Fixa (Unitário)" : "Contrib. Nota p/ Desp. Fixas";
-  const fixedDescription = hasSelectedProducts ? "Custo Fixo Rateado por Unidade (CFU)" : "Contribuição desta nota para as despesas fixas";
-  const totalTitle = hasSelectedProducts ? "Custo Total (Unitário)" : "Custo Total";
-
-
   return (
-    <SummarySection title={`Custos ${titleSuffix}`}>
-      {/* 1. Custo Bruto */}
+    <SummarySection title="Custos Totais da Nota">
+      {/* 1. Custo Bruto Total */}
       <SummaryCard
         title={`Custo Bruto (Aquisição)`}
         value={costBruto}
         description="Custo de aquisição sem ajuste de perdas"
       />
       
-      {/* 2. Custo + Perdas */}
+      {/* 2. Custo + Perdas Total */}
       <SummaryCard
         title={lossPercentageTitle}
         value={costPlusLoss}
@@ -81,16 +59,16 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
         description={lossDescription}
       />
 
-      {/* 3. Participação nas Despesas Fixas */}
+      {/* 3. Participação nas Despesas Fixas Total */}
       <SummaryCard
-        title={fixedTitle}
-        value={fixedContribution}
-        description={fixedDescription}
+        title="Contrib. Nota p/ Desp. Fixas"
+        value={fixedCostContributionOfNote}
+        description="Contribuição total desta nota para as despesas fixas"
       />
       
-      {/* 4. Custo Total */}
+      {/* 4. Custo Total da Nota */}
       <SummaryCard
-        title={totalTitle}
+        title="Custo Total da Nota"
         value={totalCost}
         valueClassName="text-primary"
         description="Custo Ajustado + Contribuição Despesas Fixas"
