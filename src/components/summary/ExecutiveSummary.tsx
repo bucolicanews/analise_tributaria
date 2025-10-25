@@ -250,7 +250,12 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className="font-semibold pt-1 border-t border-border/50">
         Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalProductAcquisitionCostAdjusted)}
       </p>
-      <p>• Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}</p>
+      <p className="pt-2">
+        • Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}
+      </p>
+      <p className="ml-4 text-muted-foreground">
+        (CFU: {formatCurrency(unitFixedCostContribution)} * Qtd. Unid. Internas na Nota: {totalInnerUnitsInXML.toLocaleString('pt-BR')})
+      </p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
       </p>
