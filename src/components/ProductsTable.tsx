@@ -165,6 +165,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   const allProductCodes = products.map(p => p.code);
   const isAllSelected = selectedProductCodes.size === products.length && products.length > 0;
   const isIndeterminate = selectedProductCodes.size > 0 && selectedProductCodes.size < products.length;
+  const isSingleProductSelected = selectedProductCodes.size === 1;
 
   const handleToggleAll = (checked: boolean) => {
     if (checked) {
@@ -246,18 +247,6 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   // Custo Ajustado (Acquisition Cost adjusted for loss) - APENAS DOS SELECIONADOS
   let totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss;
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
-    // Recalculamos o custo ajustado total dos produtos selecionados
-    // Nota: O cálculo do custo ajustado é feito por unidade dentro do calculatePricing,
-    // mas aqui precisamos do total ajustado para o resumo.
-    // Para manter a consistência, vamos somar o custo ajustado unitário * quantidade dos produtos selecionados.
-    
-    // Para o resumo, precisamos do custo total que entra no cálculo do markup.
-    // O custo base para markup é (Custo Aquisição + CFU) / (1 - Perdas%).
-    // Como o resumo global não precisa do custo ajustado total da nota, mas sim do custo total de aquisição dos itens selecionados,
-    // vamos usar o custo bruto dos selecionados e aplicar o ajuste de perda para o cálculo do resumo.
-    
-    // No entanto, para o resumo de custos, o usuário quer ver o Custo Bruto e o Custo + Perdas dos itens selecionados.
-    // O Custo + Perdas é o Custo Bruto / (1 - Perdas%).
     if (totalProductAcquisitionCostBeforeLoss > 0) {
         totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss / (1 - params.lossPercentage / 100);
     } else {
@@ -270,16 +259,16 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   // Calculate total quantity of all products in the XML (APENAS DOS SELECIONADOS)
   const totalQuantityOfAllProductsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity, 0);
 
-  // Calculate summary for "Best Sale" (with target profit margin)
-  let summaryDataBestSale: GlobalSummaryData;
+  // Determine the set of calculated products for the current regime/scenario
   let calculatedProductsForBestSale: CalculatedProduct[];
-
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     calculatedProductsForBestSale = params.generateIvaCredit ? calculatedProductsHybrid : calculatedProductsStandard;
   } else {
     calculatedProductsForBestSale = calculatedProductsPresumido;
   }
-  summaryDataBestSale = calculateGlobalSummary(
+
+  // Calculate summary for "Best Sale" (with target profit margin)
+  const summaryDataBestSale = calculateGlobalSummary(
     calculatedProductsForBestSale,
     params,
     totalFixedExpenses,
@@ -347,19 +336,37 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     }
   }
 
-  // Determine which set of calculated products to display in the table (all original products, but highlight selected)
-  const productsToDisplay = products.map(product => {
-    // Find the calculated version of this product based on the current tax regime/IVA setting
-    let calculatedProduct: CalculatedProduct;
-    if (params.taxRegime === TaxRegime.SimplesNacional) {
-      const source = params.generateIvaCredit ? calculatedProductsHybrid : calculatedProductsStandard;
-      calculatedProduct = source.find(p => p.code === product.code) || calculatePricing(product, params, cfu);
-    } else {
-      calculatedProduct = calculatedProductsPresumido.find(p => p.code === product.code) || calculatePricing(product, params, cfu);
+  // --- Dados Unitários para CostSummary (se apenas 1 produto selecionado) ---
+  let unitCostData = null;
+  if (isSingleProductSelected && calculatedProductsForBestSale.length === 1) {
+    const singleProduct = calculatedProductsForBestSale[0];
+    
+    // Custo Bruto Unitário (Aquisição)
+    const unitCostBruto = singleProduct.cost;
+    
+    // Custo Unitário + Perda (Custo Base para Markup)
+    // Nota: O cálculo do Custo Base para Markup já inclui o ajuste de perda e o CFU.
+    // Para obter o Custo Unitário + Perda (sem CFU), precisamos recalcular o Custo Base sem o CFU.
+    
+    let unitCostPlusLoss = singleProduct.cost;
+    if (params.lossPercentage > 0 && params.lossPercentage < 100) {
+      unitCostPlusLoss = unitCostPlusLoss / (1 - params.lossPercentage / 100);
+    } else if (params.lossPercentage >= 100) {
+      unitCostPlusLoss = Infinity;
     }
-    return calculatedProduct;
-  });
-  
+    
+    // Custo Unitário + Contribuição Fixa (Custo Base para Markup)
+    const unitCostPlusFixed = unitCostPlusLoss + cfu;
+    
+    unitCostData = {
+      unitCostBruto,
+      unitCostPlusLoss,
+      unitCostPlusFixed,
+      cfu,
+      unitQuantity: singleProduct.quantity,
+    };
+  }
+
   // If no products are selected, we show the table but the summary below will be zeroed out.
   const productsToRender = products.map(product => {
     // We need to calculate the pricing for ALL products to render the table rows correctly,
@@ -656,6 +663,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
           totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
+          unitCostData={unitCostData} // Passando os dados unitários
         />
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
