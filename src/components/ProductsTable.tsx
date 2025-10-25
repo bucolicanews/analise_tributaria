@@ -206,15 +206,19 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   let cfu = 0;
   if (params.totalStockUnits > 0) {
     cfu = totalFixedExpenses / params.totalStockUnits;
-  } else {
-    // Only show warning if products are present, otherwise it's noisy on initial load
-    if (products.length > 0) {
+  }
+
+  // --- EFEITO PARA AVISO DE ETU ZERO (Executa apenas uma vez quando a condição é atendida) ---
+  useEffect(() => {
+    if (products.length > 0 && params.totalStockUnits === 0) {
       toast.warning("Estoque Total de Unidades (ETU) é zero.", {
         description: "O rateio de custos fixos não será aplicado. Por favor, insira um valor maior que zero para o ETU.",
         duration: 5000,
       });
     }
-  }
+  }, [products.length, params.totalStockUnits]);
+  // ------------------------------------------------------------------------------------------
+
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
