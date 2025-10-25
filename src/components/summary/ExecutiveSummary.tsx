@@ -28,13 +28,23 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-const SummaryItem: React.FC<{ title: string; value: number; icon: React.ReactNode; valueClassName?: string; description: string }> = ({
+// Componente de Item de Resumo Refatorado para incluir detalhe expansível
+const SummaryCardWithDetail: React.FC<{ 
+  title: string; 
+  value: number; 
+  icon: React.ReactNode; 
+  valueClassName?: string; 
+  description: string;
+  detailContent: React.ReactNode;
+}> = ({
   title,
   value,
   icon,
   valueClassName,
   description,
+  detailContent,
 }) => {
+  const [isOpen, setIsOpen] = React.useState(false);
   
   let effectiveValueClassName = valueClassName;
   
@@ -47,20 +57,41 @@ const SummaryItem: React.FC<{ title: string; value: number; icon: React.ReactNod
   }
 
   return (
-    <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-      <div className={cn("p-3 rounded-full", effectiveValueClassName === 'text-success' ? 'bg-success/20' : effectiveValueClassName === 'text-primary' ? 'bg-primary/20' : effectiveValueClassName === 'text-destructive' ? 'bg-destructive/20' : 'bg-muted/50')}>
-        {icon}
+    <div className="space-y-2">
+      <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
+        <div className={cn("p-3 rounded-full", effectiveValueClassName === 'text-success' ? 'bg-success/20' : effectiveValueClassName === 'text-primary' ? 'bg-primary/20' : effectiveValueClassName === 'text-destructive' ? 'bg-destructive/20' : 'bg-muted/50')}>
+          {icon}
+        </div>
+        <div>
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <p className={cn("text-xl font-extrabold", effectiveValueClassName)}>{formatCurrency(value)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        </div>
       </div>
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">{title}</p>
-        <p className={cn("text-xl font-extrabold", effectiveValueClassName)}>{formatCurrency(value)}</p>
-        <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      
+      {/* Detalhe Expansível */}
+      <div className="border-t border-border pt-2">
+        <button 
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Memória de Cálculo
+          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+        </button>
+        
+        {isOpen && (
+          <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
+            {detailContent}
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// Novo componente para detalhamento da distribuição
+
+// Novo componente para detalhamento da distribuição (mantido para Venda Sugerida)
 const DistributionDetail: React.FC<{ 
   totalSelling: number; 
   totalTax: number; 
@@ -105,9 +136,15 @@ const DistributionDetail: React.FC<{
   }
   
   // Despesas Variáveis
+  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
+    (sum, exp) => sum + exp.percentage,
+    0
+  );
+  
   const variableItems = params.variableExpenses.map(exp => ({
     name: exp.name,
-    value: totalSelling * (exp.percentage / 100)
+    value: totalSelling * (exp.percentage / 100),
+    percentage: exp.percentage
   }));
 
   // Custo Fixo Rateado (CFU * Qtd)
@@ -129,7 +166,7 @@ const DistributionDetail: React.FC<{
         onClick={() => setIsOpen(!isOpen)}
         className="flex items-center justify-between w-full text-sm font-semibold text-primary/80 hover:text-primary transition-colors"
       >
-        {isUnitary ? "Detalhe da Distribuição (Unid.)" : "Detalhe da Distribuição (Total)"}
+        Detalhe da Distribuição ({isUnitary ? "Unid." : "Total"})
         {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
       </button>
       
@@ -149,7 +186,7 @@ const DistributionDetail: React.FC<{
           
           {variableItems.map((item, index) => (
             <div key={`var-${index}`} className="flex justify-between text-yellow-500/80">
-              <span>• {item.name} ({item.value / totalSelling * 100}%)</span>
+              <span>• {item.name} ({item.percentage.toFixed(2)}%):</span>
               <span>{formatCurrency(item.value)}</span>
             </div>
           ))}
@@ -182,6 +219,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const totalSelling = summaryDataBestSale.totalSelling;
   const totalProfit = summaryDataBestSale.totalProfit;
   const totalFixedCostContribution = cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0;
+  const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
   
   // Custo de Aquisição Bruto (sem CFU)
   const totalAcquisitionCost = totalProductAcquisitionCostAdjusted; 
@@ -201,6 +239,72 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const unitAcquisitionCostAdjusted = cumpData?.cumpPlusLoss || 0;
   const unitGrossProfit = unitSelling - unitAcquisitionCostAdjusted;
 
+  // --- Conteúdos de Detalhe (Memória de Cálculo) ---
+
+  const detailCostTotal = (
+    <>
+      <p>• Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalAcquisitionCost)}</p>
+      <p>• Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Custo Total = {formatCurrency(totalAcquisitionCost)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
+      </p>
+    </>
+  );
+
+  const detailGrossProfitTotal = (
+    <>
+      <p>• Venda Sugerida: {formatCurrency(totalSelling)}</p>
+      <p>• Custo de Aquisição Ajustado: {formatCurrency(totalAcquisitionCost)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Lucro Bruto = {formatCurrency(totalSelling)} - {formatCurrency(totalAcquisitionCost)} = {formatCurrency(totalGrossProfit)}
+      </p>
+    </>
+  );
+
+  const detailNetProfitTotal = (
+    <>
+      <p>• Lucro Bruto: {formatCurrency(totalGrossProfit)}</p>
+      <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
+      <p>• Despesas Variáveis: {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)}</p>
+      <p>• Contribuição Fixa Rateada: {formatCurrency(totalFixedCostContribution)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Lucro Líquido = Lucro Bruto - Impostos - Despesas Variáveis - Contribuição Fixa = {formatCurrency(totalProfit)}
+      </p>
+    </>
+  );
+
+  const detailCostUnitary = (
+    <>
+      <p>• Custo de Aquisição Unitário Ajustado (CUMP + Perdas): {formatCurrency(unitAcquisitionCostAdjusted)}</p>
+      <p>• Custo Fixo por Unidade (CFU): {formatCurrency(unitFixedCostContribution)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Custo Unitário Total = {formatCurrency(unitAcquisitionCostAdjusted)} + {formatCurrency(unitFixedCostContribution)} = {formatCurrency(unitCost)}
+      </p>
+    </>
+  );
+
+  const detailGrossProfitUnitary = (
+    <>
+      <p>• Venda Unitária Sugerida: {formatCurrency(unitSelling)}</p>
+      <p>• Custo de Aquisição Unitário Ajustado: {formatCurrency(unitAcquisitionCostAdjusted)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Lucro Bruto Unitário = {formatCurrency(unitSelling)} - {formatCurrency(unitAcquisitionCostAdjusted)} = {formatCurrency(unitGrossProfit)}
+      </p>
+    </>
+  );
+
+  const detailNetProfitUnitary = (
+    <>
+      <p>• Lucro Bruto Unitário: {formatCurrency(unitGrossProfit)}</p>
+      <p>• Impostos Líquidos Unitários: {formatCurrency(unitTax)}</p>
+      <p>• Despesas Variáveis Unitárias: {formatCurrency(unitVariableExpenses)}</p>
+      <p>• Custo Fixo Rateado Unitário: {formatCurrency(unitFixedCostContribution)}</p>
+      <p className="font-bold pt-1 border-t border-border/50">
+        Lucro Líquido Unitário = Lucro Bruto Unitário - Impostos - Despesas Variáveis - CFU = {formatCurrency(unitProfit)}
+      </p>
+    </>
+  );
+
 
   return (
     <div className="space-y-6">
@@ -216,48 +320,53 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               
               {/* 1. Venda Sugerida (Nota) */}
               <div className="space-y-2">
-                <SummaryItem
+                <SummaryCardWithDetail
                   title="Venda Sugerida (Nota)"
                   value={totalSelling}
                   icon={<TrendingUp className="h-5 w-5 text-primary" />}
                   valueClassName="text-primary"
                   description="Valor total de venda para atingir o lucro alvo"
-                />
-                <DistributionDetail 
-                  totalSelling={totalSelling}
-                  totalTax={summaryDataBestSale.totalTax}
-                  totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
-                  totalProfit={totalProfit}
-                  totalFixedCostContribution={totalFixedCostContribution}
-                  params={params}
-                  isUnitary={false}
+                  detailContent={
+                    <DistributionDetail 
+                      totalSelling={totalSelling}
+                      totalTax={summaryDataBestSale.totalTax}
+                      totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
+                      totalProfit={totalProfit}
+                      totalFixedCostContribution={totalFixedCostContribution}
+                      params={params}
+                      isUnitary={false}
+                    />
+                  }
                 />
               </div>
 
               {/* 2. Custo Total (Nota) */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Custo Total (Nota)"
                 value={totalCost}
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Aquisição Ajustada + Contribuição Fixa"
+                detailContent={detailCostTotal}
               />
               
               {/* 3. Lucro Bruto Total */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Lucro Bruto (Nota)"
                 value={totalGrossProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName="text-success"
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
+                detailContent={detailGrossProfitTotal}
               />
 
               {/* 4. Lucro Líquido (Nota) */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Lucro Líquido (Nota)"
                 value={totalProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={totalProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName="text-success"
                 description={`Margem de Lucro Alvo: ${params.profitMargin.toFixed(2)}%`}
+                detailContent={detailNetProfitTotal}
               />
             </div>
 
@@ -267,48 +376,53 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               
               {/* 1. Venda Unitária (CUMP) */}
               <div className="space-y-2">
-                <SummaryItem
+                <SummaryCardWithDetail
                   title="Venda Unitária (CUMP)"
                   value={unitSelling}
                   icon={<TrendingUp className="h-5 w-5 text-primary" />}
                   valueClassName="text-primary"
                   description="Preço médio sugerido por unidade interna"
-                />
-                <DistributionDetail 
-                  totalSelling={unitSelling}
-                  totalTax={unitTax}
-                  totalVariableExpensesValue={unitVariableExpenses}
-                  totalProfit={unitProfit}
-                  totalFixedCostContribution={unitFixedCostContribution}
-                  params={params}
-                  isUnitary={true}
+                  detailContent={
+                    <DistributionDetail 
+                      totalSelling={unitSelling}
+                      totalTax={unitTax}
+                      totalVariableExpensesValue={unitVariableExpenses}
+                      totalProfit={unitProfit}
+                      totalFixedCostContribution={unitFixedCostContribution}
+                      params={params}
+                      isUnitary={true}
+                    />
+                  }
                 />
               </div>
 
               {/* 2. Custo Unitário (CUMP) */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Custo Unitário (CUMP)"
                 value={unitCost}
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Custo médio por unidade interna (varejo)"
+                detailContent={detailCostUnitary}
               />
               
               {/* 3. Lucro Bruto Unitário */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Lucro Bruto (Unitário)"
                 value={unitGrossProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName="text-success"
                 description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
+                detailContent={detailGrossProfitUnitary}
               />
 
               {/* 4. Lucro Unitário (CUMP) */}
-              <SummaryItem
+              <SummaryCardWithDetail
                 title="Lucro Unitário (CUMP)"
                 value={unitProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={unitProfit < 0 ? "text-destructive" : "text-success"}
+                valueClassName="text-success"
                 description={`Lucro médio por unidade interna`}
+                detailContent={detailNetProfitUnitary}
               />
             </div>
           </div>
