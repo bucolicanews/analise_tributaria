@@ -246,6 +246,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   // NOVO CÁLCULO: Resultado Operacional = Venda Sugerida - Custo Total
   const totalOperationalResult = totalSelling - totalCost;
 
+  // Margem de Contribuição Líquida (Lucro antes do Custo Fixo)
+  const totalContributionMarginLiquid = totalOperationalResult + totalFixedCostContribution - summaryDataBestSale.totalTax - summaryDataBestSale.totalVariableExpensesValue;
+  
   // Valores Unitários (CUMP - por unidade interna)
   const unitCost = cumpData?.cumpTotal || 0;
   const unitSelling = totalInnerUnitsInXML > 0 ? totalSelling / totalInnerUnitsInXML : 0;
@@ -260,6 +263,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
   // NOVO CÁLCULO UNITÁRIO: Resultado Operacional Unitário = Venda Unitária - Custo Unitário Total
   const unitOperationalResult = unitSelling - unitCost;
+
+  // Margem de Contribuição Líquida Unitária
+  const unitContributionMarginLiquid = totalInnerUnitsInXML > 0 ? totalContributionMarginLiquid / totalInnerUnitsInXML : 0;
 
 
   // --- Conteúdos de Detalhe (Memória de Cálculo) ---
@@ -322,6 +328,18 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       </p>
     </>
   );
+  
+  // NOVO DETALHE: Margem de Contribuição Líquida Total
+  const detailContributionMarginLiquidTotal = (
+    <>
+      <p>• Margem de Contribuição Bruta: {formatCurrency(summaryDataBestSale.totalContributionMargin)}</p>
+      <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", totalContributionMarginLiquid < 0 ? "text-destructive" : "text-accent")}>
+        Margem de Contribuição Líquida = {formatCurrency(summaryDataBestSale.totalContributionMargin)} (Margem Bruta) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) = {formatCurrency(totalContributionMarginLiquid)}
+      </p>
+    </>
+  );
+
 
   // Cálculo do Custo de Aquisição Ajustado (Unitário)
   const unitAcquisitionCostBeforeLoss = cumpData?.cumpBruto || 0;
@@ -368,6 +386,17 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p>• Despesas Variáveis Unitárias: {formatCurrency(unitVariableExpenses)}</p>
       <p className={cn("font-bold pt-1 border-t border-border/50", unitProfit < 0 ? "text-destructive" : "text-success")}>
         Lucro Líquido Unitário = {formatCurrency(unitOperationalResult)} (Resultado Operacional) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitProfit)}
+      </p>
+    </>
+  );
+  
+  // NOVO DETALHE: Margem de Contribuição Líquida Unitária
+  const detailContributionMarginLiquidUnitary = (
+    <>
+      <p>• Margem de Contribuição Bruta Unitária: {formatCurrency(summaryDataBestSale.totalContributionMargin / totalInnerUnitsInXML)}</p>
+      <p>• Impostos Líquidos Unitários: {formatCurrency(unitTax)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", unitContributionMarginLiquid < 0 ? "text-destructive" : "text-accent")}>
+        Margem de Contribuição Líquida Unitária = {formatCurrency(summaryDataBestSale.totalContributionMargin / totalInnerUnitsInXML)} (Margem Bruta) - {formatCurrency(unitTax)} (Impostos) = {formatCurrency(unitContributionMarginLiquid)}
       </p>
     </>
   );
@@ -435,6 +464,16 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
                 detailContent={detailGrossProfitTotal}
               />
+              
+              {/* NOVO CARD: Margem de Contribuição Líquida (Lucro antes do Custo Fixo) */}
+              <SummaryCardWithDetail
+                title="Margem de Contribuição Líquida (Nota)"
+                value={totalContributionMarginLiquid}
+                icon={<Package className="h-5 w-5 text-accent" />}
+                valueClassName={totalContributionMarginLiquid < 0 ? "text-destructive" : "text-accent"}
+                description="Margem de Contribuição Bruta - Impostos Líquidos"
+                detailContent={detailContributionMarginLiquidTotal}
+              />
 
               {/* 4. Lucro Líquido (Nota) */}
               <SummaryCardWithDetail
@@ -500,6 +539,16 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
                 description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
                 detailContent={detailGrossProfitUnitary}
+              />
+              
+              {/* NOVO CARD: Margem de Contribuição Líquida Unitária */}
+              <SummaryCardWithDetail
+                title="Margem de Contribuição Líquida (Unitário)"
+                value={unitContributionMarginLiquid}
+                icon={<Package className="h-5 w-5 text-accent" />}
+                valueClassName={unitContributionMarginLiquid < 0 ? "text-destructive" : "text-accent"}
+                description="Margem de Contribuição Bruta - Impostos Líquidos"
+                detailContent={detailContributionMarginLiquidUnitary}
               />
 
               {/* 4. Lucro Unitário (CUMP) */}
