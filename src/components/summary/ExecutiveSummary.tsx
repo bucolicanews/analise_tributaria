@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GlobalSummaryData } from '../ProductsTable';
 import { cn } from '@/lib/utils';
-import { DollarSign, TrendingUp, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import { DollarSign, TrendingUp, Package, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { CalculationParams, TaxRegime } from '@/types/pricing';
 import { CBS_RATE, IBS_RATE } from '@/lib/pricing';
 
@@ -243,6 +243,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   // Lucro Bruto Total: Venda Total - Custo de Aquisição Ajustado (Custo + Perdas)
   const totalGrossProfit = totalSelling - totalAcquisitionCost;
 
+  // NOVO CÁLCULO: Resultado Operacional = Venda Sugerida - Custo Total
+  const totalOperationalResult = totalSelling - totalCost;
+
   // Valores Unitários (CUMP - por unidade interna)
   const unitCost = cumpData?.cumpTotal || 0;
   const unitSelling = totalInnerUnitsInXML > 0 ? totalSelling / totalInnerUnitsInXML : 0;
@@ -254,6 +257,10 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   // Lucro Bruto Unitário: Venda Unitária - Custo de Aquisição Unitário Ajustado (CUMP Plus Loss)
   const unitAcquisitionCostAdjusted = cumpData?.cumpPlusLoss || 0;
   const unitGrossProfit = unitSelling - unitAcquisitionCostAdjusted;
+
+  // NOVO CÁLCULO UNITÁRIO: Resultado Operacional Unitário = Venda Unitária - Custo Unitário Total
+  const unitOperationalResult = unitSelling - unitCost;
+
 
   // --- Conteúdos de Detalhe (Memória de Cálculo) ---
 
@@ -275,6 +282,23 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} (Custo Aquisição Ajustado) + {formatCurrency(totalFixedCostContribution)} (Contribuição Fixa Rateada) = {formatCurrency(totalCost)}
       </p>
+    </>
+  );
+  
+  // NOVO DETALHE: Resultado Operacional Total
+  const detailOperationalResultTotal = (
+    <>
+      <p>• Venda Sugerida: {formatCurrency(totalSelling)}</p>
+      <p>• Custo Total (Aquisição Ajustada + Contribuição Fixa): {formatCurrency(totalCost)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", totalOperationalResult < 0 ? "text-destructive" : "text-success")}>
+        Resultado Operacional = {formatCurrency(totalSelling)} (Venda) - {formatCurrency(totalCost)} (Custo Total) = {formatCurrency(totalOperationalResult)}
+      </p>
+      {totalOperationalResult < 0 && (
+        <p className="text-destructive mt-2 flex items-center gap-1">
+          <AlertTriangle className="h-4 w-4" />
+          Alerta: O Resultado Operacional está negativo. Sugerimos diminuir os custos fixos ou aumentar o preço de venda.
+        </p>
+      )}
     </>
   );
 
@@ -313,6 +337,17 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p>• Custo Fixo por Unidade (CFU): {formatCurrency(unitFixedCostContribution)}</p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Unitário Total = {formatCurrency(unitAcquisitionCostAdjusted)} (Custo Aquisição Ajustado) + {formatCurrency(unitFixedCostContribution)} (CFU) = {formatCurrency(unitCost)}
+      </p>
+    </>
+  );
+  
+  // NOVO DETALHE: Resultado Operacional Unitário
+  const detailOperationalResultUnitary = (
+    <>
+      <p>• Venda Unitária Sugerida: {formatCurrency(unitSelling)}</p>
+      <p>• Custo Unitário Total (CUMP): {formatCurrency(unitCost)}</p>
+      <p className={cn("font-bold pt-1 border-t border-border/50", unitOperationalResult < 0 ? "text-destructive" : "text-success")}>
+        Resultado Operacional Unitário = {formatCurrency(unitSelling)} (Venda) - {formatCurrency(unitCost)} (Custo Total) = {formatCurrency(unitOperationalResult)}
       </p>
     </>
   );
@@ -383,7 +418,17 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 detailContent={detailCostTotal}
               />
               
-              {/* 3. Lucro Bruto Total */}
+              {/* NOVO CARD: Resultado Operacional (Nota) */}
+              <SummaryCardWithDetail
+                title="Resultado Operacional (Nota)"
+                value={totalOperationalResult}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName={totalOperationalResult < 0 ? "text-destructive" : "text-success"}
+                description="Venda Sugerida - Custo Total (Cobre todos os custos)"
+                detailContent={detailOperationalResultTotal}
+              />
+
+              {/* 3. Lucro Bruto (Nota) - Mantido, mas agora é o terceiro item */}
               <SummaryCardWithDetail
                 title="Lucro Bruto (Nota)"
                 value={totalGrossProfit}
@@ -439,7 +484,17 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 detailContent={detailCostUnitary}
               />
               
-              {/* 3. Lucro Bruto Unitário */}
+              {/* NOVO CARD: Resultado Operacional Unitário */}
+              <SummaryCardWithDetail
+                title="Resultado Operacional (Unitário)"
+                value={unitOperationalResult}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName={unitOperationalResult < 0 ? "text-destructive" : "text-success"}
+                description="Venda Unitária - Custo Unitário Total"
+                detailContent={detailOperationalResultUnitary}
+              />
+
+              {/* 3. Lucro Bruto Unitário - Mantido, mas agora é o terceiro item */}
               <SummaryCardWithDetail
                 title="Lucro Bruto (Unitário)"
                 value={unitGrossProfit}
