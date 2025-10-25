@@ -201,6 +201,15 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
               <h3 className="text-lg font-semibold text-foreground">Valores Totais da Nota</h3>
               
+                   <div className="space-y-2">
+                <SummaryItem
+                  title="Venda Sugerida (Nota)"
+                  value={totalSelling}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
+                  valueClassName="text-primary"
+                  description="Valor total de venda para atingir o lucro alvo"
+                    />
+                    
               <SummaryItem
                 title="Custo Total (Nota)"
                 value={totalCost}
@@ -217,14 +226,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
               />
 
-              <div className="space-y-2">
-                <SummaryItem
-                  title="Venda Sugerida (Nota)"
-                  value={totalSelling}
-                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
-                  valueClassName="text-primary"
-                  description="Valor total de venda para atingir o lucro alvo"
-                />
+           
                 <DistributionDetail 
                   totalSelling={totalSelling}
                   totalTax={summaryDataBestSale.totalTax}
@@ -244,10 +246,20 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               />
             </div>
 
-            {/* Coluna 2: Unitários (CUMP) */}
-            <div className="space-y-4 pt-6 lg:pt-0">
-              <h3 className="text-lg font-semibold text-foreground">Valores Unitários Médios (CUMP)</h3>
-              <SummaryItem
+{/* Coluna 2: Unitários (CUMP) */ }
+            
+              <div className="space-y-4 pt-6 lg:pt-0" >
+  <h3 className="text-lg font-semibold text-foreground" > Valores Unitários Médios(CUMP) </h3>
+                 <div className="space-y-2">
+                <SummaryItem
+                  title="Venda Unitária (CUMP)"
+                  value={unitSelling}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
+                  valueClassName="text-primary"
+                  description="Preço médio sugerido por unidade interna"
+                />
+             
+             < SummaryItem
                 title="Custo Unitário (CUMP)"
                 value={unitCost}
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
@@ -263,14 +275,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
               />
 
-              <div className="space-y-2">
-                <SummaryItem
-                  title="Venda Unitária (CUMP)"
-                  value={unitSelling}
-                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
-                  valueClassName="text-primary"
-                  description="Preço médio sugerido por unidade interna"
-                />
+             
                 <DistributionDetail 
                   totalSelling={unitSelling}
                   totalTax={unitTax}

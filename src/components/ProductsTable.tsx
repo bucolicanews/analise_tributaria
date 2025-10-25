@@ -420,7 +420,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     setItemsPerPage(newLimit);
   };
 
-  // --- ALERTA DE LUCRO NEGATIVO ---
+  // --- CÁLCULOS PARA ALERTAS ---
+  const unitVariableExpensesBestSale = totalUnitsForFixedCostAllocation > 0 
+    ? summaryDataBestSale.totalVariableExpensesValue / totalUnitsForFixedCostAllocation 
+    : 0;
+
+  // 1. ALERTA DE LUCRO NEGATIVO
   const isProfitNegative = summaryDataBestSale.totalProfit < 0;
   const profitAlert = isProfitNegative && (
     <Alert variant="destructive" className="mt-4">
@@ -434,21 +439,24 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     </Alert>
   );
 
-  // --- ALERTA DE CUSTO FIXO (CFU) ---
-  const cfuAlert = cfu > 0 && (
+  // 2. ALERTA DE CUSTO FIXO (CFU)
+  // Condição: CFU é maior que a Despesa Variável Unitária (Alvo)
+  const isCfuCritical = cfu > unitVariableExpensesBestSale; 
+  const cfuAlert = isCfuCritical && (
     <Alert variant="destructive" className="mt-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
       <AlertDescription>
         O Custo Fixo Rateado por Unidade Interna (CFU) é de <strong>{formatCurrency(cfu)}</strong>. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
         <br/>
+        A Despesa Variável Unitária (Alvo) é de {formatCurrency(unitVariableExpensesBestSale)}. O CFU é superior, indicando alta dependência de volume para cobrir custos fixos.
+        <br/>
         <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
       </AlertDescription>
     </Alert>
   );
 
-  // --- ALERTA DE IMPOSTO ALTO (Lucro Presumido) ---
-  // Se o imposto líquido for maior que 30% da venda total (um ponto de atenção genérico)
+  // 3. ALERTA DE IMPOSTO ALTO (Lucro Presumido)
   const TAX_THRESHOLD = 30;
   const isTaxHigh = summaryDataBestSale.totalTaxPercent > TAX_THRESHOLD;
   const taxAlert = isTaxHigh && (
@@ -852,17 +860,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         />
         
         {/* Alerta de Custo Fixo (CFU) */}
-        {cfu > 0 && (
-          <Alert variant="destructive" className="mt-4">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
-            <AlertDescription>
-              O Custo Fixo Rateado por Unidade Interna (CFU) é de <strong>{formatCurrency(cfu)}</strong>. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
-              <br/>
-              <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
-            </AlertDescription>
-          </Alert>
-        )}
+        {cfu > 0 && cfuAlert}
 
         <TaxSummary
           params={params}
