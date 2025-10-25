@@ -328,6 +328,9 @@ const DistributionSummaryCardComponent: React.FC<{
   
   // Determina a cor do valor principal (Lucro Bruto com Fixo)
   const valueClassName = totalGrossProfitWithFixed < 0 ? 'text-destructive' : 'text-success';
+  
+  // Determina a cor do Lucro Líquido sem Fixo
+  const netProfitWithoutFixedClassName = totalNetProfitWithoutFixed < 0 ? 'text-destructive' : 'text-accent';
 
   return (
     <div className="space-y-2">
@@ -339,6 +342,12 @@ const DistributionSummaryCardComponent: React.FC<{
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
           <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalGrossProfitWithFixed)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Lucro Bruto com Fixo (Resultado Operacional)</p>
+          
+          {/* NOVO: Lucro Líquido sem Fixo no corpo do card */}
+          <div className="mt-2 pt-2 border-t border-border/50">
+            <p className="text-xs font-medium text-muted-foreground">Lucro Líquido sem Fixo (Margem Contribuição Líquida)</p>
+            <p className={cn("text-lg font-bold", netProfitWithoutFixedClassName)}>{formatCurrency(totalNetProfitWithoutFixed)}</p>
+          </div>
         </div>
       </div>
       
@@ -364,7 +373,7 @@ const DistributionSummaryCardComponent: React.FC<{
               params={params}
               isUnitary={isUnitary}
               totalGrossProfitWithFixed={totalGrossProfitWithFixed}
-              totalNetProfitWithoutFixed={totalNetProfitWithoutFixed} // PASSANDO NOVO PROP
+              totalNetProfitWithoutFixed={totalNetProfitWithoutFixed}
             />
           </div>
         )}
