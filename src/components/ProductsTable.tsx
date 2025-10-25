@@ -53,7 +53,7 @@ const calculateGlobalSummary = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
   globalFixedExpenses: number, // This is the total fixed expenses of the company
-  xmlProductAcquisitionCost: number, // This is the total acquisition cost of products in THIS XML
+  xmlProductAcquisitionCostAdjusted: number, // This is the total acquisition cost of products in THIS XML (adjusted for loss)
   totalVariableExpensesPercent: number,
   cfu: number, // Custo Fixo por Unidade
   totalQuantityOfAllProductsInXML: number, // Total quantity of units in THIS XML
@@ -210,11 +210,15 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     0
   );
 
-  let totalProductAcquisitionCostInXML = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+  // Custo Bruto (Acquisition Cost before loss adjustment)
+  const totalProductAcquisitionCostBeforeLoss = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+
+  // Custo Ajustado (Acquisition Cost adjusted for loss) - This is the base for pricing
+  let totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss;
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
-    totalProductAcquisitionCostInXML = totalProductAcquisitionCostInXML / (1 - params.lossPercentage / 100);
+    totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostAdjusted / (1 - params.lossPercentage / 100);
   } else if (params.lossPercentage >= 100) {
-    totalProductAcquisitionCostInXML = Infinity;
+    totalProductAcquisitionCostAdjusted = Infinity;
   }
 
   // Calculate total quantity of all products in the XML
@@ -233,7 +237,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     calculatedProductsForBestSale,
     params,
     totalFixedExpenses,
-    totalProductAcquisitionCostInXML,
+    totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
     totalVariableExpensesPercent,
     cfu,
     totalQuantityOfAllProductsInXML,
@@ -263,7 +267,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     calculatedProductsForMinSale,
     paramsForMinSale,
     totalFixedExpenses,
-    totalProductAcquisitionCostInXML,
+    totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
     totalVariableExpensesPercent,
     cfu,
     totalQuantityOfAllProductsInXML,
@@ -277,7 +281,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       calculatedProductsStandard,
       { ...params, generateIvaCredit: false },
       totalFixedExpenses,
-      totalProductAcquisitionCostInXML,
+      totalProductAcquisitionCostAdjusted,
       totalVariableExpensesPercent,
       cfu,
       totalQuantityOfAllProductsInXML
@@ -286,7 +290,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       calculatedProductsHybrid,
       { ...params, generateIvaCredit: true },
       totalFixedExpenses,
-      totalProductAcquisitionCostInXML,
+      totalProductAcquisitionCostAdjusted,
       totalVariableExpensesPercent,
       cfu,
       totalQuantityOfAllProductsInXML
@@ -568,7 +572,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       {/* New Summary Sections - now stacked vertically */}
       <div className="space-y-6">
         <CostSummary
-          totalProductAcquisitionCost={totalProductAcquisitionCostInXML}
+          totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss}
+          totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
           totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
           totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
@@ -594,7 +599,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       </div>
 
       <OverallResultSummary
-        totalProductAcquisitionCost={totalProductAcquisitionCostInXML}
+        totalProductAcquisitionCost={totalProductAcquisitionCostAdjusted}
         totalFixedExpenses={totalFixedExpenses}
         totalVariableExpensesPercent={totalVariableExpensesPercent}
         summaryDataBestSale={summaryDataBestSale}
