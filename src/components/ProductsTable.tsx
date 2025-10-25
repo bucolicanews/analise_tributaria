@@ -22,9 +22,10 @@ import { Button } from "@/components/ui/button";
 import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 import { Input } from "@/components/ui/input"; // Importando Input
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExecutiveSummary } from './summary/ExecutiveSummary'; // Importando o novo resumo executivo
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importando Alert
 
 interface ProductsTableProps {
   products: Product[];
@@ -419,6 +420,20 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     setItemsPerPage(newLimit);
   };
 
+  // Alerta de Custo Fixo
+  const isCfuHigh = cfu > 0.5; // Exemplo: Considerar alto se for maior que R$ 0.50 por unidade interna
+  const cfuAlert = (
+    <Alert variant="destructive" className="mt-4">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
+      <AlertDescription>
+        O Custo Fixo Rateado por Unidade Interna (CFU) é de {formatCurrency(cfu)}. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
+        <br/>
+        <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
+      </AlertDescription>
+    </Alert>
+  );
+
 
   return (
     <div className="space-y-6">
@@ -806,6 +821,20 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           cfu={cfu}
           totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
         />
+        
+        {/* Alerta de Custo Fixo (CFU) */}
+        {cfu > 0 && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
+            <AlertDescription>
+              O Custo Fixo Rateado por Unidade Interna (CFU) é de <strong>{formatCurrency(cfu)}</strong>. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
+              <br/>
+              <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <TaxSummary
           params={params}
           summaryDataBestSale={summaryDataBestSale}
