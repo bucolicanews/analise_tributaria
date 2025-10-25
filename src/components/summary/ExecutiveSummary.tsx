@@ -34,6 +34,11 @@ const formatNumber = (value: number, decimals: number = 4) => {
   return value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 };
 
+// Função auxiliar para formatar quantidades como inteiros com separador de milhares
+const formatQuantity = (value: number) => {
+  return value.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
+};
+
 const SummaryCardWithDetail: React.FC<{ 
   title: string; 
   value: number; 
@@ -259,7 +264,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         • Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}
       </p>
       <p className="ml-4 text-muted-foreground">
-        (Cálculo: {formatNumber(unitFixedCostContribution)} (CFU) x {totalInnerUnitsInXML.toLocaleString('pt-BR')} (Qtd. Unid. Internas))
+        (Cálculo: {formatNumber(unitFixedCostContribution)} (CFU) x {formatQuantity(totalInnerUnitsInXML)} (Qtd. Unid. Internas))
       </p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
