@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,11 +7,41 @@ import { CalculationParams, FixedExpense, VariableExpense, TaxRegime } from "@/t
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch"; // Import Switch component
+import { CBS_RATE, IBS_RATE } from "@/lib/pricing"; // Importando as alíquotas fixas
 
 interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
   disabled?: boolean;
 }
+
+// Componente auxiliar para exibir a margem máxima
+const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit: number, currentProfit: number, isInvalid: boolean }) => {
+  const formatPercent = (value: number) => value.toFixed(2).replace('.', ',');
+  
+  if (maxProfit <= 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-destructive font-semibold mt-1">
+        <AlertTriangle className="h-4 w-4" />
+        Cálculo Inviável: Despesas/Impostos {"\u2265"} 100%
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1 text-xs">
+      <span className="text-muted-foreground">Margem Máxima Permitida: </span>
+      <span className={isInvalid ? "text-destructive font-semibold" : "text-success font-semibold"}>
+        {formatPercent(maxProfit)}%
+      </span>
+      {isInvalid && (
+        <span className="text-destructive ml-2 flex items-center gap-1">
+          <AlertTriangle className="h-3 w-3" /> Excedido!
+        </span>
+      )}
+    </div>
+  );
+};
+
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
   const [profitMargin, setProfitMargin] = useState<string>("9.5"); // Default from prompt
@@ -32,6 +62,39 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
     { name: "Comissão", percentage: 5 },
   ]);
+
+  // --- Lógica de Cálculo da Margem Máxima ---
+  const maxProfitMargin = useMemo(() => {
+    const totalVariableExpensesPercentage = variableExpenses.reduce(
+      (sum, exp) => sum + exp.percentage,
+      0
+    );
+    
+    let totalTaxRate = 0;
+
+    if (taxRegime === TaxRegime.LucroPresumido) {
+      const irpj = parseFloat(irpjRate) || 0;
+      const csll = parseFloat(csllRate) || 0;
+      totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
+    } else { // Simples Nacional
+      if (generateIvaCredit) {
+        const simplesRemanescente = parseFloat(simplesNacionalRemanescenteRate) || 0;
+        totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
+      } else {
+        totalTaxRate = parseFloat(simplesNacionalRate) || 0;
+      }
+    }
+
+    const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
+    
+    // Margem Máxima = 100% - (Outras Porcentagens)
+    return 100 - totalOtherPercentages;
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, simplesNacionalRemanescenteRate]);
+
+  const currentProfit = parseFloat(profitMargin) || 0;
+  const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
+  // ------------------------------------------
+
 
   const addFixedExpense = () => {
     setFixedExpenses([...fixedExpenses, { name: "", value: 0 }]);
@@ -67,6 +130,20 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais.",
+      });
+      return;
+    }
+
+    if (maxProfitMargin <= 0) {
+      toast.error("Cálculo Inviável", {
+        description: "A soma das despesas variáveis e impostos é 100% ou mais. Reduza as alíquotas.",
+      });
+      return;
+    }
+
+    if (isProfitMarginInvalid) {
+      toast.error("Margem de Lucro Excedida", {
+        description: `A margem de lucro alvo (${currentProfit.toFixed(2)}%) excede a margem máxima permitida (${maxProfitMargin.toFixed(2)}%).`,
       });
       return;
     }
@@ -122,6 +199,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           value={profitMargin}
           onChange={(e) => setProfitMargin(e.target.value)}
           disabled={disabled}
+          className={isProfitMarginInvalid ? "border-destructive focus-visible:ring-destructive" : ""}
+        />
+        <MaxProfitIndicator 
+          maxProfit={maxProfitMargin} 
+          currentProfit={currentProfit} 
+          isInvalid={isProfitMarginInvalid} 
         />
       </div>
 
@@ -337,7 +420,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         ))}
       </div>
 
-      <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled}>
+      <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}>
         Gerar Relatório
       </Button>
     </form>
