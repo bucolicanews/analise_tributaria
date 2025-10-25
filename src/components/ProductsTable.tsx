@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SummarySection } from './summary/SummarySection';
 import { CostSummaryUnitary } from './summary/CostSummaryUnitary';
-import { CostSummaryTotal } from './summary/CostSummaryTotal'; // Importando o novo componente
+import { CostSummaryTotal } from './summary/CostSummaryTotal';
 import { SalesSummary } from './summary/SalesSummary';
 import { TaxSummary } from './summary/TaxSummary';
 import { ExpenseSummary } from './summary/ExpenseSummary';
@@ -60,8 +60,8 @@ const calculateGlobalSummary = (
   globalFixedExpenses: number, // This is the total fixed expenses of the company
   xmlProductAcquisitionCostAdjusted: number, // This is the total acquisition cost of products in THIS XML (adjusted for loss)
   totalVariableExpensesPercent: number,
-  cfu: number, // Custo Fixo por Unidade
-  totalQuantityOfAllProductsInXML: number, // Total quantity of units in THIS XML
+  cfu: number, // Custo Fixo por Unidade (per inner unit/stock unit)
+  totalInnerUnitsInXML: number, // Total quantity of INNER units in THIS XML (used for fixed cost allocation)
   profitMarginOverride?: number // New parameter to allow overriding profit margin for min sale
 ): GlobalSummaryData => {
 
@@ -94,9 +94,10 @@ const calculateGlobalSummary = (
   }
 
   // Summing up values directly from the calculated products
+  // Note: All calculated values (sellingPrice, taxToPay, valueForProfit, etc.) are per COMMERCIAL unit.
+  // We multiply by product.quantity (commercial units) to get the total value for the note.
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  // Profit based on target margin (valueForProfit already includes the target margin)
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
   const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
@@ -166,7 +167,6 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   const allProductCodes = products.map(p => p.code);
   const isAllSelected = selectedProductCodes.size === products.length && products.length > 0;
   const isIndeterminate = selectedProductCodes.size > 0 && selectedProductCodes.size < products.length;
-  const isSingleProductSelected = selectedProductCodes.size === 1;
 
   const handleToggleAll = (checked: boolean) => {
     if (checked) {
@@ -257,8 +257,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     totalProductAcquisitionCostAdjusted = Infinity;
   }
 
-  // Calculate total quantity of all products in the XML (APENAS DOS SELECIONADOS)
-  const totalQuantityOfAllProductsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity, 0);
+  // Calculate total quantity of INNER units in the XML (APENAS DOS SELECIONADOS)
+  const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+  
+  // Total units used for fixed cost allocation (CFU is per inner unit/stock unit)
+  const totalUnitsForFixedCostAllocation = totalInnerUnitsInXML;
+
 
   // Determine the set of calculated products for the current regime/scenario
   let calculatedProductsForBestSale: CalculatedProduct[];
@@ -276,7 +280,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
     totalVariableExpensesPercent,
     cfu,
-    totalQuantityOfAllProductsInXML,
+    totalUnitsForFixedCostAllocation, // Pass total inner units
     params.profitMargin
   );
 
@@ -306,7 +310,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
     totalVariableExpensesPercent,
     cfu,
-    totalQuantityOfAllProductsInXML,
+    totalUnitsForFixedCostAllocation, // Pass total inner units
     0
   );
 
@@ -320,7 +324,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       totalProductAcquisitionCostAdjusted,
       totalVariableExpensesPercent,
       cfu,
-      totalQuantityOfAllProductsInXML
+      totalUnitsForFixedCostAllocation
     );
     const summaryHybrid = calculateGlobalSummary(
       calculatedProductsHybrid,
@@ -329,7 +333,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       totalProductAcquisitionCostAdjusted,
       totalVariableExpensesPercent,
       cfu,
-      totalQuantityOfAllProductsInXML
+      totalUnitsForFixedCostAllocation
     );
     
     if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) {
@@ -340,10 +344,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   // --- CÁLCULO DO CUSTO UNITÁRIO MÉDIO PONDERADO (CUMP) ---
   let cumpData = null;
   
-  if (totalQuantityOfAllProductsInXML > 0) {
-    const cumpBruto = totalProductAcquisitionCostBeforeLoss / totalQuantityOfAllProductsInXML;
-    const cumpPlusLoss = totalProductAcquisitionCostAdjusted / totalQuantityOfAllProductsInXML;
-    const cumpTotal = cumpPlusLoss + cfu; // CUMP Ajustado + CFU
+  if (totalInnerUnitsInXML > 0) {
+    // CUMP Bruto: Total Acquisition Cost / Total Inner Units
+    const cumpBruto = totalProductAcquisitionCostBeforeLoss / totalInnerUnitsInXML;
+    // CUMP Plus Loss: Total Adjusted Cost / Total Inner Units
+    const cumpPlusLoss = totalProductAcquisitionCostAdjusted / totalInnerUnitsInXML;
+    
+    const cumpTotal = cumpPlusLoss + cfu; // CUMP Ajustado + CFU (CFU já é por unidade interna)
     
     cumpData = {
       cumpBruto,
@@ -492,17 +499,20 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
             {productsToRender.map((product, index) => {
                 const isSelected = selectedProductCodes.has(product.code);
                 
+                // Fixed cost contribution per COMMERCIAL unit
+                const fixedCostPerCommercialUnit = cfu * product.innerQuantity;
+                
                 // Recalculamos o lucro e margem para exibição na tabela, usando o produto calculado
-                const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu;
+                const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit;
                 const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
 
                 const productStandard = calculatedProductsStandard.find(p => p.code === product.code);
                 const productHybrid = calculatedProductsHybrid.find(p => p.code === product.code);
                 
-                const productProfitStandard = productStandard ? productStandard.sellingPrice - productStandard.cost - productStandard.taxToPay - (productStandard.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu : 0;
+                const productProfitStandard = productStandard ? productStandard.sellingPrice - productStandard.cost - productStandard.taxToPay - (productStandard.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit : 0;
                 const productProfitMarginStandard = productStandard && productStandard.sellingPrice > 0 ? (productProfitStandard / productStandard.sellingPrice) * 100 : 0;
 
-                const productProfitHybrid = productHybrid ? productHybrid.sellingPrice - productHybrid.cost - productHybrid.taxToPay - (productHybrid.sellingPrice * (totalVariableExpensesPercent / 100)) - cfu : 0;
+                const productProfitHybrid = productHybrid ? productHybrid.sellingPrice - productHybrid.cost - productHybrid.taxToPay - (productHybrid.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit : 0;
                 const productProfitMarginHybrid = productHybrid && productHybrid.sellingPrice > 0 ? (productProfitHybrid / productHybrid.sellingPrice) * 100 : 0;
 
                 const optionCostPerProduct = productHybrid && productStandard ? productHybrid.taxToPay - productStandard.taxToPay : 0;
@@ -527,10 +537,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       {formatCurrency(product.cost)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                      {formatCurrency(cfu)}
+                      {/* Display fixed cost per commercial unit */}
+                      {formatCurrency(fixedCostPerCommercialUnit)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">
-                      {formatCurrency(product.cost + cfu)}
+                      {/* Display total cost base per commercial unit */}
+                      {formatCurrency(product.cost + fixedCostPerCommercialUnit)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-accent">
                       {formatPercent(product.markupPercentage)}
@@ -648,7 +660,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss}
           totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
           cfu={cfu}
-          totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
+          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
         />
         
         {/* 2. Resumo de Custos Unitários (CUMP) - Só aparece se houver produtos selecionados */}
@@ -667,7 +679,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
           totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue}
           cfu={cfu}
-          totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
+          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
         />
         <TaxSummary
           params={params}
@@ -684,7 +696,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         summaryDataBestSale={summaryDataBestSale}
         summaryDataMinSale={summaryDataMinSale}
         cfu={cfu}
-        totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
+        totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
       />
 
       <p className="text-xs text-muted-foreground mt-4">

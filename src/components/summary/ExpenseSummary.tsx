@@ -7,7 +7,7 @@ interface ExpenseSummaryProps {
   totalVariableExpensesValueBestSale: number;
   totalVariableExpensesValueMinSale: number;
   cfu: number; // New prop
-  totalQuantityOfAllProducts: number; // New prop
+  totalInnerUnitsInXML: number; // Total de unidades internas (ETU da nota)
 }
 
 export const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({
@@ -15,9 +15,9 @@ export const ExpenseSummary: React.FC<ExpenseSummaryProps> = ({
   totalVariableExpensesValueBestSale,
   totalVariableExpensesValueMinSale,
   cfu,
-  totalQuantityOfAllProducts,
+  totalInnerUnitsInXML,
 }) => {
-  const fixedCostContributionOfNote = cfu * totalQuantityOfAllProducts;
+  const fixedCostContributionOfNote = cfu * totalInnerUnitsInXML;
 
   return (
     <SummarySection title="Despesas">

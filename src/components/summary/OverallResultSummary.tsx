@@ -10,7 +10,7 @@ interface OverallResultSummaryProps {
   summaryDataBestSale: GlobalSummaryData;
   summaryDataMinSale: GlobalSummaryData;
   cfu: number; // New prop
-  totalQuantityOfAllProducts: number; // New prop
+  totalInnerUnitsInXML: number; // Total de unidades internas (ETU da nota)
 }
 
 const formatCurrency = (value: number) => {
@@ -27,19 +27,19 @@ export const OverallResultSummary: React.FC<OverallResultSummaryProps> = ({
   summaryDataBestSale,
   summaryDataMinSale,
   cfu,
-  totalQuantityOfAllProducts,
+  totalInnerUnitsInXML,
 }) => {
   // Calculations for Best Sale
   const grossProfitBestSale = summaryDataBestSale.totalSelling - totalProductAcquisitionCost;
   const variablePaymentsBestSale = summaryDataBestSale.totalVariableExpensesValue;
-  const fixedCostContributionBestSale = cfu * totalQuantityOfAllProducts; // Contribution of current XML to fixed costs
+  const fixedCostContributionBestSale = cfu * totalInnerUnitsInXML; // Contribution of current XML to fixed costs
   const contributionBestSale = summaryDataBestSale.totalContributionMargin;
   const netProfitBestSale = summaryDataBestSale.totalProfit;
 
   // Calculations for Minimum Sale
   const grossProfitMinSale = summaryDataMinSale.totalSelling - totalProductAcquisitionCost;
   const variablePaymentsMinSale = summaryDataMinSale.totalVariableExpensesValue;
-  const fixedCostContributionMinSale = cfu * totalQuantityOfAllProducts; // Contribution of current XML to fixed costs
+  const fixedCostContributionMinSale = cfu * totalInnerUnitsInXML; // Contribution of current XML to fixed costs
   const contributionMinSale = summaryDataMinSale.totalContributionMargin;
   const netProfitMinSale = summaryDataMinSale.totalProfit;
 

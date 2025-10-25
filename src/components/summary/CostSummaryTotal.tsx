@@ -6,7 +6,7 @@ interface CostSummaryTotalProps {
   totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total
   totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total
   cfu: number;
-  totalQuantityOfAllProducts: number;
+  totalInnerUnitsInXML: number; // Total de unidades internas (ETU da nota)
 }
 
 const formatCurrency = (value: number) => {
@@ -20,10 +20,12 @@ export const CostSummaryTotal: React.FC<CostSummaryTotalProps> = ({
   totalProductAcquisitionCostBeforeLoss,
   totalProductAcquisitionCostAdjusted,
   cfu,
-  totalQuantityOfAllProducts,
+  totalInnerUnitsInXML,
 }) => {
   
-  const fixedCostContributionOfNote = cfu * totalQuantityOfAllProducts;
+  // A contribuição de custo fixo é calculada usando o CFU (Custo Fixo por Unidade Interna)
+  // multiplicado pelo total de unidades internas na nota.
+  const fixedCostContributionOfNote = cfu * totalInnerUnitsInXML;
   const totalCost = totalProductAcquisitionCostAdjusted + fixedCostContributionOfNote;
 
   // Calculate loss details
