@@ -420,16 +420,45 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     setItemsPerPage(newLimit);
   };
 
-  // Alerta de Custo Fixo
-  const isCfuHigh = cfu > 0.5; // Exemplo: Considerar alto se for maior que R$ 0.50 por unidade interna
-  const cfuAlert = (
+  // --- ALERTA DE LUCRO NEGATIVO ---
+  const isProfitNegative = summaryDataBestSale.totalProfit < 0;
+  const profitAlert = isProfitNegative && (
+    <Alert variant="destructive" className="mt-4">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Alerta Crítico: Lucro Líquido Negativo</AlertTitle>
+      <AlertDescription>
+        O Lucro Líquido Total da Nota ({formatCurrency(summaryDataBestSale.totalProfit)}) está negativo no Cenário Alvo. Isso significa que o preço de venda sugerido não é suficiente para cobrir os custos (Aquisição + Fixo) e as despesas variáveis, mesmo antes de atingir a margem de lucro alvo.
+        <br/>
+        <strong>Ação Sugerida:</strong> Aumente o preço de venda, reduza custos de aquisição, ou diminua as despesas/alíquotas percentuais.
+      </AlertDescription>
+    </Alert>
+  );
+
+  // --- ALERTA DE CUSTO FIXO (CFU) ---
+  const cfuAlert = cfu > 0 && (
     <Alert variant="destructive" className="mt-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
       <AlertDescription>
-        O Custo Fixo Rateado por Unidade Interna (CFU) é de {formatCurrency(cfu)}. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
+        O Custo Fixo Rateado por Unidade Interna (CFU) é de <strong>{formatCurrency(cfu)}</strong>. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
         <br/>
         <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
+      </AlertDescription>
+    </Alert>
+  );
+
+  // --- ALERTA DE IMPOSTO ALTO (Lucro Presumido) ---
+  // Se o imposto líquido for maior que 30% da venda total (um ponto de atenção genérico)
+  const TAX_THRESHOLD = 30;
+  const isTaxHigh = summaryDataBestSale.totalTaxPercent > TAX_THRESHOLD;
+  const taxAlert = isTaxHigh && (
+    <Alert variant="destructive" className="mt-4">
+      <AlertTriangle className="h-4 w-4" />
+      <AlertTitle>Alerta: Carga Tributária Elevada</AlertTitle>
+      <AlertDescription>
+        A carga tributária líquida total ({summaryDataBestSale.totalTaxPercent.toFixed(2)}% da Venda) está acima do limite de atenção de {TAX_THRESHOLD}%.
+        <br/>
+        <strong>Ação Sugerida:</strong> Verifique se o regime tributário (Lucro Presumido) é o mais vantajoso ou se há créditos de impostos não capturados no XML.
       </AlertDescription>
     </Alert>
   );
@@ -841,6 +870,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           summaryDataMinSale={summaryDataMinSale}
           totalOptionCost={totalOptionCost}
         />
+        
+        {/* Alerta de Carga Tributária Alta (Lucro Presumido) */}
+        {params.taxRegime === TaxRegime.LucroPresumido && taxAlert}
+
+        {/* Alerta de Lucro Negativo */}
+        {profitAlert}
       </div>
 
       <OverallResultSummary
