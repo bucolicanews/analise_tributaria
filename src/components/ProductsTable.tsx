@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 import { Input } from "@/components/ui/input"; // Importando Input
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ProductsTableProps {
   products: Product[];
@@ -159,8 +160,11 @@ const calculateGlobalSummary = (
   };
 };
 
+const ITEMS_PER_PAGE = 100;
+
 export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, onSummaryCalculated, selectedProductCodes, onSelectionChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Early return if no products to display
   if (!products || products.length === 0) {
@@ -367,10 +371,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     };
   }
 
-  // --- FILTRAGEM E RENDERIZAÇÃO ---
+  // --- FILTRAGEM, PAGINAÇÃO E RENDERIZAÇÃO ---
   const lowerCaseSearchTerm = searchTerm.toLowerCase();
   
-  const productsToRender = useMemo(() => {
+  const allCalculatedProducts = useMemo(() => {
     return products
       .map(product => calculatePricing(product, params, cfu))
       .filter(product => 
@@ -378,6 +382,31 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         product.name.toLowerCase().includes(lowerCaseSearchTerm)
       );
   }, [products, params, cfu, lowerCaseSearchTerm]);
+
+  // Lógica de Paginação
+  const totalItems = allCalculatedProducts.length;
+  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const endIndex = startIndex + ITEMS_PER_PAGE;
+  
+  const productsToRender = allCalculatedProducts.slice(startIndex, endIndex);
+
+  // Reset page if search term changes or products change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, products]);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
+  const handlePreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
 
 
   return (
@@ -674,6 +703,33 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           </TableBody>
         </Table>
       </div>
+      
+      {/* Controles de Paginação */}
+      {totalItems > ITEMS_PER_PAGE && (
+        <div className="flex items-center justify-between py-2">
+          <div className="text-sm text-muted-foreground">
+            Página {currentPage} de {totalPages} ({totalItems} produtos)
+          </div>
+          <div className="space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePreviousPage}
+              disabled={currentPage === 1}
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleNextPage}
+              disabled={currentPage === totalPages}
+            >
+              Próxima <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* New Summary Sections - now stacked vertically */}
       <div className="space-y-6">
