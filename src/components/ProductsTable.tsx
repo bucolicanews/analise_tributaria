@@ -24,6 +24,7 @@ import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 import { Input } from "@/components/ui/input"; // Importando Input
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ExecutiveSummary } from './summary/ExecutiveSummary'; // Importando o novo resumo executivo
 
 interface ProductsTableProps {
   products: Product[];
@@ -451,6 +452,15 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         </p>
       </div>
       
+      {/* NOVO RESUMO EXECUTIVO */}
+      <ExecutiveSummary
+        summaryDataBestSale={summaryDataBestSale}
+        cumpData={cumpData}
+        totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
+        totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
+      />
+      {/* FIM NOVO RESUMO EXECUTIVO */}
+
       {/* Controles de Seleção e Busca */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex gap-2">
