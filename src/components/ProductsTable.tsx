@@ -515,6 +515,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
         totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
         params={params}
+        totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss} // Passando o novo prop
       />
       {/* FIM NOVO RESUMO EXECUTIVO */}
 

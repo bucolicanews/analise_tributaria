@@ -19,6 +19,7 @@ interface ExecutiveSummaryProps {
   totalProductAcquisitionCostAdjusted: number; // Custo de Aquisição Total Ajustado (Custo + Perdas)
   totalInnerUnitsInXML: number;
   params: CalculationParams; // Adicionando parâmetros para detalhar despesas variáveis
+  totalProductAcquisitionCostBeforeLoss: number; // NOVO: Custo Bruto antes da perda
 }
 
 const formatCurrency = (value: number) => {
@@ -28,7 +29,6 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
-// Componente de Item de Resumo Refatorado para incluir detalhe expansível
 const SummaryCardWithDetail: React.FC<{ 
   title: string; 
   value: number; 
@@ -115,7 +115,6 @@ const DistributionDetail: React.FC<{
   const taxItems = [];
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     // Simplificando a exibição para usar os totais líquidos do summaryDataBestSale, divididos pela venda total
-    // Nota: A distribuição deve somar 100% do PV.
     // Para manter a precisão, usaremos as alíquotas sobre o PV.
     taxItems.push(
       { name: "CBS Líquido", value: totalSelling * CBS_RATE },
@@ -213,6 +212,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   totalProductAcquisitionCostAdjusted,
   totalInnerUnitsInXML,
   params,
+  totalProductAcquisitionCostBeforeLoss, // Recebendo o custo bruto
 }) => {
   // Valores Totais (da Nota)
   const totalCost = totalProductAcquisitionCostAdjusted + (cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0);
@@ -241,12 +241,18 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
   // --- Conteúdos de Detalhe (Memória de Cálculo) ---
 
+  // Cálculo do Custo de Aquisição Ajustado (Total)
+  const lossValueTotal = totalProductAcquisitionCostAdjusted - totalProductAcquisitionCostBeforeLoss;
   const detailCostTotal = (
     <>
-      <p>• Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalAcquisitionCost)}</p>
+      <p>• Custo de Aquisição Bruto: {formatCurrency(totalProductAcquisitionCostBeforeLoss)}</p>
+      <p>• Valor de Perdas ({params.lossPercentage.toFixed(2)}%): {formatCurrency(lossValueTotal)}</p>
+      <p className="font-semibold pt-1 border-t border-border/50">
+        Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalProductAcquisitionCostAdjusted)}
+      </p>
       <p>• Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}</p>
       <p className="font-bold pt-1 border-t border-border/50">
-        Custo Total = {formatCurrency(totalAcquisitionCost)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
+        Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
       </p>
     </>
   );
@@ -254,7 +260,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const detailGrossProfitTotal = (
     <>
       <p>• Venda Sugerida: {formatCurrency(totalSelling)}</p>
-      <p>• Custo de Aquisição Ajustado: {formatCurrency(totalAcquisitionCost)}</p>
+      <p>• Custo de Aquisição Ajustado (Custo + Perdas): {formatCurrency(totalAcquisitionCost)}</p>
       <p className="font-bold pt-1 border-t border-border/50">
         Lucro Bruto = {formatCurrency(totalSelling)} - {formatCurrency(totalAcquisitionCost)} = {formatCurrency(totalGrossProfit)}
       </p>
@@ -273,9 +279,16 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </>
   );
 
+  // Cálculo do Custo de Aquisição Ajustado (Unitário)
+  const unitAcquisitionCostBeforeLoss = cumpData?.cumpBruto || 0;
+  const lossValueUnitary = unitAcquisitionCostAdjusted - unitAcquisitionCostBeforeLoss;
   const detailCostUnitary = (
     <>
-      <p>• Custo de Aquisição Unitário Ajustado (CUMP + Perdas): {formatCurrency(unitAcquisitionCostAdjusted)}</p>
+      <p>• Custo de Aquisição Bruto (CUMP): {formatCurrency(unitAcquisitionCostBeforeLoss)}</p>
+      <p>• Valor de Perdas ({params.lossPercentage.toFixed(2)}%): {formatCurrency(lossValueUnitary)}</p>
+      <p className="font-semibold pt-1 border-t border-border/50">
+        Custo de Aquisição Unitário Ajustado (CUMP + Perdas): {formatCurrency(unitAcquisitionCostAdjusted)}
+      </p>
       <p>• Custo Fixo por Unidade (CFU): {formatCurrency(unitFixedCostContribution)}</p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Unitário Total = {formatCurrency(unitAcquisitionCostAdjusted)} + {formatCurrency(unitFixedCostContribution)} = {formatCurrency(unitCost)}
@@ -354,7 +367,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Bruto (Nota)"
                 value={totalGrossProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
                 description="Venda Sugerida - Custo de Aquisição Ajustado"
                 detailContent={detailGrossProfitTotal}
               />
@@ -364,7 +377,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Líquido (Nota)"
                 value={totalProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={totalProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Margem de Lucro Alvo: ${params.profitMargin.toFixed(2)}%`}
                 detailContent={detailNetProfitTotal}
               />
@@ -410,7 +423,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Bruto (Unitário)"
                 value={unitGrossProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
                 description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
                 detailContent={detailGrossProfitUnitary}
               />
@@ -420,7 +433,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 title="Lucro Unitário (CUMP)"
                 value={unitProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName="text-success"
+                valueClassName={unitProfit < 0 ? "text-destructive" : "text-success"}
                 description={`Lucro médio por unidade interna`}
                 detailContent={detailNetProfitUnitary}
               />
