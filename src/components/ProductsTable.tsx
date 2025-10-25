@@ -14,12 +14,13 @@ import { cn } from "@/lib/utils";
 import { SummarySection } from './summary/SummarySection';
 import { CostSummaryUnitary } from './summary/CostSummaryUnitary';
 import { CostSummaryTotal } from './summary/CostSummaryTotal';
-import { SalesSummary } from './summary/SalesSummary';
 import { TaxSummary } from './summary/TaxSummary';
 import { ExpenseSummary } from './summary/ExpenseSummary';
 import { OverallResultSummary } from './summary/OverallResultSummary';
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
+import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
+import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 
 interface ProductsTableProps {
   products: Product[];
@@ -670,10 +671,19 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           />
         )}
 
-        <SalesSummary
+        {/* 3. Resumo de Vendas Totais */}
+        <SalesSummaryTotal
           totalSellingBestSale={summaryDataBestSale.totalSelling}
           totalSellingMinSale={summaryDataMinSale.totalSelling}
         />
+
+        {/* 4. Resumo de Vendas Unitárias */}
+        <SalesSummaryUnitary
+          totalSellingBestSale={summaryDataBestSale.totalSelling}
+          totalSellingMinSale={summaryDataMinSale.totalSelling}
+          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
+        />
+
         <ExpenseSummary
           totalFixedExpenses={totalFixedExpenses}
           totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
