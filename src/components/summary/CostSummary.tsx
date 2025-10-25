@@ -11,8 +11,8 @@ interface UnitCostData {
 }
 
 interface CostSummaryProps {
-  totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total
-  totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total
+  totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total (ou Unitário se isUnitView)
+  totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total (ou Unitário se isUnitView)
   totalFixedExpenses: number; 
   cfu: number;
   totalQuantityOfAllProducts: number;
@@ -40,7 +40,7 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
   const costBruto = isUnitView ? unitCostData.unitCostBruto : totalProductAcquisitionCostBeforeLoss;
   const costPlusLoss = isUnitView ? unitCostData.unitCostPlusLoss : totalProductAcquisitionCostAdjusted;
   const fixedContribution = isUnitView ? unitCostData.cfu : (cfu * totalQuantityOfAllProducts);
-  const totalCost = isUnitView ? unitCostData.unitCostPlusFixed : (totalProductAcquisitionCostAdjusted + (cfu * totalQuantityOfAllProducts));
+  const totalCost = isUnitView ? unitCostData.unitCostPlusFixed : (totalProductAcquisitionCostAdjusted + fixedContribution);
 
   // Calculate loss details
   const lossValue = costPlusLoss - costBruto;
