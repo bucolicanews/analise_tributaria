@@ -453,7 +453,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                 />
               </TableHead>
               <TableHead rowSpan={2}>Código</TableHead>
-              <TableHead rowSpan={2}>Produto</TableHead>
+              <TableHead rowSpan={2} className="min-w-[300px]">Produto</TableHead> {/* Aumentado para 300px */}
               <TableHead rowSpan={2}>Unid. Com.</TableHead>
               <TableHead className="text-right" rowSpan={2}>Qtd. Estoque</TableHead>
               <TableHead className="text-right" rowSpan={2}>Custo Aquisição (Unit)</TableHead>
@@ -550,7 +550,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                    <TableCell className="max-w-[150px] truncate">{product.name}</TableCell>
+                    <TableCell className="max-w-[300px] whitespace-normal text-left"> {/* Alterado aqui */}
+                      {product.name}
+                    </TableCell>
                     <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                     <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
