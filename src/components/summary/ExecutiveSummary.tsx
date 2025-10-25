@@ -31,7 +31,13 @@ const formatCurrency = (value: number) => {
 
 // Função auxiliar para formatar números com alta precisão (para CFU)
 const formatNumber = (value: number, decimals: number = 4) => {
-  return value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  // Usamos formatCurrency para garantir o R$ e a formatação pt-BR, mas forçamos 4 casas decimais
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
 };
 
 // Função auxiliar para formatar quantidades como inteiros com separador de milhares
@@ -264,7 +270,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         • Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}
       </p>
       <p className="ml-4 text-muted-foreground">
-        (Cálculo: {formatNumber(unitFixedCostContribution)} (CFU) x {formatQuantity(totalInnerUnitsInXML)} (Qtd. Unid. Internas))
+        (Cálculo: {formatNumber(unitFixedCostContribution)} (CFU) x {formatQuantity(totalInnerUnitsInXML)} unidades (Qtd. Unid. Internas))
       </p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
