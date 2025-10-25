@@ -14,9 +14,13 @@ const Index = () => {
   const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
   const [globalSummary, setGlobalSummary] = useState<GlobalSummaryData | null>(null);
+  // Novo estado para rastrear produtos selecionados (usando o código do produto como chave)
+  const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     setProducts(parsedProducts);
+    // Por padrão, selecionar todos os produtos após o upload
+    setSelectedProductCodes(new Set(parsedProducts.map(p => p.code)));
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
@@ -27,14 +31,21 @@ const Index = () => {
     setGlobalSummary(summary);
   };
 
+  const handleSelectionChange = (newSelection: Set<string>) => {
+    setSelectedProductCodes(newSelection);
+  };
+
+  // Filtrar produtos para cálculo e exibição
+  const productsToDisplay = products.filter(p => selectedProductCodes.has(p.code));
+
   // Calcular o CFU para o ProductRetailInfo e CalculationMemory
   const totalFixedExpenses = params ? params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll : 0;
   const cfu = params && params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
 
-  // Calcular o primeiro produto para exibir na Memória de Cálculo (se houver produtos)
+  // Calcular o primeiro produto selecionado para exibir na Memória de Cálculo (se houver produtos)
   const firstCalculatedProduct: CalculatedProduct | null = 
-    products.length > 0 && params 
-      ? calculatePricing(products[0], params, cfu) 
+    productsToDisplay.length > 0 && params 
+      ? calculatePricing(productsToDisplay[0], params, cfu) 
       : null;
 
   const formatCurrency = (value: number) => {
@@ -110,7 +121,7 @@ const Index = () => {
                   <div className="p-6">
                     <div className="mb-4 flex items-center justify-between">
                       <h2 className="text-xl font-semibold">
-                        Relatório de Precificação
+                        Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos selecionados)
                       </h2>
                       <Button
                         variant={showMemory ? "default" : "outline"}
@@ -120,7 +131,13 @@ const Index = () => {
                         {showMemory ? "Ocultar" : "Exibir"} Memória de Cálculo
                       </Button>
                     </div>
-                    <ProductsTable products={products} params={params} onSummaryCalculated={handleSummaryCalculated} />
+                    <ProductsTable 
+                      products={products} // Passa todos os produtos para que a tabela possa gerenciar a seleção
+                      params={params} 
+                      onSummaryCalculated={handleSummaryCalculated} 
+                      selectedProductCodes={selectedProductCodes}
+                      onSelectionChange={handleSelectionChange}
+                    />
                   </div>
                 </Card>
 
