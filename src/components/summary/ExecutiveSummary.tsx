@@ -70,10 +70,6 @@ const DistributionDetail: React.FC<{
   // O valor total distribuído é o Preço de Venda
   const totalDistributed = totalSelling;
   
-  // Calculamos o Custo de Aquisição (que não é distribuído, mas é a base)
-  // Para fins de exibição, vamos mostrar o que o preço de venda cobre além do custo de aquisição ajustado.
-  // No entanto, para ser mais preciso e seguir a lógica do Markup, vamos detalhar as parcelas do PV.
-
   // Impostos (já calculados no summaryDataBestSale)
   const taxItems = [];
   if (params.taxRegime === TaxRegime.LucroPresumido) {
@@ -112,25 +108,6 @@ const DistributionDetail: React.FC<{
     name: "Lucro Líquido",
     value: totalProfit
   };
-
-  const allItems = [
-    ...taxItems,
-    ...variableItems,
-    fixedCostItem,
-    profitItem
-  ];
-
-  // Calculando o total de despesas e lucro (o que o PV cobre além do custo de aquisição)
-  // Nota: O custo de aquisição não é uma 'distribuição' do PV, mas sim a base.
-  // A soma de todos os itens abaixo deve ser igual ao Preço de Venda Sugerido (se o custo base ajustado for 0, o que não é o caso).
-  // Para ser mais claro, vamos mostrar o que o PV cobre:
-  
-  // Valor total que o PV cobre (Impostos + Despesas Variáveis + Lucro + Custo Fixo Rateado)
-  const totalCovered = allItems.reduce((sum, item) => sum + item.value, 0);
-  
-  // A diferença entre Venda Sugerida e Custo de Aquisição Ajustado (Costo + Perdas)
-  // Esta é a Margem de Contribuição + Custo Fixo Rateado + Lucro
-  const difference = totalSelling - totalFixedCostContribution; // Simplificação: Venda - Contribuição Fixa
 
   return (
     <div className="mt-3 border-t border-border pt-3">
@@ -192,6 +169,12 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const totalSelling = summaryDataBestSale.totalSelling;
   const totalProfit = summaryDataBestSale.totalProfit;
   const totalFixedCostContribution = cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0;
+  
+  // Custo de Aquisição Bruto (sem CFU)
+  const totalAcquisitionCost = totalProductAcquisitionCostAdjusted; 
+  
+  // Lucro Bruto Total: Venda Total - Custo de Aquisição Ajustado (Custo + Perdas)
+  const totalGrossProfit = totalSelling - totalAcquisitionCost;
 
   // Valores Unitários (CUMP - por unidade interna)
   const unitCost = cumpData?.cumpTotal || 0;
@@ -200,6 +183,10 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const unitTax = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalTax / totalInnerUnitsInXML : 0;
   const unitVariableExpenses = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalVariableExpensesValue / totalInnerUnitsInXML : 0;
   const unitFixedCostContribution = cumpData?.cfu || 0;
+  
+  // Lucro Bruto Unitário: Venda Unitária - Custo de Aquisição Unitário Ajustado (CUMP Plus Loss)
+  const unitAcquisitionCostAdjusted = cumpData?.cumpPlusLoss || 0;
+  const unitGrossProfit = unitSelling - unitAcquisitionCostAdjusted;
 
 
   return (
@@ -213,12 +200,23 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             {/* Coluna 1: Totais da Nota */}
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
               <h3 className="text-lg font-semibold text-foreground">Valores Totais da Nota</h3>
+              
               <SummaryItem
                 title="Custo Total (Nota)"
                 value={totalCost}
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Aquisição Ajustada + Contribuição Fixa"
               />
+              
+              {/* NOVO: Lucro Bruto Total */}
+              <SummaryItem
+                title="Lucro Bruto (Nota)"
+                value={totalGrossProfit}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName="text-success"
+                description="Venda Sugerida - Custo de Aquisição Ajustado"
+              />
+
               <div className="space-y-2">
                 <SummaryItem
                   title="Venda Sugerida (Nota)"
@@ -255,6 +253,16 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Custo médio por unidade interna (varejo)"
               />
+              
+              {/* NOVO: Lucro Bruto Unitário */}
+              <SummaryItem
+                title="Lucro Bruto (Unitário)"
+                value={unitGrossProfit}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName="text-success"
+                description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
+              />
+
               <div className="space-y-2">
                 <SummaryItem
                   title="Venda Unitária (CUMP)"
