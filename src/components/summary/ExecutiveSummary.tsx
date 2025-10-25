@@ -107,7 +107,7 @@ const SummaryCardWithDetail: React.FC<{
 };
 
 
-// Novo componente para detalhamento da distribuição (mantido para Venda Sugerida)
+// Componente auxiliar para detalhamento da distribuição (mantido para Venda Sugerida)
 const DistributionDetail: React.FC<{ 
   totalSelling: number; 
   totalTax: number; 
@@ -353,6 +353,122 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </>
   );
 
+  // DETALHE: Memória de Cálculo da Venda Sugerida (Total)
+  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
+    (sum, exp) => sum + exp.percentage,
+    0
+  );
+  
+  let totalTaxRate = 0;
+  if (params.taxRegime === TaxRegime.LucroPresumido) {
+    const irpj = params.irpjRate || 0;
+    const csll = params.csllRate || 0;
+    totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
+  } else { // Simples Nacional
+    if (params.generateIvaCredit) {
+      const simplesRemanescente = params.simplesNacionalRemanescenteRate || 0;
+      totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
+    } else {
+      totalTaxRate = params.simplesNacionalRate || 0;
+    }
+  }
+  
+  const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate + params.profitMargin;
+  const markupDivisor = 1 - (totalOtherPercentages / 100);
+  
+  // Custo Base para Markup (Total)
+  const totalCostBaseForMarkup = totalCost / (1 - params.lossPercentage / 100); // Simplificação, pois o cálculo real é feito por unidade comercial no pricing.ts
+  
+  // Usamos o Custo Total Ajustado (Custo Aquisição Ajustado + Contribuição Fixa)
+  const totalCostBaseForMarkupAdjusted = totalCost; 
+  
+  // Para fins de exibição da fórmula, precisamos do Custo Base Unitário
+  const unitCostBaseForMarkup = unitCost / (1 - params.lossPercentage / 100);
+  
+  const detailSellingPriceTotal = (
+    <>
+      <p className="font-semibold mb-2">1. Markup Divisor</p>
+      <p className="ml-4">
+        1 - (Despesas Variáveis% + Impostos% + Lucro Alvo%)
+      </p>
+      <p className="ml-4 text-muted-foreground">
+        1 - ({totalVariableExpensesPercentage.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
+      </p>
+      <p className="ml-4 font-bold">
+        Markup Divisor = {markupDivisor.toFixed(4)}
+      </p>
+      
+      <p className="font-semibold mt-3 mb-2 border-t border-border/50 pt-2">2. Custo Base para Markup</p>
+      <p className="ml-4 text-muted-foreground">
+        (Custo Aquisição Ajustado + Contribuição Fixa)
+      </p>
+      <p className="ml-4 font-bold">
+        Custo Base Total: {formatCurrency(totalCost)}
+      </p>
+
+      <p className="font-semibold mt-3 mb-2 border-t border-border/50 pt-2">3. Venda Sugerida</p>
+      <p className="ml-4">
+        Custo Base Total ÷ Markup Divisor
+      </p>
+      <p className="ml-4 font-bold text-primary">
+        {formatCurrency(totalCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(totalSelling)}
+      </p>
+      
+      <DistributionDetail 
+        totalSelling={totalSelling}
+        totalTax={summaryDataBestSale.totalTax}
+        totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
+        totalProfit={totalProfitWithFixed}
+        totalFixedCostContribution={totalFixedCostContribution}
+        params={params}
+        isUnitary={false}
+      />
+    </>
+  );
+
+  // DETALHE: Memória de Cálculo da Venda Sugerida (Unitário)
+  const detailSellingPriceUnitary = (
+    <>
+      <p className="font-semibold mb-2">1. Markup Divisor</p>
+      <p className="ml-4">
+        1 - (Despesas Variáveis% + Impostos% + Lucro Alvo%)
+      </p>
+      <p className="ml-4 text-muted-foreground">
+        1 - ({totalVariableExpensesPercentage.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
+      </p>
+      <p className="ml-4 font-bold">
+        Markup Divisor = {markupDivisor.toFixed(4)}
+      </p>
+      
+      <p className="font-semibold mt-3 mb-2 border-t border-border/50 pt-2">2. Custo Base para Markup</p>
+      <p className="ml-4 text-muted-foreground">
+        (Custo Aquisição Unitário Ajustado + CFU)
+      </p>
+      <p className="ml-4 font-bold">
+        Custo Base Unitário: {formatCurrency(unitCost)}
+      </p>
+
+      <p className="font-semibold mt-3 mb-2 border-t border-border/50 pt-2">3. Venda Sugerida</p>
+      <p className="ml-4">
+        Custo Base Unitário ÷ Markup Divisor
+      </p>
+      <p className="ml-4 font-bold text-primary">
+        {formatCurrency(unitCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(unitSelling)}
+      </p>
+      
+      <DistributionDetail 
+        totalSelling={unitSelling}
+        totalTax={unitTax}
+        totalVariableExpensesValue={unitVariableExpenses}
+        totalProfit={unitProfitWithFixed}
+        totalFixedCostContribution={unitFixedCostContribution}
+        params={params}
+        isUnitary={true}
+      />
+    </>
+  );
+
+
   // Cálculo do Custo de Aquisição Ajustado (Unitário)
   const unitAcquisitionCostBeforeLoss = cumpData?.cumpBruto || 0;
   const lossValueUnitary = unitAcquisitionCostAdjusted - unitAcquisitionCostBeforeLoss;
@@ -363,7 +479,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className="font-semibold pt-1 border-t border-border/50">
         Custo de Aquisição Unitário Ajustado (CUMP + Perdas): {formatCurrency(unitAcquisitionCostAdjusted)}
       </p>
-      <p>• Custo Fixo por Unidade (CFU): {formatCurrency(unitFixedCostContribution)}</p>
+      <p className="pt-2">
+        • Custo Fixo por Unidade (CFU): {formatCurrency(unitFixedCostContribution)}
+      </p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Unitário Total = {formatCurrency(unitAcquisitionCostAdjusted)} (Custo Aquisição Ajustado) + {formatCurrency(unitFixedCostContribution)} (CFU) = {formatCurrency(unitCost)}
       </p>
@@ -449,17 +567,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   icon={<TrendingUp className="h-5 w-5 text-primary" />}
                   valueClassName="text-primary"
                   description="Valor total de venda para atingir o lucro alvo"
-                  detailContent={
-                    <DistributionDetail 
-                      totalSelling={totalSelling}
-                      totalTax={summaryDataBestSale.totalTax}
-                      totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
-                      totalProfit={totalProfitWithFixed} // Usando o lucro líquido real para o detalhe de distribuição
-                      totalFixedCostContribution={totalFixedCostContribution}
-                      params={params}
-                      isUnitary={false}
-                    />
-                  }
+                  detailContent={detailSellingPriceTotal}
                 />
               </div>
 
@@ -525,17 +633,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   icon={<TrendingUp className="h-5 w-5 text-primary" />}
                   valueClassName="text-primary"
                   description="Preço médio sugerido por unidade interna"
-                  detailContent={
-                    <DistributionDetail 
-                      totalSelling={unitSelling}
-                      totalTax={unitTax}
-                      totalVariableExpensesValue={unitVariableExpenses}
-                      totalProfit={unitProfitWithFixed} // Usando o lucro líquido real unitário
-                      totalFixedCostContribution={unitFixedCostContribution}
-                      params={params}
-                      isUnitary={true}
-                    />
-                  }
+                  detailContent={detailSellingPriceUnitary}
                 />
               </div>
 
