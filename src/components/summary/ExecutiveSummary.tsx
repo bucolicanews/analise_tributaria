@@ -314,12 +314,11 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
   const detailNetProfitTotal = (
     <>
-      <p>• Lucro Bruto: {formatCurrency(totalGrossProfit)}</p>
+      <p>• Resultado Operacional: {formatCurrency(totalOperationalResult)}</p>
       <p>• Impostos Líquidos: {formatCurrency(summaryDataBestSale.totalTax)}</p>
       <p>• Despesas Variáveis: {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)}</p>
-      <p>• Contribuição Fixa Rateada: {formatCurrency(totalFixedCostContribution)}</p>
       <p className={cn("font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-        Lucro Líquido = {formatCurrency(totalGrossProfit)} (Lucro Bruto) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) - {formatCurrency(totalFixedCostContribution)} (Contribuição Fixa) = {formatCurrency(totalProfit)}
+        Lucro Líquido = {formatCurrency(totalOperationalResult)} (Resultado Operacional) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) = {formatCurrency(totalProfit)}
       </p>
     </>
   );
@@ -364,12 +363,11 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
 
   const detailNetProfitUnitary = (
     <>
-      <p>• Lucro Bruto Unitário: {formatCurrency(unitGrossProfit)}</p>
+      <p>• Resultado Operacional Unitário: {formatCurrency(unitOperationalResult)}</p>
       <p>• Impostos Líquidos Unitários: {formatCurrency(unitTax)}</p>
       <p>• Despesas Variáveis Unitárias: {formatCurrency(unitVariableExpenses)}</p>
-      <p>• Custo Fixo Rateado Unitário: {formatCurrency(unitFixedCostContribution)}</p>
       <p className={cn("font-bold pt-1 border-t border-border/50", unitProfit < 0 ? "text-destructive" : "text-success")}>
-        Lucro Líquido Unitário = {formatCurrency(unitGrossProfit)} (Lucro Bruto) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) - {formatCurrency(unitFixedCostContribution)} (CFU) = {formatCurrency(unitProfit)}
+        Lucro Líquido Unitário = {formatCurrency(unitOperationalResult)} (Resultado Operacional) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitProfit)}
       </p>
     </>
   );
