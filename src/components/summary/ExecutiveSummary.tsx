@@ -214,22 +214,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
               <h3 className="text-lg font-semibold text-foreground">Valores Totais da Nota</h3>
               
-              <SummaryItem
-                title="Custo Total (Nota)"
-                value={totalCost}
-                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
-                description="Aquisição Ajustada + Contribuição Fixa"
-              />
-              
-              {/* Lucro Bruto Total */}
-              <SummaryItem
-                title="Lucro Bruto (Nota)"
-                value={totalGrossProfit}
-                icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
-                description="Venda Sugerida - Custo de Aquisição Ajustado"
-              />
-
+              {/* 1. Venda Sugerida (Nota) */}
               <div className="space-y-2">
                 <SummaryItem
                   title="Venda Sugerida (Nota)"
@@ -248,6 +233,25 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   isUnitary={false}
                 />
               </div>
+
+              {/* 2. Custo Total (Nota) */}
+              <SummaryItem
+                title="Custo Total (Nota)"
+                value={totalCost}
+                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
+                description="Aquisição Ajustada + Contribuição Fixa"
+              />
+              
+              {/* 3. Lucro Bruto Total */}
+              <SummaryItem
+                title="Lucro Bruto (Nota)"
+                value={totalGrossProfit}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName={totalGrossProfit < 0 ? "text-destructive" : "text-success"}
+                description="Venda Sugerida - Custo de Aquisição Ajustado"
+              />
+
+              {/* 4. Lucro Líquido (Nota) */}
               <SummaryItem
                 title="Lucro Líquido (Nota)"
                 value={totalProfit}
@@ -260,22 +264,8 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
             {/* Coluna 2: Unitários (CUMP) */}
             <div className="space-y-4 pt-6 lg:pt-0">
               <h3 className="text-lg font-semibold text-foreground">Valores Unitários Médios (CUMP)</h3>
-              <SummaryItem
-                title="Custo Unitário (CUMP)"
-                value={unitCost}
-                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
-                description="Custo médio por unidade interna (varejo)"
-              />
               
-              {/* Lucro Bruto Unitário */}
-              <SummaryItem
-                title="Lucro Bruto (Unitário)"
-                value={unitGrossProfit}
-                icon={<Package className="h-5 w-5 text-success" />}
-                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
-                description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
-              />
-
+              {/* 1. Venda Unitária (CUMP) */}
               <div className="space-y-2">
                 <SummaryItem
                   title="Venda Unitária (CUMP)"
@@ -294,6 +284,25 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   isUnitary={true}
                 />
               </div>
+
+              {/* 2. Custo Unitário (CUMP) */}
+              <SummaryItem
+                title="Custo Unitário (CUMP)"
+                value={unitCost}
+                icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
+                description="Custo médio por unidade interna (varejo)"
+              />
+              
+              {/* 3. Lucro Bruto Unitário */}
+              <SummaryItem
+                title="Lucro Bruto (Unitário)"
+                value={unitGrossProfit}
+                icon={<Package className="h-5 w-5 text-success" />}
+                valueClassName={unitGrossProfit < 0 ? "text-destructive" : "text-success"}
+                description="Venda Unitária - Custo de Aquisição Unitário Ajustado"
+              />
+
+              {/* 4. Lucro Unitário (CUMP) */}
               <SummaryItem
                 title="Lucro Unitário (CUMP)"
                 value={unitProfit}
