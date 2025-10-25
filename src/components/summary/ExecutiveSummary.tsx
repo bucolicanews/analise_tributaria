@@ -2,7 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GlobalSummaryData } from '../ProductsTable';
 import { cn } from '@/lib/utils';
-import { DollarSign, TrendingUp, Package } from 'lucide-react';
+import { DollarSign, TrendingUp, Package, ChevronDown, ChevronUp } from 'lucide-react';
+import { CalculationParams, TaxRegime } from '@/types/pricing';
+import { CBS_RATE, IBS_RATE } from '@/lib/pricing';
 
 interface CumpData {
   cumpBruto: number;
@@ -16,6 +18,7 @@ interface ExecutiveSummaryProps {
   cumpData: CumpData | null;
   totalProductAcquisitionCostAdjusted: number; // Custo de Aquisição Total Ajustado (Custo + Perdas)
   totalInnerUnitsInXML: number;
+  params: CalculationParams; // Adicionando parâmetros para detalhar despesas variáveis
 }
 
 const formatCurrency = (value: number) => {
@@ -44,21 +47,160 @@ const SummaryItem: React.FC<{ title: string; value: number; icon: React.ReactNod
   </div>
 );
 
+// Novo componente para detalhamento da distribuição
+const DistributionDetail: React.FC<{ 
+  totalSelling: number; 
+  totalTax: number; 
+  totalVariableExpensesValue: number; 
+  totalProfit: number;
+  totalFixedCostContribution: number;
+  params: CalculationParams;
+  isUnitary: boolean;
+}> = ({ 
+  totalSelling, 
+  totalTax, 
+  totalVariableExpensesValue, 
+  totalProfit,
+  totalFixedCostContribution,
+  params,
+  isUnitary
+}) => {
+  const [isOpen, setIsOpen] = React.useState(false);
+  
+  // O valor total distribuído é o Preço de Venda
+  const totalDistributed = totalSelling;
+  
+  // Calculamos o Custo de Aquisição (que não é distribuído, mas é a base)
+  // Para fins de exibição, vamos mostrar o que o preço de venda cobre além do custo de aquisição ajustado.
+  // No entanto, para ser mais preciso e seguir a lógica do Markup, vamos detalhar as parcelas do PV.
+
+  // Impostos (já calculados no summaryDataBestSale)
+  const taxItems = [];
+  if (params.taxRegime === TaxRegime.LucroPresumido) {
+    taxItems.push(
+      { name: "CBS Líquido", value: totalSelling * CBS_RATE, credit: totalSelling * CBS_RATE - totalTax * (totalSelling * CBS_RATE / totalTax) },
+      { name: "IBS Líquido", value: totalSelling * IBS_RATE, credit: totalSelling * IBS_RATE - totalTax * (totalSelling * IBS_RATE / totalTax) },
+      { name: "IRPJ", value: totalSelling * (params.irpjRate / 100) },
+      { name: "CSLL", value: totalSelling * (params.csllRate / 100) }
+    );
+  } else if (params.taxRegime === TaxRegime.SimplesNacional) {
+    if (params.generateIvaCredit) {
+      taxItems.push(
+        { name: "Simples Remanescente", value: totalSelling * (params.simplesNacionalRemanescenteRate / 100) },
+        { name: "CBS Líquido", value: totalSelling * CBS_RATE },
+        { name: "IBS Líquido", value: totalSelling * IBS_RATE }
+      );
+    } else {
+      taxItems.push({ name: "Simples Nacional Cheio", value: totalSelling * (params.simplesNacionalRate / 100) });
+    }
+  }
+  
+  // Despesas Variáveis
+  const variableItems = params.variableExpenses.map(exp => ({
+    name: exp.name,
+    value: totalSelling * (exp.percentage / 100)
+  }));
+
+  // Custo Fixo Rateado (CFU * Qtd)
+  const fixedCostItem = {
+    name: "Custo Fixo Rateado",
+    value: totalFixedCostContribution
+  };
+
+  // Lucro Líquido
+  const profitItem = {
+    name: "Lucro Líquido",
+    value: totalProfit
+  };
+
+  const allItems = [
+    ...taxItems,
+    ...variableItems,
+    fixedCostItem,
+    profitItem
+  ];
+
+  // Calculando o total de despesas e lucro (o que o PV cobre além do custo de aquisição)
+  // Nota: O custo de aquisição não é uma 'distribuição' do PV, mas sim a base.
+  // A soma de todos os itens abaixo deve ser igual ao Preço de Venda Sugerido (se o custo base ajustado for 0, o que não é o caso).
+  // Para ser mais claro, vamos mostrar o que o PV cobre:
+  
+  // Valor total que o PV cobre (Impostos + Despesas Variáveis + Lucro + Custo Fixo Rateado)
+  const totalCovered = allItems.reduce((sum, item) => sum + item.value, 0);
+  
+  // A diferença entre Venda Sugerida e Custo de Aquisição Ajustado (Costo + Perdas)
+  // Esta é a Margem de Contribuição + Custo Fixo Rateado + Lucro
+  const difference = totalSelling - totalFixedCostContribution; // Simplificação: Venda - Contribuição Fixa
+
+  return (
+    <div className="mt-3 border-t border-border pt-3">
+      <button 
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full text-sm font-semibold text-primary/80 hover:text-primary transition-colors"
+      >
+        {isUnitary ? "Detalhe da Distribuição (Unid.)" : "Detalhe da Distribuição (Total)"}
+        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+      </button>
+      
+      {isOpen && (
+        <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
+          <p className="font-bold text-foreground mb-2">
+            Total Distribuído (Venda): {formatCurrency(totalSelling)}
+          </p>
+          
+          {/* Detalhamento */}
+          {taxItems.map((item, index) => (
+            <div key={`tax-${index}`} className="flex justify-between text-destructive/80">
+              <span>• {item.name} ({isUnitary ? (item.value / totalSelling * 100).toFixed(2) : (item.value / totalSelling * 100).toFixed(2)}%):</span>
+              <span>{formatCurrency(item.value)}</span>
+            </div>
+          ))}
+          
+          {variableItems.map((item, index) => (
+            <div key={`var-${index}`} className="flex justify-between text-yellow-500/80">
+              <span>• {item.name} ({item.value / totalSelling * 100}%)</span>
+              <span>{formatCurrency(item.value)}</span>
+            </div>
+          ))}
+
+          <div className="flex justify-between text-muted-foreground">
+            <span>• {fixedCostItem.name} (Rateio):</span>
+            <span>{formatCurrency(fixedCostItem.value)}</span>
+          </div>
+
+          <div className="flex justify-between font-bold text-success pt-1 border-t border-border/50">
+            <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
+            <span>{formatCurrency(profitItem.value)}</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+
 export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   summaryDataBestSale,
   cumpData,
   totalProductAcquisitionCostAdjusted,
   totalInnerUnitsInXML,
+  params,
 }) => {
   // Valores Totais (da Nota)
   const totalCost = totalProductAcquisitionCostAdjusted + (cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0);
   const totalSelling = summaryDataBestSale.totalSelling;
   const totalProfit = summaryDataBestSale.totalProfit;
+  const totalFixedCostContribution = cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0;
 
   // Valores Unitários (CUMP - por unidade interna)
   const unitCost = cumpData?.cumpTotal || 0;
   const unitSelling = totalInnerUnitsInXML > 0 ? totalSelling / totalInnerUnitsInXML : 0;
   const unitProfit = totalInnerUnitsInXML > 0 ? totalProfit / totalInnerUnitsInXML : 0;
+  const unitTax = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalTax / totalInnerUnitsInXML : 0;
+  const unitVariableExpenses = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalVariableExpensesValue / totalInnerUnitsInXML : 0;
+  const unitFixedCostContribution = cumpData?.cfu || 0;
+
 
   return (
     <div className="space-y-6">
@@ -77,19 +219,30 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Aquisição Ajustada + Contribuição Fixa"
               />
-              <SummaryItem
-                title="Venda Sugerida (Nota)"
-                value={totalSelling}
-                icon={<TrendingUp className="h-5 w-5 text-primary" />}
-                valueClassName="text-primary"
-                description="Valor total de venda para atingir o lucro alvo"
-              />
+              <div className="space-y-2">
+                <SummaryItem
+                  title="Venda Sugerida (Nota)"
+                  value={totalSelling}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
+                  valueClassName="text-primary"
+                  description="Valor total de venda para atingir o lucro alvo"
+                />
+                <DistributionDetail 
+                  totalSelling={totalSelling}
+                  totalTax={summaryDataBestSale.totalTax}
+                  totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
+                  totalProfit={totalProfit}
+                  totalFixedCostContribution={totalFixedCostContribution}
+                  params={params}
+                  isUnitary={false}
+                />
+              </div>
               <SummaryItem
                 title="Lucro Líquido (Nota)"
                 value={totalProfit}
                 icon={<Package className="h-5 w-5 text-success" />}
                 valueClassName="text-success"
-                description={`Margem de Lucro Alvo: ${summaryDataBestSale.profitMarginPercent.toFixed(2)}%`}
+                description={`Margem de Lucro Alvo: ${params.profitMargin.toFixed(2)}%`}
               />
             </div>
 
@@ -102,13 +255,24 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                 icon={<DollarSign className="h-5 w-5 text-muted-foreground" />}
                 description="Custo médio por unidade interna (varejo)"
               />
-              <SummaryItem
-                title="Venda Unitária (CUMP)"
-                value={unitSelling}
-                icon={<TrendingUp className="h-5 w-5 text-primary" />}
-                valueClassName="text-primary"
-                description="Preço médio sugerido por unidade interna"
-              />
+              <div className="space-y-2">
+                <SummaryItem
+                  title="Venda Unitária (CUMP)"
+                  value={unitSelling}
+                  icon={<TrendingUp className="h-5 w-5 text-primary" />}
+                  valueClassName="text-primary"
+                  description="Preço médio sugerido por unidade interna"
+                />
+                <DistributionDetail 
+                  totalSelling={unitSelling}
+                  totalTax={unitTax}
+                  totalVariableExpensesValue={unitVariableExpenses}
+                  totalProfit={unitProfit}
+                  totalFixedCostContribution={unitFixedCostContribution}
+                  params={params}
+                  isUnitary={true}
+                />
+              </div>
               <SummaryItem
                 title="Lucro Unitário (CUMP)"
                 value={unitProfit}

@@ -458,6 +458,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         cumpData={cumpData}
         totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
         totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
+        params={params}
       />
       {/* FIM NOVO RESUMO EXECUTIVO */}
 
