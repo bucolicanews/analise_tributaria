@@ -29,6 +29,11 @@ const formatCurrency = (value: number) => {
   }).format(value);
 };
 
+// Função auxiliar para formatar números com alta precisão (para CFU)
+const formatNumber = (value: number, decimals: number = 4) => {
+  return value.toLocaleString('pt-BR', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+};
+
 const SummaryCardWithDetail: React.FC<{ 
   title: string; 
   value: number; 
@@ -254,7 +259,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         • Contribuição Fixa Rateada (CFU * Qtd): {formatCurrency(totalFixedCostContribution)}
       </p>
       <p className="ml-4 text-muted-foreground">
-        (CFU: {formatCurrency(unitFixedCostContribution)} * Qtd. Unid. Internas na Nota: {totalInnerUnitsInXML.toLocaleString('pt-BR')})
+        (Cálculo: {formatNumber(unitFixedCostContribution)} (CFU) x {totalInnerUnitsInXML.toLocaleString('pt-BR')} (Qtd. Unid. Internas))
       </p>
       <p className="font-bold pt-1 border-t border-border/50">
         Custo Total = {formatCurrency(totalProductAcquisitionCostAdjusted)} + {formatCurrency(totalFixedCostContribution)} = {formatCurrency(totalCost)}
