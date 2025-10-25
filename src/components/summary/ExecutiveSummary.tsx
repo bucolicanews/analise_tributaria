@@ -107,16 +107,15 @@ const SummaryCardWithDetail: React.FC<{
 };
 
 
-// Componente auxiliar para detalhamento da distribuição (Distribuição Completa - inclui Fixo)
+// Componente auxiliar para detalhamento da distribuição (AGORA COM LÓGICA DE CARD SEPARADO)
 const DistributionDetail: React.FC<{ 
-  totalSelling: number; // Venda Sugerida
+  totalSelling: number; 
   totalTax: number; 
   totalVariableExpensesValue: number; 
-  totalProfit: number; // Lucro Líquido com Fixo
+  totalProfit: number;
   totalFixedCostContribution: number;
   params: CalculationParams;
   isUnitary: boolean;
-  totalGrossProfitWithFixed: number; // Lucro Bruto com Fixo (Resultado Operacional)
 }> = ({ 
   totalSelling, 
   totalTax, 
@@ -124,14 +123,12 @@ const DistributionDetail: React.FC<{
   totalProfit,
   totalFixedCostContribution,
   params,
-  isUnitary,
-  totalGrossProfitWithFixed,
+  isUnitary
 }) => {
   
   // Impostos (já calculados no summaryDataBestSale)
   const taxItems = [];
   if (params.taxRegime === TaxRegime.LucroPresumido) {
-    // Usamos os valores totais de impostos (taxToPay) para a distribuição, mas aqui vamos usar as alíquotas sobre a venda para o detalhe percentual
     taxItems.push(
       { name: "CBS Líquido", value: totalSelling * CBS_RATE },
       { name: "IBS Líquido", value: totalSelling * IBS_RATE },
@@ -161,6 +158,12 @@ const DistributionDetail: React.FC<{
     value: totalSelling * (exp.percentage / 100),
     percentage: exp.percentage
   }));
+
+  // Custo Fixo Rateado (CFU * Qtd)
+  const fixedCostItem = {
+    name: "Custo Fixo Rateado",
+    value: totalFixedCostContribution
+  };
 
   // Lucro Líquido
   const profitItem = {
@@ -171,377 +174,39 @@ const DistributionDetail: React.FC<{
   return (
     <div className="mt-2 space-y-1 text-xs font-mono">
       <p className="font-bold text-foreground mb-2">
-        Lucro Bruto com Fixo (Ponto de Partida): {formatCurrency(totalGrossProfitWithFixed)}
+        Total Distribuído (Venda): {formatCurrency(totalSelling)}
       </p>
       
-      {/* Subtrações */}
-      <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções:</p>
-
-      {/* Impostos */}
-      <div className="flex justify-between text-destructive/80">
-        <span>• Impostos Líquidos:</span>
-        <span>{formatCurrency(totalTax)}</span>
-      </div>
-      
-      {/* Despesas Variáveis */}
-      <div className="flex justify-between text-yellow-500/80">
-        <span>• Despesas Variáveis:</span>
-        <span>{formatCurrency(totalVariableExpensesValue)}</span>
-      </div>
-
-      <div className={cn("flex justify-between font-bold pt-3 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-        <span>Lucro Líquido Final:</span>
-        <span>{formatCurrency(totalProfit)}</span>
-      </div>
-      
-      <p className="text-muted-foreground mt-2">
-        (Fórmula: Lucro Bruto com Fixo - Impostos Líquidos - Despesas Variáveis)
-      </p>
-    </div>
-  );
-};
-
-// NOVO DETALHE: Distribuição da Margem de Contribuição (SEM Custo Fixo)
-const ContributionDetail: React.FC<{ 
-  totalSelling: number; // Venda Sugerida
-  totalTax: number; 
-  totalVariableExpensesValue: number; 
-  totalNetProfitWithoutFixed: number; // Lucro Líquido sem Fixo
-  params: CalculationParams;
-  isUnitary: boolean;
-  totalGrossProfitWithoutFixed: number; // Lucro Bruto sem Fixo (Margem de Contribuição Bruta)
-}> = ({ 
-  totalSelling, 
-  totalTax, 
-  totalVariableExpensesValue, 
-  totalNetProfitWithoutFixed,
-  params,
-  isUnitary,
-  totalGrossProfitWithoutFixed,
-}) => {
-  
-  // Impostos (já calculados no summaryDataBestSale)
-  const taxItems = [];
-  if (params.taxRegime === TaxRegime.LucroPresumido) {
-    taxItems.push(
-      { name: "CBS Líquido", value: totalSelling * CBS_RATE },
-      { name: "IBS Líquido", value: totalSelling * IBS_RATE<dyad-problem-report summary="2 problems">
-<problem file="src/components/summary/ExecutiveSummary.tsx" line="669" column="14" code="2552">Cannot find name 'DistributionSummaryCard'. Did you mean 'ContributionSummaryCard'?</problem>
-<problem file="src/components/summary/ExecutiveSummary.tsx" line="680" column="14" code="2552">Cannot find name 'DistributionSummaryCard'. Did you mean 'ContributionSummaryCard'?</problem>
-</dyad-problem-report><think>**Resolving Scope Issues**
-
-I'm currently looking into the scope issues causing TypeScript errors related to `DistributionSummaryCard`. It appears the component's visibility is the crux of the problem. I need to pinpoint if it's a matter of definition order or if there's a more fundamental naming conflict at play, even though the component definition is immediately preceding the usage.
-
-
-**Fixing Naming Conflicts**
-
-I've determined that the visibility issue stems from a naming conflict, even though the component definition precedes its usage. The best approach is a simple rename, so I'm applying the change. I'm renaming `DistributionSummaryCard` to `DistributionSummaryCardComponent` to eliminate any possible scope ambiguity and updating all references within the file. I need to make sure the component is defined as a `const` immediately before its usage. The entire file will then be correct.
-
-
-**Finalizing Component Definition**
-
-I'm now implementing the renaming, changing `DistributionSummaryCard` to `DistributionSummaryCardComponent`. I'm also confirming the complete and correct placement of the `DistributionSummaryCardComponent` definition before its usage. This ensures a clean and unambiguous scope.
-
-
-</think>Os erros de compipeção ocorrem porque o componente `DistributionSummaryCard` não está sendo reconhecido no escopo onde é utilizado. Para resolver isso de forma concisa, vou renomear o componente para `DistributionSummaryCardComponent` e garantir que todas as referências sejam atualizadas.
-
-<dyad-write path="src/components/summary/ExecutiveSummary.tsx" description="Renomeando DistributionSummaryCard para DistributionSummaryCardComponent e atualizando todas as referências para resolver erros de escopo do TypeScript.">
-import React from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { GlobalSummaryData } from '../ProductsTable';
-import { cn } from '@/lib/utils';
-import { DollarSign, TrendingUp, Package, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
-import { CalculationParams, TaxRegime } from '@/types/pricing';
-import { CBS_RATE, IBS_RATE } from '@/lib/pricing';
-
-interface CumpData {
-  cumpBruto: number;
-  cumpPlusLoss: number;
-  cumpTotal: number;
-  cfu: number;
-}
-
-interface ExecutiveSummaryProps {
-  summaryDataBestSale: GlobalSummaryData;
-  cumpData: CumpData | null;
-  totalProductAcquisitionCostAdjusted: number; // Custo de Aquisição Total Ajustado (Custo + Perdas)
-  totalInnerUnitsInXML: number;
-  params: CalculationParams; // Adicionando parâmetros para detalhar despesas variáveis
-  totalProductAcquisitionCostBeforeLoss: number; // NOVO: Custo Bruto antes da perda
-}
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-};
-
-// Função auxiliar para formatar números com alta precisão (para CFU)
-const formatNumber = (value: number, decimals: number = 4) => {
-  // Usamos formatCurrency para garantir o R$ e a formatação pt-BR, mas forçamos 4 casas decimais
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
-};
-
-// Função auxiliar para formatar quantidades como inteiros com separador de milhares
-const formatQuantity = (value: number) => {
-  return value.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
-};
-
-const SummaryCardWithDetail: React.FC<{ 
-  title: string; 
-  value: number; 
-  icon: React.ReactNode; 
-  valueClassName?: string; 
-  description: string;
-  detailContent: React.ReactNode;
-}> = ({
-  title,
-  value,
-  icon,
-  valueClassName,
-  description,
-  detailContent,
-}) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  
-  let effectiveValueClassName = valueClassName;
-  
-  // Se for Lucro Bruto ou Lucro Líquido (que usam text-success por padrão), verifica se é negativo
-  if (value < 0 && (valueClassName === 'text-success' || valueClassName === 'text-primary')) {
-    effectiveValueClassName = 'text-destructive';
-  } else if (value >= 0 && effectiveValueClassName === 'text-destructive') {
-    // Se for um valor que deve ser destrutivo (como imposto a pagar), mas é zero ou positivo, mantém a cor original
-    effectiveValueClassName = 'text-success';
-  }
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-        <div className={cn("p-3 rounded-full", effectiveValueClassName === 'text-success' ? 'bg-success/20' : effectiveValueClassName === 'text-primary' ? 'bg-primary/20' : effectiveValueClassName === 'text-destructive' ? 'bg-destructive/20' : 'bg-muted/50')}>
-          {icon}
+      {/* Detalhamento */}
+      {taxItems.map((item, index) => (
+        <div key={`tax-${index}`} className="flex justify-between text-destructive/80">
+          <span>• {item.name} ({isUnitary ? (item.value / totalSelling * 100).toFixed(2) : (item.value / totalSelling * 100).toFixed(2)}%):</span>
+          <span>{formatCurrency(item.value)}</span>
         </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className={cn("text-xl font-extrabold", effectiveValueClassName)}>{formatCurrency(value)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+      ))}
+      
+      {variableItems.map((item, index) => (
+        <div key={`var-${index}`} className="flex justify-between text-yellow-500/80">
+          <span>• {item.name} ({item.percentage.toFixed(2)}%):</span>
+          <span>{formatCurrency(item.value)}</span>
         </div>
-      </div>
-      
-      {/* Detalhe Expansível */}
-      <div className="border-t border-border pt-2">
-        <button 
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Memória de Cálculo
-          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
-        
-        {isOpen && (
-          <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
-            {detailContent}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+      ))}
 
-
-// Componente auxiliar para detalhamento da distribuição (Distribuição Completa - inclui Fixo)
-const DistributionDetail: React.FC<{ 
-  totalSelling: number; // Venda Sugerida
-  totalTax: number; 
-  totalVariableExpensesValue: number; 
-  totalProfit: number; // Lucro Líquido com Fixo
-  totalFixedCostContribution: number;
-  params: CalculationParams;
-  isUnitary: boolean;
-  totalGrossProfitWithFixed: number; // Lucro Bruto com Fixo (Resultado Operacional)
-}> = ({ 
-  totalSelling, 
-  totalTax, 
-  totalVariableExpensesValue, 
-  totalProfit,
-  totalFixedCostContribution,
-  params,
-  isUnitary,
-  totalGrossProfitWithFixed,
-}) => {
-  
-  // Impostos (já calculados no summaryDataBestSale)
-  const taxItems = [];
-  if (params.taxRegime === TaxRegime.LucroPresumido) {
-    // Usamos os valores totais de impostos (taxToPay) para a distribuição, mas aqui vamos usar as alíquotas sobre a venda para o detalhe percentual
-    taxItems.push(
-      { name: "CBS Líquido", value: totalSelling * CBS_RATE },
-      { name: "IBS Líquido", value: totalSelling * IBS_RATE },
-      { name: "IRPJ", value: totalSelling * (params.irpjRate / 100) },
-      { name: "CSLL", value: totalSelling * (params.csllRate / 100) }
-    );
-  } else if (params.taxRegime === TaxRegime.SimplesNacional) {
-    if (params.generateIvaCredit) {
-      taxItems.push(
-        { name: "Simples Remanescente", value: totalSelling * (params.simplesNacionalRemanescenteRate / 100) },
-        { name: "CBS Líquido", value: totalSelling * CBS_RATE },
-        { name: "IBS Líquido", value: totalSelling * IBS_RATE }
-      );
-    } else {
-      taxItems.push({ name: "Simples Nacional Cheio", value: totalSelling * (params.simplesNacionalRate / 100) });
-    }
-  }
-  
-  // Despesas Variáveis
-  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
-    (sum, exp) => sum + exp.percentage,
-    0
-  );
-  
-  const variableItems = params.variableExpenses.map(exp => ({
-    name: exp.name,
-    value: totalSelling * (exp.percentage / 100),
-    percentage: exp.percentage
-  }));
-
-  // Lucro Líquido
-  const profitItem = {
-    name: "Lucro Líquido",
-    value: totalProfit
-  };
-
-  return (
-    <div className="mt-2 space-y-1 text-xs font-mono">
-      <p className="font-bold text-foreground mb-2">
-        Lucro Bruto com Fixo (Ponto de Partida): {formatCurrency(totalGrossProfitWithFixed)}
-      </p>
-      
-      {/* Subtrações */}
-      <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções:</p>
-
-      {/* Impostos */}
-      <div className="flex justify-between text-destructive/80">
-        <span>• Impostos Líquidos:</span>
-        <span>{formatCurrency(totalTax)}</span>
-      </div>
-      
-      {/* Despesas Variáveis */}
-      <div className="flex justify-between text-yellow-500/80">
-        <span>• Despesas Variáveis:</span>
-        <span>{formatCurrency(totalVariableExpensesValue)}</span>
+      <div className="flex justify-between text-muted-foreground">
+        <span>• {fixedCostItem.name} (Rateio):</span>
+        <span>{formatCurrency(fixedCostItem.value)}</span>
       </div>
 
-      <div className={cn("flex justify-between font-bold pt-3 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-        <span>Lucro Líquido Final:</span>
-        <span>{formatCurrency(totalProfit)}</span>
+      <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
+        <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
+        <span>{formatCurrency(profitItem.value)}</span>
       </div>
-      
-      <p className="text-muted-foreground mt-2">
-        (Fórmula: Lucro Bruto com Fixo - Impostos Líquidos - Despesas Variáveis)
-      </p>
-    </div>
-  );
-};
-
-// NOVO DETALHE: Distribuição da Margem de Contribuição (SEM Custo Fixo)
-const ContributionDetail: React.FC<{ 
-  totalSelling: number; // Venda Sugerida
-  totalTax: number; 
-  totalVariableExpensesValue: number; 
-  totalNetProfitWithoutFixed: number; // Lucro Líquido sem Fixo
-  params: CalculationParams;
-  isUnitary: boolean;
-  totalGrossProfitWithoutFixed: number; // Lucro Bruto sem Fixo (Margem de Contribuição Bruta)
-}> = ({ 
-  totalSelling, 
-  totalTax, 
-  totalVariableExpensesValue, 
-  totalNetProfitWithoutFixed,
-  params,
-  isUnitary,
-  totalGrossProfitWithoutFixed,
-}) => {
-  
-  // Impostos (já calculados no summaryDataBestSale)
-  const taxItems = [];
-  if (params.taxRegime === TaxRegime.LucroPresumido) {
-    taxItems.push(
-      { name: "CBS Líquido", value: totalSelling * CBS_RATE },
-      { name: "IBS Líquido", value: totalSelling * IBS_RATE },
-      { name: "IRPJ", value: totalSelling * (params.irpjRate / 100) },
-      { name: "CSLL", value: totalSelling * (params.csllRate / 100) }
-    );
-  } else if (params.taxRegime === TaxRegime.SimplesNacional) {
-    if (params.generateIvaCredit) {
-      taxItems.push(
-        { name: "Simples Remanescente", value: totalSelling * (params.simplesNacionalRemanescenteRate / 100) },
-        { name: "CBS Líquido", value: totalSelling * CBS_RATE },
-        { name: "IBS Líquido", value: totalSelling * IBS_RATE }
-      );
-    } else {
-      taxItems.push({ name: "Simples Nacional Cheio", value: totalSelling * (params.simplesNacionalRate / 100) });
-    }
-  }
-  
-  // Despesas Variáveis
-  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
-    (sum, exp) => sum + exp.percentage,
-    0
-  );
-  
-  const variableItems = params.variableExpenses.map(exp => ({
-    name: exp.name,
-    value: totalSelling * (exp.percentage / 100),
-    percentage: exp.percentage
-  }));
-
-  // Lucro Líquido sem Fixo
-  const profitItem = {
-    name: "Lucro Líquido sem Fixo",
-    value: totalNetProfitWithoutFixed
-  };
-
-  return (
-    <div className="mt-2 space-y-1 text-xs font-mono">
-      <p className="font-bold text-foreground mb-2">
-        Lucro Bruto sem Fixo (Ponto de Partida): {formatCurrency(totalGrossProfitWithoutFixed)}
-      </p>
-      
-      {/* Subtrações */}
-      <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções:</p>
-
-      {/* Impostos */}
-      <div className="flex justify-between text-destructive/80">
-        <span>• Impostos Líquidos:</span>
-        <span>{formatCurrency(totalTax)}</span>
-      </div>
-      
-      {/* Despesas Variáveis */}
-      <div className="flex justify-between text-yellow-500/80">
-        <span>• Despesas Variáveis:</span>
-        <span>{formatCurrency(totalVariableExpensesValue)}</span>
-      </div>
-
-      <div className={cn("flex justify-between font-bold pt-3 border-t border-border/50", totalNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent")}>
-        <span>Lucro Líquido sem Fixo Final:</span>
-        <span>{formatCurrency(totalNetProfitWithoutFixed)}</span>
-      </div>
-      
-      <p className="text-muted-foreground mt-2">
-        (Fórmula: Lucro Bruto sem Fixo - Impostos Líquidos - Despesas Variáveis)
-      </p>
     </div>
   );
 };
 
 // NOVO COMPONENTE DE CARD PARA DISTRIBUIÇÃO
-const DistributionSummaryCardComponent: React.FC<{
+const DistributionSummaryCard: React.FC<{
   title: string;
   totalSelling: number;
   totalTax: number;
@@ -550,7 +215,6 @@ const DistributionSummaryCardComponent: React.FC<{
   totalFixedCostContribution: number;
   params: CalculationParams;
   isUnitary: boolean;
-  totalGrossProfitWithFixed: number; // Novo prop
 }> = ({
   title,
   totalSelling,
@@ -560,23 +224,19 @@ const DistributionSummaryCardComponent: React.FC<{
   totalFixedCostContribution,
   params,
   isUnitary,
-  totalGrossProfitWithFixed,
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   
-  // Determina a cor do valor principal (Lucro Bruto com Fixo)
-  const valueClassName = totalGrossProfitWithFixed < 0 ? 'text-destructive' : 'text-success';
-
   return (
     <div className="space-y-2">
       <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-        <div className={cn("p-3 rounded-full", valueClassName === 'text-success' ? 'bg-success/20' : 'bg-destructive/20')}>
-          <Package className={cn("h-5 w-5", valueClassName)} />
+        <div className={cn("p-3 rounded-full bg-primary/20")}>
+          <TrendingUp className="h-5 w-5 text-primary" />
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalGrossProfitWithFixed)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Lucro Bruto com Fixo (Resultado Operacional)</p>
+          <p className={cn("text-xl font-extrabold text-primary")}>{formatCurrency(totalSelling)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Distribuição da Receita de Venda</p>
         </div>
       </div>
       
@@ -601,74 +261,6 @@ const DistributionSummaryCardComponent: React.FC<{
               totalFixedCostContribution={totalFixedCostContribution}
               params={params}
               isUnitary={isUnitary}
-              totalGrossProfitWithFixed={totalGrossProfitWithFixed}
-            />
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// NOVO COMPONENTE DE CARD PARA DISTRIBUIÇÃO DA CONTRIBUIÇÃO
-const ContributionSummaryCard: React.FC<{
-  title: string;
-  totalSelling: number;
-  totalTax: number;
-  totalVariableExpensesValue: number;
-  totalNetProfitWithoutFixed: number;
-  params: CalculationParams;
-  isUnitary: boolean;
-  totalGrossProfitWithoutFixed: number; // Novo prop
-}> = ({
-  title,
-  totalSelling,
-  totalTax,
-  totalVariableExpensesValue,
-  totalNetProfitWithoutFixed,
-  params,
-  isUnitary,
-  totalGrossProfitWithoutFixed,
-}) => {
-  const [isOpen, setIsOpen] = React.useState(false);
-  
-  // Determina a cor do valor principal (Lucro Bruto sem Fixo)
-  const valueClassName = totalGrossProfitWithoutFixed < 0 ? 'text-destructive' : 'text-success';
-
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-        <div className={cn("p-3 rounded-full", valueClassName === 'text-success' ? 'bg-success/20' : 'bg-destructive/20')}>
-          <Package className={cn("h-5 w-5", valueClassName)} />
-        </div>
-        <div>
-          <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalGrossProfitWithoutFixed)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Lucro Bruto sem Fixo (Margem de Contribuição Bruta)</p>
-        </div>
-      </div>
-      
-      {/* Detalhe Expansível */}
-      <div className="border-t border-border pt-2">
-        <button 
-          type="button"
-          onClick={() => setIsOpen(!isOpen)}
-          className="flex items-center justify-between w-full text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Detalhe da Distribuição ({isUnitary ? "Unid." : "Total"})
-          {isOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-        </button>
-        
-        {isOpen && (
-          <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
-            <ContributionDetail
-              totalSelling={totalSelling}
-              totalTax={totalTax}
-              totalVariableExpensesValue={totalVariableExpensesValue}
-              totalNetProfitWithoutFixed={totalNetProfitWithoutFixed}
-              params={params}
-              isUnitary={isUnitary}
-              totalGrossProfitWithoutFixed={totalGrossProfitWithoutFixed}
             />
           </div>
         )}
@@ -982,9 +574,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         </CardHeader>
         <CardContent>
           
-          {/* BLOCO 1: Distribuição da Venda (Com Fixo) */}
+          {/* NOVO POSICIONAMENTO: Distribuição da Venda (Total e Unitário) */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 pb-6 border-b border-border">
-            <DistributionSummaryCardComponent
+            <DistributionSummaryCard
               title="Distribuição da Venda (Nota)"
               totalSelling={totalSelling}
               totalTax={summaryDataBestSale.totalTax}
@@ -993,9 +585,8 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               totalFixedCostContribution={totalFixedCostContribution}
               params={params}
               isUnitary={false}
-              totalGrossProfitWithFixed={totalGrossProfitWithFixed} // Lucro Bruto com Fixo
             />
-            <DistributionSummaryCardComponent
+            <DistributionSummaryCard
               title="Distribuição da Venda (Unitário)"
               totalSelling={unitSelling}
               totalTax={unitTax}
@@ -1004,34 +595,9 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
               totalFixedCostContribution={unitFixedCostContribution}
               params={params}
               isUnitary={true}
-              totalGrossProfitWithFixed={unitGrossProfitWithFixed} // Lucro Bruto com Fixo Unitário
             />
           </div>
           
-          {/* BLOCO 2: Distribuição da Margem de Contribuição (Sem Fixo) */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 pb-6 border-b border-border">
-            <ContributionSummaryCard
-              title="Distribuição da Margem (Nota)"
-              totalSelling={totalSelling}
-              totalTax={summaryDataBestSale.totalTax}
-              totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
-              totalNetProfitWithoutFixed={totalNetProfitWithoutFixed}
-              params={params}
-              isUnitary={false}
-              totalGrossProfitWithoutFixed={totalGrossProfitWithoutFixed} // Lucro Bruto sem Fixo
-            />
-            <ContributionSummaryCard
-              title="Distribuição da Margem (Unitário)"
-              totalSelling={unitSelling}
-              totalTax={unitTax}
-              totalVariableExpensesValue={unitVariableExpenses}
-              totalNetProfitWithoutFixed={unitNetProfitWithoutFixed}
-              params={params}
-              isUnitary={true}
-              totalGrossProfitWithoutFixed={unitGrossProfitWithoutFixed} // Lucro Bruto sem Fixo Unitário
-            />
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Coluna 1: Totais da Nota */}
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
