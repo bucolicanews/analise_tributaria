@@ -107,7 +107,7 @@ const SummaryCardWithDetail: React.FC<{
 };
 
 
-// Componente auxiliar para detalhamento da distribuição (mantido para Venda Sugerida)
+// Componente auxiliar para detalhamento da distribuição (AGORA SEM BOTÃO EXPANSÍVEL)
 const DistributionDetail: React.FC<{ 
   totalSelling: number; 
   totalTax: number; 
@@ -125,13 +125,10 @@ const DistributionDetail: React.FC<{
   params,
   isUnitary
 }) => {
-  const [isOpen, setIsOpen] = React.useState(false);
   
   // Impostos (já calculados no summaryDataBestSale)
   const taxItems = [];
   if (params.taxRegime === TaxRegime.LucroPresumido) {
-    // Simplificando a exibição para usar os totais líquidos do summaryDataBestSale, divididos pela venda total
-    // Para manter a precisão, usaremos as alíquotas sobre o PV.
     taxItems.push(
       { name: "CBS Líquido", value: totalSelling * CBS_RATE },
       { name: "IBS Líquido", value: totalSelling * IBS_RATE },
@@ -175,48 +172,35 @@ const DistributionDetail: React.FC<{
   };
 
   return (
-    <div className="mt-3 border-t border-border pt-3">
-      <button 
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-between w-full text-sm font-semibold text-primary/80 hover:text-primary transition-colors"
-      >
-        Detalhe da Distribuição ({isUnitary ? "Unid." : "Total"})
-        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </button>
+    <div className="mt-3 space-y-1 text-xs font-mono">
+      <p className="font-bold text-foreground mb-2">
+        Total Distribuído (Venda): {formatCurrency(totalSelling)}
+      </p>
       
-      {isOpen && (
-        <div className="mt-2 space-y-1 text-xs font-mono bg-muted/50 p-3 rounded-md">
-          <p className="font-bold text-foreground mb-2">
-            Total Distribuído (Venda): {formatCurrency(totalSelling)}
-          </p>
-          
-          {/* Detalhamento */}
-          {taxItems.map((item, index) => (
-            <div key={`tax-${index}`} className="flex justify-between text-destructive/80">
-              <span>• {item.name} ({isUnitary ? (item.value / totalSelling * 100).toFixed(2) : (item.value / totalSelling * 100).toFixed(2)}%):</span>
-              <span>{formatCurrency(item.value)}</span>
-            </div>
-          ))}
-          
-          {variableItems.map((item, index) => (
-            <div key={`var-${index}`} className="flex justify-between text-yellow-500/80">
-              <span>• {item.name} ({item.percentage.toFixed(2)}%):</span>
-              <span>{formatCurrency(item.value)}</span>
-            </div>
-          ))}
-
-          <div className="flex justify-between text-muted-foreground">
-            <span>• {fixedCostItem.name} (Rateio):</span>
-            <span>{formatCurrency(fixedCostItem.value)}</span>
-          </div>
-
-          <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-            <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
-            <span>{formatCurrency(profitItem.value)}</span>
-          </div>
+      {/* Detalhamento */}
+      {taxItems.map((item, index) => (
+        <div key={`tax-${index}`} className="flex justify-between text-destructive/80">
+          <span>• {item.name} ({isUnitary ? (item.value / totalSelling * 100).toFixed(2) : (item.value / totalSelling * 100).toFixed(2)}%):</span>
+          <span>{formatCurrency(item.value)}</span>
         </div>
-      )}
+      ))}
+      
+      {variableItems.map((item, index) => (
+        <div key={`var-${index}`} className="flex justify-between text-yellow-500/80">
+          <span>• {item.name} ({item.percentage.toFixed(2)}%):</span>
+          <span>{formatCurrency(item.value)}</span>
+        </div>
+      ))}
+
+      <div className="flex justify-between text-muted-foreground">
+        <span>• {fixedCostItem.name} (Rateio):</span>
+        <span>{formatCurrency(fixedCostItem.value)}</span>
+      </div>
+
+      <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
+        <span>• {profitItem.name} ({params.profitMargin.toFixed(2)}%):</span>
+        <span>{formatCurrency(profitItem.value)}</span>
+      </div>
     </div>
   );
 };
@@ -414,6 +398,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         {formatCurrency(totalCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(totalSelling)}
       </p>
       
+      <p className="font-semibold mt-4 mb-2 border-t border-border/50 pt-2">Detalhe da Distribuição (Total)</p>
       <DistributionDetail 
         totalSelling={totalSelling}
         totalTax={summaryDataBestSale.totalTax}
@@ -456,6 +441,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         {formatCurrency(unitCost)} ÷ {markupDivisor.toFixed(4)} = {formatCurrency(unitSelling)}
       </p>
       
+      <p className="font-semibold mt-4 mb-2 border-t border-border/50 pt-2">Detalhe da Distribuição (Unid.)</p>
       <DistributionDetail 
         totalSelling={unitSelling}
         totalTax={unitTax}
@@ -488,7 +474,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     </>
   );
   
-  // DETALHE: Lucro Bruto Unitário com Fixo (Resultado Operacional Unitário)
+  // DETALHE: Lucro Bruto com Fixo (Resultado Operacional Unitário)
   const detailGrossProfitWithFixedUnitary = (
     <>
       <p>• Venda Unitária Sugerida: {formatCurrency(unitSelling)}</p>
