@@ -346,7 +346,7 @@ const DistributionSummaryCardComponent: React.FC<{
           <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalProfit)}</p>
           <p className="text-xs text-muted-foreground mt-0.5">Lucro Líquido com Fixo (Lucro Real)</p>
           
-          {/* NOVO: Lucro Líquido sem Fixo no corpo do card */}
+          {/* Lucro Líquido sem Fixo no corpo do card */}
           <div className="mt-2 pt-2 border-t border-border/50">
             <p className="text-xs font-medium text-muted-foreground">Lucro Líquido sem Fixo (Margem Contribuição Líquida)</p>
             <p className={cn("text-lg font-bold", netProfitWithoutFixedClassName)}>{formatCurrency(totalNetProfitWithoutFixed)}</p>
@@ -410,24 +410,24 @@ const ContributionSummaryCard: React.FC<{
 }) => {
   const [isOpen, setIsOpen] = React.useState(false);
   
-  // Determina a cor do valor principal (Lucro Líquido sem Fixo)
-  const valueClassName = totalNetProfitWithoutFixed < 0 ? 'text-destructive' : 'text-accent';
+  // Determina a cor do valor principal (Lucro Bruto sem Fixo)
+  const valueClassName = totalGrossProfitWithoutFixed < 0 ? 'text-destructive' : 'text-success';
 
   return (
     <div className="space-y-2">
       <div className="flex items-center space-x-4 p-4 rounded-lg bg-card/50 border border-border/50 transition-shadow hover:shadow-card">
-        <div className={cn("p-3 rounded-full", valueClassName === 'text-accent' ? 'bg-accent/20' : 'bg-destructive/20')}>
+        <div className={cn("p-3 rounded-full", valueClassName === 'text-success' ? 'bg-success/20' : 'bg-destructive/20')}>
           <Package className={cn("h-5 w-5", valueClassName)} />
         </div>
         <div>
           <p className="text-sm font-medium text-muted-foreground">{title}</p>
-          <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalNetProfitWithoutFixed)}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Lucro Líquido sem Fixo (Margem Contribuição Líquida)</p>
+          <p className={cn("text-xl font-extrabold", valueClassName)}>{formatCurrency(totalGrossProfitWithoutFixed)}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Lucro Bruto sem Fixo (Margem Contribuição Bruta)</p>
           
-          {/* NOVO: Lucro Bruto sem Fixo no corpo do card */}
+          {/* Lucro Líquido sem Fixo no corpo do card */}
           <div className="mt-2 pt-2 border-t border-border/50">
-            <p className="text-xs font-medium text-muted-foreground">Lucro Bruto sem Fixo (Margem Contribuição Bruta)</p>
-            <p className={cn("text-lg font-bold", totalGrossProfitWithoutFixed < 0 ? 'text-destructive' : 'text-success')}>{formatCurrency(totalGrossProfitWithoutFixed)}</p>
+            <p className="text-xs font-medium text-muted-foreground">Lucro Líquido sem Fixo (Margem Contribuição Líquida)</p>
+            <p className={cn("text-lg font-bold", totalNetProfitWithoutFixed < 0 ? 'text-destructive' : 'text-accent')}>{formatCurrency(totalNetProfitWithoutFixed)}</p>
           </div>
         </div>
       </div>
