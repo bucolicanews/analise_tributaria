@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Table,
   TableBody,
@@ -21,6 +21,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
+import { Input } from "@/components/ui/input"; // Importando Input
 
 interface ProductsTableProps {
   products: Product[];
@@ -159,6 +160,8 @@ const calculateGlobalSummary = (
 };
 
 export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, onSummaryCalculated, selectedProductCodes, onSelectionChange }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+
   // Early return if no products to display
   if (!products || products.length === 0) {
     return null;
@@ -187,7 +190,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     onSelectionChange(newSelection);
   };
 
-  // 1. Filtrar produtos para cálculo e exibição
+  // 1. Filtrar produtos para cálculo e exibição (apenas os selecionados)
   const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
 
   // 2. Consolidar Custos Fixos Totais (CFT)
@@ -198,10 +201,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   if (params.totalStockUnits > 0) {
     cfu = totalFixedExpenses / params.totalStockUnits;
   } else {
-    toast.warning("Estoque Total de Unidades (ETU) é zero.", {
-      description: "O rateio de custos fixos não será aplicado. Por favor, insira um valor maior que zero para o ETU.",
-      duration: 5000,
-    });
+    // Only show warning if products are present, otherwise it's noisy on initial load
+    if (products.length > 0) {
+      toast.warning("Estoque Total de Unidades (ETU) é zero.", {
+        description: "O rateio de custos fixos não será aplicado. Por favor, insira um valor maior que zero para o ETU.",
+        duration: 5000,
+      });
+    }
   }
 
   const formatCurrency = (value: number) => {
@@ -286,7 +292,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   );
 
   // Use useEffect to call onSummaryCalculated when summaryDataBestSale changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (summaryDataBestSale) {
       onSummaryCalculated(summaryDataBestSale);
     }
@@ -361,12 +367,17 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     };
   }
 
-  // If no products are selected, we show the table but the summary below will be zeroed out.
-  const productsToRender = products.map(product => {
-    // We need to calculate the pricing for ALL products to render the table rows correctly,
-    // even if they aren't selected for the summary calculation.
-    return calculatePricing(product, params, cfu);
-  });
+  // --- FILTRAGEM E RENDERIZAÇÃO ---
+  const lowerCaseSearchTerm = searchTerm.toLowerCase();
+  
+  const productsToRender = useMemo(() => {
+    return products
+      .map(product => calculatePricing(product, params, cfu))
+      .filter(product => 
+        product.code.toLowerCase().includes(lowerCaseSearchTerm) ||
+        product.name.toLowerCase().includes(lowerCaseSearchTerm)
+      );
+  }, [products, params, cfu, lowerCaseSearchTerm]);
 
 
   return (
@@ -401,24 +412,32 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         </p>
       </div>
       
-      {/* Controles de Seleção */}
-      <div className="flex gap-2">
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => handleToggleAll(true)}
-          disabled={isAllSelected}
-        >
-          Marcar Todos
-        </Button>
-        <Button 
-          variant="outline" 
-          size="sm" 
-          onClick={() => handleToggleAll(false)}
-          disabled={selectedProductCodes.size === 0}
-        >
-          Limpar Todos
-        </Button>
+      {/* Controles de Seleção e Busca */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleToggleAll(true)}
+            disabled={isAllSelected}
+          >
+            Marcar Todos
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => handleToggleAll(false)}
+            disabled={selectedProductCodes.size === 0}
+          >
+            Limpar Todos
+          </Button>
+        </div>
+        <Input
+          placeholder="Buscar produto por código ou nome..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="flex-1"
+        />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border">
@@ -671,13 +690,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           />
         )}
 
-        {/* 3. Resumo de Vendas Totais */}
         <SalesSummaryTotal
           totalSellingBestSale={summaryDataBestSale.totalSelling}
           totalSellingMinSale={summaryDataMinSale.totalSelling}
         />
 
-        {/* 4. Resumo de Vendas Unitárias */}
         <SalesSummaryUnitary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
           totalSellingMinSale={summaryDataMinSale.totalSelling}
