@@ -2,21 +2,20 @@ import React from 'react';
 import { SummarySection } from './SummarySection';
 import { SummaryCard } from './SummaryCard';
 
-interface UnitCostData {
-  unitCostBruto: number;
-  unitCostPlusLoss: number;
-  unitCostPlusFixed: number;
+interface CumpData {
+  cumpBruto: number;
+  cumpPlusLoss: number;
+  cumpTotal: number;
   cfu: number;
-  unitQuantity: number;
 }
 
 interface CostSummaryProps {
-  totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total (ou Unitário se isUnitView)
-  totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total (ou Unitário se isUnitView)
+  totalProductAcquisitionCostBeforeLoss: number; // Custo Bruto Total
+  totalProductAcquisitionCostAdjusted: number; // Custo + Perdas Total
   totalFixedExpenses: number; 
   cfu: number;
   totalQuantityOfAllProducts: number;
-  unitCostData: UnitCostData | null; // Dados unitários se apenas 1 produto selecionado
+  cumpData: CumpData | null; // Dados CUMP se houver produtos selecionados
 }
 
 const formatCurrency = (value: number) => {
@@ -31,16 +30,18 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
   totalProductAcquisitionCostAdjusted,
   cfu,
   totalQuantityOfAllProducts,
-  unitCostData,
+  cumpData,
 }) => {
   
-  const isUnitView = unitCostData !== null;
+  const hasSelectedProducts = cumpData !== null;
 
-  // Determine values based on view mode
-  const costBruto = isUnitView ? unitCostData.unitCostBruto : totalProductAcquisitionCostBeforeLoss;
-  const costPlusLoss = isUnitView ? unitCostData.unitCostPlusLoss : totalProductAcquisitionCostAdjusted;
-  const fixedContribution = isUnitView ? unitCostData.cfu : (cfu * totalQuantityOfAllProducts);
-  const totalCost = isUnitView ? unitCostData.unitCostPlusFixed : (totalProductAcquisitionCostAdjusted + fixedContribution);
+  // Determine values based on view mode (CUMP if products selected, Total if no products selected)
+  // Note: If products are selected, we show CUMP. If no products are selected, all totals are 0.
+  
+  const costBruto = hasSelectedProducts ? cumpData.cumpBruto : totalProductAcquisitionCostBeforeLoss;
+  const costPlusLoss = hasSelectedProducts ? cumpData.cumpPlusLoss : totalProductAcquisitionCostAdjusted;
+  const fixedContribution = hasSelectedProducts ? cumpData.cfu : (cfu * totalQuantityOfAllProducts);
+  const totalCost = hasSelectedProducts ? cumpData.cumpTotal : (totalProductAcquisitionCostAdjusted + fixedContribution);
 
   // Calculate loss details
   const lossValue = costPlusLoss - costBruto;
@@ -57,10 +58,10 @@ export const CostSummary: React.FC<CostSummaryProps> = ({
     : "Custo de aquisição ajustado pela % de perdas.";
 
   // Determine titles
-  const titleSuffix = isUnitView ? " (Unitário)" : " (Total da Nota)";
-  const fixedTitle = isUnitView ? "Contrib. Fixa (Unitário)" : "Contrib. Nota p/ Desp. Fixas";
-  const fixedDescription = isUnitView ? "Custo Fixo Rateado por Unidade (CFU)" : "Contribuição desta nota para as despesas fixas";
-  const totalTitle = isUnitView ? "Custo Total (Unitário)" : "Custo Total";
+  const titleSuffix = hasSelectedProducts ? " (Unitário Médio Ponderado)" : " (Total da Nota)";
+  const fixedTitle = hasSelectedProducts ? "Contrib. Fixa (Unitário)" : "Contrib. Nota p/ Desp. Fixas";
+  const fixedDescription = hasSelectedProducts ? "Custo Fixo Rateado por Unidade (CFU)" : "Contribuição desta nota para as despesas fixas";
+  const totalTitle = hasSelectedProducts ? "Custo Total (Unitário)" : "Custo Total";
 
 
   return (

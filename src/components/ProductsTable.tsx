@@ -241,10 +241,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     0
   );
 
-  // Custo Bruto (Acquisition Cost before loss adjustment) - APENAS DOS SELECIONADOS
+  // Custo Bruto Total (Acquisition Cost before loss adjustment) - APENAS DOS SELECIONADOS
   const totalProductAcquisitionCostBeforeLoss = productsToCalculate.reduce((sum, p) => sum + p.cost * p.quantity, 0);
 
-  // Custo Ajustado (Acquisition Cost adjusted for loss) - APENAS DOS SELECIONADOS
+  // Custo Ajustado Total (Acquisition Cost adjusted for loss) - APENAS DOS SELECIONADOS
   let totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss;
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
     if (totalProductAcquisitionCostBeforeLoss > 0) {
@@ -336,34 +336,19 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     }
   }
 
-  // --- Dados Unitários para CostSummary (se apenas 1 produto selecionado) ---
-  let unitCostData = null;
-  if (isSingleProductSelected && calculatedProductsForBestSale.length === 1) {
-    const singleProduct = calculatedProductsForBestSale[0];
+  // --- CÁLCULO DO CUSTO UNITÁRIO MÉDIO PONDERADO (CUMP) ---
+  let cumpData = null;
+  
+  if (totalQuantityOfAllProductsInXML > 0) {
+    const cumpBruto = totalProductAcquisitionCostBeforeLoss / totalQuantityOfAllProductsInXML;
+    const cumpPlusLoss = totalProductAcquisitionCostAdjusted / totalQuantityOfAllProductsInXML;
+    const cumpTotal = cumpPlusLoss + cfu; // CUMP Ajustado + CFU
     
-    // Custo Bruto Unitário (Aquisição)
-    const unitCostBruto = singleProduct.cost;
-    
-    // Custo Unitário + Perda (Custo Base para Markup)
-    // Nota: O cálculo do Custo Base para Markup já inclui o ajuste de perda e o CFU.
-    // Para obter o Custo Unitário + Perda (sem CFU), precisamos recalcular o Custo Base sem o CFU.
-    
-    let unitCostPlusLoss = singleProduct.cost;
-    if (params.lossPercentage > 0 && params.lossPercentage < 100) {
-      unitCostPlusLoss = unitCostPlusLoss / (1 - params.lossPercentage / 100);
-    } else if (params.lossPercentage >= 100) {
-      unitCostPlusLoss = Infinity;
-    }
-    
-    // Custo Unitário + Contribuição Fixa (Custo Base para Markup)
-    const unitCostPlusFixed = unitCostPlusLoss + cfu;
-    
-    unitCostData = {
-      unitCostBruto,
-      unitCostPlusLoss,
-      unitCostPlusFixed,
+    cumpData = {
+      cumpBruto,
+      cumpPlusLoss,
+      cumpTotal,
       cfu,
-      unitQuantity: singleProduct.quantity,
     };
   }
 
@@ -663,7 +648,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           totalFixedExpenses={totalFixedExpenses}
           cfu={cfu}
           totalQuantityOfAllProducts={totalQuantityOfAllProductsInXML}
-          unitCostData={unitCostData} // Passando os dados unitários
+          cumpData={cumpData} // Passando os dados CUMP
         />
         <SalesSummary
           totalSellingBestSale={summaryDataBestSale.totalSelling}
