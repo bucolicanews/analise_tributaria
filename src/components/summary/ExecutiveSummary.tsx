@@ -344,6 +344,12 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className={cn("font-bold pt-1 border-t border-border/50", totalProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
         Lucro Líquido com Fixo = {formatCurrency(totalGrossProfitWithFixed)} (Lucro Bruto com Fixo) - {formatCurrency(summaryDataBestSale.totalTax)} (Impostos) - {formatCurrency(summaryDataBestSale.totalVariableExpensesValue)} (Despesas Variáveis) = {formatCurrency(totalProfitWithFixed)}
       </p>
+      {totalProfitWithFixed < 0 && (
+        <p className="text-destructive mt-2 flex items-center gap-1">
+          <AlertTriangle className="h-4 w-4" />
+          Alerta: O Lucro Líquido com Fixo está negativo. Sugerimos diminuir os custos fixos ou aumentar o preço de venda.
+        </p>
+      )}
     </>
   );
 
@@ -407,6 +413,12 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
       <p className={cn("font-bold pt-1 border-t border-border/50", unitProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
         Lucro Líquido com Fixo Unitário = {formatCurrency(unitGrossProfitWithFixed)} (Lucro Bruto com Fixo) - {formatCurrency(unitTax)} (Impostos) - {formatCurrency(unitVariableExpenses)} (Despesas Variáveis) = {formatCurrency(unitProfitWithFixed)}
       </p>
+      {unitProfitWithFixed < 0 && (
+        <p className="text-destructive mt-2 flex items-center gap-1">
+          <AlertTriangle className="h-4 w-4" />
+          Alerta: O Lucro Líquido com Fixo está negativo. Sugerimos diminuir os custos fixos ou aumentar o preço de venda.
+        </p>
+      )}
     </>
   );
 
