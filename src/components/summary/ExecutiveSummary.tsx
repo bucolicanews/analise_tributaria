@@ -282,7 +282,29 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   const totalCost = totalProductAcquisitionCostAdjusted + (cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0);
   const totalSelling = summaryDataBestSale.totalSelling;
   const totalFixedCostContribution = cumpData ? cumpData.cfu * totalInnerUnitsInXML : 0;
-  const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+  
+  // Variáveis de Markup e Taxa (Definidas no escopo principal)
+  const totalVariableExpensesPercent = params.variableExpenses.reduce(
+    (sum, exp) => sum + exp.percentage,
+    0
+  );
+  
+  let totalTaxRate = 0;
+  if (params.taxRegime === TaxRegime.LucroPresumido) {
+    const irpj = params.irpjRate || 0;
+    const csll = params.csllRate || 0;
+    totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
+  } else { // Simples Nacional
+    if (params.generateIvaCredit) {
+      const simplesRemanescente = params.simplesNacionalRemanescenteRate || 0;
+      totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
+    } else {
+      totalTaxRate = params.simplesNacionalRate || 0;
+    }
+  }
+  
+  const totalOtherPercentages = totalVariableExpensesPercent + totalTaxRate + params.profitMargin;
+  const markupDivisor = 1 - (totalOtherPercentages / 100);
   
   // Custo de Aquisição Bruto (sem CFU)
   const totalAcquisitionCost = totalProductAcquisitionCostAdjusted; 
@@ -402,28 +424,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
   );
 
   // DETALHE: Memória de Cálculo da Venda Sugerida (Total)
-  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
-    (sum, exp) => sum + exp.percentage,
-    0
-  );
-  
-  let totalTaxRate = 0;
-  if (params.taxRegime === TaxRegime.LucroPresumido) {
-    const irpj = params.irpjRate || 0;
-    const csll = params.csllRate || 0;
-    totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
-  } else { // Simples Nacional
-    if (params.generateIvaCredit) {
-      const simplesRemanescente = params.simplesNacionalRemanescenteRate || 0;
-      totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
-    } else {
-      totalTaxRate = params.simplesNacionalRate || 0;
-    }
-  }
-  
-  const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate + params.profitMargin;
-  const markupDivisor = 1 - (totalOtherPercentages / 100);
-  
   const detailSellingPriceTotal = (
     <>
       <p className="font-semibold mb-2">1. Markup Divisor</p>
@@ -431,7 +431,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         1 - (Despesas Variáveis% + Impostos% + Lucro Alvo%)
       </p>
       <p className="ml-4 text-muted-foreground">
-        1 - ({totalVariableExpensesPercentage.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
+        1 - ({totalVariableExpensesPercent.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
       </p>
       <p className="ml-4 font-bold">
         Markup Divisor = {markupDivisor.toFixed(4)}
@@ -463,7 +463,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
         1 - (Despesas Variáveis% + Impostos% + Lucro Alvo%)
       </p>
       <p className="ml-4 text-muted-foreground">
-        1 - ({totalVariableExpensesPercentage.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
+        1 - ({totalVariableExpensesPercent.toFixed(2)}% + {totalTaxRate.toFixed(2)}% + {params.profitMargin.toFixed(2)}%) = {(markupDivisor * 100).toFixed(2)}%
       </p>
       <p className="ml-4 font-bold">
         Markup Divisor = {markupDivisor.toFixed(4)}
@@ -573,6 +573,31 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
           <CardTitle className="text-xl font-bold text-primary">Resumo Executivo da Precificação (Cenário Alvo)</CardTitle>
         </CardHeader>
         <CardContent>
+          
+          {/* NOVO POSICIONAMENTO: Distribuição da Venda (Total e Unitário) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 pb-6 border-b border-border">
+            <DistributionSummaryCard
+              title="Distribuição da Venda (Nota)"
+              totalSelling={totalSelling}
+              totalTax={summaryDataBestSale.totalTax}
+              totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
+              totalProfit={totalProfitWithFixed}
+              totalFixedCostContribution={totalFixedCostContribution}
+              params={params}
+              isUnitary={false}
+            />
+            <DistributionSummaryCard
+              title="Distribuição da Venda (Unitário)"
+              totalSelling={unitSelling}
+              totalTax={unitTax}
+              totalVariableExpensesValue={unitVariableExpenses}
+              totalProfit={unitProfitWithFixed}
+              totalFixedCostContribution={unitFixedCostContribution}
+              params={params}
+              isUnitary={true}
+            />
+          </div>
+          
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Coluna 1: Totais da Nota */}
             <div className="space-y-4 border-b lg:border-b-0 lg:border-r border-border pr-6 pb-6 lg:pb-0">
@@ -589,18 +614,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   detailContent={detailSellingPriceTotal}
                 />
               </div>
-              
-              {/* NOVO CARD: Detalhe da Distribuição (Total) */}
-              <DistributionSummaryCard
-                title="Distribuição da Venda (Nota)"
-                totalSelling={totalSelling}
-                totalTax={summaryDataBestSale.totalTax}
-                totalVariableExpensesValue={summaryDataBestSale.totalVariableExpensesValue}
-                totalProfit={totalProfitWithFixed}
-                totalFixedCostContribution={totalFixedCostContribution}
-                params={params}
-                isUnitary={false}
-              />
 
               {/* 2. Custo Total (Nota) */}
               <SummaryCardWithDetail
@@ -667,18 +680,6 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                   detailContent={detailSellingPriceUnitary}
                 />
               </div>
-
-              {/* NOVO CARD: Detalhe da Distribuição (Unitário) */}
-              <DistributionSummaryCard
-                title="Distribuição da Venda (Unitário)"
-                totalSelling={unitSelling}
-                totalTax={unitTax}
-                totalVariableExpensesValue={unitVariableExpenses}
-                totalProfit={unitProfitWithFixed}
-                totalFixedCostContribution={unitFixedCostContribution}
-                params={params}
-                isUnitary={true}
-              />
 
               {/* 2. Custo Unitário (CUMP) */}
               <SummaryCardWithDetail
