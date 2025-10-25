@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,7 +124,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     setVariableExpenses(updated);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage) {
@@ -189,7 +189,16 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleCalculate} className="space-y-6">
+      {/* Botão de Recalcular no Topo */}
+      <Button 
+        type="submit" 
+        className="w-full bg-gradient-primary hover:opacity-90" 
+        disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}
+      >
+        <Calculator className="h-4 w-4 mr-2" /> Gerar Relatório
+      </Button>
+
       <div className="space-y-2">
         <Label htmlFor="profit">Margem de Lucro Líquida Alvo (%)</Label>
         <Input
@@ -420,8 +429,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         ))}
       </div>
 
+      {/* Botão de Recalcular no Rodapé (mantido) */}
       <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}>
-        Gerar Relatório
+        <Calculator className="h-4 w-4 mr-2" /> Gerar Relatório
       </Button>
     </form>
   );
