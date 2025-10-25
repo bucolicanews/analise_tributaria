@@ -23,6 +23,7 @@ import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 import { Input } from "@/components/ui/input"; // Importando Input
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface ProductsTableProps {
   products: Product[];
@@ -160,11 +161,10 @@ const calculateGlobalSummary = (
   };
 };
 
-const ITEMS_PER_PAGE = 100;
-
 export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, onSummaryCalculated, selectedProductCodes, onSelectionChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(100); // Novo estado para itens por página
 
   // Early return if no products to display
   if (!products || products.length === 0) {
@@ -385,16 +385,16 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
 
   // Lógica de Paginação
   const totalItems = allCalculatedProducts.length;
-  const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
-  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-  const endIndex = startIndex + ITEMS_PER_PAGE;
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
   
   const productsToRender = allCalculatedProducts.slice(startIndex, endIndex);
 
-  // Reset page if search term changes or products change
+  // Reset page if search term changes or itemsPerPage changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, products]);
+  }, [searchTerm, products, itemsPerPage]);
 
   const handleNextPage = () => {
     if (currentPage < totalPages) {
@@ -406,6 +406,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     if (currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
+  };
+
+  const handleItemsPerPageChange = (value: string) => {
+    setItemsPerPage(parseInt(value, 10));
   };
 
 
@@ -705,11 +709,27 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       </div>
       
       {/* Controles de Paginação */}
-      {totalItems > ITEMS_PER_PAGE && (
-        <div className="flex items-center justify-between py-2">
+      {totalItems > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between py-2 gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            Itens por página:
+            <Select value={String(itemsPerPage)} onValueChange={handleItemsPerPageChange}>
+              <SelectTrigger className="w-[80px]">
+                <SelectValue placeholder="100" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+                <SelectItem value="200">200</SelectItem>
+                <SelectItem value="500">500</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
           <div className="text-sm text-muted-foreground">
             Página {currentPage} de {totalPages} ({totalItems} produtos)
           </div>
+          
           <div className="space-x-2">
             <Button
               variant="outline"
