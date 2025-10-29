@@ -127,17 +127,20 @@ const calculateGlobalSummary = (
 
   // Recalculate total variable expenses ratio including taxes that vary with sales
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
-  const cbsRate = currentParams.cbsRate / 100;
-  const ibsRate = currentParams.ibsRate / 100;
-  const selectiveTaxRate = currentParams.selectiveTaxRate / 100;
+  
+  // Aplica os controles de débito nas alíquotas para o cálculo do Markup Divisor
+  const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
+  const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
+  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.selectiveTaxRate / 100 : 0;
+
 
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    totalVariableCostsRatio += cbsRate + ibsRate + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRate;
+    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRate + ibsRate + selectiveTaxRate;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRate;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRateEffective;
     }
   }
 
@@ -494,6 +497,16 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           {params.taxRegime === TaxRegime.SimplesNacional && !params.generateIvaCredit && " (Padrão - Sem Crédito IVA)"}
           <br/>
           <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
+          
+          {/* Detalhes da Transição */}
+          <strong className="mt-2 block">Transição (Crédito):</strong>
+          PIS/COFINS Crédito: {params.usePisCofins ? "Ativo" : "Inativo"} | ICMS Crédito: {formatPercent(params.icmsPercentage)}
+          <br/>
+          <strong>Transição (Débito):</strong>
+          IS/IPI Débito: {params.useSelectiveTaxDebit ? "Ativo" : "Inativo"} | CBS Débito: {params.useCbsDebit ? "Ativo" : "Inativo"} | IBS Débito: {formatPercent(params.ibsDebitPercentage)}
+          <br/>
+
+          {/* Detalhes das Alíquotas */}
           {params.taxRegime === TaxRegime.LucroPresumido ? (
             <React.Fragment>
               <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)}), IS ({formatPercent(params.selectiveTaxRate)})

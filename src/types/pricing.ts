@@ -47,9 +47,13 @@ export interface CalculationParams {
   ibsRate: number;
   selectiveTaxRate: number;
 
-  // Parâmetros de Transição
-  usePisCofins: boolean;
-  icmsPercentage: number;
+  // Parâmetros de Transição (Crédito e Débito)
+  usePisCofins: boolean; // Crédito PIS/COFINS (Entrada)
+  icmsPercentage: number; // Crédito ICMS (Entrada)
+
+  useSelectiveTaxDebit: boolean; // Débito Imposto Seletivo (Venda)
+  useCbsDebit: boolean; // Débito CBS (Venda)
+  ibsDebitPercentage: number; // Débito IBS (Venda)
 }
 
 export interface CalculatedProduct extends Product {

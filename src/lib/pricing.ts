@@ -6,8 +6,13 @@ export const calculatePricing = (
   cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
   // 1. Créditos (do XML) - por unidade comercial, respeitando os parâmetros de transição
+  // PIS/COFINS Crédito: Controlado por usePisCofins
   const cbsCredit = params.usePisCofins ? product.pisCredit + product.cofinsCredit : 0;
-  const ibsCredit = (product.icmsCredit || 0) * (params.icmsPercentage / 100);
+  
+  // ICMS Crédito: Controlado por icmsPercentage
+  const icmsCreditPercentageFactor = params.icmsPercentage / 100;
+  const ibsCredit = (product.icmsCredit || 0) * icmsCreditPercentageFactor;
+  
   const totalCredit = cbsCredit + ibsCredit;
 
   // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)
@@ -29,6 +34,11 @@ export const calculatePricing = (
     0
   );
   
+  // Aplica os controles de débito nas alíquotas
+  const cbsRateEffective = params.useCbsDebit ? params.cbsRate / 100 : 0;
+  const ibsRateEffective = (params.ibsRate / 100) * (params.ibsDebitPercentage / 100);
+  const selectiveTaxRateEffective = params.useSelectiveTaxDebit ? params.selectiveTaxRate / 100 : 0;
+
   let totalPercentageForMarkup = 0;
   let irpjToPay = 0;
   let csllToPay = 0;
@@ -38,23 +48,21 @@ export const calculatePricing = (
   let selectiveTaxToPay = 0;
   let ivaCreditForClient = 0; // Novo: Crédito de IVA para o cliente
 
-  const cbsRate = params.cbsRate / 100;
-  const ibsRate = params.ibsRate / 100;
-  const selectiveTaxRate = params.selectiveTaxRate / 100;
-
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     totalPercentageForMarkup =
       (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
-      cbsRate + ibsRate + selectiveTaxRate;
+      cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
+      // No Simples Híbrido, o Simples é pago integralmente, e CBS/IBS são pagos por fora (e controlados pelo débito)
       totalPercentageForMarkup =
         (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
-        cbsRate + ibsRate + selectiveTaxRate;
+        cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else { // Simples Nacional Padrão (não gera crédito de IVA)
+      // No Simples Padrão, apenas o Simples e o Imposto Seletivo são pagos (seletivo controlado pelo débito)
       totalPercentageForMarkup =
         (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
-        selectiveTaxRate;
+        selectiveTaxRateEffective;
     }
   }
 
@@ -86,31 +94,37 @@ export const calculatePricing = (
     
     // 8. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
     let minSellingDivisor = 0;
+    
+    // Recalcula a taxa total de impostos para o cálculo do preço mínimo (sem margem de lucro)
+    let totalTaxRateForMinPrice = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + cbsRate + ibsRate + selectiveTaxRate);
+      totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
     } else { // Simples Nacional
       if (params.generateIvaCredit) {
-        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100 + cbsRate + ibsRate + selectiveTaxRate);
+        totalTaxRateForMinPrice = (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
       } else {
-        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100 + selectiveTaxRate);
+        totalTaxRateForMinPrice = (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
       }
     }
+
+    minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + totalTaxRateForMinPrice);
     
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
     // 9. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
-    selectiveTaxToPay = sellingPrice * selectiveTaxRate;
+    selectiveTaxToPay = sellingPrice * selectiveTaxRateEffective;
+    
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      cbsDebit = sellingPrice * cbsRate;
-      ibsDebit = sellingPrice * ibsRate;
+      cbsDebit = sellingPrice * cbsRateEffective;
+      ibsDebit = sellingPrice * ibsRateEffective;
       irpjToPay = sellingPrice * (params.irpjRate / 100);
       csllToPay = sellingPrice * (params.csllRate / 100);
       ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
     } else { // Simples Nacional
       if (params.generateIvaCredit) { // Simples Nacional Híbrido
         simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
-        cbsDebit = sellingPrice * cbsRate;
-        ibsDebit = sellingPrice * ibsRate;
+        cbsDebit = sellingPrice * cbsRateEffective;
+        ibsDebit = sellingPrice * ibsRateEffective;
         ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
       } else { // Simples Nacional Padrão
         simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);

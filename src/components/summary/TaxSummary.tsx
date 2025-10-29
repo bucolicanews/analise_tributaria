@@ -34,7 +34,8 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
       <SummaryCard
         title="Imposto Seletivo a Pagar (Alvo)"
         value={summaryDataBestSale.totalSelectiveTaxToPay}
-        valueClassName="text-destructive"
+        valueClassName={params.useSelectiveTaxDebit ? "text-destructive" : "text-muted-foreground"}
+        description={params.useSelectiveTaxDebit ? undefined : "Desativado na Transição"}
       />
 
       {params.taxRegime === TaxRegime.LucroPresumido && (
@@ -61,10 +62,10 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
           />
           {params.generateIvaCredit && (
             <SummaryCard
-              title="Simples Nacional a Pagar (Remanescente)"
+              title="Simples Nacional a Pagar (Híbrido)"
               value={summaryDataBestSale.totalSimplesToPay}
               valueClassName="text-destructive"
-              description="Alíquota remanescente para IRPJ, CSLL, CPP"
+              description="Alíquota Simples (IRPJ, CSLL, CPP) + CBS/IBS por fora"
             />
           )}
           <SummaryCard
@@ -81,12 +82,14 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
           <SummaryCard
             title="Crédito CBS Total"
             value={summaryDataBestSale.totalCbsCredit}
-            valueClassName="text-success"
+            valueClassName={params.usePisCofins ? "text-success" : "text-muted-foreground"}
+            description={params.usePisCofins ? undefined : "PIS/COFINS Crédito Desativado"}
           />
           <SummaryCard
             title="Débito CBS Total"
             value={summaryDataBestSale.totalCbsDebit}
-            valueClassName="text-destructive"
+            valueClassName={params.useCbsDebit ? "text-destructive" : "text-muted-foreground"}
+            description={params.useCbsDebit ? undefined : "CBS Débito Desativado"}
           />
           <SummaryCard
             title="CBS a Pagar Total"
@@ -95,12 +98,14 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
           <SummaryCard
             title="Crédito IBS Total"
             value={summaryDataBestSale.totalIbsCredit}
-            valueClassName="text-success"
+            valueClassName={params.icmsPercentage > 0 ? "text-success" : "text-muted-foreground"}
+            description={`ICMS Crédito: ${params.icmsPercentage.toFixed(0)}%`}
           />
           <SummaryCard
             title="Débito IBS Total"
             value={summaryDataBestSale.totalIbsDebit}
-            valueClassName="text-destructive"
+            valueClassName={params.ibsDebitPercentage > 0 ? "text-destructive" : "text-muted-foreground"}
+            description={`IBS Débito: ${params.ibsDebitPercentage.toFixed(0)}%`}
           />
           <SummaryCard
             title="IBS a Pagar Total"

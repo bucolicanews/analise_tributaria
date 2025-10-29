@@ -147,8 +147,9 @@ const DistributionDetail: React.FC<{
         );
     } else if (params.taxRegime === TaxRegime.SimplesNacional) {
         if (params.generateIvaCredit) {
+            // CORREÇÃO: Usando Simples Nacional a Pagar (que agora é a alíquota única)
             taxDetails.push(
-                { name: "Simples Remanescente", value: summaryDataBestSale.totalSimplesToPay },
+                { name: "Simples Nacional a Pagar", value: summaryDataBestSale.totalSimplesToPay },
                 { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
                 { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
                 { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
@@ -265,8 +266,9 @@ const ContributionDetail: React.FC<{
         );
     } else if (params.taxRegime === TaxRegime.SimplesNacional) {
         if (params.generateIvaCredit) {
+            // CORREÇÃO: Usando Simples Nacional a Pagar (que agora é a alíquota única)
             taxDetails.push(
-                { name: "Simples Remanescente", value: summaryDataBestSale.totalSimplesToPay },
+                { name: "Simples Nacional a Pagar", value: summaryDataBestSale.totalSimplesToPay },
                 { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
                 { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
                 { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
@@ -531,16 +533,22 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     );
     
     let totalTaxRate = 0;
+    
+    // Aplica os controles de débito na taxa de imposto
+    const cbsRateEffective = params.useCbsDebit ? params.cbsRate : 0;
+    const ibsRateEffective = params.ibsRate * (params.ibsDebitPercentage / 100);
+    const selectiveTaxRateEffective = params.useSelectiveTaxDebit ? params.selectiveTaxRate : 0;
+
     if (params.taxRegime === TaxRegime.LucroPresumido) {
         const irpj = params.irpjRate || 0;
         const csll = params.csllRate || 0;
-        totalTaxRate = params.cbsRate + params.ibsRate + irpj + csll + params.selectiveTaxRate;
+        totalTaxRate = cbsRateEffective + ibsRateEffective + irpj + csll + selectiveTaxRateEffective;
     } else { // Simples Nacional
         if (params.generateIvaCredit) {
-            const simplesRemanescente = params.simplesNacionalRemanescenteRate || 0;
-            totalTaxRate = simplesRemanescente + params.cbsRate + params.ibsRate + params.selectiveTaxRate;
+            const simples = params.simplesNacionalRate || 0;
+            totalTaxRate = simples + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
         } else {
-            totalTaxRate = (params.simplesNacionalRate || 0) + params.selectiveTaxRate;
+            totalTaxRate = (params.simplesNacionalRate || 0) + selectiveTaxRateEffective;
         }
     }
     

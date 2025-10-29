@@ -57,9 +57,15 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [ibsRate, setIbsRate] = useState<string>("17.7");
   const [selectiveTaxRate, setSelectiveTaxRate] = useState<string>("0");
 
-  // Novos estados para transição
+  // Parâmetros de Transição (Crédito)
   const [usePisCofins, setUsePisCofins] = useState<boolean>(true);
   const [icmsPercentage, setIcmsPercentage] = useState<string>("100");
+
+  // Novos Parâmetros de Transição (Débito)
+  const [useSelectiveTaxDebit, setUseSelectiveTaxDebit] = useState<boolean>(true);
+  const [useCbsDebit, setUseCbsDebit] = useState<boolean>(true);
+  const [ibsDebitPercentage, setIbsDebitPercentage] = useState<string>("100");
+
 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
@@ -77,9 +83,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     );
     
     let totalTaxRate = 0;
-    const cbs = parseFloat(cbsRate) || 0;
-    const ibs = parseFloat(ibsRate) || 0;
-    const selective = parseFloat(selectiveTaxRate) || 0;
+    
+    // Aplica os controles de débito na taxa de imposto
+    const cbs = useCbsDebit ? (parseFloat(cbsRate) || 0) : 0;
+    const ibs = (parseFloat(ibsRate) || 0) * (parseFloat(ibsDebitPercentage) / 100);
+    const selective = useSelectiveTaxDebit ? (parseFloat(selectiveTaxRate) || 0) : 0;
 
     if (taxRegime === TaxRegime.LucroPresumido) {
       const irpj = parseFloat(irpjRate) || 0;
@@ -88,8 +96,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     } else { // Simples Nacional
       if (generateIvaCredit) {
         const simples = parseFloat(simplesNacionalRate) || 0;
+        // No Simples Híbrido, o Simples é pago integralmente, e CBS/IBS são pagos por fora (e controlados pelo débito)
         totalTaxRate = simples + cbs + ibs + selective;
       } else {
+        // No Simples Padrão, apenas o Simples e o Imposto Seletivo são pagos
         totalTaxRate = (parseFloat(simplesNacionalRate) || 0) + selective;
       }
     }
@@ -97,7 +107,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
     
     return 100 - totalOtherPercentages;
-  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate]);
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
@@ -135,7 +145,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage) {
+    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais, de impostos e de transição.",
       });
@@ -181,8 +191,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       cbsRate: parseFloat(cbsRate),
       ibsRate: parseFloat(ibsRate),
       selectiveTaxRate: parseFloat(selectiveTaxRate),
+      // Parâmetros de Transição
       usePisCofins,
       icmsPercentage: parseFloat(icmsPercentage),
+      useSelectiveTaxDebit,
+      useCbsDebit,
+      ibsDebitPercentage: parseFloat(ibsDebitPercentage),
     });
 
     toast.success("Cálculos realizados com sucesso!");
@@ -218,11 +232,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
       <div className="space-y-3 rounded-md border p-4">
         <Label className="font-semibold">Parâmetros de Transição Tributária</Label>
+        
+        {/* Controle de Crédito PIS/COFINS (Entrada) */}
         <div className="flex items-center justify-between space-x-2">
           <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
-            <span>Usar Créditos de PIS/COFINS</span>
+            <span>Usar Créditos de PIS/COFINS (Entrada)</span>
             <span className="font-normal leading-snug text-muted-foreground text-xs">
-              (Desative para simular a extinção)
+              (Desative para simular a extinção do crédito)
             </span>
           </Label>
           <Switch
@@ -232,6 +248,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             disabled={disabled}
           />
         </div>
+        
+        {/* Controle de Crédito ICMS (Entrada) */}
         <div className="space-y-2">
           <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
           <Input
@@ -244,6 +262,60 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             onChange={(e) => setIcmsPercentage(e.target.value)}
             disabled={disabled}
           />
+        </div>
+
+        <div className="border-t border-border pt-3 space-y-3">
+          <Label className="font-semibold text-sm">Controles de Débito (Venda)</Label>
+          
+          {/* Controle de Débito IPI/IS (Venda) */}
+          <div className="flex items-center justify-between space-x-2">
+            <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
+              <span>Calcular Imposto Seletivo (IPI/IS)</span>
+              <span className="font-normal leading-snug text-muted-foreground text-xs">
+                (Desative para simular a extinção do IPI/IS na venda)
+              </span>
+            </Label>
+            <Switch
+              id="useSelectiveTaxDebit"
+              checked={useSelectiveTaxDebit}
+              onCheckedChange={setUseSelectiveTaxDebit}
+              disabled={disabled}
+            />
+          </div>
+
+          {/* Controle de Débito PIS/COFINS/CBS (Venda) */}
+          <div className="flex items-center justify-between space-x-2">
+            <Label htmlFor="useCbsDebit" className="flex flex-col space-y-1">
+              <span>Calcular CBS (PIS/COFINS)</span>
+              <span className="font-normal leading-snug text-muted-foreground text-xs">
+                (Desative para simular a extinção do PIS/COFINS/CBS na venda)
+              </span>
+            </Label>
+            <Switch
+              id="useCbsDebit"
+              checked={useCbsDebit}
+              onCheckedChange={setUseCbsDebit}
+              disabled={disabled}
+            />
+          </div>
+
+          {/* Controle de Débito ICMS/ISS/IBS (Venda) */}
+          <div className="space-y-2">
+            <Label htmlFor="ibsDebitPercentage">Percentual de Débito IBS a ser considerado (%)</Label>
+            <Input
+              id="ibsDebitPercentage"
+              type="number"
+              step="1"
+              min="0"
+              max="100"
+              value={ibsDebitPercentage}
+              onChange={(e) => setIbsDebitPercentage(e.target.value)}
+              disabled={disabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              (Simula a redução gradual do ICMS/ISS e o aumento do IBS na venda, começando em 100%)
+            </p>
+          </div>
         </div>
       </div>
 
