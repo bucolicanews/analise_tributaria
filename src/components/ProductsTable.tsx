@@ -135,7 +135,7 @@ const calculateGlobalSummary = (
     totalVariableCostsRatio += cbsRate + ibsRate + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRate;
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRemanescenteRate / 100) + cbsRate + ibsRate + selectiveTaxRate;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRate + ibsRate + selectiveTaxRate;
     } else {
       totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRate;
     }
@@ -500,10 +500,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
             </React.Fragment>
           ) : (
             <React.Fragment>
-              <strong>Alíquota Cheia Simples:</strong> {formatPercent(params.simplesNacionalRate)}
+              <strong>Alíquota Simples:</strong> {formatPercent(params.simplesNacionalRate)}
               {params.generateIvaCredit && (
                 <React.Fragment>
-                  <br/><strong>Alíquota Remanescente Simples:</strong> {formatPercent(params.simplesNacionalRemanescenteRate)}
                   <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)})
                 </React.Fragment>
               )}

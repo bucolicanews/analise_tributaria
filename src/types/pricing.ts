@@ -38,7 +38,6 @@ export interface CalculationParams {
   // Novos campos para regimes tributários
   taxRegime: TaxRegime;
   simplesNacionalRate: number; // Alíquota total do Simples Nacional (cheia)
-  simplesNacionalRemanescenteRate: number; // Novo: Alíquota do Simples Nacional Remanescente (IRPJ, CSLL, CPP)
   generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
   irpjRate: number; // Alíquota IRPJ para Lucro Presumido
   csllRate: number; // Alíquota CSLL para Lucro Presumido

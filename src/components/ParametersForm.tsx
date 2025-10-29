@@ -46,7 +46,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [profitMargin, setProfitMargin] = useState<string>("9.5"); // Default from prompt
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido); // Default from prompt
   const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10"); // Default from prompt (Alíquota Cheia)
-  const [simplesNacionalRemanescenteRate, setSimplesNacionalRemanescenteRate] = useState<string>("4.5"); // Novo: Default para Remanescente
   const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false); // Novo: Flag para gerar crédito IVA
   const [irpjRate, setIrpjRate] = useState<string>("1.2"); // Default from prompt
   const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
@@ -84,8 +83,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       totalTaxRate = cbs + ibs + irpj + csll + selective;
     } else { // Simples Nacional
       if (generateIvaCredit) {
-        const simplesRemanescente = parseFloat(simplesNacionalRemanescenteRate) || 0;
-        totalTaxRate = simplesRemanescente + cbs + ibs + selective;
+        const simples = parseFloat(simplesNacionalRate) || 0;
+        totalTaxRate = simples + cbs + ibs + selective;
       } else {
         totalTaxRate = (parseFloat(simplesNacionalRate) || 0) + selective;
       }
@@ -95,7 +94,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     
     // Margem Máxima = 100% - (Outras Porcentagens)
     return 100 - totalOtherPercentages;
-  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, simplesNacionalRemanescenteRate, cbsRate, ibsRate, selectiveTaxRate]);
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
@@ -157,13 +156,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     if (taxRegime === TaxRegime.SimplesNacional) {
       if (!simplesNacionalRate) {
         toast.error("Campo obrigatório", {
-          description: "Preencha a Alíquota Cheia do Simples Nacional.",
-        });
-        return;
-      }
-      if (generateIvaCredit && !simplesNacionalRemanescenteRate) {
-        toast.error("Campo obrigatório", {
-          description: "Preencha a Alíquota Remanescente do Simples Nacional para gerar crédito IVA.",
+          description: "Preencha a Alíquota do Simples Nacional.",
         });
         return;
       }
@@ -185,7 +178,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       lossPercentage: parseFloat(lossPercentage),
       taxRegime,
       simplesNacionalRate: parseFloat(simplesNacionalRate),
-      simplesNacionalRemanescenteRate: parseFloat(simplesNacionalRemanescenteRate),
       generateIvaCredit,
       irpjRate: parseFloat(irpjRate),
       csllRate: parseFloat(csllRate),
@@ -248,7 +240,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       {taxRegime === TaxRegime.SimplesNacional && (
         <>
           <div className="space-y-2">
-            <Label htmlFor="simples">Alíquota Cheia do Simples Nacional (%)</Label>
+            <Label htmlFor="simples">Alíquota Simples Nacional (%)</Label>
             <Input
               id="simples"
               type="number"
@@ -262,7 +254,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             <Label htmlFor="generateIvaCredit" className="flex flex-col space-y-1">
               <span>Gerar Crédito de IVA para Cliente (B2B)</span>
               <span className="font-normal leading-snug text-muted-foreground text-xs">
-                (Empresa do Simples pagará IBS/CBS por fora, além do Simples Remanescente)
+                (Empresa do Simples pagará IBS/CBS por fora, além do Simples)
               </span>
             </Label>
             <Switch
@@ -272,22 +264,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
               disabled={disabled}
             />
           </div>
-          {generateIvaCredit && (
-            <div className="space-y-2">
-              <Label htmlFor="simplesRemanescente">Alíquota Simples Remanescente (%)</Label>
-              <Input
-                id="simplesRemanescente"
-                type="number"
-                step="0.01"
-                value={simplesNacionalRemanescenteRate}
-                onChange={(e) => setSimplesNacionalRemanescenteRate(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">
-                (Alíquota do Simples que corresponde apenas a IRPJ, CSLL, CPP)
-              </p>
-            </div>
-          )}
         </>
       )}
 
@@ -318,33 +294,35 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         </>
       )}
 
-      <div className="space-y-3 rounded-md border p-4">
-        <Label className="font-semibold">IVA Dual (CBS/IBS)</Label>
-        <div className="space-y-2">
-          <Label htmlFor="cbsRate">Alíquota CBS (%)</Label>
-          <Input
-            id="cbsRate"
-            type="number"
-            step="0.01"
-            value={cbsRate}
-            onChange={(e) => setCbsRate(e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">(Substitui PIS/COFINS)</p>
+      {(taxRegime === TaxRegime.LucroPresumido || (taxRegime === TaxRegime.SimplesNacional && generateIvaCredit)) && (
+        <div className="space-y-3 rounded-md border p-4">
+          <Label className="font-semibold">IVA Dual (CBS/IBS)</Label>
+          <div className="space-y-2">
+            <Label htmlFor="cbsRate">Alíquota CBS (%)</Label>
+            <Input
+              id="cbsRate"
+              type="number"
+              step="0.01"
+              value={cbsRate}
+              onChange={(e) => setCbsRate(e.target.value)}
+              disabled={disabled}
+            />
+            <p className="text-xs text-muted-foreground">(Substitui PIS/COFINS)</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="ibsRate">Alíquota IBS (%)</Label>
+            <Input
+              id="ibsRate"
+              type="number"
+              step="0.01"
+              value={ibsRate}
+              onChange={(e) => setIbsRate(e.target.value)}
+              disabled={disabled}
+            />
+            <p className="text-xs text-muted-foreground">(Substitui ICMS/ISS)</p>
+          </div>
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="ibsRate">Alíquota IBS (%)</Label>
-          <Input
-            id="ibsRate"
-            type="number"
-            step="0.01"
-            value={ibsRate}
-            onChange={(e) => setIbsRate(e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">(Substitui ICMS/ISS)</p>
-        </div>
-      </div>
+      )}
 
       <div className="space-y-3 rounded-md border p-4">
         <Label className="font-semibold">Imposto Seletivo (IS)</Label>

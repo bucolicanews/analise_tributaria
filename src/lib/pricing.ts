@@ -49,7 +49,7 @@ export const calculatePricing = (
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
       totalPercentageForMarkup =
-        (totalVariableExpensesPercentage + params.simplesNacionalRemanescenteRate + params.profitMargin) / 100 +
+        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
         cbsRate + ibsRate + selectiveTaxRate;
     } else { // Simples Nacional Padrão (não gera crédito de IVA)
       totalPercentageForMarkup =
@@ -90,7 +90,7 @@ export const calculatePricing = (
       minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + cbsRate + ibsRate + selectiveTaxRate);
     } else { // Simples Nacional
       if (params.generateIvaCredit) {
-        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRemanescenteRate / 100 + cbsRate + ibsRate + selectiveTaxRate);
+        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100 + cbsRate + ibsRate + selectiveTaxRate);
       } else {
         minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100 + selectiveTaxRate);
       }
@@ -108,7 +108,7 @@ export const calculatePricing = (
       ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
     } else { // Simples Nacional
       if (params.generateIvaCredit) { // Simples Nacional Híbrido
-        simplesToPay = sellingPrice * (params.simplesNacionalRemanescenteRate / 100);
+        simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
         cbsDebit = sellingPrice * cbsRate;
         ibsDebit = sellingPrice * ibsRate;
         ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente

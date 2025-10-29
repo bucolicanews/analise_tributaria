@@ -58,7 +58,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
       totalPercentageForMarkup =
-        (totalVariableExpensesPercentage + params.simplesNacionalRemanescenteRate + params.profitMargin) / 100 +
+        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
         cbsRate + ibsRate + selectiveTaxRate;
     } else { // Simples Nacional Padrão (não gera crédito de IVA)
       totalPercentageForMarkup =
@@ -101,10 +101,9 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               </>
             ) : (
               <>
-                <strong>Alíquota Cheia Simples:</strong> {formatPercent(params.simplesNacionalRate)}
+                <strong>Alíquota Simples:</strong> {formatPercent(params.simplesNacionalRate)}
                 {params.generateIvaCredit && (
                   <>
-                    <br/><strong>Alíquota Remanescente Simples:</strong> {formatPercent(params.simplesNacionalRemanescenteRate)}
                     <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)})
                   </>
                 )}
@@ -123,7 +122,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
           <p className="font-semibold mb-2">⚠️ Cálculo Inviável para este Produto</p>
           <p>
-            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${params.generateIvaCredit ? formatPercent(params.simplesNacionalRemanescenteRate) + ' + IVA' : formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(params.cbsRate)}), IBS (${formatPercent(params.ibsRate)})`}, Imposto Seletivo ({formatPercent(params.selectiveTaxRate)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
+            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${params.generateIvaCredit ? formatPercent(params.simplesNacionalRate) + ' + IVA' : formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(params.cbsRate)}), IBS (${formatPercent(params.ibsRate)})`}, Imposto Seletivo ({formatPercent(params.selectiveTaxRate)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
             Isso torna a precificação inviável para este produto com os parâmetros atuais. Ajuste os valores para obter um resultado válido.
           </p>
         </div>
@@ -187,10 +186,10 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           <div>
             <p className="font-semibold mb-2">5. Markup Divisor (para Preço Sugerido)</p>
             <p className="ml-4">
-              1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples Remanescente% + CBS% + IBS%` : `Simples Nacional Cheio%`) : `IRPJ% + CSLL% + CBS% + IBS%`} + IS% + Lucro%)
+              1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples% + CBS% + IBS%` : `Simples Nacional%`) : `IRPJ% + CSLL% + CBS% + IBS%`} + IS% + Lucro%)
             </p>
             <p className="ml-4">
-              1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRemanescenteRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.irpjRate)} + ${formatPercent(params.csllRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}`} + {formatPercent(params.selectiveTaxRate)} + {formatPercent(params.profitMargin)})
+              1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.irpjRate)} + ${formatPercent(params.csllRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}`} + {formatPercent(params.selectiveTaxRate)} + {formatPercent(params.profitMargin)})
             </p>
             <p className="ml-4 font-semibold">
               = {markupDivisor.toFixed(4)}
@@ -216,10 +215,10 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
           <div>
             <p className="font-semibold mb-2">7. Menor Preço de Venda Unitário (Cobre Custos Variáveis e Impostos Diretos)</p>
             <p className="ml-4">
-              Custo Base para Markup por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples Remanescente% + CBS% + IBS%` : `Simples Nacional Cheio%`) : `CBS% + IBS%`} + IS%))
+              Custo Base para Markup por Unid. Com. ÷ (1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples% + CBS% + IBS%` : `Simples Nacional%`) : `CBS% + IBS%`} + IS%))
             </p>
             <p className="ml-4">
-              {formatCurrency(baseCostForMarkupExample)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRemanescenteRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}`} + {formatPercent(params.selectiveTaxRate)}))
+              {formatCurrency(baseCostForMarkupExample)} ÷ (1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRate)} + ${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.cbsRate)} + ${formatPercent(params.ibsRate)}`} + {formatPercent(params.selectiveTaxRate)}))
             </p>
             <p className="ml-4 font-semibold text-yellow-500">
               = {formatCurrency(calculated.minSellingPrice)} (por Unid. Com.)
@@ -270,7 +269,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
                 {params.generateIvaCredit && (
                   <>
                     <p className="ml-4">
-                      • Simples Remanescente a Pagar por Unid. Com.: {formatCurrency(calculated.simplesToPay)}
+                      • Simples a Pagar por Unid. Com.: {formatCurrency(calculated.simplesToPay)}
                     </p>
                     <p className="ml-4">
                       • CBS a Pagar por Unid. Com.: Débito CBS - Crédito CBS = {formatCurrency(calculated.cbsDebit)} - {formatCurrency(calculated.cbsCredit)} = {formatCurrency(calculated.cbsTaxToPay)}
