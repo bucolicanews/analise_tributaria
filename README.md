@@ -1,6 +1,6 @@
 # JOTA - Sistema de Precificação Inteligente
 
-proximmo passo : incluir as taxas do cbs e ibs nos detelhes de calculo - CONCLUÍDO
+simples e presumido ok
 
 # Sistema para Análise Tributária
 
