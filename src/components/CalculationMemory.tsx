@@ -131,7 +131,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
           <p className="font-semibold mb-2">⚠️ Cálculo Inviável para este Produto</p>
           <p>
-            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? `Simples Nacional (${params.generateIvaCredit ? formatPercent(params.simplesNacionalRate) + ' + IVA' : formatPercent(params.simplesNacionalRate)})` : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(cbsRateEffective)}), IBS (${formatPercent(ibsRateEffective)})`}, Imposto Seletivo ({formatPercent(selectiveTaxRateEffective)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
+            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)} + IVA)` : `Simples Nacional (${formatPercent(params.simplesNacionalRate)})`) : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(cbsRateEffective)}), IBS (${formatPercent(ibsRateEffective)})`}, Imposto Seletivo ({formatPercent(selectiveTaxRateEffective)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
             Isso torna a precificação inviável para este produto com os parâmetros atuais. Ajuste os valores para obter um resultado válido.
           </p>
         </div>
@@ -275,7 +275,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               </>
             ) : (
               <>
-                {params.generateIvaCredit && (
+                {params.generateIvaCredit ? (
                   <>
                     <p className="ml-4">
                       • Simples a Pagar por Unid. Com.: {formatCurrency(calculated.simplesToPay)}
@@ -296,8 +296,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
                       Total Imposto a Pagar por Unid. Interna: {formatCurrency(calculated.simplesToPayPerInnerUnit + calculated.cbsTaxToPayPerInnerUnit + calculated.ibsTaxToPayPerInnerUnit + calculated.selectiveTaxToPayPerInnerUnit)}
                     </p>
                   </>
-                )}
-                {!params.generateIvaCredit && (
+                ) : (
                   <>
                     <p className="ml-4 font-semibold text-destructive">
                       Total Imposto a Pagar por Unid. Com.: {formatCurrency(calculated.simplesToPay + calculated.selectiveTaxToPay)}

@@ -122,6 +122,7 @@ const DistributionDetail: React.FC<{
     totalCost: number;
     totalAcquisitionCost: number;
     totalFixedCostContribution: number;
+    isUnitary: boolean; // Novo: Para controlar se estamos exibindo valores unitários
 }> = ({ 
     totalSelling, 
     totalTax, 
@@ -134,34 +135,10 @@ const DistributionDetail: React.FC<{
     totalCost,
     totalAcquisitionCost,
     totalFixedCostContribution,
+    isUnitary,
 }) => {
     
-    const taxDetails = [];
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
-        taxDetails.push(
-            { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-            { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
-            { name: "IRPJ a Pagar", value: summaryDataBestSale.totalIrpjToPay },
-            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay },
-            { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-        );
-    } else if (params.taxRegime === TaxRegime.SimplesNacional) {
-        if (params.generateIvaCredit) {
-            // CORREÇÃO: Usando Simples Nacional a Pagar (que agora é a alíquota única)
-            taxDetails.push(
-                { name: "Simples Nacional a Pagar", value: summaryDataBestSale.totalSimplesToPay },
-                { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
-                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-            );
-        } else {
-            taxDetails.push(
-                { name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay },
-                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-            );
-        }
-    }
-    
+    // Detalhamento das Despesas Variáveis (sempre por item)
     const variableDetails = params.variableExpenses.map(exp => {
         const value = totalSelling * (exp.percentage / 100);
         return { name: exp.name, value };
@@ -187,7 +164,7 @@ const DistributionDetail: React.FC<{
                     <span>{formatCurrency(totalFixedCostContribution)}</span>
                 </div>
                 <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalGrossProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
-                    <span>Lucro Bruto com Fixo (Resultado Operacional v):</span>
+                    <span>Lucro Bruto com Fixo (Resultado Operacional):</span>
                     <span>{formatCurrency(totalGrossProfitWithFixed)}</span>
                 </div>
             </div>
@@ -198,12 +175,7 @@ const DistributionDetail: React.FC<{
 
             <div className="space-y-1 ml-2">
                 <p className="font-medium text-destructive/80">(-) Impostos Líquidos ({formatCurrency(totalTax)}):</p>
-                {taxDetails.map((item, index) => (
-                    <div key={`tax-${index}`} className="flex justify-between ml-2 text-destructive/60">
-                        <span>• {item.name}:</span>
-                        <span>{formatCurrency(item.value)}</span>
-                    </div>
-                ))}
+                {/* REMOVIDO DETALHAMENTO INTERNO DE IMPOSTOS PARA SIMPLIFICAR */}
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
@@ -243,6 +215,7 @@ const ContributionDetail: React.FC<{
     totalGrossProfitWithoutFixed: number; // Lucro Bruto sem Fixo (Margem de Contribuição Bruta)
     summaryDataBestSale: GlobalSummaryData;
     totalAcquisitionCost: number;
+    isUnitary: boolean; // Novo: Para controlar se estamos exibindo valores unitários
 }> = ({ 
     totalSelling, 
     totalTax, 
@@ -252,36 +225,10 @@ const ContributionDetail: React.FC<{
     totalGrossProfitWithoutFixed,
     summaryDataBestSale,
     totalAcquisitionCost,
+    isUnitary,
 }) => {
     
-    // Detalhamento dos Impostos Líquidos
-    const taxDetails = [];
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
-        taxDetails.push(
-            { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-            { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
-            { name: "IRPJ a Pagar", value: summaryDataBestSale.totalIrpjToPay },
-            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay },
-            { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-        );
-    } else if (params.taxRegime === TaxRegime.SimplesNacional) {
-        if (params.generateIvaCredit) {
-            // CORREÇÃO: Usando Simples Nacional a Pagar (que agora é a alíquota única)
-            taxDetails.push(
-                { name: "Simples Nacional a Pagar", value: summaryDataBestSale.totalSimplesToPay },
-                { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
-                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-            );
-        } else {
-            taxDetails.push(
-                { name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay },
-                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
-            );
-        }
-    }
-    
-    // Detalhamento das Despesas Variáveis
+    // Detalhamento das Despesas Variáveis (sempre por item)
     const variableDetails = params.variableExpenses.map(exp => {
         const value = totalSelling * (exp.percentage / 100);
         return { name: exp.name, value };
@@ -313,12 +260,7 @@ const ContributionDetail: React.FC<{
 
             <div className="space-y-1 ml-2">
                 <p className="font-medium text-destructive/80">(-) Impostos Líquidos ({formatCurrency(totalTax)}):</p>
-                {taxDetails.map((item, index) => (
-                    <div key={`tax-${index}`} className="flex justify-between ml-2 text-destructive/60">
-                        <span>• {item.name}:</span>
-                        <span>{formatCurrency(item.value)}</span>
-                    </div>
-                ))}
+                {/* REMOVIDO DETALHAMENTO INTERNO DE IMPOSTOS PARA SIMPLIFICAR */}
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
@@ -425,6 +367,7 @@ const DistributionSummaryCardComponent: React.FC<{
                             totalCost={totalCost}
                             totalAcquisitionCost={totalAcquisitionCost}
                             totalFixedCostContribution={totalFixedCostContribution}
+                            isUnitary={isUnitary}
                         />
                     </div>
                 )}
@@ -500,6 +443,7 @@ const ContributionSummaryCard: React.FC<{
                             totalGrossProfitWithoutFixed={totalGrossProfitWithoutFixed}
                             summaryDataBestSale={summaryDataBestSale}
                             totalAcquisitionCost={totalAcquisitionCost}
+                            isUnitary={isUnitary}
                         />
                     </div>
                 )}
