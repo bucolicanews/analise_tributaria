@@ -63,30 +63,30 @@ const getTaxDetails = (summary: GlobalSummaryData, isUnitary: boolean, totalInne
 
     if (params.taxRegime === TaxRegime.LucroPresumido) {
         details.push(
-            { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor, isNegative: true, className: "text-destructive/60" },
-            { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor, isNegative: true, className: "text-destructive/60" },
-            { name: "IRPJ a Pagar", value: summary.totalIrpjToPay / divisor, isNegative: true, className: "text-destructive/60" },
-            { name: "CSLL a Pagar", value: summary.totalCsllToPay / divisor, isNegative: true, className: "text-destructive/60" },
-            { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor, isNegative: true, className: "text-destructive/60" }
+            { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" },
+            { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" },
+            { name: "IRPJ a Pagar", value: summary.totalIrpjToPay / divisor, isNegative: true, className: "text-blue-500/60" },
+            { name: "CSLL a Pagar", value: summary.totalCsllToPay / divisor, isNegative: true, className: "text-blue-500/60" },
+            { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" }
         );
     } else if (params.taxRegime === TaxRegime.SimplesNacional) {
         // Simples Nacional Padrão ou Híbrido sempre paga o Simples
         details.push(
-            { name: "Simples Nacional", value: summary.totalSimplesToPay / divisor, isNegative: true, className: "text-destructive/60" }
+            { name: "Simples Nacional", value: summary.totalSimplesToPay / divisor, isNegative: true, className: "text-blue-500/60" }
         );
         
         if (params.generateIvaCredit) {
             // Simples Híbrido paga CBS/IBS por fora
             details.push(
-                { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor, isNegative: true, className: "text-destructive/60" },
-                { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor, isNegative: true, className: "text-destructive/60" }
+                { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" },
+                { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" }
             );
         }
         
         // Imposto Seletivo é pago por fora em ambos os cenários (se a alíquota for > 0)
         if (params.selectiveTaxRate > 0) {
              details.push(
-                { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor, isNegative: true, className: "text-destructive/60" }
+                { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor, isNegative: true, className: "text-blue-500/60" }
             );
         }
     }
@@ -216,13 +216,13 @@ const DistributionDetail: React.FC<{
             <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções para Lucro Líquido:</p>
 
             <div className="space-y-1 ml-2">
-                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
+                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-blue-500/100" isNegative={true} />
                 {taxDetails.map((item, index) => (
                     <DetailLine 
                         key={`tax-${index}`} 
                         label={`• ${item.name}:`} 
                         value={item.value} 
-                        className={item.className} 
+                        className={cn("text-blue-500/60", item.className)} 
                         isNegative={item.isNegative} 
                         indent={true} 
                     />
@@ -230,13 +230,13 @@ const DistributionDetail: React.FC<{
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
-                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
+                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-blue-500/100" isNegative={true} />
                 {variableDetails.map((item, index) => (
                     <DetailLine 
                         key={`var-${index}`} 
                         label={`• ${item.name}:`} 
                         value={item.value} 
-                        className="text-yellow-500/60" 
+                        className="text-blue-500/60" 
                         isNegative={true} 
                         indent={true} 
                     />
@@ -293,14 +293,6 @@ const ContributionDetail: React.FC<{
     
     const taxDetails = getTaxDetails(summaryDataBestSale, isUnitary, totalInnerUnitsInXML, params);
 
-    // Componente auxiliar para linha de detalhe alinhada
-    const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean; indent?: boolean }> = ({ label, value, className, isNegative = false, indent = false }) => (
-        <div className={cn("flex justify-between", className)}>
-            <span className={cn("flex-1", indent && "ml-4")}>{label}</span>
-            <span className={cn("w-28 text-right", isNegative && "text-destructive", indent && "ml-4")}>{formatCurrency(value)}</span>
-        </div>
-    );
-
     return (
         <div className="mt-2 space-y-1 text-xs font-mono">
              {/* CÁLCULO DA MARGEM (Lucro Bruto s/ Fixo) */}
@@ -321,13 +313,13 @@ const ContributionDetail: React.FC<{
             <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções para Lucro Líquido sem Fixo:</p>
 
             <div className="space-y-1 ml-2">
-                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
+                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-blue-500/100" isNegative={true} />
                 {taxDetails.map((item, index) => (
                     <DetailLine 
                         key={`tax-${index}`} 
                         label={`• ${item.name}:`} 
                         value={item.value} 
-                        className={item.className} 
+                        className={cn("text-blue-500/60", item.className)} 
                         isNegative={item.isNegative} 
                         indent={true} 
                     />
@@ -335,13 +327,13 @@ const ContributionDetail: React.FC<{
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
-                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
+                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-blue-500/100" isNegative={true} />
                 {variableDetails.map((item, index) => (
                     <DetailLine 
                         key={`var-${index}`} 
                         label={`• ${item.name}:`} 
                         value={item.value} 
-                        className="text-yellow-500/60" 
+                        className="text-blue-500/60" 
                         isNegative={true} 
                         indent={true} 
                     />
