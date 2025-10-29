@@ -543,20 +543,22 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           />
         </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="inssPatronalRate">Alíquota INSS Patronal + Terceiros (%)</Label>
-          <Input
-            id="inssPatronalRate"
-            type="number"
-            step="0.01"
-            value={inssPatronalRate}
-            onChange={(e) => setInssPatronalRate(e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            (Contribuição sobre a folha. Ex: 28.8% para Lucro Presumido/Real)
-          </p>
-        </div>
+        {!isSimplesNacional && (
+          <div className="space-y-2">
+            <Label htmlFor="inssPatronalRate">Alíquota INSS Patronal + Terceiros (%)</Label>
+            <Input
+              id="inssPatronalRate"
+              type="number"
+              step="0.01"
+              value={inssPatronalRate}
+              onChange={(e) => setInssPatronalRate(e.target.value)}
+              disabled={disabled}
+            />
+            <p className="text-xs text-muted-foreground">
+              (Contribuição sobre a folha. Ex: 28.8% para Lucro Presumido/Real)
+            </p>
+          </div>
+        )}
 
         <div className="space-y-2">
           <Label htmlFor="totalStockUnits">Estoque Total de Unidades (ETU)</Label>

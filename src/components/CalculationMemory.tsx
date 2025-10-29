@@ -8,7 +8,9 @@ interface CalculationMemoryProps {
 
 export const CalculationMemory = ({ products, params }: CalculationMemoryProps) => {
   // 1. Consolidar Custos Fixos Totais (CFT)
-  const inssPatronalValue = params.payroll * (params.inssPatronalRate / 100);
+  const inssPatronalValue = params.taxRegime !== TaxRegime.SimplesNacional
+    ? params.payroll * (params.inssPatronalRate / 100)
+    : 0;
   const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
 
   // 2. Calcular Custo Fixo por Unidade (CFU)
@@ -138,7 +140,11 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               </>
             )}<br/>
             <strong>Folha de Pagamento:</strong> {formatCurrency(params.payroll)}<br/>
-            <strong>INSS Patronal ({formatPercent(params.inssPatronalRate)}):</strong> {formatCurrency(inssPatronalValue)}<br/>
+            {params.taxRegime !== TaxRegime.SimplesNacional && (
+              <>
+                <strong>INSS Patronal ({formatPercent(params.inssPatronalRate)}):</strong> {formatCurrency(inssPatronalValue)}<br/>
+              </>
+            )}
             <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
             <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
             <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}<br/>
