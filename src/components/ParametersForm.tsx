@@ -52,6 +52,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [irpjRateLucroReal, setIrpjRateLucroReal] = useState<string>("15");
   const [csllRateLucroReal, setCsllRateLucroReal] = useState<string>("9");
   const [payroll, setPayroll] = useState<string>("10000");
+  const [inssPatronalRate, setInssPatronalRate] = useState<string>("28.8");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("5000");
   const [lossPercentage, setLossPercentage] = useState<string>("1");
   
@@ -152,7 +153,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
+    if (!profitMargin || !payroll || !inssPatronalRate || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais, de impostos e de transição.",
       });
@@ -193,6 +194,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       fixedExpenses,
       variableExpenses,
       payroll: parseFloat(payroll),
+      inssPatronalRate: parseFloat(inssPatronalRate),
       totalStockUnits: parseInt(totalStockUnits, 10),
       lossPercentage: parseFloat(lossPercentage),
       taxRegime,
@@ -539,6 +541,21 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             onChange={(e) => setPayroll(e.target.value)}
             disabled={disabled}
           />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="inssPatronalRate">Alíquota INSS Patronal + Terceiros (%)</Label>
+          <Input
+            id="inssPatronalRate"
+            type="number"
+            step="0.01"
+            value={inssPatronalRate}
+            onChange={(e) => setInssPatronalRate(e.target.value)}
+            disabled={disabled}
+          />
+          <p className="text-xs text-muted-foreground">
+            (Contribuição sobre a folha. Ex: 28.8% para Lucro Presumido/Real)
+          </p>
         </div>
 
         <div className="space-y-2">

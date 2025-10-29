@@ -33,6 +33,7 @@ export interface CalculationParams {
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
   payroll: number;
+  inssPatronalRate: number;
   totalStockUnits: number; // Novo: Estoque Total de Unidades para rateio de custos fixos
   lossPercentage: number; // Novo: Porcentagem de perdas e quebras
   

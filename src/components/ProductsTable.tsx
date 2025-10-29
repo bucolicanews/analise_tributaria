@@ -214,7 +214,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
 
   // 2. Consolidar Custos Fixos Totais (CFT)
-  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll;
+  const inssPatronalValue = params.payroll * (params.inssPatronalRate / 100);
+  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
 
   // 3. Calcular Custo Fixo por Unidade (CFU)
   let cfu = 0;
@@ -536,6 +537,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               <br/><strong>Alíquota IS:</strong> {formatPercent(params.selectiveTaxRate)}
             </React.Fragment>
           )}<br/>
+          <strong>Folha de Pagamento:</strong> {formatCurrency(params.payroll)}<br/>
+          <strong>INSS Patronal ({formatPercent(params.inssPatronalRate)}):</strong> {formatCurrency(inssPatronalValue)}<br/>
           <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
           <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
           <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}<br/>
