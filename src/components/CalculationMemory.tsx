@@ -56,6 +56,19 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     totalPercentageForMarkup =
       (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective) / 100;
+  } else if (params.taxRegime === TaxRegime.LucroReal) {
+    const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
+    if (irpjCsllRate < 1) {
+      const profitComponent = (params.profitMargin / 100) / (1 - irpjCsllRate);
+      totalPercentageForMarkup =
+        (totalVariableExpensesPercentage / 100) +
+        (cbsRateEffective / 100) +
+        (ibsRateEffective / 100) +
+        (selectiveTaxRateEffective / 100) +
+        profitComponent;
+    } else {
+      totalPercentageForMarkup = Infinity;
+    }
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
       totalPercentageForMarkup =
@@ -108,6 +121,10 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
               <>
                 <strong>Alíquotas Efetivas:</strong> CBS ({formatPercent(cbsRateEffective)}), IBS ({formatPercent(ibsRateEffective)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)}), IS ({formatPercent(selectiveTaxRateEffective)})
               </>
+            ) : params.taxRegime === TaxRegime.LucroReal ? (
+              <>
+                <strong>Alíquotas Efetivas:</strong> CBS ({formatPercent(cbsRateEffective)}), IBS ({formatPercent(ibsRateEffective)}), IRPJ ({formatPercent(params.irpjRateLucroReal)}), CSLL ({formatPercent(params.csllRateLucroReal)}), IS ({formatPercent(selectiveTaxRateEffective)})
+              </>
             ) : (
               <>
                 <strong>Alíquota Simples:</strong> {formatPercent(params.simplesNacionalRate)}
@@ -131,7 +148,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
         <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive-foreground">
           <p className="font-semibold mb-2">⚠️ Cálculo Inviável para este Produto</p>
           <p>
-            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)} + IVA)` : `Simples Nacional (${formatPercent(params.simplesNacionalRate)})`) : `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(cbsRateEffective)}), IBS (${formatPercent(ibsRateEffective)})`}, Imposto Seletivo ({formatPercent(selectiveTaxRateEffective)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
+            A soma da Margem de Lucro ({formatPercent(params.profitMargin)}), {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples Nacional (${formatPercent(params.simplesNacionalRate)} + IVA)` : `Simples Nacional (${formatPercent(params.simplesNacionalRate)})`) : params.taxRegime === TaxRegime.LucroPresumido ? `IRPJ (${formatPercent(params.irpjRate)}), CSLL (${formatPercent(params.csllRate)}), CBS (${formatPercent(cbsRateEffective)}), IBS (${formatPercent(ibsRateEffective)})` : `CBS (${formatPercent(cbsRateEffective)}), IBS (${formatPercent(ibsRateEffective)})`}, Imposto Seletivo ({formatPercent(selectiveTaxRateEffective)}) e Despesas Variáveis Percentuais ({formatPercent(totalVariableExpensesPercentage)}) é igual ou superior a 100%, ou a porcentagem de perdas e quebras é inviável.
             Isso torna a precificação inviável para este produto com os parâmetros atuais. Ajuste os valores para obter um resultado válido.
           </p>
         </div>
@@ -194,12 +211,25 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
           <div>
             <p className="font-semibold mb-2">5. Markup Divisor (para Preço Sugerido)</p>
-            <p className="ml-4">
-              1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples% + CBS% + IBS%` : `Simples Nacional%`) : `IRPJ% + CSLL% + CBS% + IBS%`} + IS% + Lucro%)
-            </p>
-            <p className="ml-4">
-              1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRate)} + ${formatPercent(cbsRateEffective)} + ${formatPercent(ibsRateEffective)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.irpjRate)} + ${formatPercent(params.csllRate)} + ${formatPercent(cbsRateEffective)} + ${formatPercent(ibsRateEffective)}`} + {formatPercent(selectiveTaxRateEffective)} + {formatPercent(params.profitMargin)})
-            </p>
+            {params.taxRegime === TaxRegime.LucroReal ? (
+              <>
+                <p className="ml-4">
+                  1 - (Despesas Variáveis% + CBS% + IBS% + IS% + (Lucro% / (1 - IRPJ_LR% - CSLL_LR%)))
+                </p>
+                <p className="ml-4">
+                  1 - ({formatPercent(totalVariableExpensesPercentage)} + {formatPercent(cbsRateEffective)} + {formatPercent(ibsRateEffective)} + {formatPercent(selectiveTaxRateEffective)} + ({formatPercent(params.profitMargin)} / (1 - {formatPercent(params.irpjRateLucroReal)} - {formatPercent(params.csllRateLucroReal)})))
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="ml-4">
+                  1 - (Despesas Variáveis% + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `Simples% + CBS% + IBS%` : `Simples Nacional%`) : `IRPJ% + CSLL% + CBS% + IBS%`} + IS% + Lucro%)
+                </p>
+                <p className="ml-4">
+                  1 - ({formatPercent(totalVariableExpensesPercentage)} + {params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? `${formatPercent(params.simplesNacionalRate)} + ${formatPercent(cbsRateEffective)} + ${formatPercent(ibsRateEffective)}` : formatPercent(params.simplesNacionalRate)) : `${formatPercent(params.irpjRate)} + ${formatPercent(params.csllRate)} + ${formatPercent(cbsRateEffective)} + ${formatPercent(ibsRateEffective)}`} + {formatPercent(selectiveTaxRateEffective)} + {formatPercent(params.profitMargin)})
+                </p>
+              </>
+            )}
             <p className="ml-4 font-semibold">
               = {markupDivisor.toFixed(4)}
             </p>
@@ -258,7 +288,7 @@ export const CalculationMemory = ({ products, params }: CalculationMemoryProps) 
 
           <div>
             <p className="font-semibold mb-2">9. Imposto a Pagar (Líquido)</p>
-            {params.taxRegime === TaxRegime.LucroPresumido ? (
+            {(params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) ? (
               <>
                 <p className="ml-4">
                   • CBS a Pagar por Unid. Com.: Débito CBS ({formatCurrency(calculated.cbsDebit)}) - Crédito CBS ({formatCurrency(calculated.cbsCredit)}) = {formatCurrency(calculated.cbsTaxToPay)}

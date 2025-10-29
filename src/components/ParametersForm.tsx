@@ -49,6 +49,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false);
   const [irpjRate, setIrpjRate] = useState<string>("1.2");
   const [csllRate, setCsllRate] = useState<string>("1.08");
+  const [irpjRateLucroReal, setIrpjRateLucroReal] = useState<string>("15");
+  const [csllRateLucroReal, setCsllRateLucroReal] = useState<string>("9");
   const [payroll, setPayroll] = useState<string>("10000");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("5000");
   const [lossPercentage, setLossPercentage] = useState<string>("1");
@@ -93,6 +95,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       const irpj = parseFloat(irpjRate) || 0;
       const csll = parseFloat(csllRate) || 0;
       totalTaxRate = cbs + ibs + irpj + csll + selective;
+    } else if (taxRegime === TaxRegime.LucroReal) {
+      totalTaxRate = cbs + ibs + selective;
+      const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
+      const irpjCsllRate = (parseFloat(irpjRateLucroReal) || 0) / 100 + (parseFloat(csllRateLucroReal) || 0) / 100;
+      return (100 - totalOtherPercentages) * (1 - irpjCsllRate);
     } else { // Simples Nacional
       if (generateIvaCredit) {
         const simples = parseFloat(simplesNacionalRate) || 0;
@@ -107,7 +114,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
     
     return 100 - totalOtherPercentages;
-  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit]);
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit, irpjRateLucroReal, csllRateLucroReal]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
@@ -176,6 +183,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       return;
     }
 
+    if (taxRegime === TaxRegime.LucroReal && (!irpjRateLucroReal || !csllRateLucroReal)) {
+      toast.error("Campos obrigatórios", { description: "Preencha as alíquotas de IRPJ e CSLL para o Lucro Real." });
+      return;
+    }
+
     onCalculate({
       profitMargin: parseFloat(profitMargin),
       fixedExpenses,
@@ -188,6 +200,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       generateIvaCredit,
       irpjRate: parseFloat(irpjRate),
       csllRate: parseFloat(csllRate),
+      irpjRateLucroReal: parseFloat(irpjRateLucroReal),
+      csllRateLucroReal: parseFloat(csllRateLucroReal),
       cbsRate: parseFloat(cbsRate),
       ibsRate: parseFloat(ibsRate),
       selectiveTaxRate: parseFloat(selectiveTaxRate),
@@ -203,11 +217,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   };
 
   const isLucroPresumido = taxRegime === TaxRegime.LucroPresumido;
+  const isLucroReal = taxRegime === TaxRegime.LucroReal;
   const isSimplesNacional = taxRegime === TaxRegime.SimplesNacional;
   const isSimplesHibrido = isSimplesNacional && generateIvaCredit;
-  const showIvaDualRates = isLucroPresumido || isSimplesHibrido;
-  const showCreditControls = isLucroPresumido; // Simples não usa crédito
-  const showSelectiveTaxControls = isLucroPresumido || isSimplesHibrido; // IS é relevante apenas para LP ou Simples Híbrido
+  const showIvaDualRates = isLucroPresumido || isLucroReal || isSimplesHibrido;
+  const showCreditControls = isLucroPresumido || isLucroReal; // Simples não usa crédito
+  const showSelectiveTaxControls = isLucroPresumido || isLucroReal || isSimplesHibrido; // IS é relevante apenas para LP, LR ou Simples Híbrido
 
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
@@ -224,7 +239,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         <Label htmlFor="taxRegime" className="font-bold text-lg">1. Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
-          // Resetar generateIvaCredit se mudar para Lucro Presumido
+          // Resetar generateIvaCredit se mudar para Lucro Presumido/Real
           if (value !== TaxRegime.SimplesNacional) {
             setGenerateIvaCredit(false);
           }
@@ -235,6 +250,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           <SelectContent>
             <SelectItem value={TaxRegime.SimplesNacional}>Simples Nacional</SelectItem>
             <SelectItem value={TaxRegime.LucroPresumido}>Lucro Presumido</SelectItem>
+            <SelectItem value={TaxRegime.LucroReal}>Lucro Real</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -281,7 +297,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           {isLucroPresumido && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="irpj">Alíquota IRPJ (%)</Label>
+                <Label htmlFor="irpj">Alíquota IRPJ (Presumido) (%)</Label>
                 <Input
                   id="irpj"
                   type="number"
@@ -292,13 +308,40 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="csll">Alíquota CSLL (%)</Label>
+                <Label htmlFor="csll">Alíquota CSLL (Presumido) (%)</Label>
                 <Input
                   id="csll"
                   type="number"
                   step="0.01"
                   value={csllRate}
                   onChange={(e) => setCsllRate(e.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+            </>
+          )}
+
+          {isLucroReal && (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="irpjLR">Alíquota IRPJ (Lucro Real) (%)</Label>
+                <Input
+                  id="irpjLR"
+                  type="number"
+                  step="0.01"
+                  value={irpjRateLucroReal}
+                  onChange={(e) => setIrpjRateLucroReal(e.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="csllLR">Alíquota CSLL (Lucro Real) (%)</Label>
+                <Input
+                  id="csllLR"
+                  type="number"
+                  step="0.01"
+                  value={csllRateLucroReal}
+                  onChange={(e) => setCsllRateLucroReal(e.target.value)}
                   disabled={disabled}
                 />
               </div>
@@ -355,7 +398,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        {/* 2.3. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO */}
+        {/* 2.3. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
         {showCreditControls && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
@@ -397,7 +440,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         )}
 
         {/* 2.4. Parâmetros de Transição (Débito - Venda) - Condicional */}
-        {(isLucroPresumido || isSimplesHibrido) && (
+        {(isLucroPresumido || isLucroReal || isSimplesHibrido) && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Débito (Venda)</Label>
             

@@ -125,7 +125,7 @@ const calculateGlobalSummary = (
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
   const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
 
-  // Recalculate total variable expenses ratio including taxes that vary with sales
+  // Recalculate total variable costs ratio including taxes that vary with sales
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
   
   // Aplica os controles de débito nas alíquotas para o cálculo do Markup Divisor
@@ -136,6 +136,9 @@ const calculateGlobalSummary = (
 
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
+  } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
+    // Para o ponto de equilíbrio, o lucro é zero, portanto IRPJ e CSLL são zero.
+    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
       totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
@@ -250,6 +253,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   let calculatedProductsStandard: CalculatedProduct[] = [];
   let calculatedProductsHybrid: CalculatedProduct[] = [];
   let calculatedProductsPresumido: CalculatedProduct[] = [];
+  let calculatedProductsReal: CalculatedProduct[] = [];
 
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     calculatedProductsStandard = productsToCalculate.map((product) =>
@@ -258,8 +262,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     calculatedProductsHybrid = productsToCalculate.map((product) =>
       calculatePricing(product, { ...params, generateIvaCredit: true }, cfu)
     );
-  } else { // Lucro Presumido
+  } else if (params.taxRegime === TaxRegime.LucroPresumido) {
     calculatedProductsPresumido = productsToCalculate.map((product) =>
+      calculatePricing(product, params, cfu)
+    );
+  } else { // Lucro Real
+    calculatedProductsReal = productsToCalculate.map((product) =>
       calculatePricing(product, params, cfu)
     );
   }
@@ -296,8 +304,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   let calculatedProductsForBestSale: CalculatedProduct[];
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     calculatedProductsForBestSale = params.generateIvaCredit ? calculatedProductsHybrid : calculatedProductsStandard;
-  } else {
+  } else if (params.taxRegime === TaxRegime.LucroPresumido) {
     calculatedProductsForBestSale = calculatedProductsPresumido;
+  } else {
+    calculatedProductsForBestSale = calculatedProductsReal;
   }
 
   // Calculate summary for "Best Sale" (with target profit margin)
@@ -481,7 +491,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       <AlertDescription>
         A carga tributária líquida total ({summaryDataBestSale.totalTaxPercent.toFixed(2)}% da Venda) está acima do limite de atenção de {TAX_THRESHOLD}%.
         <br/>
-        <strong>Ação Sugerida:</strong> Verifique se o regime tributário (Lucro Presumido) é o mais vantajoso ou se há créditos de impostos não capturados no XML.
+        <strong>Ação Sugerida:</strong> Verifique se o regime tributário ({params.taxRegime}) é o mais vantajoso ou se há créditos de impostos não capturados no XML.
       </AlertDescription>
     </Alert>
   );
@@ -510,6 +520,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           {params.taxRegime === TaxRegime.LucroPresumido ? (
             <React.Fragment>
               <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)}), IS ({formatPercent(params.selectiveTaxRate)})
+            </React.Fragment>
+          ) : params.taxRegime === TaxRegime.LucroReal ? (
+            <React.Fragment>
+              <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRateLucroReal)}), CSLL ({formatPercent(params.csllRateLucroReal)}), IS ({formatPercent(params.selectiveTaxRate)})
             </React.Fragment>
           ) : (
             <React.Fragment>
@@ -602,7 +616,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  <TableHead colSpan={11} className="text-center">Lucro Presumido</TableHead> {/* 11 colunas */}
+                  <TableHead colSpan={11} className="text-center">{params.taxRegime}</TableHead> {/* 11 colunas */}
                 </React.Fragment>
               )}
             </TableRow>
@@ -627,7 +641,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  {/* Lucro Presumido */}
+                  {/* Lucro Presumido / Real */}
                   <TableHead className="text-right">Créd. CBS</TableHead>
                   <TableHead className="text-right">Créd. IBS</TableHead>
                   <TableHead className="text-right">Déb. CBS</TableHead>
@@ -759,7 +773,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       </React.Fragment>
                     ) : (
                       <React.Fragment>
-                        {/* Lucro Presumido */}
+                        {/* Lucro Presumido / Real */}
                         <TableCell className="text-right font-mono text-sm text-success">
                           {formatCurrency(product.cbsCredit)}
                         </TableCell>
@@ -896,7 +910,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         />
         
         {/* Alerta de Carga Tributária Alta (Lucro Presumido) */}
-        {params.taxRegime === TaxRegime.LucroPresumido && taxAlert}
+        {(params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) && taxAlert}
 
         {/* Alerta de Lucro Negativo */}
         {profitAlert}

@@ -52,6 +52,19 @@ export const calculatePricing = (
     totalPercentageForMarkup =
       (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
       cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+  } else if (params.taxRegime === TaxRegime.LucroReal) {
+    const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
+    if (irpjCsllRate >= 1) {
+      totalPercentageForMarkup = Infinity;
+    } else {
+      const profitComponent = (params.profitMargin / 100) / (1 - irpjCsllRate);
+      totalPercentageForMarkup =
+        (totalVariableExpensesPercentage / 100) +
+        cbsRateEffective +
+        ibsRateEffective +
+        selectiveTaxRateEffective +
+        profitComponent;
+    }
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
       // No Simples Híbrido, o Simples é pago integralmente, e CBS/IBS são pagos por fora (e controlados pelo débito)
@@ -99,6 +112,9 @@ export const calculatePricing = (
     let totalTaxRateForMinPrice = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
+    } else if (params.taxRegime === TaxRegime.LucroReal) {
+      // No preço mínimo (lucro zero), IRPJ e CSLL também são zero.
+      totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else { // Simples Nacional
       if (params.generateIvaCredit) {
         totalTaxRateForMinPrice = (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
@@ -120,6 +136,17 @@ export const calculatePricing = (
       irpjToPay = sellingPrice * (params.irpjRate / 100);
       csllToPay = sellingPrice * (params.csllRate / 100);
       ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
+    } else if (params.taxRegime === TaxRegime.LucroReal) {
+      cbsDebit = sellingPrice * cbsRateEffective;
+      ibsDebit = sellingPrice * ibsRateEffective;
+      
+      const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
+      const netProfit = sellingPrice * (params.profitMargin / 100);
+      const pbt = (irpjCsllRate < 1) ? netProfit / (1 - irpjCsllRate) : 0;
+
+      irpjToPay = pbt * (params.irpjRateLucroReal / 100);
+      csllToPay = pbt * (params.csllRateLucroReal / 100);
+      ivaCreditForClient = cbsDebit + ibsDebit;
     } else { // Simples Nacional
       if (params.generateIvaCredit) { // Simples Nacional Híbrido
         simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
@@ -138,7 +165,7 @@ export const calculatePricing = (
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
+    if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
       taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay;
     } else { // Simples Nacional
       if (params.generateIvaCredit) {

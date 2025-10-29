@@ -1,6 +1,7 @@
 export enum TaxRegime {
   SimplesNacional = "Simples Nacional",
   LucroPresumido = "Lucro Presumido",
+  LucroReal = "Lucro Real",
 }
 
 export interface Product {
@@ -41,6 +42,8 @@ export interface CalculationParams {
   generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
   irpjRate: number; // Alíquota IRPJ para Lucro Presumido
   csllRate: number; // Alíquota CSLL para Lucro Presumido
+  irpjRateLucroReal: number; // Alíquota IRPJ para Lucro Real
+  csllRateLucroReal: number; // Alíquota CSLL para Lucro Real
 
   // Alíquotas de impostos
   cbsRate: number;

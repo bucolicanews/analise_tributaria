@@ -17,6 +17,8 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
   summaryDataMinSale,
   totalOptionCost,
 }) => {
+  const showIvaDetails = params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit);
+
   return (
     <SummarySection title="Impostos">
       <SummaryCard
@@ -38,7 +40,7 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
         description={params.useSelectiveTaxDebit ? undefined : "Desativado na Transição"}
       />
 
-      {params.taxRegime === TaxRegime.LucroPresumido && (
+      {(params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) && (
         <React.Fragment>
           <SummaryCard
             title="IRPJ a Pagar (Alvo)"
@@ -77,7 +79,7 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
         </React.Fragment>
       )}
 
-      {(params.taxRegime === TaxRegime.LucroPresumido || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit)) && (
+      {showIvaDetails && (
         <React.Fragment>
           <SummaryCard
             title="Crédito CBS Total"
