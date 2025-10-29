@@ -127,7 +127,7 @@ const Comparison = () => {
     const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
     const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-    // 2. Calcular os 3 cenários (Simples Nacional Padrão, Lucro Presumido, Lucro Real)
+    // 2. Calcular os 4 cenários
     
     // --- Simples Nacional Padrão (SN) ---
     const paramsSN = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
@@ -135,6 +135,19 @@ const Comparison = () => {
     const summarySN = calculateGlobalSummaryForComparison(
       calculatedProductsSN,
       paramsSN,
+      totalFixedExpenses,
+      totalVariableExpensesPercent,
+      cfu,
+      totalInnerUnitsInXML,
+      params.profitMargin
+    );
+    
+    // --- Simples Nacional Híbrido (SNH) ---
+    const paramsSNH = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
+    const calculatedProductsSNH = productsToCalculate.map(p => calculatePricing(p, paramsSNH, cfu));
+    const summarySNH = calculateGlobalSummaryForComparison(
+      calculatedProductsSNH,
+      paramsSNH,
       totalFixedExpenses,
       totalVariableExpensesPercent,
       cfu,
@@ -171,6 +184,7 @@ const Comparison = () => {
     // --- Determinar o Vencedor (Maior Lucro Líquido Total) ---
     const results = [
       { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },
+      { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Híbrido)", summary: summarySNH, isApplicable: true },
       { regime: TaxRegime.LucroPresumido, label: "Lucro Presumido", summary: summaryLP, isApplicable: true },
       { regime: TaxRegime.LucroReal, label: "Lucro Real", summary: summaryLR, isApplicable: true },
     ];
@@ -236,7 +250,7 @@ const Comparison = () => {
                   <TableHead className="w-[200px]">Métrica</TableHead>
                   {results.map((res) => (
                     <TableHead 
-                      key={res.regime} 
+                      key={res.label} // Usando label como chave, pois o regime pode ser o mesmo (Simples Nacional)
                       className={cn(
                         "text-right font-bold",
                         res === bestResult ? "text-success" : "text-muted-foreground"
@@ -253,7 +267,7 @@ const Comparison = () => {
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Venda Total Sugerida</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className={cn("text-right font-bold", res === bestResult && "text-success")}>
+                    <TableCell key={res.label} className={cn("text-right font-bold", res === bestResult && "text-success")}>
                       {formatCurrency(res.summary.totalSelling)}
                     </TableCell>
                   ))}
@@ -263,7 +277,7 @@ const Comparison = () => {
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-destructive" /> Impostos Líquidos Totais</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className={cn("text-right text-destructive font-bold", res === bestResult && "text-success")}>
+                    <TableCell key={res.label} className={cn("text-right text-destructive font-bold", res === bestResult && "text-success")}>
                       {formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})
                     </TableCell>
                   ))}
@@ -273,7 +287,7 @@ const Comparison = () => {
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-yellow-500" /> Despesas Variáveis Totais</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className={cn("text-right text-yellow-500 font-bold", res === bestResult && "text-success")}>
+                    <TableCell key={res.label} className={cn("text-right text-yellow-500 font-bold", res === bestResult && "text-success")}>
                       {formatCurrency(res.summary.totalVariableExpensesValue)}
                     </TableCell>
                   ))}
@@ -283,7 +297,7 @@ const Comparison = () => {
                 <TableRow className="bg-muted/50">
                   <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-accent" /> Margem de Contribuição Total</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className={cn("text-right text-accent font-bold", res === bestResult && "text-success")}>
+                    <TableCell key={res.label} className={cn("text-right text-accent font-bold", res === bestResult && "text-success")}>
                       {formatCurrency(res.summary.totalContributionMargin)}
                     </TableCell>
                   ))}
@@ -294,7 +308,7 @@ const Comparison = () => {
                   <TableCell className="font-extrabold flex items-center gap-2"><DollarSign className="h-4 w-4 text-success" /> LUCRO LÍQUIDO TOTAL</TableCell>
                   {results.map((res) => (
                     <TableCell 
-                      key={res.regime} 
+                      key={res.label} 
                       className={cn(
                         "text-right text-xl font-extrabold",
                         res.summary.totalProfit < 0 ? "text-destructive" : "text-success"
@@ -309,7 +323,7 @@ const Comparison = () => {
                 <TableRow>
                   <TableCell className="font-semibold">Margem de Lucro Líquida %</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className={cn("text-right font-bold", res.summary.totalProfit < 0 ? "text-destructive" : "text-success")}>
+                    <TableCell key={res.label} className={cn("text-right font-bold", res.summary.totalProfit < 0 ? "text-destructive" : "text-success")}>
                       {formatPercent(res.summary.profitMarginPercent)}
                     </TableCell>
                   ))}
@@ -319,7 +333,7 @@ const Comparison = () => {
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-muted-foreground" /> Ponto de Equilíbrio (Mensal)</TableCell>
                   {results.map((res) => (
-                    <TableCell key={res.regime} className="text-right text-muted-foreground font-bold">
+                    <TableCell key={res.label} className="text-right text-muted-foreground font-bold">
                       {formatCurrency(res.summary.breakEvenPoint)}
                     </TableCell>
                   ))}
@@ -330,13 +344,7 @@ const Comparison = () => {
         </CardContent>
       </Card>
       
-      <Alert variant="default" className="bg-muted/30">
-        <AlertTriangle className="h-4 w-4" />
-        <AlertTitle>Atenção: Simples Nacional Híbrido</AlertTitle>
-        <AlertDescription>
-          O Simples Nacional Híbrido (que gera crédito de IVA) não foi incluído diretamente na comparação principal, pois ele é uma variação do Simples Padrão. Se você deseja compará-lo, selecione-o na aba de Precificação e observe o "Custo da Opção Híbrida" no resumo de Impostos.
-        </AlertDescription>
-      </Alert>
+      {/* Removendo o alerta sobre o Simples Híbrido, pois ele agora está incluído */}
     </div>
   );
 };
