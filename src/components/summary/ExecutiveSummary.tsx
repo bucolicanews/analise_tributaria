@@ -144,6 +144,14 @@ const DistributionDetail: React.FC<{
         return { name: exp.name, value };
     });
 
+    // Componente auxiliar para linha de detalhe alinhada
+    const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean }> = ({ label, value, className, isNegative = false }) => (
+        <div className={cn("flex justify-between", className)}>
+            <span className="flex-1">{label}</span>
+            <span className={cn("w-28 text-right", isNegative && "text-destructive")}>{formatCurrency(value)}</span>
+        </div>
+    );
+
     return (
         <div className="mt-2 space-y-1 text-xs font-mono">
             {/* NOVO DETALHAMENTO DO PONTO DE PARTIDA (Lucro Bruto com Fixo) */}
@@ -151,21 +159,13 @@ const DistributionDetail: React.FC<{
                 CÁLCULO DO PONTO DE PARTIDA (Lucro Bruto c/ Fixo):
             </p>
             <div className="ml-2 space-y-1">
-                <div className="flex justify-between">
-                    <span>Venda Sugerida (Receita Bruta):</span>
-                    <span className="font-semibold text-primary">{formatCurrency(totalSelling)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                    <span>(-) Custo Aquisição Ajustado (s/ Fixo):</span>
-                    <span>{formatCurrency(totalAcquisitionCost)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                    <span>(-) Custo Fixo Rateado (CFU):</span>
-                    <span>{formatCurrency(totalFixedCostContribution)}</span>
-                </div>
+                <DetailLine label="Venda Sugerida (Receita Bruta):" value={totalSelling} className="font-semibold text-primary" />
+                <DetailLine label="(-) Custo Aquisição Ajustado (s/ Fixo):" value={totalAcquisitionCost} className="text-muted-foreground" isNegative={true} />
+                <DetailLine label="(-) Custo Fixo Rateado (CFU):" value={totalFixedCostContribution} className="text-muted-foreground" isNegative={true} />
+                
                 <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalGrossProfitWithFixed < 0 ? "text-destructive" : "text-success")}>
-                    <span>Lucro Bruto com Fixo (Resultado Operacional):</span>
-                    <span>{formatCurrency(totalGrossProfitWithFixed)}</span>
+                    <span className="flex-1">Lucro Bruto com Fixo (Resultado Operacional):</span>
+                    <span className="w-28 text-right">{formatCurrency(totalGrossProfitWithFixed)}</span>
                 </div>
             </div>
 
@@ -174,28 +174,24 @@ const DistributionDetail: React.FC<{
             <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções para Lucro Líquido:</p>
 
             <div className="space-y-1 ml-2">
-                <p className="font-medium text-destructive/80">(-) Impostos Líquidos ({formatCurrency(totalTax)}):</p>
-                {/* REMOVIDO DETALHAMENTO INTERNO DE IMPOSTOS PARA SIMPLIFICAR */}
+                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
-                <p className="font-medium text-yellow-500/80">(-) Despesas Variáveis ({formatCurrency(totalVariableExpensesValue)}):</p>
+                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
                 {variableDetails.map((item, index) => (
-                    <div key={`var-${index}`} className="flex justify-between ml-2 text-yellow-500/60">
-                        <span>• {item.name}:</span>
-                        <span>{formatCurrency(item.value)}</span>
-                    </div>
+                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} />
                 ))}
             </div>
 
             <div className={cn("flex justify-between font-bold pt-3 border-t border-border/50", totalProfit < 0 ? "text-destructive" : "text-success")}>
-                <span>Lucro Líquido Final:</span>
-                <span>{formatCurrency(totalProfit)}</span>
+                <span className="flex-1">Lucro Líquido Final:</span>
+                <span className="w-28 text-right">{formatCurrency(totalProfit)}</span>
             </div>
             
             <div className={cn("flex justify-between font-bold pt-1", totalNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent")}>
-                <span>Margem Contribuição Líquida:</span>
-                <span>{formatCurrency(totalNetProfitWithoutFixed)}</span>
+                <span className="flex-1">Margem Contribuição Líquida:</span>
+                <span className="w-28 text-right">{formatCurrency(totalNetProfitWithoutFixed)}</span>
             </div>
             
             <p className="text-muted-foreground mt-2">
@@ -234,6 +230,14 @@ const ContributionDetail: React.FC<{
         return { name: exp.name, value };
     });
 
+    // Componente auxiliar para linha de detalhe alinhada
+    const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean }> = ({ label, value, className, isNegative = false }) => (
+        <div className={cn("flex justify-between", className)}>
+            <span className="flex-1">{label}</span>
+            <span className={cn("w-28 text-right", isNegative && "text-destructive")}>{formatCurrency(value)}</span>
+        </div>
+    );
+
     return (
         <div className="mt-2 space-y-1 text-xs font-mono">
              {/* NOVO DETALHAMENTO DO PONTO DE PARTIDA (Lucro Bruto sem Fixo) */}
@@ -241,17 +245,12 @@ const ContributionDetail: React.FC<{
                 CÁLCULO DA MARGEM (Lucro Bruto s/ Fixo):
             </p>
             <div className="ml-2 space-y-1">
-                <div className="flex justify-between">
-                    <span>Venda Sugerida (Receita Bruta):</span>
-                    <span className="font-semibold text-primary">{formatCurrency(totalSelling)}</span>
-                </div>
-                <div className="flex justify-between text-muted-foreground">
-                    <span>(-) Custo Aquisição Ajustado:</span>
-                    <span>{formatCurrency(totalAcquisitionCost)}</span>
-                </div>
+                <DetailLine label="Venda Sugerida (Receita Bruta):" value={totalSelling} className="font-semibold text-primary" />
+                <DetailLine label="(-) Custo Aquisição Ajustado:" value={totalAcquisitionCost} className="text-muted-foreground" isNegative={true} />
+                
                 <div className={cn("flex justify-between font-bold pt-1 border-t border-border/50", totalGrossProfitWithoutFixed < 0 ? "text-destructive" : "text-success")}>
-                    <span>Lucro Bruto sem Fixo (Margem Contrib. Bruta):</span>
-                    <span>{formatCurrency(totalGrossProfitWithoutFixed)}</span>
+                    <span className="flex-1">Lucro Bruto sem Fixo (Margem Contrib. Bruta):</span>
+                    <span className="w-28 text-right">{formatCurrency(totalGrossProfitWithoutFixed)}</span>
                 </div>
             </div>
 
@@ -259,23 +258,19 @@ const ContributionDetail: React.FC<{
             <p className="font-semibold mt-3 mb-1 border-t border-border/50 pt-2">Deduções para Lucro Líquido sem Fixo:</p>
 
             <div className="space-y-1 ml-2">
-                <p className="font-medium text-destructive/80">(-) Impostos Líquidos ({formatCurrency(totalTax)}):</p>
-                {/* REMOVIDO DETALHAMENTO INTERNO DE IMPOSTOS PARA SIMPLIFICAR */}
+                <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
-                <p className="font-medium text-yellow-500/80">(-) Despesas Variáveis ({formatCurrency(totalVariableExpensesValue)}):</p>
+                <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
                 {variableDetails.map((item, index) => (
-                    <div key={`var-${index}`} className="flex justify-between ml-2 text-yellow-500/60">
-                        <span>• {item.name}:</span>
-                        <span>{formatCurrency(item.value)}</span>
-                    </div>
+                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} />
                 ))}
             </div>
 
             <div className={cn("flex justify-between font-bold pt-3 border-t border-border/50", totalNetProfitWithoutFixed < 0 ? "text-destructive" : "text-accent")}>
-                <span>Lucro Líquido sem Fixo Final:</span>
-                <span>{formatCurrency(totalNetProfitWithoutFixed)}</span>
+                <span className="flex-1">Lucro Líquido sem Fixo Final:</span>
+                <span className="w-28 text-right">{formatCurrency(totalNetProfitWithoutFixed)}</span>
             </div>
             
             <p className="text-muted-foreground mt-2">
