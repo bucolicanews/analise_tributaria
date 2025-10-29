@@ -5,9 +5,9 @@ export const calculatePricing = (
   params: CalculationParams,
   cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
-  // 1. Créditos (do XML) - por unidade comercial
-  const cbsCredit = product.pisCredit + product.cofinsCredit;
-  const ibsCredit = product.icmsCredit || 0;
+  // 1. Créditos (do XML) - por unidade comercial, respeitando os parâmetros de transição
+  const cbsCredit = params.usePisCofins ? product.pisCredit + product.cofinsCredit : 0;
+  const ibsCredit = (product.icmsCredit || 0) * (params.icmsPercentage / 100);
   const totalCredit = cbsCredit + ibsCredit;
 
   // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)

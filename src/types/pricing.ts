@@ -35,17 +35,21 @@ export interface CalculationParams {
   totalStockUnits: number; // Novo: Estoque Total de Unidades para rateio de custos fixos
   lossPercentage: number; // Novo: Porcentagem de perdas e quebras
   
-  // Novos campos para regimes tributários
+  // Regimes tributários
   taxRegime: TaxRegime;
   simplesNacionalRate: number; // Alíquota total do Simples Nacional (cheia)
   generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
   irpjRate: number; // Alíquota IRPJ para Lucro Presumido
   csllRate: number; // Alíquota CSLL para Lucro Presumido
 
-  // Novas alíquotas de impostos
+  // Alíquotas de impostos
   cbsRate: number;
   ibsRate: number;
   selectiveTaxRate: number;
+
+  // Parâmetros de Transição
+  usePisCofins: boolean;
+  icmsPercentage: number;
 }
 
 export interface CalculatedProduct extends Product {

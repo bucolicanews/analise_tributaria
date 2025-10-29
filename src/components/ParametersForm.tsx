@@ -43,19 +43,23 @@ const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit
 
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
-  const [profitMargin, setProfitMargin] = useState<string>("9.5"); // Default from prompt
-  const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido); // Default from prompt
-  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10"); // Default from prompt (Alíquota Cheia)
-  const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false); // Novo: Flag para gerar crédito IVA
-  const [irpjRate, setIrpjRate] = useState<string>("1.2"); // Default from prompt
-  const [csllRate, setCsllRate] = useState<string>("1.08"); // Default from prompt
+  const [profitMargin, setProfitMargin] = useState<string>("9.5");
+  const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido);
+  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10");
+  const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false);
+  const [irpjRate, setIrpjRate] = useState<string>("1.2");
+  const [csllRate, setCsllRate] = useState<string>("1.08");
   const [payroll, setPayroll] = useState<string>("10000");
-  const [totalStockUnits, setTotalStockUnits] = useState<string>("5000"); // Novo: Estoque Total de Unidades
-  const [lossPercentage, setLossPercentage] = useState<string>("1"); // Novo: Porcentagem de perdas e quebras
+  const [totalStockUnits, setTotalStockUnits] = useState<string>("5000");
+  const [lossPercentage, setLossPercentage] = useState<string>("1");
   
   const [cbsRate, setCbsRate] = useState<string>("8.8");
   const [ibsRate, setIbsRate] = useState<string>("17.7");
   const [selectiveTaxRate, setSelectiveTaxRate] = useState<string>("0");
+
+  // Novos estados para transição
+  const [usePisCofins, setUsePisCofins] = useState<boolean>(true);
+  const [icmsPercentage, setIcmsPercentage] = useState<string>("100");
 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
@@ -92,7 +96,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
     const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
     
-    // Margem Máxima = 100% - (Outras Porcentagens)
     return 100 - totalOtherPercentages;
   }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate]);
 
@@ -132,9 +135,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate) {
+    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage) {
       toast.error("Campos obrigatórios", {
-        description: "Preencha todos os campos principais e de impostos.",
+        description: "Preencha todos os campos principais, de impostos e de transição.",
       });
       return;
     }
@@ -153,19 +156,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       return;
     }
 
-    if (taxRegime === TaxRegime.SimplesNacional) {
-      if (!simplesNacionalRate) {
-        toast.error("Campo obrigatório", {
-          description: "Preencha a Alíquota do Simples Nacional.",
-        });
-        return;
-      }
+    if (taxRegime === TaxRegime.SimplesNacional && !simplesNacionalRate) {
+      toast.error("Campo obrigatório", { description: "Preencha a Alíquota do Simples Nacional." });
+      return;
     }
 
     if (taxRegime === TaxRegime.LucroPresumido && (!irpjRate || !csllRate)) {
-      toast.error("Campos obrigatórios", {
-        description: "Preencha as alíquotas de IRPJ e CSLL.",
-      });
+      toast.error("Campos obrigatórios", { description: "Preencha as alíquotas de IRPJ e CSLL." });
       return;
     }
 
@@ -184,6 +181,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       cbsRate: parseFloat(cbsRate),
       ibsRate: parseFloat(ibsRate),
       selectiveTaxRate: parseFloat(selectiveTaxRate),
+      usePisCofins,
+      icmsPercentage: parseFloat(icmsPercentage),
     });
 
     toast.success("Cálculos realizados com sucesso!");
@@ -191,7 +190,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
-      {/* Botão de Recalcular no Topo */}
       <Button 
         type="submit" 
         className="w-full bg-gradient-primary hover:opacity-90" 
@@ -218,11 +216,41 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         />
       </div>
 
+      <div className="space-y-3 rounded-md border p-4">
+        <Label className="font-semibold">Parâmetros de Transição Tributária</Label>
+        <div className="flex items-center justify-between space-x-2">
+          <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
+            <span>Usar Créditos de PIS/COFINS</span>
+            <span className="font-normal leading-snug text-muted-foreground text-xs">
+              (Desative para simular a extinção)
+            </span>
+          </Label>
+          <Switch
+            id="usePisCofins"
+            checked={usePisCofins}
+            onCheckedChange={setUsePisCofins}
+            disabled={disabled}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
+          <Input
+            id="icmsPercentage"
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            value={icmsPercentage}
+            onChange={(e) => setIcmsPercentage(e.target.value)}
+            disabled={disabled}
+          />
+        </div>
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="taxRegime">Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
-          // Reset generateIvaCredit if not Simples Nacional
           if (value !== TaxRegime.SimplesNacional) {
             setGenerateIvaCredit(false);
           }
@@ -460,7 +488,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         ))}
       </div>
 
-      {/* Botão de Recalcular no Rodapé (mantido) */}
       <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}>
         <Calculator className="h-4 w-4 mr-2" /> Gerar Relatório
       </Button>
