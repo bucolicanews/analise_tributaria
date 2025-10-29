@@ -46,7 +46,52 @@ const formatQuantity = (value: number) => {
     return value.toLocaleString('pt-BR', { maximumFractionDigits: 0 });
 };
 
-// --- COMPONENTES AUXILIARES ---
+// Componente auxiliar para linha de detalhe alinhada
+const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean; indent?: boolean }> = ({ label, value, className, isNegative = false, indent = false }) => (
+    <div className={cn("flex justify-between", indent && "ml-2", className)}>
+        <span className="flex-1">{label}</span>
+        <span className={cn("w-28 text-right", isNegative && "text-destructive")}>{formatCurrency(value)}</span>
+    </div>
+);
+
+// Função para obter detalhes de impostos (totais ou unitários)
+const getTaxDetails = (summary: GlobalSummaryData, isUnitary: boolean, totalInnerUnitsInXML: number, params: CalculationParams) => {
+    const divisor = isUnitary && totalInnerUnitsInXML > 0 ? totalInnerUnitsInXML : 1;
+
+    const details = [];
+
+    if (params.taxRegime === TaxRegime.LucroPresumido) {
+        details.push(
+            { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor },
+            { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor },
+            { name: "IRPJ a Pagar", value: summary.totalIrpjToPay / divisor },
+            { name: "CSLL a Pagar", value: summary.totalCsllToPay / divisor },
+            { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor }
+        );
+    } else if (params.taxRegime === TaxRegime.SimplesNacional) {
+        // Simples Nacional Padrão ou Híbrido sempre paga o Simples
+        details.push(
+            { name: "Simples Nacional", value: summary.totalSimplesToPay / divisor }
+        );
+        
+        if (params.generateIvaCredit) {
+            // Simples Híbrido paga CBS/IBS por fora
+            details.push(
+                { name: "CBS a Pagar", value: summary.totalCbsTaxToPay / divisor },
+                { name: "IBS a Pagar", value: summary.totalIbsTaxToPay / divisor }
+            );
+        }
+        
+        // Imposto Seletivo é pago por fora em ambos os cenários (se a alíquota for > 0)
+        if (params.selectiveTaxRate > 0) {
+             details.push(
+                { name: "Imposto Seletivo", value: summary.totalSelectiveTaxToPay / divisor }
+            );
+        }
+    }
+    return details.filter(d => d.value !== 0);
+};
+
 
 // Card Padrão com Detalhe Expansível
 const SummaryCardWithDetail: React.FC<{ 
@@ -109,7 +154,7 @@ const SummaryCardWithDetail: React.FC<{
 };
 
 
-// Detalhamento de Distribuição (Com Fixo) - DETALHADO E CORRIGIDO
+// Detalhamento de Distribuição (Com Fixo)
 const DistributionDetail: React.FC<{ 
     totalSelling: number;
     totalTax: number; 
@@ -122,7 +167,8 @@ const DistributionDetail: React.FC<{
     totalCost: number;
     totalAcquisitionCost: number;
     totalFixedCostContribution: number;
-    isUnitary: boolean; // Novo: Para controlar se estamos exibindo valores unitários
+    isUnitary: boolean;
+    totalInnerUnitsInXML: number;
 }> = ({ 
     totalSelling, 
     totalTax, 
@@ -136,6 +182,7 @@ const DistributionDetail: React.FC<{
     totalAcquisitionCost,
     totalFixedCostContribution,
     isUnitary,
+    totalInnerUnitsInXML,
 }) => {
     
     // Detalhamento das Despesas Variáveis (sempre por item)
@@ -143,18 +190,12 @@ const DistributionDetail: React.FC<{
         const value = totalSelling * (exp.percentage / 100);
         return { name: exp.name, value };
     });
-
-    // Componente auxiliar para linha de detalhe alinhada
-    const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean }> = ({ label, value, className, isNegative = false }) => (
-        <div className={cn("flex justify-between", className)}>
-            <span className="flex-1">{label}</span>
-            <span className={cn("w-28 text-right", isNegative && "text-destructive")}>{formatCurrency(value)}</span>
-        </div>
-    );
+    
+    const taxDetails = getTaxDetails(summaryDataBestSale, isUnitary, totalInnerUnitsInXML, params);
 
     return (
         <div className="mt-2 space-y-1 text-xs font-mono">
-            {/* NOVO DETALHAMENTO DO PONTO DE PARTIDA (Lucro Bruto com Fixo) */}
+            {/* CÁLCULO DO PONTO DE PARTIDA (Lucro Bruto c/ Fixo) */}
             <p className="font-bold text-foreground mb-2 border-b border-border/50 pb-1">
                 CÁLCULO DO PONTO DE PARTIDA (Lucro Bruto c/ Fixo):
             </p>
@@ -175,12 +216,15 @@ const DistributionDetail: React.FC<{
 
             <div className="space-y-1 ml-2">
                 <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
+                {taxDetails.map((item, index) => (
+                    <DetailLine key={`tax-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-destructive/60" isNegative={true} indent={true} />
+                ))}
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
                 <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
                 {variableDetails.map((item, index) => (
-                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} />
+                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} indent={true} />
                 ))}
             </div>
 
@@ -201,7 +245,7 @@ const DistributionDetail: React.FC<{
     );
 };
 
-// Detalhamento de Margem de Contribuição (Sem Fixo) - DETALHADO E CORRIGIDO
+// Detalhamento de Margem de Contribuição (Sem Fixo)
 const ContributionDetail: React.FC<{ 
     totalSelling: number;
     totalTax: number; 
@@ -212,6 +256,7 @@ const ContributionDetail: React.FC<{
     summaryDataBestSale: GlobalSummaryData;
     totalAcquisitionCost: number;
     isUnitary: boolean; // Novo: Para controlar se estamos exibindo valores unitários
+    totalInnerUnitsInXML: number;
 }> = ({ 
     totalSelling, 
     totalTax, 
@@ -222,6 +267,7 @@ const ContributionDetail: React.FC<{
     summaryDataBestSale,
     totalAcquisitionCost,
     isUnitary,
+    totalInnerUnitsInXML,
 }) => {
     
     // Detalhamento das Despesas Variáveis (sempre por item)
@@ -229,18 +275,12 @@ const ContributionDetail: React.FC<{
         const value = totalSelling * (exp.percentage / 100);
         return { name: exp.name, value };
     });
-
-    // Componente auxiliar para linha de detalhe alinhada
-    const DetailLine: React.FC<{ label: string; value: number; className?: string; isNegative?: boolean }> = ({ label, value, className, isNegative = false }) => (
-        <div className={cn("flex justify-between", className)}>
-            <span className="flex-1">{label}</span>
-            <span className={cn("w-28 text-right", isNegative && "text-destructive")}>{formatCurrency(value)}</span>
-        </div>
-    );
+    
+    const taxDetails = getTaxDetails(summaryDataBestSale, isUnitary, totalInnerUnitsInXML, params);
 
     return (
         <div className="mt-2 space-y-1 text-xs font-mono">
-             {/* NOVO DETALHAMENTO DO PONTO DE PARTIDA (Lucro Bruto sem Fixo) */}
+             {/* CÁLCULO DA MARGEM (Lucro Bruto s/ Fixo) */}
             <p className="font-bold text-foreground mb-2 border-b border-border/50 pb-1">
                 CÁLCULO DA MARGEM (Lucro Bruto s/ Fixo):
             </p>
@@ -259,12 +299,15 @@ const ContributionDetail: React.FC<{
 
             <div className="space-y-1 ml-2">
                 <DetailLine label={`(-) Impostos Líquidos:`} value={totalTax} className="font-medium text-destructive/80" isNegative={true} />
+                {taxDetails.map((item, index) => (
+                    <DetailLine key={`tax-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-destructive/60" isNegative={true} indent={true} />
+                ))}
             </div>
             
             <div className="space-y-1 ml-2 mt-2">
                 <DetailLine label={`(-) Despesas Variáveis:`} value={totalVariableExpensesValue} className="font-medium text-yellow-500/80" isNegative={true} />
                 {variableDetails.map((item, index) => (
-                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} />
+                    <DetailLine key={`var-${index}`} label={`• ${item.name}:`} value={item.value} className="ml-2 text-yellow-500/60" isNegative={true} indent={true} />
                 ))}
             </div>
 
@@ -295,6 +338,7 @@ const DistributionSummaryCardComponent: React.FC<{
     summaryDataBestSale: GlobalSummaryData;
     totalCost: number;
     totalAcquisitionCost: number;
+    totalInnerUnitsInXML: number;
 }> = ({
     title,
     totalSelling,
@@ -309,6 +353,7 @@ const DistributionSummaryCardComponent: React.FC<{
     summaryDataBestSale,
     totalCost,
     totalAcquisitionCost,
+    totalInnerUnitsInXML,
 }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     
@@ -363,6 +408,7 @@ const DistributionSummaryCardComponent: React.FC<{
                             totalAcquisitionCost={totalAcquisitionCost}
                             totalFixedCostContribution={totalFixedCostContribution}
                             isUnitary={isUnitary}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                     </div>
                 )}
@@ -383,6 +429,7 @@ const ContributionSummaryCard: React.FC<{
     totalGrossProfitWithoutFixed: number;
     summaryDataBestSale: GlobalSummaryData;
     totalAcquisitionCost: number;
+    totalInnerUnitsInXML: number;
 }> = ({
     title,
     totalSelling,
@@ -394,6 +441,7 @@ const ContributionSummaryCard: React.FC<{
     totalGrossProfitWithoutFixed,
     summaryDataBestSale,
     totalAcquisitionCost,
+    totalInnerUnitsInXML,
 }) => {
     const [isOpen, setIsOpen] = React.useState(false);
     
@@ -439,6 +487,7 @@ const ContributionSummaryCard: React.FC<{
                             summaryDataBestSale={summaryDataBestSale}
                             totalAcquisitionCost={totalAcquisitionCost}
                             isUnitary={isUnitary}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                     </div>
                 )}
@@ -742,6 +791,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                             summaryDataBestSale={summaryDataBestSale}
                             totalCost={totalCost}
                             totalAcquisitionCost={totalAcquisitionCost}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                         <DistributionSummaryCardComponent
                             title="Lucro Bruto com Fixo (Un)"
@@ -757,6 +807,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                             summaryDataBestSale={summaryDataBestSale}
                             totalCost={unitCost}
                             totalAcquisitionCost={unitAcquisitionCostAdjusted}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                     </div>
                     
@@ -773,6 +824,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                             totalGrossProfitWithoutFixed={totalGrossProfitWithoutFixed}
                             summaryDataBestSale={summaryDataBestSale}
                             totalAcquisitionCost={totalAcquisitionCost}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                         <ContributionSummaryCard
                             title="Lucro Bruto sem Fixo (Un)"
@@ -785,6 +837,7 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
                             totalGrossProfitWithoutFixed={unitGrossProfitWithoutFixed}
                             summaryDataBestSale={summaryDataBestSale}
                             totalAcquisitionCost={unitAcquisitionCostAdjusted}
+                            totalInnerUnitsInXML={totalInnerUnitsInXML}
                         />
                     </div>
 
