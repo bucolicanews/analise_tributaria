@@ -31,6 +31,11 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
         description={`(${summaryDataMinSale.totalTaxPercent.toFixed(2)}% da Venda)`}
         valueClassName="text-destructive"
       />
+      <SummaryCard
+        title="Imposto Seletivo a Pagar (Alvo)"
+        value={summaryDataBestSale.totalSelectiveTaxToPay}
+        valueClassName="text-destructive"
+      />
 
       {params.taxRegime === TaxRegime.LucroPresumido && (
         <React.Fragment>

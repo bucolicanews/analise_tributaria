@@ -8,7 +8,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
-import { calculatePricing, CBS_RATE, IBS_RATE } from "@/lib/pricing";
+import { calculatePricing } from "@/lib/pricing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { SummarySection } from './summary/SummarySection';
@@ -56,6 +56,7 @@ export interface GlobalSummaryData {
   totalIrpjToPay: number;
   totalCsllToPay: number;
   totalSimplesToPay: number;
+  totalSelectiveTaxToPay: number;
   totalIvaCreditForClient: number;
 }
 
@@ -92,6 +93,7 @@ const calculateGlobalSummary = (
     totalIrpjToPay: 0,
     totalCsllToPay: 0,
     totalSimplesToPay: 0,
+    totalSelectiveTaxToPay: 0,
     totalIvaCreditForClient: 0,
   };
 
@@ -117,6 +119,7 @@ const calculateGlobalSummary = (
   const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
   const totalCsllToPaySum = productsToSummarize.reduce((sum, p) => sum + p.csllToPay * p.quantity, 0);
   const totalSimplesToPaySum = productsToSummarize.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
+  const totalSelectiveTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
   const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
 
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
@@ -124,13 +127,17 @@ const calculateGlobalSummary = (
 
   // Recalculate total variable expenses ratio including taxes that vary with sales
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
+  const cbsRate = currentParams.cbsRate / 100;
+  const ibsRate = currentParams.ibsRate / 100;
+  const selectiveTaxRate = currentParams.selectiveTaxRate / 100;
+
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    totalVariableCostsRatio += CBS_RATE + IBS_RATE + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100);
+    totalVariableCostsRatio += cbsRate + ibsRate + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRate;
   } else { // Simples Nacional
     if (currentParams.generateIvaCredit) {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRemanescenteRate / 100) + CBS_RATE + IBS_RATE;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRemanescenteRate / 100) + cbsRate + ibsRate + selectiveTaxRate;
     } else {
-      totalVariableCostsRatio += currentParams.simplesNacionalRate / 100;
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRate;
     }
   }
 
@@ -159,6 +166,7 @@ const calculateGlobalSummary = (
     totalIrpjToPay: totalIrpjToPaySum,
     totalCsllToPay: totalCsllToPaySum,
     totalSimplesToPay: totalSimplesToPaySum,
+    totalSelectiveTaxToPay: totalSelectiveTaxToPaySum,
     totalIvaCreditForClient: totalIvaCreditForClientSum,
   };
 };
@@ -488,7 +496,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
           <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
           {params.taxRegime === TaxRegime.LucroPresumido ? (
             <React.Fragment>
-              <strong>Alíquotas:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)})
+              <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)}), IS ({formatPercent(params.selectiveTaxRate)})
             </React.Fragment>
           ) : (
             <React.Fragment>
@@ -496,9 +504,10 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               {params.generateIvaCredit && (
                 <React.Fragment>
                   <br/><strong>Alíquota Remanescente Simples:</strong> {formatPercent(params.simplesNacionalRemanescenteRate)}
-                  <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(CBS_RATE * 100)}), IBS ({formatPercent(IBS_RATE * 100)})
+                  <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)})
                 </React.Fragment>
               )}
+              <br/><strong>Alíquota IS:</strong> {formatPercent(params.selectiveTaxRate)}
             </React.Fragment>
           )}<br/>
           <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>

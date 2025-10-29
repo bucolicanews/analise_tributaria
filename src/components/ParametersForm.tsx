@@ -6,8 +6,7 @@ import { Label } from "@/components/ui/label";
 import { CalculationParams, FixedExpense, VariableExpense, TaxRegime } from "@/types/pricing";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch"; // Import Switch component
-import { CBS_RATE, IBS_RATE } from "@/lib/pricing"; // Importando as alíquotas fixas
+import { Switch } from "@/components/ui/switch";
 
 interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
@@ -55,6 +54,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [totalStockUnits, setTotalStockUnits] = useState<string>("5000"); // Novo: Estoque Total de Unidades
   const [lossPercentage, setLossPercentage] = useState<string>("1"); // Novo: Porcentagem de perdas e quebras
   
+  const [cbsRate, setCbsRate] = useState<string>("8.8");
+  const [ibsRate, setIbsRate] = useState<string>("17.7");
+  const [selectiveTaxRate, setSelectiveTaxRate] = useState<string>("0");
+
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
   ]);
@@ -71,17 +74,20 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     );
     
     let totalTaxRate = 0;
+    const cbs = parseFloat(cbsRate) || 0;
+    const ibs = parseFloat(ibsRate) || 0;
+    const selective = parseFloat(selectiveTaxRate) || 0;
 
     if (taxRegime === TaxRegime.LucroPresumido) {
       const irpj = parseFloat(irpjRate) || 0;
       const csll = parseFloat(csllRate) || 0;
-      totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
+      totalTaxRate = cbs + ibs + irpj + csll + selective;
     } else { // Simples Nacional
       if (generateIvaCredit) {
         const simplesRemanescente = parseFloat(simplesNacionalRemanescenteRate) || 0;
-        totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
+        totalTaxRate = simplesRemanescente + cbs + ibs + selective;
       } else {
-        totalTaxRate = parseFloat(simplesNacionalRate) || 0;
+        totalTaxRate = (parseFloat(simplesNacionalRate) || 0) + selective;
       }
     }
 
@@ -89,7 +95,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     
     // Margem Máxima = 100% - (Outras Porcentagens)
     return 100 - totalOtherPercentages;
-  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, simplesNacionalRemanescenteRate]);
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, simplesNacionalRemanescenteRate, cbsRate, ibsRate, selectiveTaxRate]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
@@ -127,9 +133,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage) {
+    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate) {
       toast.error("Campos obrigatórios", {
-        description: "Preencha todos os campos principais.",
+        description: "Preencha todos os campos principais e de impostos.",
       });
       return;
     }
@@ -179,10 +185,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       lossPercentage: parseFloat(lossPercentage),
       taxRegime,
       simplesNacionalRate: parseFloat(simplesNacionalRate),
-      simplesNacionalRemanescenteRate: parseFloat(simplesNacionalRemanescenteRate), // Novo
-      generateIvaCredit, // Novo
+      simplesNacionalRemanescenteRate: parseFloat(simplesNacionalRemanescenteRate),
+      generateIvaCredit,
       irpjRate: parseFloat(irpjRate),
       csllRate: parseFloat(csllRate),
+      cbsRate: parseFloat(cbsRate),
+      ibsRate: parseFloat(ibsRate),
+      selectiveTaxRate: parseFloat(selectiveTaxRate),
     });
 
     toast.success("Cálculos realizados com sucesso!");
@@ -308,6 +317,50 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         </>
       )}
+
+      <div className="space-y-3 rounded-md border p-4">
+        <Label className="font-semibold">IVA Dual (CBS/IBS)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="cbsRate">Alíquota CBS (%)</Label>
+          <Input
+            id="cbsRate"
+            type="number"
+            step="0.01"
+            value={cbsRate}
+            onChange={(e) => setCbsRate(e.target.value)}
+            disabled={disabled}
+          />
+          <p className="text-xs text-muted-foreground">(Substitui PIS/COFINS)</p>
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="ibsRate">Alíquota IBS (%)</Label>
+          <Input
+            id="ibsRate"
+            type="number"
+            step="0.01"
+            value={ibsRate}
+            onChange={(e) => setIbsRate(e.target.value)}
+            disabled={disabled}
+          />
+          <p className="text-xs text-muted-foreground">(Substitui ICMS/ISS)</p>
+        </div>
+      </div>
+
+      <div className="space-y-3 rounded-md border p-4">
+        <Label className="font-semibold">Imposto Seletivo (IS)</Label>
+        <div className="space-y-2">
+          <Label htmlFor="selectiveTaxRate">Alíquota Imposto Seletivo (%)</Label>
+          <Input
+            id="selectiveTaxRate"
+            type="number"
+            step="0.01"
+            value={selectiveTaxRate}
+            onChange={(e) => setSelectiveTaxRate(e.target.value)}
+            disabled={disabled}
+          />
+          <p className="text-xs text-muted-foreground">(Incide sobre produtos prejudiciais à saúde/meio ambiente, similar ao IPI)</p>
+        </div>
+      </div>
 
       <div className="space-y-2">
         <Label htmlFor="payroll">Folha de Pagamento (R$)</Label>

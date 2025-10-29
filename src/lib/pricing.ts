@@ -1,8 +1,5 @@
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 
-export const CBS_RATE = 0.088; // 8.8%
-export const IBS_RATE = 0.177; // 17.7%
-
 export const calculatePricing = (
   product: Product,
   params: CalculationParams,
@@ -38,20 +35,26 @@ export const calculatePricing = (
   let simplesToPay = 0;
   let cbsDebit = 0;
   let ibsDebit = 0;
+  let selectiveTaxToPay = 0;
   let ivaCreditForClient = 0; // Novo: Crédito de IVA para o cliente
+
+  const cbsRate = params.cbsRate / 100;
+  const ibsRate = params.ibsRate / 100;
+  const selectiveTaxRate = params.selectiveTaxRate / 100;
 
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     totalPercentageForMarkup =
       (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
-      CBS_RATE + IBS_RATE;
+      cbsRate + ibsRate + selectiveTaxRate;
   } else { // Simples Nacional
     if (params.generateIvaCredit) { // Simples Nacional Híbrido (gera crédito de IVA)
       totalPercentageForMarkup =
         (totalVariableExpensesPercentage + params.simplesNacionalRemanescenteRate + params.profitMargin) / 100 +
-        CBS_RATE + IBS_RATE;
+        cbsRate + ibsRate + selectiveTaxRate;
     } else { // Simples Nacional Padrão (não gera crédito de IVA)
       totalPercentageForMarkup =
-        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100;
+        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
+        selectiveTaxRate;
     }
   }
 
@@ -84,29 +87,30 @@ export const calculatePricing = (
     // 8. Menor valor a ser vendido (cobre custo de compra + despesas variáveis + impostos diretos) - por unidade comercial
     let minSellingDivisor = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + CBS_RATE + IBS_RATE);
+      minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + cbsRate + ibsRate + selectiveTaxRate);
     } else { // Simples Nacional
       if (params.generateIvaCredit) {
-        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRemanescenteRate / 100 + CBS_RATE + IBS_RATE);
+        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRemanescenteRate / 100 + cbsRate + ibsRate + selectiveTaxRate);
       } else {
-        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100);
+        minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + params.simplesNacionalRate / 100 + selectiveTaxRate);
       }
     }
     
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
     // 9. Débitos na venda - por unidade comercial (calculados com base no sellingPrice final)
+    selectiveTaxToPay = sellingPrice * selectiveTaxRate;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      cbsDebit = sellingPrice * CBS_RATE;
-      ibsDebit = sellingPrice * IBS_RATE;
+      cbsDebit = sellingPrice * cbsRate;
+      ibsDebit = sellingPrice * ibsRate;
       irpjToPay = sellingPrice * (params.irpjRate / 100);
       csllToPay = sellingPrice * (params.csllRate / 100);
       ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
     } else { // Simples Nacional
       if (params.generateIvaCredit) { // Simples Nacional Híbrido
         simplesToPay = sellingPrice * (params.simplesNacionalRemanescenteRate / 100);
-        cbsDebit = sellingPrice * CBS_RATE;
-        ibsDebit = sellingPrice * IBS_RATE;
+        cbsDebit = sellingPrice * cbsRate;
+        ibsDebit = sellingPrice * ibsRate;
         ivaCreditForClient = cbsDebit + ibsDebit; // Crédito de IVA para o cliente
       } else { // Simples Nacional Padrão
         simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
@@ -121,12 +125,12 @@ export const calculatePricing = (
     ibsTaxToPay = ibsDebit - ibsCredit;
     
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay;
+      taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay;
     } else { // Simples Nacional
       if (params.generateIvaCredit) {
-        taxToPay = simplesToPay + cbsTaxToPay + ibsTaxToPay;
+        taxToPay = simplesToPay + cbsTaxToPay + ibsTaxToPay + selectiveTaxToPay;
       } else {
-        taxToPay = simplesToPay;
+        taxToPay = simplesToPay + selectiveTaxToPay;
       }
     }
 
@@ -160,6 +164,7 @@ export const calculatePricing = (
   const csllToPayPerInnerUnit = csllToPay / innerQty;
   const simplesToPayPerInnerUnit = simplesToPay / innerQty;
   const taxToPayPerInnerUnit = taxToPay / innerQty;
+  const selectiveTaxToPayPerInnerUnit = selectiveTaxToPay / innerQty;
 
 
   return {
@@ -177,6 +182,7 @@ export const calculatePricing = (
     irpjToPay: Math.max(0, irpjToPay),
     csllToPay: Math.max(0, csllToPay),
     simplesToPay: Math.max(0, simplesToPay),
+    selectiveTaxToPay: Math.max(0, selectiveTaxToPay),
     markupPercentage,
     cfop: product.cfop || "5102",
     cst: product.cst || "101",
@@ -205,5 +211,6 @@ export const calculatePricing = (
     irpjToPayPerInnerUnit: Math.max(0, irpjToPayPerInnerUnit),
     csllToPayPerInnerUnit: Math.max(0, csllToPayPerInnerUnit),
     simplesToPayPerInnerUnit: Math.max(0, simplesToPayPerInnerUnit),
+    selectiveTaxToPayPerInnerUnit: Math.max(0, selectiveTaxToPayPerInnerUnit),
   };
 };

@@ -4,7 +4,6 @@ import { GlobalSummaryData } from '../ProductsTable';
 import { cn } from '@/lib/utils';
 import { DollarSign, TrendingUp, Package, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { CalculationParams, TaxRegime } from '@/types/pricing';
-import { CBS_RATE, IBS_RATE } from '@/lib/pricing';
 
 // --- INTERFACES LOCAIS (CUMPRINDO O QUE FOI FORNECIDO) ---
 interface CumpData {
@@ -143,17 +142,22 @@ const DistributionDetail: React.FC<{
             { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
             { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
             { name: "IRPJ a Pagar", value: summaryDataBestSale.totalIrpjToPay },
-            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay }
+            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay },
+            { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
         );
     } else if (params.taxRegime === TaxRegime.SimplesNacional) {
         if (params.generateIvaCredit) {
             taxDetails.push(
                 { name: "Simples Remanescente", value: summaryDataBestSale.totalSimplesToPay },
                 { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay }
+                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
+                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
             );
         } else {
-            taxDetails.push({ name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay });
+            taxDetails.push(
+                { name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay },
+                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
+            );
         }
     }
     
@@ -256,17 +260,22 @@ const ContributionDetail: React.FC<{
             { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
             { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
             { name: "IRPJ a Pagar", value: summaryDataBestSale.totalIrpjToPay },
-            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay }
+            { name: "CSLL a Pagar", value: summaryDataBestSale.totalCsllToPay },
+            { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
         );
     } else if (params.taxRegime === TaxRegime.SimplesNacional) {
         if (params.generateIvaCredit) {
             taxDetails.push(
                 { name: "Simples Remanescente", value: summaryDataBestSale.totalSimplesToPay },
                 { name: "CBS a Pagar", value: summaryDataBestSale.totalCbsTaxToPay },
-                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay }
+                { name: "IBS a Pagar", value: summaryDataBestSale.totalIbsTaxToPay },
+                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
             );
         } else {
-            taxDetails.push({ name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay });
+            taxDetails.push(
+                { name: "Simples Nacional Cheio", value: summaryDataBestSale.totalSimplesToPay },
+                { name: "Imposto Seletivo", value: summaryDataBestSale.totalSelectiveTaxToPay }
+            );
         }
     }
     
@@ -525,13 +534,13 @@ export const ExecutiveSummary: React.FC<ExecutiveSummaryProps> = ({
     if (params.taxRegime === TaxRegime.LucroPresumido) {
         const irpj = params.irpjRate || 0;
         const csll = params.csllRate || 0;
-        totalTaxRate = (CBS_RATE * 100) + (IBS_RATE * 100) + irpj + csll;
+        totalTaxRate = params.cbsRate + params.ibsRate + irpj + csll + params.selectiveTaxRate;
     } else { // Simples Nacional
         if (params.generateIvaCredit) {
             const simplesRemanescente = params.simplesNacionalRemanescenteRate || 0;
-            totalTaxRate = simplesRemanescente + (CBS_RATE * 100) + (IBS_RATE * 100);
+            totalTaxRate = simplesRemanescente + params.cbsRate + params.ibsRate + params.selectiveTaxRate;
         } else {
-            totalTaxRate = params.simplesNacionalRate || 0;
+            totalTaxRate = (params.simplesNacionalRate || 0) + params.selectiveTaxRate;
         }
     }
     

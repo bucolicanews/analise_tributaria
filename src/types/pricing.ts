@@ -42,6 +42,11 @@ export interface CalculationParams {
   generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
   irpjRate: number; // Alíquota IRPJ para Lucro Presumido
   csllRate: number; // Alíquota CSLL para Lucro Presumido
+
+  // Novas alíquotas de impostos
+  cbsRate: number;
+  ibsRate: number;
+  selectiveTaxRate: number;
 }
 
 export interface CalculatedProduct extends Product {
@@ -59,6 +64,7 @@ export interface CalculatedProduct extends Product {
   irpjToPay: number; // Novo: IRPJ a pagar
   csllToPay: number; // Novo: CSLL a pagar
   simplesToPay: number; // Novo: Simples Nacional a pagar
+  selectiveTaxToPay: number; // Imposto Seletivo a pagar
   markupPercentage: number;
 
   // Novos campos: Detalhamento do Preço de Venda (por Unidade Comercial)
@@ -84,6 +90,7 @@ export interface CalculatedProduct extends Product {
   irpjToPayPerInnerUnit: number;
   csllToPayPerInnerUnit: number;
   simplesToPayPerInnerUnit: number;
+  selectiveTaxToPayPerInnerUnit: number; // Imposto Seletivo por unidade interna
 
   cfop: string;
   cst: string;
