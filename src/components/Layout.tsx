@@ -9,7 +9,7 @@ interface LayoutProps {
 }
 
 const navItems = [
-  { to: '/', label: 'Análise de Precificação', icon: Upload },
+  { to: '/', label: 'Análise do Regime Tributário', icon: Upload },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
 ];
 
@@ -27,9 +27,9 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <img src="/jota-contabilidade-logo.png" alt="Jota Contabilidade Logo" className="h-12 w-12" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-black">JOTA - Análise Reforma Tributária</h1>
+                <h1 className="text-2xl font-bold text-black">JOTA - Análise Tributária Lei 214/2025</h1>
                 <p className="text-xs text-black/70">
-                  Sistema Inteligente de Precificação
+                  Sistema Inteligente de Análise Tributária
                 </p>
               </div>
             </div>
