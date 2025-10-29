@@ -202,6 +202,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     toast.success("Cálculos realizados com sucesso!");
   };
 
+  const isLucroPresumido = taxRegime === TaxRegime.LucroPresumido;
+  const isSimplesNacional = taxRegime === TaxRegime.SimplesNacional;
+  const isSimplesHibrido = isSimplesNacional && generateIvaCredit;
+  const showIvaDualRates = isLucroPresumido || isSimplesHibrido;
+  const showCreditControls = isLucroPresumido; // Simples não usa crédito
+
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
       <Button 
@@ -217,6 +223,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         <Label htmlFor="taxRegime" className="font-bold text-lg">1. Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
+          // Resetar generateIvaCredit se mudar para Lucro Presumido
           if (value !== TaxRegime.SimplesNacional) {
             setGenerateIvaCredit(false);
           }
@@ -390,7 +397,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         <div className="space-y-3 rounded-md border p-4">
           <Label className="font-semibold">Alíquotas do Regime</Label>
           
-          {taxRegime === TaxRegime.SimplesNacional && (
+          {isSimplesNacional && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="simples">Alíquota Simples Nacional (%)</Label>
@@ -421,7 +428,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             </>
           )}
 
-          {taxRegime === TaxRegime.LucroPresumido && (
+          {isLucroPresumido && (
             <>
               <div className="space-y-2">
                 <Label htmlFor="irpj">Alíquota IRPJ (%)</Label>
@@ -450,7 +457,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         </div>
 
         {/* 5.2. IVA Dual (CBS/IBS) e Imposto Seletivo (IS) - Condicional */}
-        {(taxRegime === TaxRegime.LucroPresumido || (taxRegime === TaxRegime.SimplesNacional && generateIvaCredit)) && (
+        {showIvaDualRates && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Alíquotas IVA Dual (CBS/IBS)</Label>
             <div className="space-y-2">
@@ -496,99 +503,124 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         </div>
 
-        {/* 5.3. Parâmetros de Transição (Crédito - Entrada) */}
-        <div className="space-y-3 rounded-md border p-4">
-          <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
-          
-          {/* Controle de Crédito PIS/COFINS (Entrada) */}
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
-              <span>Usar Créditos de PIS/COFINS (Entrada)</span>
-              <span className="font-normal leading-snug text-muted-foreground text-xs">
-                (Simula a manutenção do crédito PIS/COFINS na transição)
-              </span>
-            </Label>
-            <Switch
-              id="usePisCofins"
-              checked={usePisCofins}
-              onCheckedChange={setUsePisCofins}
-              disabled={disabled}
-            />
+        {/* 5.3. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO */}
+        {showCreditControls && (
+          <div className="space-y-3 rounded-md border p-4">
+            <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
+            
+            {/* Controle de Crédito PIS/COFINS (Entrada) */}
+            <div className="flex items-center justify-between space-x-2">
+              <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
+                <span>Usar Créditos de PIS/COFINS (Entrada)</span>
+                <span className="font-normal leading-snug text-muted-foreground text-xs">
+                  (Simula a manutenção do crédito PIS/COFINS na transição)
+                </span>
+              </Label>
+              <Switch
+                id="usePisCofins"
+                checked={usePisCofins}
+                onCheckedChange={setUsePisCofins}
+                disabled={disabled}
+              />
+            </div>
+            
+            {/* Controle de Crédito ICMS (Entrada) */}
+            <div className="space-y-2">
+              <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
+              <Input
+                id="icmsPercentage"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={icmsPercentage}
+                onChange={(e) => setIcmsPercentage(e.target.value)}
+                disabled={disabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                (Simula a manutenção do crédito ICMS na transição)
+              </p>
+            </div>
           </div>
-          
-          {/* Controle de Crédito ICMS (Entrada) */}
-          <div className="space-y-2">
-            <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
-            <Input
-              id="icmsPercentage"
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              value={icmsPercentage}
-              onChange={(e) => setIcmsPercentage(e.target.value)}
-              disabled={disabled}
-            />
-            <p className="text-xs text-muted-foreground">
-              (Simula a manutenção do crédito ICMS na transição)
-            </p>
-          </div>
-        </div>
+        )}
 
-        {/* 5.4. Parâmetros de Transição (Débito - Venda) */}
-        <div className="space-y-3 rounded-md border p-4">
-          <Label className="font-semibold">Controles de Débito (Venda)</Label>
-          
-          {/* Controle de Débito IPI/IS (Venda) */}
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
-              <span>Calcular Imposto Seletivo (IPI/IS)</span>
-              <span className="font-normal leading-snug text-muted-foreground text-xs">
-                (Desative para simular a extinção do IPI/IS na venda)
-              </span>
-            </Label>
-            <Switch
-              id="useSelectiveTaxDebit"
-              checked={useSelectiveTaxDebit}
-              onCheckedChange={setUseSelectiveTaxDebit}
-              disabled={disabled}
-            />
-          </div>
+        {/* 5.4. Parâmetros de Transição (Débito - Venda) - Condicional */}
+        {(isLucroPresumido || isSimplesHibrido) && (
+          <div className="space-y-3 rounded-md border p-4">
+            <Label className="font-semibold">Controles de Débito (Venda)</Label>
+            
+            {/* Controle de Débito IPI/IS (Venda) */}
+            <div className="flex items-center justify-between space-x-2">
+              <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
+                <span>Calcular Imposto Seletivo (IPI/IS)</span>
+                <span className="font-normal leading-snug text-muted-foreground text-xs">
+                  (Desative para simular a extinção do IPI/IS na venda)
+                </span>
+              </Label>
+              <Switch
+                id="useSelectiveTaxDebit"
+                checked={useSelectiveTaxDebit}
+                onCheckedChange={setUseSelectiveTaxDebit}
+                disabled={disabled}
+              />
+            </div>
 
-          {/* Controle de Débito PIS/COFINS/CBS (Venda) */}
-          <div className="flex items-center justify-between space-x-2">
-            <Label htmlFor="useCbsDebit" className="flex flex-col space-y-1">
-              <span>Calcular CBS (PIS/COFINS)</span>
-              <span className="font-normal leading-snug text-muted-foreground text-xs">
-                (Desative para simular a extinção do PIS/COFINS/CBS na venda)
-              </span>
-            </Label>
-            <Switch
-              id="useCbsDebit"
-              checked={useCbsDebit}
-              onCheckedChange={setUseCbsDebit}
-              disabled={disabled}
-            />
-          </div>
+            {/* Controle de Débito PIS/COFINS/CBS (Venda) */}
+            <div className="flex items-center justify-between space-x-2">
+              <Label htmlFor="useCbsDebit" className="flex flex-col space-y-1">
+                <span>Calcular CBS (PIS/COFINS)</span>
+                <span className="font-normal leading-snug text-muted-foreground text-xs">
+                  (Desative para simular a extinção do PIS/COFINS/CBS na venda)
+                </span>
+              </Label>
+              <Switch
+                id="useCbsDebit"
+                checked={useCbsDebit}
+                onCheckedChange={setUseCbsDebit}
+                disabled={disabled}
+              />
+            </div>
 
-          {/* Controle de Débito ICMS/ISS/IBS (Venda) */}
-          <div className="space-y-2">
-            <Label htmlFor="ibsDebitPercentage">Percentual de Débito IBS a ser considerado (%)</Label>
-            <Input
-              id="ibsDebitPercentage"
-              type="number"
-              step="1"
-              min="0"
-              max="100"
-              value={ibsDebitPercentage}
-              onChange={(e) => setIbsDebitPercentage(e.target.value)}
-              disabled={disabled}
-            />
-            <p className="text-xs text-muted-foreground">
-              (Simula a redução gradual do ICMS/ISS e o aumento do IBS na venda, começando em 100%)
-            </p>
+            {/* Controle de Débito ICMS/ISS/IBS (Venda) */}
+            <div className="space-y-2">
+              <Label htmlFor="ibsDebitPercentage">Percentual de Débito IBS a ser considerado (%)</Label>
+              <Input
+                id="ibsDebitPercentage"
+                type="number"
+                step="1"
+                min="0"
+                max="100"
+                value={ibsDebitPercentage}
+                onChange={(e) => setIbsDebitPercentage(e.target.value)}
+                disabled={disabled}
+              />
+              <p className="text-xs text-muted-foreground">
+                (Simula a redução gradual do ICMS/ISS e o aumento do IBS na venda, começando em 100%)
+              </p>
+            </div>
           </div>
-        </div>
+        )}
+        
+        {/* Se for Simples Padrão, só mostra o controle de Imposto Seletivo */}
+        {(isSimplesNacional && !isSimplesHibrido) && (
+          <div className="space-y-3 rounded-md border p-4">
+            <Label className="font-semibold">Controles de Débito (Venda)</Label>
+            <div className="flex items-center justify-between space-x-2">
+              <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
+                <span>Calcular Imposto Seletivo (IPI/IS)</span>
+                <span className="font-normal leading-snug text-muted-foreground text-xs">
+                  (Desative para simular a extinção do IPI/IS na venda)
+                </span>
+              </Label>
+              <Switch
+                id="useSelectiveTaxDebit"
+                checked={useSelectiveTaxDebit}
+                onCheckedChange={setUseSelectiveTaxDebit}
+                disabled={disabled}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}>
