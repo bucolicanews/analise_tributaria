@@ -207,6 +207,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const isSimplesHibrido = isSimplesNacional && generateIvaCredit;
   const showIvaDualRates = isLucroPresumido || isSimplesHibrido;
   const showCreditControls = isLucroPresumido; // Simples não usa crédito
+  const showSelectiveTaxControls = isLucroPresumido || isSimplesHibrido; // IS é relevante apenas para LP ou Simples Híbrido
 
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
@@ -336,21 +337,23 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        <div className="space-y-3 rounded-md border p-4">
-          <Label className="font-semibold">Imposto Seletivo (IS)</Label>
-          <div className="space-y-2">
-            <Label htmlFor="selectiveTaxRate">Alíquota Imposto Seletivo (%)</Label>
-            <Input
-              id="selectiveTaxRate"
-              type="number"
-              step="0.01"
-              value={selectiveTaxRate}
-              onChange={(e) => setSelectiveTaxRate(e.target.value)}
-              disabled={disabled}
-            />
-            <p className="text-xs text-muted-foreground">(Incide sobre produtos prejudiciais à saúde/meio ambiente, similar ao IPI)</p>
+        {showSelectiveTaxControls && (
+          <div className="space-y-3 rounded-md border p-4">
+            <Label className="font-semibold">Imposto Seletivo (IS)</Label>
+            <div className="space-y-2">
+              <Label htmlFor="selectiveTaxRate">Alíquota Imposto Seletivo (%)</Label>
+              <Input
+                id="selectiveTaxRate"
+                type="number"
+                step="0.01"
+                value={selectiveTaxRate}
+                onChange={(e) => setSelectiveTaxRate(e.target.value)}
+                disabled={disabled}
+              />
+              <p className="text-xs text-muted-foreground">(Incide sobre produtos prejudiciais à saúde/meio ambiente, similar ao IPI)</p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* 2.3. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO */}
         {showCreditControls && (
@@ -450,24 +453,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
         
-        {/* Se for Simples Padrão, só mostra o controle de Imposto Seletivo */}
-        {(isSimplesNacional && !isSimplesHibrido) && (
-          <div className="space-y-3 rounded-md border p-4">
-            <Label className="font-semibold">Controles de Débito (Venda)</Label>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
-                <span>Calcular Imposto Seletivo (IPI/IS)</span>
-                <span className="font-normal leading-snug text-muted-foreground text-xs">
-                  (Desative para simular a extinção do IPI/IS na venda)
-                </span>
-              </Label>
-              <Switch
-                id="useSelectiveTaxDebit"
-                checked={useSelectiveTaxDebit}
-                onCheckedChange={setUseSelectiveTaxDebit}
-                disabled={disabled}
-              />
-            </div>
+        {/* Se for Simples Padrão, não mostra controles de débito de IVA/IS */}
+        {isSimplesNacional && !isSimplesHibrido && (
+          <div className="rounded-md border p-4">
+            <p className="text-sm text-muted-foreground">
+              No Simples Nacional Padrão, o Simples engloba a maioria dos impostos. Apenas o Imposto Seletivo (IS) seria pago por fora, mas para simplificação, assumimos IS = 0% neste cenário.
+            </p>
           </div>
         )}
       </div>
