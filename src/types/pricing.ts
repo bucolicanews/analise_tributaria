@@ -115,4 +115,10 @@ export interface CalculatedProduct extends Product {
   cfop: string;
   cst: string;
   status: "OK" | "PREÇO CORRIGIDO"; // Novo: Status do produto
+
+  // NOVO: Objeto para análise tributária explícita
+  taxAnalysis: {
+    icms: 'Substituição Tributária' | 'Tributado Integralmente';
+    pisCofins: 'Monofásico (Receita Segregada)' | 'Tributado (Alíquota Unificada no DAS)' | 'Débito e Crédito (Não Cumulativo)';
+  };
 }

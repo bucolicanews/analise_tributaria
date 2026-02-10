@@ -218,6 +218,18 @@ export const calculatePricing = (
   const taxToPayPerInnerUnit = taxToPay / innerQty;
   const selectiveTaxToPayPerInnerUnit = selectiveTaxToPay / innerQty;
 
+  // --- LÓGICA DE CLASSIFICAÇÃO TRIBUTÁRIA ---
+  const icmsClassification = isIcmsST ? 'Substituição Tributária' : 'Tributado Integralmente';
+  
+  const isPisCofinsMonofasico = ["04", "05", "06", "07", "08", "09"].includes(product.pisCst || "");
+  let pisCofinsClassification: 'Monofásico (Receita Segregada)' | 'Tributado (Alíquota Unificada no DAS)' | 'Débito e Crédito (Não Cumulativo)';
+
+  if (params.taxRegime === TaxRegime.SimplesNacional) {
+    pisCofinsClassification = isPisCofinsMonofasico ? 'Monofásico (Receita Segregada)' : 'Tributado (Alíquota Unificada no DAS)';
+  } else {
+    pisCofinsClassification = 'Débito e Crédito (Não Cumulativo)';
+  }
+  // --- FIM DA LÓGICA DE CLASSIFICAÇÃO ---
 
   return {
     ...product,
@@ -264,5 +276,11 @@ export const calculatePricing = (
     csllToPayPerInnerUnit: Math.max(0, csllToPayPerInnerUnit),
     simplesToPayPerInnerUnit: Math.max(0, simplesToPayPerInnerUnit),
     selectiveTaxToPayPerInnerUnit: Math.max(0, selectiveTaxToPayPerInnerUnit),
+
+    // Objeto de análise tributária explícita
+    taxAnalysis: {
+      icms: icmsClassification,
+      pisCofins: pisCofinsClassification,
+    },
   };
 };

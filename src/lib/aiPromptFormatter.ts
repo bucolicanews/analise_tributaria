@@ -47,25 +47,21 @@ export const formatDataForAI = (
     prompt += `
 ### Produto ${index + 1}: ${p.name} (Cód: ${p.code})
 
-- **Dados da Nota:**
+- **Análise Tributária (Classificação para sua empresa):**
+  - **ICMS:** ${p.taxAnalysis.icms}
+  - **PIS/COFINS:** ${p.taxAnalysis.pisCofins}
+
+- **Dados da Nota (Fornecedor):**
   - **Quantidade:** ${p.quantity} ${p.unit}
   - **Unidades Internas por Unid. Comercial:** ${p.innerQuantity}
   - **Custo de Aquisição (Unitário Comercial):** ${formatCurrency(p.cost)}
-
-- **Detalhes Tributários (Extraídos do XML):**
   - **CFOP:** ${p.cfop || "N/A"}
   - **NCM:** ${p.ncm || "N/A"}
   - **CEST:** ${p.cest || "N/A"}
   - **CST/CSOSN ICMS:** ${p.cst || "N/A"}
   - **CST IPI:** ${p.ipiCst || "N/A"}
-  - **PIS (CST: ${p.pisCst || "N/A"}):**
-    - Base de Cálculo: ${p.pisBase ? formatCurrency(p.pisBase) : "N/A"}
-    - Alíquota: ${p.pisRate ? formatPercent(p.pisRate) : "N/A"}
-    - Valor (Crédito): ${formatCurrency(p.pisCredit)}
-  - **COFINS (CST: ${p.cofinsCst || "N/A"}):**
-    - Base de Cálculo: ${p.cofinsBase ? formatCurrency(p.cofinsBase) : "N/A"}
-    - Alíquota: ${p.cofinsRate ? formatPercent(p.cofinsRate) : "N/A"}
-    - Valor (Crédito): ${formatCurrency(p.cofinsCredit)}
+  - **PIS (CST: ${p.pisCst || "N/A"}, Alíq: ${p.pisRate ? formatPercent(p.pisRate) : "N/A"}) - Valor (Crédito):** ${formatCurrency(p.pisCredit)}
+  - **COFINS (CST: ${p.cofinsCst || "N/A"}, Alíq: ${p.cofinsRate ? formatPercent(p.cofinsRate) : "N/A"}) - Valor (Crédito):** ${formatCurrency(p.cofinsCredit)}
 
 - **Cálculo de Preço (Unitário Comercial):**
   - **Custo Fixo Rateado:** ${formatCurrency(fixedCostPerCommercialUnit)}
