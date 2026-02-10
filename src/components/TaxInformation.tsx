@@ -28,13 +28,6 @@ const taxData = {
     { category: "Salgadinhos de Trigo", ncm: "1905.90.90", cest: "17.031.01" },
     { category: "Salgadinhos de Milho", ncm: "1904.10.00", cest: "17.030.00" },
   ],
-  summary: {
-    icmsBase: "R$ 1.195,75",
-    icmsValue: "R$ 227,19",
-    pisValue: "R$ 25,62",
-    cofinsValue: "R$ 118,02",
-    totalValue: "R$ 1.780,08",
-  },
 };
 
 const SectionTitle = ({ children }: { children: React.ReactNode }) => (
@@ -129,30 +122,6 @@ export const TaxInformation = () => {
             ))}
           </TableBody>
         </Table>
-
-        <SectionTitle>6. Resumo Financeiro da Tributação</SectionTitle>
-        <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <p className="text-xs text-muted-foreground">Base de Cálculo ICMS</p>
-            <p className="font-semibold">{taxData.summary.icmsBase}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Valor Total do ICMS</p>
-            <p className="font-semibold text-destructive">{taxData.summary.icmsValue}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Valor Total do PIS</p>
-            <p className="font-semibold text-destructive">{taxData.summary.pisValue}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Valor Total do COFINS</p>
-            <p className="font-semibold text-destructive">{taxData.summary.cofinsValue}</p>
-          </div>
-          <div className="col-span-2 md:col-span-1">
-            <p className="text-xs text-muted-foreground">Valor Total da Nota</p>
-            <p className="font-bold text-lg text-primary">{taxData.summary.totalValue}</p>
-          </div>
-        </div>
       </CardContent>
     </Card>
   );
