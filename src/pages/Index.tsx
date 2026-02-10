@@ -8,7 +8,6 @@ import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
 import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing";
-import { TaxInformation } from "@/components/TaxInformation";
 
 // Estado global simulado para persistir dados entre rotas (em um app real, usaríamos Context ou Redux)
 // Para este ambiente, manteremos o estado aqui e passaremos as funções de atualização.
@@ -136,8 +135,6 @@ const Index = () => {
                   />
                 </div>
               </Card>
-
-              <TaxInformation />
 
               {showMemory && firstCalculatedProduct && ( // Only show memory if there's a product to display
                 <Card className="shadow-card">
