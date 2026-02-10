@@ -16,11 +16,12 @@ const Configuracao = () => {
   const [razaoSocial, setRazaoSocial] = useState('');
   const [nomeFantasia, setNomeFantasia] = useState('');
   const [cnpj, setCnpj] = useState('');
+  const [faturamento12Meses, setFaturamento12Meses] = useState('');
   const [cnaes, setCnaes] = useState('');
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const companyData = { razaoSocial, nomeFantasia, cnpj, cnaes };
+    const companyData = { razaoSocial, nomeFantasia, cnpj, faturamento12Meses, cnaes };
     const webhookData = { webhookTestUrl, webhookProdUrl };
     
     console.log("Salvando dados da empresa:", companyData);
@@ -70,6 +71,16 @@ const Configuracao = () => {
                        id="cnpj"
                        value={cnpj}
                        onChange={(e) => setCnpj(e.target.value)}
+                    />
+                 </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="faturamento">Faturamento (Últimos 12 Meses)</Label>
+                    <Input
+                       id="faturamento"
+                       type="number"
+                       placeholder="R$"
+                       value={faturamento12Meses}
+                       onChange={(e) => setFaturamento12Meses(e.target.value)}
                     />
                  </div>
                </div>
