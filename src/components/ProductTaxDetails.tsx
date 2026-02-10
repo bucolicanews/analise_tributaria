@@ -8,12 +8,26 @@ interface ProductTaxDetailsProps {
   product: CalculatedProduct;
 }
 
-const DetailRow = ({ label, value, isBadge = false }: { label: string; value?: string; isBadge?: boolean }) => {
-  if (!value) return null;
+const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const formatPercent = (value: number) => `${value.toFixed(2)}%`;
+
+const DetailRow = ({ label, value, isBadge = false }: { label: string; value?: string | number; isBadge?: boolean }) => {
+  if (value === undefined || value === null || value === '') return null;
+  
+  let displayValue = value;
+  if (typeof value === 'number') {
+    // Simple heuristic to decide formatting
+    if (label.toLowerCase().includes('alíquota')) {
+      displayValue = formatPercent(value);
+    } else if (label.toLowerCase().includes('base') || label.toLowerCase().includes('valor')) {
+      displayValue = formatCurrency(value);
+    }
+  }
+
   return (
     <div className="flex justify-between py-1 border-b border-border/50">
       <span className="text-muted-foreground">{label}:</span>
-      {isBadge ? <Badge variant="outline">{value}</Badge> : <span className="font-mono">{value}</span>}
+      {isBadge ? <Badge variant="outline">{displayValue}</Badge> : <span className="font-mono">{displayValue}</span>}
     </div>
   );
 };
@@ -42,10 +56,16 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
         <div>
           <h3 className="font-semibold mb-2">PIS</h3>
           <DetailRow label="CST" value={product.pisCst} isBadge />
+          <DetailRow label="Base de Cálculo" value={product.pisBase} />
+          <DetailRow label="Alíquota" value={product.pisRate} />
+          <DetailRow label="Valor (Crédito)" value={product.pisCredit} />
         </div>
         <div>
           <h3 className="font-semibold mb-2">COFINS</h3>
           <DetailRow label="CST" value={product.cofinsCst} isBadge />
+          <DetailRow label="Base de Cálculo" value={product.cofinsBase} />
+          <DetailRow label="Alíquota" value={product.cofinsRate} />
+          <DetailRow label="Valor (Crédito)" value={product.cofinsCredit} />
         </div>
         <div>
           <h3 className="font-semibold mb-2">IPI</h3>
