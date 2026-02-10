@@ -6,20 +6,31 @@ export const calculatePricing = (
   cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
   // 1. Créditos (do XML) - por unidade comercial, respeitando os parâmetros de transição
-  // PIS/COFINS Crédito: Controlado por usePisCofins
-  const cbsCredit = params.usePisCofins ? product.pisCredit + product.cofinsCredit : 0;
   
-  // ICMS Crédito: Controlado por icmsPercentage
+  // CORREÇÃO 1: PIS/COFINS (CBS) só gera crédito fora do Simples Nacional.
+  const cbsCredit = 
+    params.taxRegime !== TaxRegime.SimplesNacional && params.usePisCofins 
+    ? product.pisCredit + product.cofinsCredit 
+    : 0;
+  
+  // CORREÇÃO 2: ICMS (IBS) não gera crédito em cenários de Substituição Tributária (ST).
+  // CSTs de ST: 10, 30, 60, 70, 90. CSOSNs de ST: 201, 202, 203, 500.
+  const isIcmsST = ["10", "30", "60", "70", "90", "201", "202", "203", "500"].includes(product.cst || "");
   const icmsCreditPercentageFactor = params.icmsPercentage / 100;
-  const ibsCredit = (product.icmsCredit || 0) * icmsCreditPercentageFactor;
+  const ibsCredit = 
+    !isIcmsST && product.icmsCredit 
+    ? product.icmsCredit * icmsCreditPercentageFactor 
+    : 0;
   
   const totalCredit = cbsCredit + ibsCredit;
 
   // 2. Custo efetivo - por unidade comercial (pode ser negativo, é uma métrica de custo líquido)
   const effectiveCost = product.cost - totalCredit;
 
-  // 3. Custo Base para o Markup Divisor: Custo de Aquisição Unitário (CAU) + Custo Fixo por Unidade (CFU)
-  let baseCostForMarkup = product.cost + cfu;
+  // CORREÇÃO 3: O Custo Fixo (CFU) deve ser aplicado à unidade comercial inteira.
+  // Custo Fixo da Unidade Comercial = Custo Fixo por Unidade Interna * Quantidade de Unidades Internas.
+  const fixedCostPerCommercialUnit = cfu * (product.innerQuantity > 0 ? product.innerQuantity : 1);
+  let baseCostForMarkup = product.cost + fixedCostPerCommercialUnit;
 
   // 4. Incorporar a porcentagem de perdas e quebras ao custo base
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
@@ -181,7 +192,7 @@ export const calculatePricing = (
     // 12. Detalhamento do Preço de Venda (por Unidade Comercial)
     valueForTaxes = taxToPay;
     valueForVariableExpenses = sellingPrice * (totalVariableExpensesPercentage / 100);
-    valueForFixedCost = cfu; // O valor do CFU é a parcela do custo fixo por unidade
+    valueForFixedCost = fixedCostPerCommercialUnit; // O valor do custo fixo por unidade comercial
     valueForProfit = sellingPrice * (params.profitMargin / 100);
     
     // Margem de Contribuição (Unit): Preço de Venda - (Custo de Aquisição + Despesas Variáveis)
