@@ -1,13 +1,15 @@
-import React, { useState } from "react";
-import { Upload, FileText, Calculator } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { Upload, FileText, Calculator, Bot } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
 import { ParametersForm } from "@/components/ParametersForm";
 import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
-import { Product, CalculationParams, CalculatedProduct } from "@/types/pricing";
+import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing";
+import { formatDataForAI } from "@/lib/aiPromptFormatter";
+import { toast } from "sonner";
 
 // Estado global simulado para persistir dados entre rotas (em um app real, usaríamos Context ou Redux)
 // Para este ambiente, manteremos o estado aqui e passaremos as funções de atualização.
@@ -22,6 +24,7 @@ const Index = () => {
   const [showMemory, setShowMemory] = useState(false);
   const [summary, setSummary] = useState<GlobalSummaryData | null>(globalSummary);
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(globalSelectedProductCodes);
+  const [isSending, setIsSending] = useState(false);
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     globalProducts = parsedProducts;
@@ -47,21 +50,65 @@ const Index = () => {
     setSelectedProductCodes(newSelection);
   };
 
-  // Filtrar produtos para cálculo e exibição
-  const productsToDisplay = products.filter(p => selectedProductCodes.has(p.code));
+  // --- Cálculos Centralizados ---
+  const { cfu, totalFixedExpenses, calculatedProducts, productsToDisplay } = useMemo(() => {
+    if (!params) return { cfu: 0, totalFixedExpenses: 0, calculatedProducts: [], productsToDisplay: [] };
 
-  // Calcular o CFU para o ProductRetailInfo e CalculationMemory
-  const inssPatronalValue = params && params.taxRegime !== "Simples Nacional"
-    ? params.payroll * (params.inssPatronalRate / 100)
-    : 0;
-  const totalFixedExpenses = params ? params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue : 0;
-  const cfu = params && params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
+    const inss = params.taxRegime !== TaxRegime.SimplesNacional ? params.payroll * (params.inssPatronalRate / 100) : 0;
+    const fixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inss;
+    const calculatedCfu = params.totalStockUnits > 0 ? fixedExpenses / params.totalStockUnits : 0;
+    
+    const prodsToCalc = products.filter(p => selectedProductCodes.has(p.code));
+    const allCalculated = prodsToCalc.map(p => calculatePricing(p, params, calculatedCfu));
 
-  // Calcular o primeiro produto selecionado para exibir na Memória de Cálculo (se houver produtos)
-  const firstCalculatedProduct: CalculatedProduct | null = 
-    productsToDisplay.length > 0 && params 
-      ? calculatePricing(productsToDisplay[0], params, cfu) 
-      : null;
+    return {
+      cfu: calculatedCfu,
+      totalFixedExpenses: fixedExpenses,
+      calculatedProducts: allCalculated,
+      productsToDisplay: prodsToCalc,
+    };
+  }, [params, products, selectedProductCodes]);
+
+  const firstCalculatedProduct = calculatedProducts.length > 0 ? calculatedProducts[0] : null;
+
+  const handleSendToWebhook = async () => {
+    if (!params || !summary || calculatedProducts.length === 0) {
+      toast.error("Dados insuficientes para enviar.", {
+        description: "Por favor, gere um relatório de precificação primeiro.",
+      });
+      return;
+    }
+
+    setIsSending(true);
+    const toastId = toast.loading("Formatando e enviando dados para a IA...");
+
+    try {
+      const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
+      
+      // URL do webhook de teste (conforme definido em Configuracao.tsx)
+      const webhookUrl = 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794';
+
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: promptText }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erro na resposta do servidor: ${response.statusText}`);
+      }
+
+      toast.success("Dados enviados para análise com sucesso!", { id: toastId });
+    } catch (error) {
+      console.error("Erro ao enviar para o webhook:", error);
+      toast.error("Falha ao enviar os dados.", {
+        description: "Verifique o console para mais detalhes.",
+        id: toastId,
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -114,20 +161,31 @@ const Index = () => {
             <React.Fragment>
               <Card className="shadow-elegant">
                 <div className="p-6">
-                  <div className="mb-4 flex items-center justify-between">
+                  <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
                     <h2 className="text-xl font-semibold">
-                      Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos selecionados)
+                      Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos)
                     </h2>
-                    <Button
-                      variant={showMemory ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowMemory(!showMemory)}
-                    >
-                      {showMemory ? "Ocultar" : "Exibir"} Memória de Cálculo
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={showMemory ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowMemory(!showMemory)}
+                      >
+                        {showMemory ? "Ocultar" : "Exibir"} Memória
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleSendToWebhook}
+                        disabled={isSending}
+                        className="bg-accent hover:bg-accent/90"
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        {isSending ? "Enviando..." : "Enviar para Análise AI"}
+                      </Button>
+                    </div>
                   </div>
                   <ProductsTable 
-                    products={products} // Passa todos os produtos para que a tabela possa gerenciar a seleção
+                    products={products}
                     params={params} 
                     onSummaryCalculated={handleSummaryCalculated} 
                     selectedProductCodes={selectedProductCodes}
@@ -136,7 +194,7 @@ const Index = () => {
                 </div>
               </Card>
 
-              {showMemory && firstCalculatedProduct && ( // Only show memory if there's a product to display
+              {showMemory && firstCalculatedProduct && (
                 <Card className="shadow-card">
                   <div className="p-6">
                     <CalculationMemory products={[firstCalculatedProduct]} params={params} />
