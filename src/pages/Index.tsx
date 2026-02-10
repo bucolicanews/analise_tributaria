@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Upload, FileText, Calculator, Bot } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -10,6 +10,12 @@ import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/type
 import { calculatePricing } from "@/lib/pricing";
 import { formatDataForAI } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Estado global simulado para persistir dados entre rotas (em um app real, usaríamos Context ou Redux)
 // Para este ambiente, manteremos o estado aqui e passaremos as funções de atualização.
@@ -71,7 +77,7 @@ const Index = () => {
 
   const firstCalculatedProduct = calculatedProducts.length > 0 ? calculatedProducts[0] : null;
 
-  const handleSendToWebhook = async () => {
+  const handleSendToWebhook = async (environment: 'test' | 'production') => {
     if (!params || !summary || calculatedProducts.length === 0) {
       toast.error("Dados insuficientes para enviar.", {
         description: "Por favor, gere um relatório de precificação primeiro.",
@@ -80,13 +86,17 @@ const Index = () => {
     }
 
     setIsSending(true);
-    const toastId = toast.loading("Formatando e enviando dados para a IA...");
+    const toastId = toast.loading(`Formatando e enviando dados para o ambiente de ${environment}...`);
 
     try {
       const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
       
-      // URL do webhook de teste (conforme definido em Configuracao.tsx)
-      const webhookUrl = 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794';
+      const webhooks = {
+        test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
+        production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
+      };
+
+      const webhookUrl = webhooks[environment];
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -98,10 +108,10 @@ const Index = () => {
         throw new Error(`Erro na resposta do servidor: ${response.statusText}`);
       }
 
-      toast.success("Dados enviados para análise com sucesso!", { id: toastId });
+      toast.success(`Dados enviados para ${environment} com sucesso!`, { id: toastId });
     } catch (error) {
-      console.error("Erro ao enviar para o webhook:", error);
-      toast.error("Falha ao enviar os dados.", {
+      console.error(`Erro ao enviar para o webhook de ${environment}:`, error);
+      toast.error(`Falha ao enviar os dados para ${environment}.`, {
         description: "Verifique o console para mais detalhes.",
         id: toastId,
       });
@@ -173,15 +183,27 @@ const Index = () => {
                       >
                         {showMemory ? "Ocultar" : "Exibir"} Memória
                       </Button>
-                      <Button
-                        size="sm"
-                        onClick={handleSendToWebhook}
-                        disabled={isSending}
-                        className="bg-accent hover:bg-accent/90"
-                      >
-                        <Bot className="h-4 w-4 mr-2" />
-                        {isSending ? "Enviando..." : "Enviar para Análise AI"}
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            disabled={isSending}
+                            className="bg-accent hover:bg-accent/90"
+                          >
+                            <Bot className="h-4 w-4 mr-2" />
+                            {isSending ? "Enviando..." : "Enviar para Análise AI"}
+                            <ChevronDown className="h-4 w-4 ml-2" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>
+                            Enviar para Teste
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>
+                            Enviar para Produção
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                   </div>
                   <ProductsTable 
