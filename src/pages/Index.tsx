@@ -101,7 +101,7 @@ const Index = () => {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: promptText }),
+        body: JSON.stringify({ prompt: { analise: promptText } }),
       });
 
       if (!response.ok) {
