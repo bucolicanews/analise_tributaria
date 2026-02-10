@@ -21,11 +21,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
-import { Input } from "@/components/ui/input"; // Importando Input
-import { ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Input } from "@/components/ui/input";
+import { ChevronLeft, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ExecutiveSummary } from './summary/ExecutiveSummary'; // Importando o novo resumo executivo
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"; // Importando Alert
+import { ExecutiveSummary } from './summary/ExecutiveSummary';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { ProductTaxDetails } from './ProductTaxDetails';
 
 interface ProductsTableProps {
   products: Product[];
@@ -181,6 +183,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100); // Novo estado para itens por página
+  const [selectedProductForDetails, setSelectedProductForDetails] = useState<CalculatedProduct | null>(null);
 
   // Early return if no products to display
   if (!products || products.length === 0) {
@@ -502,6 +505,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
 
   return (
     <div className="space-y-6">
+      <Dialog open={!!selectedProductForDetails} onOpenChange={(isOpen) => !isOpen && setSelectedProductForDetails(null)}>
+        <DialogContent className="sm:max-w-md">
+          {selectedProductForDetails && <ProductTaxDetails product={selectedProductForDetails} />}
+        </DialogContent>
+      </Dialog>
+
       <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
         <h2 className="text-lg font-semibold mb-2">Parâmetros da Simulação</h2>
         <p className="text-sm text-muted-foreground">
@@ -604,7 +613,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                 />
               </TableHead>
               <TableHead rowSpan={2}>Código</TableHead>
-              <TableHead rowSpan={2} className="min-w-[300px]">Produto</TableHead> {/* Aumentado para 300px */}
+              <TableHead rowSpan={2} className="min-w-[300px]">Produto</TableHead>
+              <TableHead rowSpan={2}>Ações</TableHead>
               <TableHead rowSpan={2}>Unid. Com.</TableHead>
               <TableHead className="text-right" rowSpan={2}>Qtd. Estoque</TableHead>
               <TableHead className="text-right" rowSpan={2}>Custo Aquisição (Unit)</TableHead>
@@ -619,13 +629,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
-                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Padrão</TableHead> {/* 6 colunas */}
-                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead> {/* 6 colunas */}
+                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
+                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
                   <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  <TableHead colSpan={11} className="text-center">{params.taxRegime}</TableHead> {/* 11 colunas */}
+                  <TableHead colSpan={11} className="text-center">{params.taxRegime}</TableHead>
                 </React.Fragment>
               )}
             </TableRow>
@@ -633,14 +643,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
                   {/* Simples Nacional Padrão */}
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead className="text-right">Crédito Cliente</TableHead>
                   {/* Simples Nacional Híbrido */}
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova coluna */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
@@ -658,7 +668,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   <TableHead className="text-right">IRPJ a Pagar</TableHead>
                   <TableHead className="text-right">CSLL a Pagar</TableHead>
                   <TableHead className="text-right">Imposto Líq.</TableHead>
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead> {/* Nova célula */}
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
                   <TableHead className="text-right">Crédito Cliente</TableHead>
@@ -670,10 +680,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
             {productsToRender.map((product, index) => {
                 const isSelected = selectedProductCodes.has(product.code);
                 
-                // Fixed cost contribution per COMMERCIAL unit
                 const fixedCostPerCommercialUnit = cfu * product.innerQuantity;
                 
-                // Recalculamos o lucro e margem para exibição na tabela, usando o produto calculado
                 const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit;
                 const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
 
@@ -701,8 +709,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       />
                     </TableCell>
                     <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                    <TableCell className="max-w-[300px] whitespace-normal text-left"> {/* Alterado aqui */}
+                    <TableCell className="max-w-[300px] whitespace-normal text-left">
                       {product.name}
+                    </TableCell>
+                    <TableCell>
+                      <Button variant="ghost" size="icon" onClick={() => setSelectedProductForDetails(product)}>
+                        <FileText className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                     <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                     <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
@@ -710,17 +723,14 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       {formatCurrency(product.cost)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                      {/* Display fixed cost per commercial unit */}
                       {formatCurrency(fixedCostPerCommercialUnit)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm font-semibold">
-                      {/* Display total cost base per commercial unit */}
                       {formatCurrency(product.cost + fixedCostPerCommercialUnit)}
                     </TableCell>
                     <TableCell className="text-right font-mono text-sm text-accent">
                       {formatPercent(product.markupPercentage)}
                     </TableCell>
-                    {/* Dados de unidade interna */}
                     <TableCell className="text-right font-mono text-xs">{product.innerQuantity}</TableCell>
                     <TableCell className="text-right font-mono text-sm">
                       {formatCurrency(product.costPerInnerUnit)}

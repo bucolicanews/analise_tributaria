@@ -30,6 +30,8 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const quantityStr = prod?.querySelector("qCom")?.textContent || "0";
         const quantity = parseFloat(quantityStr); // Extract commercial quantity
         const cfop = prod?.querySelector("CFOP")?.textContent || "";
+        const ncm = prod?.querySelector("NCM")?.textContent || "";
+        const cest = prod?.querySelector("CEST")?.textContent || "";
         
         // Extract inner quantity from product name (e.g., "30" from "30X300G")
         let innerQuantity = 1;
@@ -44,6 +46,7 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const pisElement = pisAliq || pisNT;
         const pisCreditStr = pisElement?.querySelector("vPIS")?.textContent || "0";
         const pisCredit = parseFloat(pisCreditStr);
+        const pisCst = pisElement?.querySelector("CST")?.textContent || "";
 
         // Tax info - COFINS
         const cofinsAliq = det.querySelector("COFINSAliq");
@@ -51,6 +54,7 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const cofinsElement = cofinsAliq || cofinsNT;
         const cofinsCreditStr = cofinsElement?.querySelector("vCOFINS")?.textContent || "0";
         const cofinsCredit = parseFloat(cofinsCreditStr);
+        const cofinsCst = cofinsElement?.querySelector("CST")?.textContent || "";
         
         // Tax info - ICMS (IBS)
         const icms = det.querySelector("ICMS");
@@ -59,6 +63,10 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         
         // CST/CSOSN
         const cst = icms?.querySelector("CST, CSOSN")?.textContent || "";
+
+        // Tax info - IPI
+        const ipi = det.querySelector("IPI");
+        const ipiCst = ipi?.querySelector("IPITrib > CST, IPINT > CST")?.textContent || "";
 
         return {
           code,
@@ -72,6 +80,11 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
           icmsCredit,
           cfop,
           cst,
+          ncm,
+          cest,
+          pisCst,
+          cofinsCst,
+          ipiCst,
         };
       });
 

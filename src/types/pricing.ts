@@ -16,6 +16,11 @@ export interface Product {
   icmsCredit: number; // Crédito ICMS por unidade comercial
   cfop?: string;
   cst?: string;
+  ncm?: string;
+  cest?: string;
+  pisCst?: string;
+  cofinsCst?: string;
+  ipiCst?: string;
 }
 
 export interface FixedExpense {
