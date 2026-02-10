@@ -21,6 +21,10 @@ export interface Product {
   pisCst?: string;
   cofinsCst?: string;
   ipiCst?: string;
+  pisBase?: number;
+  pisRate?: number;
+  cofinsBase?: number;
+  cofinsRate?: number;
 }
 
 export interface FixedExpense {

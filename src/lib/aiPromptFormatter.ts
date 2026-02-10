@@ -57,9 +57,15 @@ export const formatDataForAI = (
   - **NCM:** ${p.ncm || "N/A"}
   - **CEST:** ${p.cest || "N/A"}
   - **CST/CSOSN ICMS:** ${p.cst || "N/A"}
-  - **CST PIS:** ${p.pisCst || "N/A"}
-  - **CST COFINS:** ${p.cofinsCst || "N/A"}
   - **CST IPI:** ${p.ipiCst || "N/A"}
+  - **PIS (CST: ${p.pisCst || "N/A"}):**
+    - Base de Cálculo: ${p.pisBase ? formatCurrency(p.pisBase) : "N/A"}
+    - Alíquota: ${p.pisRate ? formatPercent(p.pisRate) : "N/A"}
+    - Valor (Crédito): ${formatCurrency(p.pisCredit)}
+  - **COFINS (CST: ${p.cofinsCst || "N/A"}):**
+    - Base de Cálculo: ${p.cofinsBase ? formatCurrency(p.cofinsBase) : "N/A"}
+    - Alíquota: ${p.cofinsRate ? formatPercent(p.cofinsRate) : "N/A"}
+    - Valor (Crédito): ${formatCurrency(p.cofinsCredit)}
 
 - **Cálculo de Preço (Unitário Comercial):**
   - **Custo Fixo Rateado:** ${formatCurrency(fixedCostPerCommercialUnit)}

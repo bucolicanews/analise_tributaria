@@ -47,6 +47,10 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const pisCreditStr = pisElement?.querySelector("vPIS")?.textContent || "0";
         const pisCredit = parseFloat(pisCreditStr);
         const pisCst = pisElement?.querySelector("CST")?.textContent || "";
+        const pisBaseStr = pisAliq?.querySelector("vBC")?.textContent || "0";
+        const pisRateStr = pisAliq?.querySelector("pPIS")?.textContent || "0";
+        const pisBase = parseFloat(pisBaseStr);
+        const pisRate = parseFloat(pisRateStr);
 
         // Tax info - COFINS
         const cofinsAliq = det.querySelector("COFINSAliq");
@@ -55,6 +59,10 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const cofinsCreditStr = cofinsElement?.querySelector("vCOFINS")?.textContent || "0";
         const cofinsCredit = parseFloat(cofinsCreditStr);
         const cofinsCst = cofinsElement?.querySelector("CST")?.textContent || "";
+        const cofinsBaseStr = cofinsAliq?.querySelector("vBC")?.textContent || "0";
+        const cofinsRateStr = cofinsAliq?.querySelector("pCOFINS")?.textContent || "0";
+        const cofinsBase = parseFloat(cofinsBaseStr);
+        const cofinsRate = parseFloat(cofinsRateStr);
         
         // Tax info - ICMS (IBS)
         const icms = det.querySelector("ICMS");
@@ -85,6 +93,10 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
           pisCst,
           cofinsCst,
           ipiCst,
+          pisBase,
+          pisRate,
+          cofinsBase,
+          cofinsRate,
         };
       });
 
