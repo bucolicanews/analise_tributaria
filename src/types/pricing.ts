@@ -127,4 +127,7 @@ export interface CalculatedProduct extends Product {
     icmsCstOrCsosn: string;
     pisCofinsCst: string;
   };
+
+  // NOVO: Classe de tributação da Reforma Tributária
+  cClassTrib?: number;
 }

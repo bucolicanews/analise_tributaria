@@ -2,8 +2,9 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalculatedProduct } from "@/types/pricing";
-import { FileText, Building, ShoppingCart, Info } from 'lucide-react';
+import { FileText, Building, ShoppingCart, Info, Globe } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
 interface ProductTaxDetailsProps {
   product: CalculatedProduct;
@@ -15,7 +16,7 @@ const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 const DetailRow = ({ label, value, isBadge = false, isSuggestion = false }: { label: string; value?: string | number; isBadge?: boolean; isSuggestion?: boolean }) => {
   if (value === undefined || value === null || value === '') return null;
   
-  let displayValue = value;
+  let displayValue: React.ReactNode = value;
   if (typeof value === 'number') {
     if (label.toLowerCase().includes('alíquota')) {
       displayValue = formatPercent(value);
@@ -32,7 +33,7 @@ const DetailRow = ({ label, value, isBadge = false, isSuggestion = false }: { la
           {displayValue}
         </Badge>
       ) : (
-        <span className="font-mono">{displayValue}</span>
+        <span className="font-mono text-right">{displayValue}</span>
       )}
     </div>
   );
@@ -63,6 +64,7 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
   };
 
   const cfopInfo = cfopExplanations[product.cfop || ''] || cfopExplanations.default;
+  const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
 
   return (
     <Card className="shadow-none border-none">
@@ -91,6 +93,35 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
             {cfopInfo.description}
           </AlertDescription>
         </Alert>
+
+        {/* NOVA SEÇÃO: CLASSIFICAÇÃO IBS/CBS */}
+        {classificationDetails && (
+          <div className="space-y-3">
+            <h3 className="font-semibold flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" /> Classificação Tributária (IBS/CBS - Reforma)</h3>
+            <Alert variant="default" className="bg-blue-500/10 border-blue-500/30 text-blue-400">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Análise Preliminar</AlertTitle>
+              <AlertDescription className="text-xs">
+                Esta é uma classificação padrão. A associação automática do NCM do produto com a classe de tributação correta será implementada em breve.
+              </AlertDescription>
+            </Alert>
+            <div className="p-3 rounded-md bg-muted/50 border border-border/50 space-y-1">
+              <DetailRow label="cClassTrib" value={classificationDetails.cClass.code} isBadge />
+              <DetailRow label="Nome" value={classificationDetails.cClass.name} />
+              <DetailRow label="Descrição" value={classificationDetails.cClass.description} />
+              <DetailRow label="CST-IBS/CBS" value={`${classificationDetails.cst?.code} - ${classificationDetails.cst?.description}`} />
+              <DetailRow label="Última Atualização" value={classificationDetails.cClass.lastUpdate} />
+              {classificationDetails.cClass.link && (
+                <div className="flex justify-between py-1.5 items-center">
+                  <span className="text-muted-foreground">Fonte:</span>
+                  <a href={classificationDetails.cClass.link} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-mono text-sm">
+                    Ver Legislação
+                  </a>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ICMS */}
         <div className="space-y-3">

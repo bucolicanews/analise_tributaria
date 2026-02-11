@@ -300,5 +300,8 @@ export const calculatePricing = (
       icmsCstOrCsosn: suggestedIcmsCstOrCsosn,
       pisCofinsCst: suggestedPisCofinsCst,
     },
+    
+    // Classe de tributação (padrão por enquanto)
+    cClassTrib: 1,
   };
 };
