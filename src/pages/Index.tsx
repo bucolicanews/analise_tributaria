@@ -10,6 +10,7 @@ import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/type
 import { calculatePricing } from "@/lib/pricing";
 import { formatDataForAI } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
+import { AiAnalysisReport } from "@/components/AiAnalysisReport";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,8 +18,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// Estado global simulado para persistir dados entre rotas (em um app real, usaríamos Context ou Redux)
-// Para este ambiente, manteremos o estado aqui e passaremos as funções de atualização.
 let globalProducts: Product[] = [];
 let globalParams: CalculationParams | null = null;
 let globalSelectedProductCodes: Set<string> = new Set();
@@ -31,11 +30,11 @@ const Index = () => {
   const [summary, setSummary] = useState<GlobalSummaryData | null>(globalSummary);
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(globalSelectedProductCodes);
   const [isSending, setIsSending] = useState(false);
+  const [aiReport, setAiReport] = useState<string | null>(null);
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     globalProducts = parsedProducts;
     setProducts(parsedProducts);
-    
     const initialSelection = new Set(parsedProducts.map(p => p.code));
     globalSelectedProductCodes = initialSelection;
     setSelectedProductCodes(initialSelection);
@@ -56,37 +55,27 @@ const Index = () => {
     setSelectedProductCodes(newSelection);
   };
 
-  // --- Cálculos Centralizados ---
   const { cfu, totalFixedExpenses, calculatedProducts, productsToDisplay } = useMemo(() => {
     if (!params) return { cfu: 0, totalFixedExpenses: 0, calculatedProducts: [], productsToDisplay: [] };
-
     const inss = params.taxRegime !== TaxRegime.SimplesNacional ? params.payroll * (params.inssPatronalRate / 100) : 0;
     const fixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inss;
     const calculatedCfu = params.totalStockUnits > 0 ? fixedExpenses / params.totalStockUnits : 0;
-    
     const prodsToCalc = products.filter(p => selectedProductCodes.has(p.code));
     const allCalculated = prodsToCalc.map(p => calculatePricing(p, params, calculatedCfu));
-
-    return {
-      cfu: calculatedCfu,
-      totalFixedExpenses: fixedExpenses,
-      calculatedProducts: allCalculated,
-      productsToDisplay: prodsToCalc,
-    };
+    return { cfu: calculatedCfu, totalFixedExpenses: fixedExpenses, calculatedProducts: allCalculated, productsToDisplay: prodsToCalc };
   }, [params, products, selectedProductCodes]);
 
   const firstCalculatedProduct = calculatedProducts.length > 0 ? calculatedProducts[0] : null;
 
   const handleSendToWebhook = async (environment: 'test' | 'production') => {
     if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Dados insuficientes para enviar.", {
-        description: "Por favor, gere um relatório de precificação primeiro.",
-      });
+      toast.error("Dados insuficientes para enviar.");
       return;
     }
 
     setIsSending(true);
-    const toastId = toast.loading(`Formatando e enviando dados para o ambiente de ${environment}...`);
+    setAiReport(null);
+    const toastId = toast.loading(`Aguardando análise da IA (${environment})...`);
 
     try {
       const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
@@ -96,36 +85,36 @@ const Index = () => {
         production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
       };
 
-      const webhookUrl = webhooks[environment];
-
-      const response = await fetch(webhookUrl, {
+      const response = await fetch(webhooks[environment], {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: { analise: promptText } }),
       });
 
-      if (!response.ok) {
-        throw new Error(`Erro na resposta do servidor: ${response.statusText}`);
-      }
+      if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
 
-      toast.success(`Dados enviados para ${environment} com sucesso!`, { id: toastId });
+      const data = await response.json();
+      
+      // Tenta extrair o texto da resposta do n8n (ajustado para o formato comum de retorno de IA)
+      const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+      
+      setAiReport(reportText);
+      toast.success("Análise concluída com sucesso!", { id: toastId });
+      
+      // Scroll suave para o relatório
+      setTimeout(() => {
+        document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+
     } catch (error) {
-      console.error(`Erro ao enviar para o webhook de ${environment}:`, error);
-      toast.error(`Falha ao enviar os dados para ${environment}.`, {
-        description: "Verifique o console para mais detalhes.",
-        id: toastId,
-      });
+      console.error(error);
+      toast.error("Falha na comunicação com a IA.", { id: toastId });
     } finally {
       setIsSending(false);
     }
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
+  const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -139,105 +128,79 @@ const Index = () => {
       )}
       
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Left Column - Upload and Parameters */}
         <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-card">
-            <div className="p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Upload de XML</h2>
-              </div>
-              <XmlUploader onXmlParsed={handleXmlParsed} />
+          <Card className="shadow-card p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <Upload className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Upload de XML</h2>
             </div>
+            <XmlUploader onXmlParsed={handleXmlParsed} />
           </Card>
 
-          <Card className="shadow-card">
-            <div className="p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
-              </div>
-              <ParametersForm 
-                onCalculate={handleCalculate}
-                disabled={products.length === 0}
-              />
+          <Card className="shadow-card p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
             </div>
+            <ParametersForm onCalculate={handleCalculate} disabled={products.length === 0} />
           </Card>
         </div>
 
-        {/* Right Column - Results */}
         <div className="lg:col-span-2 space-y-6">
+          {aiReport && (
+            <div id="ai-report-section">
+              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} />
+            </div>
+          )}
+
           {products.length > 0 && params ? (
             <React.Fragment>
-              <Card className="shadow-elegant">
-                <div className="p-6">
-                  <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-                    <h2 className="text-xl font-semibold">
-                      Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos)
-                    </h2>
-                    <div className="flex gap-2">
-                      <Button
-                        variant={showMemory ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowMemory(!showMemory)}
-                      >
-                        {showMemory ? "Ocultar" : "Exibir"} Memória
-                      </Button>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            disabled={isSending}
-                            className="bg-accent hover:bg-accent/90"
-                          >
-                            <Bot className="h-4 w-4 mr-2" />
-                            {isSending ? "Enviando..." : "Enviar para Análise AI"}
-                            <ChevronDown className="h-4 w-4 ml-2" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>
-                            Enviar para Teste
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>
-                            Enviar para Produção
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
+              <Card className="shadow-elegant p-6">
+                <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
+                  <h2 className="text-xl font-semibold">
+                    Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos)
+                  </h2>
+                  <div className="flex gap-2">
+                    <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
+                      {showMemory ? "Ocultar" : "Exibir"} Memória
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button size="sm" disabled={isSending} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                          <Bot className="h-4 w-4 mr-2" />
+                          {isSending ? "Analisando..." : "Enviar para Análise AI"}
+                          <ChevronDown className="h-4 w-4 ml-2" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Ambiente de Teste</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Ambiente de Produção</DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                  <ProductsTable 
-                    products={products}
-                    params={params} 
-                    onSummaryCalculated={handleSummaryCalculated} 
-                    selectedProductCodes={selectedProductCodes}
-                    onSelectionChange={handleSelectionChange}
-                  />
                 </div>
+                <ProductsTable 
+                  products={products} 
+                  params={params} 
+                  onSummaryCalculated={handleSummaryCalculated} 
+                  selectedProductCodes={selectedProductCodes}
+                  onSelectionChange={handleSelectionChange}
+                />
               </Card>
 
               {showMemory && firstCalculatedProduct && (
-                <Card className="shadow-card">
-                  <div className="p-6">
-                    <CalculationMemory products={[firstCalculatedProduct]} params={params} />
-                  </div>
+                <Card className="shadow-card p-6">
+                  <CalculationMemory products={[firstCalculatedProduct]} params={params} />
                 </Card>
               )}
             </React.Fragment>
           ) : (
-            <Card className="shadow-card">
-              <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
-                <div className="rounded-full bg-muted p-6 mb-4">
-                  <Calculator className="h-12 w-12 text-muted-foreground" />
-                </div>
-                <h3 className="text-xl font-semibold mb-2">
-                  Nenhum cálculo realizado
-                </h3>
-                <p className="text-muted-foreground max-w-md">
-                  Faça o upload de um arquivo XML ou ZIP e preencha os parâmetros de
-                  cálculo para gerar o relatório de precificação.
-                </p>
+            <Card className="shadow-card flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
+              <div className="rounded-full bg-muted p-6 mb-4">
+                <Calculator className="h-12 w-12 text-muted-foreground" />
               </div>
+              <h3 className="text-xl font-semibold mb-2">Nenhum cálculo realizado</h3>
+              <p className="text-muted-foreground max-w-md">Faça o upload de arquivos XML e preencha os parâmetros para gerar o relatório.</p>
             </Card>
           )}
         </div>
@@ -247,6 +210,4 @@ const Index = () => {
 };
 
 export default Index;
-
-// Exportando o estado para ser usado na página de comparação
 export { globalProducts, globalParams, globalSelectedProductCodes, globalSummary };
