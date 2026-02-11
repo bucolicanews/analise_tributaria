@@ -1,5 +1,6 @@
 import { CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 import { GlobalSummaryData } from "@/components/ProductsTable";
+import { getClassificationDetails } from "./tax/taxClassificationService";
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
@@ -13,23 +14,13 @@ export const formatDataForAI = (
   cfu: number
 ): string => {
   let prompt = `
-# INSTRUÇÕES DE ANÁLISE TRIBUTÁRIA (BASE: LC 214/2025 e LC 227/2026)
+# ANÁLISE TRIBUTÁRIA E DE PRECIFICAÇÃO (BASE: LC 214/2025 e LC 227/2026)
 
-Você é um Especialista em Tributação Brasileira focado na Transição para o IVA Dual (IBS/CBS).
-Sua tarefa é analisar os dados de precificação abaixo e validar se a classificação tributária e as margens estão corretas.
+Você é um Especialista em Tributação e Estratégia de Negócios, focado na Reforma Tributária Brasileira (IVA Dual).
+Sua tarefa é analisar os dados de precificação abaixo, validar a classificação tributária e fornecer um parecer estratégico sobre a saúde financeira da operação.
 
-## BASE DE CONHECIMENTO (REGRAS DE REDUÇÃO):
-1. **REDUÇÃO 100% (Alíquota Zero):** Cesta Básica Nacional (Arroz, feijão, carnes in natura, ovos, leite, frutas), Medicamentos específicos, Dispositivos médicos, Prouni, Transporte Público.
-2. **REDUÇÃO 60% (Paga 40% da alíquota):** Educação/Saúde privada, Higiene Pessoal (Cesta estendida), Alimentos da Cesta Estendida, Insumos Agro.
-3. **REDUÇÃO 30% (Paga 70% da alíquota):** Profissões Intelectuais (Contabilidade, Advocacia, Engenharia, etc).
-4. **IMPOSTO SELETIVO (Adicional):** Bebidas alcoólicas, cigarros, veículos poluentes.
-5. **SIMPLES NACIONAL:** Mantém regime unificado, mas permite transferência de crédito de IBS/CBS pelo valor pago no DAS.
+## 1. Resumo Executivo da Operação (Cenário Simulado)
 
----
-
-## 1. Resumo Executivo da Operação
-
-**Cenário Simulado:**
 - **Regime Tributário:** ${params.taxRegime}${params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? " (Híbrido)" : " (Padrão)") : ""}
 - **Margem de Lucro Alvo:** ${formatPercent(params.profitMargin)}
 - **Custos Fixos Totais (CFT):** ${formatCurrency(totalFixedExpenses)}
@@ -37,42 +28,70 @@ Sua tarefa é analisar os dados de precificação abaixo e validar se a classifi
 - **Custo Fixo por Unidade (CFU):** ${formatCurrency(cfu)}
 - **Porcentagem de Perdas:** ${formatPercent(params.lossPercentage)}
 
-**Resultados Globais:**
+**Resultados Globais da Nota Fiscal:**
 - **Venda Total Sugerida:** ${formatCurrency(summary.totalSelling)}
 - **Impostos Líquidos Totais:** ${formatCurrency(summary.totalTax)} (${formatPercent(summary.totalTaxPercent)} da Venda)
-- **Lucro Líquido Total:** ${formatCurrency(summary.totalProfit)}
-- **Ponto de Equilíbrio (Mensal):** ${formatCurrency(summary.breakEvenPoint)}
+- **Lucro Líquido Total:** ${formatCurrency(summary.totalProfit)} (${formatPercent(summary.profitMarginPercent)} da Venda)
+- **Ponto de Equilíbrio (Faturamento Mensal Mínimo):** ${formatCurrency(summary.breakEvenPoint)}
 
 ---
 
-## 2. Detalhamento dos Produtos
+## 2. Detalhamento dos Produtos Analisados
 
 `;
 
   products.forEach((p, index) => {
+    const classificationDetails = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
+    const cClassDescription = classificationDetails?.cClass?.name || "Não classificado";
+
+    // Recalculate cost breakdown for clarity in the prompt
     const fixedCostPerCommercialUnit = cfu * p.innerQuantity;
-    const productProfit = p.sellingPrice - p.cost - p.taxToPay - p.valueForVariableExpenses - fixedCostPerCommercialUnit;
+    const costBeforeLoss = p.cost + fixedCostPerCommercialUnit;
+    const costAdjustedForLoss = params.lossPercentage > 0 && params.lossPercentage < 100 
+      ? costBeforeLoss / (1 - params.lossPercentage / 100)
+      : costBeforeLoss;
+    const lossValue = costAdjustedForLoss - costBeforeLoss;
+
+    const productProfit = p.sellingPrice - costAdjustedForLoss - p.taxToPay - p.valueForVariableExpenses;
     const productProfitMargin = p.sellingPrice > 0 ? (productProfit / p.sellingPrice) * 100 : 0;
 
     prompt += `
-### Produto ${index + 1}: ${p.name}
-- **NCM:** ${p.ncm || "N/A"} | **CEST:** ${p.cest || "N/A"}
-- **Classificação Atual:** ICMS: ${p.taxAnalysis.icms} | PIS/COFINS: ${p.taxAnalysis.pisCofins}
-- **Custo Aquisição:** ${formatCurrency(p.cost)}
-- **Preço Sugerido:** ${formatCurrency(p.sellingPrice)}
-- **Lucro Líquido:** ${formatCurrency(productProfit)} (${formatPercent(productProfitMargin)})
+### Produto ${index + 1}: ${p.name} (Cód: ${p.code})
+**Quantidade na Nota:** ${p.quantity} ${p.unit}
+
+**A. Análise Tributária (Reforma):**
+- **NCM:** ${p.ncm || "N/A"}
+- **Imposto Seletivo (IS):** ${p.taxAnalysis.incideIS ? `Sim, alíquota de ${formatPercent(p.selectiveTaxToPay > 0 && p.sellingPrice > 0 ? (p.selectiveTaxToPay / p.sellingPrice * 100) : 0)} aplicada.` : "Não"}
+- **Classificação IBS/CBS (cClassTrib):** \`${p.cClassTrib} - ${cClassDescription}\`
+- **Validação da Classificação:** ${p.taxAnalysis.wasNcmFound ? "Automática (baseada no NCM)." : "Padrão (NCM não encontrado em listas de exceção)."}
+
+**B. Composição do Custo Unitário (por ${p.unit}):**
+- Custo de Aquisição (Bruto): ${formatCurrency(p.cost)}
+- (+) Custo Fixo Rateado (CFU): ${formatCurrency(fixedCostPerCommercialUnit)}
+- (+) Ajuste de Perdas (${formatPercent(params.lossPercentage)}): ${formatCurrency(lossValue)}
+- **(=) Custo Total Base para Markup:** **${formatCurrency(costAdjustedForLoss)}**
+
+**C. Composição do Preço de Venda Unitário (por ${p.unit}):**
+- Preço de Venda Sugerido: ${formatCurrency(p.sellingPrice)}
+- (-) Custo Total Base: ${formatCurrency(costAdjustedForLoss)}
+- (-) Impostos Líquidos: ${formatCurrency(p.taxToPay)}
+- (-) Despesas Variáveis: ${formatCurrency(p.valueForVariableExpenses)}
+- **(=) Lucro Líquido Unitário:** **${formatCurrency(productProfit)}** (${formatPercent(productProfitMargin)})
 ---
 `;
   });
 
   prompt += `
 ## TAREFA PARA A IA:
-1. Valide se o NCM de cada produto se enquadra em alguma regra de REDUÇÃO (100%, 60%, 30%) ou IMPOSTO SELETIVO.
-2. Identifique erros de classificação (ex: carne tributada integralmente quando deveria ser alíquota zero).
-3. Sugira ajustes no preço de venda caso a carga tributária real mude após sua análise.
-4. Forneça um parecer final sobre a saúde financeira da operação.
 
-**FORMATO DE RESPOSTA:** Use Markdown com tabelas para os produtos que precisam de correção e uma seção de "Conclusão Estratégica".
+Com base em todos os dados fornecidos, realize uma análise estratégica completa:
+
+1.  **Validação da Classificação Tributária:** Para cada produto, confirme se a \`cClassTrib\` atribuída está correta com base no NCM e nas regras da Reforma Tributária (Cesta Básica, Saúde, Educação, etc.). Se identificar uma classificação incorreta, aponte o erro e sugira a classificação correta.
+2.  **Análise de Rentabilidade:** Avalie a saúde financeira da operação. O lucro líquido total e unitário é sustentável? A margem de lucro alvo está sendo atingida?
+3.  **Impacto dos Custos:** Analise a composição dos custos. O Custo Fixo Rateado (CFU) ou o percentual de Perdas parecem excessivos? Eles estão impactando significativamente a margem?
+4.  **Parecer Estratégico Final:** Forneça uma conclusão clara. A precificação está correta? Quais são os maiores riscos e oportunidades? Dê recomendações práticas para otimizar a carga tributária e aumentar a lucratividade.
+
+**FORMATO DE RESPOSTA:** Use Markdown. Comece com um "Parecer Final" em destaque, seguido por uma tabela detalhando os produtos que necessitam de correção (se houver) e, por fim, a análise detalhada dos pontos de rentabilidade e custos.
 `;
 
   return prompt.trim();
