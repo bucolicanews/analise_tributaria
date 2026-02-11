@@ -2,7 +2,8 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalculatedProduct } from "@/types/pricing";
-import { FileText, ArrowRight, Building, ShoppingCart } from 'lucide-react';
+import { FileText, Building, ShoppingCart, Info } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 interface ProductTaxDetailsProps {
   product: CalculatedProduct;
@@ -38,6 +39,31 @@ const DetailRow = ({ label, value, isBadge = false, isSuggestion = false }: { la
 };
 
 export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
+  const cfopExplanations: { [key: string]: { title: string; description: string } } = {
+    '5403': {
+      title: "Compra para Comercialização (com ST)",
+      description: "Esta é uma compra normal de um produto com ICMS já pago por Substituição Tributária. Por ser uma venda, o fornecedor destacou PIS/COFINS, que não geram crédito para o Simples Nacional."
+    },
+    '5910': {
+      title: "Bonificação, Doação ou Brinde",
+      description: "Este item foi recebido como um brinde (sem custo). Por não ser uma venda, impostos como PIS/COFINS vêm zerados. Ao vendê-lo, você deve usar a tributação normal do produto."
+    },
+    '5102': {
+      title: "Compra para Comercialização",
+      description: "Esta é uma compra normal de um produto tributado. O fornecedor destacou os impostos correspondentes à venda."
+    },
+    '5405': {
+      title: "Compra para Comercialização (com ST)",
+      description: "Esta é uma compra normal de um produto com ICMS já pago por Substituição Tributária, similar ao CFOP 5403."
+    },
+    'default': {
+      title: "Operação Fiscal",
+      description: "Análise da operação fiscal com base no CFOP de entrada."
+    }
+  };
+
+  const cfopInfo = cfopExplanations[product.cfop || ''] || cfopExplanations.default;
+
   return (
     <Card className="shadow-none border-none">
       <CardHeader>
@@ -56,6 +82,15 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
           <DetailRow label="NCM" value={product.ncm} />
           <DetailRow label="CEST" value={product.cest} />
         </div>
+
+        {/* ANÁLISE DA OPERAÇÃO */}
+        <Alert>
+          <Info className="h-4 w-4" />
+          <AlertTitle>{cfopInfo.title}</AlertTitle>
+          <AlertDescription>
+            {cfopInfo.description}
+          </AlertDescription>
+        </Alert>
 
         {/* ICMS */}
         <div className="space-y-3">
