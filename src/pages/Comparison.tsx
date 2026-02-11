@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 // Helper function to calculate global summary for a given set of products and parameters
 const calculateGlobalSummaryForComparison = (
-  productsToCalculate: CalculatedProduct[],
+  productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
   globalFixedExpenses: number,
   totalVariableExpensesPercent: number,
@@ -19,11 +19,6 @@ const calculateGlobalSummaryForComparison = (
   profitMarginOverride: number
 ): GlobalSummaryData => {
   
-  const productsToSummarize = productsToCalculate.map(p => {
-    const tempParams = { ...currentParams, profitMargin: profitMarginOverride };
-    return calculatePricing(p, tempParams, cfu);
-  });
-
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
@@ -49,7 +44,7 @@ const calculateGlobalSummaryForComparison = (
   
   const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
   const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.selectiveTaxRate / 100 : 0;
+  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0; // Note: Simplified for comparison summary
 
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
@@ -102,7 +97,6 @@ const formatPercent = (value: number) => {
 
 const Comparison = () => {
   const comparisonData = useMemo(() => {
-    // Load data from sessionStorage
     const storedParams = sessionStorage.getItem('jota-calc-params');
     const storedProducts = sessionStorage.getItem('jota-calc-products');
     const storedSelection = sessionStorage.getItem('jota-calc-selection');
@@ -112,37 +106,46 @@ const Comparison = () => {
     }
 
     try {
-      const params: CalculationParams = JSON.parse(storedParams);
+      const baseParams: CalculationParams = JSON.parse(storedParams);
       const products: Product[] = JSON.parse(storedProducts);
       const selectedProductCodes: Set<string> = new Set(JSON.parse(storedSelection));
       
-      const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
+      const productsToProcess = products.filter(p => selectedProductCodes.has(p.code));
 
-      if (productsToCalculate.length === 0) return null;
+      if (productsToProcess.length === 0) return null;
 
-      const inssPatronalValue = params.taxRegime !== TaxRegime.SimplesNacional
-        ? params.payroll * (params.inssPatronalRate / 100)
-        : 0;
-      const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
-      const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
-      const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
-      const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+      const totalVariableExpensesPercent = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+      const totalInnerUnitsInXML = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-      const paramsSN = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
-      const calculatedProductsSN = productsToCalculate.map(p => calculatePricing(p, paramsSN, cfu));
-      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      // --- SIMPLES NACIONAL (PADRÃO) ---
+      const paramsSN = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
+      const fixedExpensesSN = paramsSN.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + paramsSN.payroll;
+      const cfuSN = paramsSN.totalStockUnits > 0 ? fixedExpensesSN / paramsSN.totalStockUnits : 0;
+      const calculatedProductsSN = productsToProcess.map(p => calculatePricing(p, paramsSN, cfuSN));
+      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, fixedExpensesSN, totalVariableExpensesPercent, cfuSN, totalInnerUnitsInXML, paramsSN.profitMargin);
       
-      const paramsSNH = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
-      const calculatedProductsSNH = productsToCalculate.map(p => calculatePricing(p, paramsSNH, cfu));
-      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      // --- SIMPLES NACIONAL (HÍBRIDO) ---
+      const paramsSNH = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
+      const fixedExpensesSNH = paramsSNH.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + paramsSNH.payroll;
+      const cfuSNH = paramsSNH.totalStockUnits > 0 ? fixedExpensesSNH / paramsSNH.totalStockUnits : 0;
+      const calculatedProductsSNH = productsToProcess.map(p => calculatePricing(p, paramsSNH, cfuSNH));
+      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, fixedExpensesSNH, totalVariableExpensesPercent, cfuSNH, totalInnerUnitsInXML, paramsSNH.profitMargin);
       
-      const paramsLP = { ...params, taxRegime: TaxRegime.LucroPresumido };
-      const calculatedProductsLP = productsToCalculate.map(p => calculatePricing(p, paramsLP, cfu));
-      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      // --- LUCRO PRESUMIDO ---
+      const paramsLP = { ...baseParams, taxRegime: TaxRegime.LucroPresumido };
+      const inssLP = paramsLP.payroll * (paramsLP.inssPatronalRate / 100);
+      const fixedExpensesLP = paramsLP.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + paramsLP.payroll + inssLP;
+      const cfuLP = paramsLP.totalStockUnits > 0 ? fixedExpensesLP / paramsLP.totalStockUnits : 0;
+      const calculatedProductsLP = productsToProcess.map(p => calculatePricing(p, paramsLP, cfuLP));
+      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, fixedExpensesLP, totalVariableExpensesPercent, cfuLP, totalInnerUnitsInXML, paramsLP.profitMargin);
 
-      const paramsLR = { ...params, taxRegime: TaxRegime.LucroReal };
-      const calculatedProductsLR = productsToCalculate.map(p => calculatePricing(p, paramsLR, cfu));
-      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      // --- LUCRO REAL ---
+      const paramsLR = { ...baseParams, taxRegime: TaxRegime.LucroReal };
+      const inssLR = paramsLR.payroll * (paramsLR.inssPatronalRate / 100);
+      const fixedExpensesLR = paramsLR.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + paramsLR.payroll + inssLR;
+      const cfuLR = paramsLR.totalStockUnits > 0 ? fixedExpensesLR / paramsLR.totalStockUnits : 0;
+      const calculatedProductsLR = productsToProcess.map(p => calculatePricing(p, paramsLR, cfuLR));
+      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, fixedExpensesLR, totalVariableExpensesPercent, cfuLR, totalInnerUnitsInXML, paramsLR.profitMargin);
 
       const results = [
         { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },
@@ -158,7 +161,7 @@ const Comparison = () => {
         }
       }
 
-      return { results, bestResult, productsToCalculateCount: productsToCalculate.length };
+      return { results, bestResult, productsToCalculateCount: productsToProcess.length };
     } catch (error) {
       console.error("Failed to process comparison data", error);
       return null;
