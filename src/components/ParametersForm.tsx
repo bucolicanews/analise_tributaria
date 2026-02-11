@@ -306,14 +306,18 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             <>
               <div className="space-y-2">
                 <Label htmlFor="anexoSimples">Anexo do Simples Nacional</Label>
-                <Input
-                  id="anexoSimples"
-                  type="text"
-                  placeholder="Ex: Anexo I, Anexo II"
-                  value={anexoSimples}
-                  onChange={(e) => setAnexoSimples(e.target.value)}
-                  disabled={disabled}
-                />
+                <Select onValueChange={(value) => setAnexoSimples(value)} value={anexoSimples} disabled={disabled}>
+                  <SelectTrigger id="anexoSimples">
+                    <SelectValue placeholder="Selecione o anexo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Anexo I">Anexo I - Comércio</SelectItem>
+                    <SelectItem value="Anexo II">Anexo II - Indústria</SelectItem>
+                    <SelectItem value="Anexo III">Anexo III - Serviços</SelectItem>
+                    <SelectItem value="Anexo IV">Anexo IV - Serviços</SelectItem>
+                    <SelectItem value="Anexo V">Anexo V - Serviços</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="simples">Alíquota Efetiva do Simples Nacional (%)</Label>
