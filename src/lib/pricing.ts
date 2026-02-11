@@ -1,5 +1,5 @@
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
-import { findCClassByNcm } from "./tax/taxClassificationService";
+import { findCClassByNcm, checkIfNcmHasSelectiveTax } from "./tax/taxClassificationService";
 
 export const calculatePricing = (
   product: Product,
@@ -40,6 +40,9 @@ export const calculatePricing = (
     baseCostForMarkup = Infinity; 
   }
 
+  // --- LÓGICA DE CLASSIFICAÇÃO TRIBUTÁRIA ---
+  const incideIS = checkIfNcmHasSelectiveTax(product.ncm);
+
   // 5. Soma das alíquotas percentuais (variável por regime e cenário)
   const totalVariableExpensesPercentage = params.variableExpenses.reduce(
     (sum, exp) => sum + exp.percentage,
@@ -49,7 +52,7 @@ export const calculatePricing = (
   // Aplica os controles de débito nas alíquotas
   const cbsRateEffective = params.useCbsDebit ? params.cbsRate / 100 : 0;
   const ibsRateEffective = (params.ibsRate / 100) * (params.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = params.useSelectiveTaxDebit ? params.selectiveTaxRate / 100 : 0;
+  const selectiveTaxRateEffective = params.useSelectiveTaxDebit && incideIS ? params.selectiveTaxRate / 100 : 0;
 
   let totalPercentageForMarkup = 0;
   let irpjToPay = 0;
@@ -299,6 +302,7 @@ export const calculatePricing = (
       icms: icmsClassification,
       pisCofins: pisCofinsClassification,
       wasNcmFound: wasNcmFound,
+      incideIS: incideIS,
     },
 
     // Códigos sugeridos para a venda (saída)

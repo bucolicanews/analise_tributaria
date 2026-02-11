@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalculatedProduct } from "@/types/pricing";
-import { FileText, Building, ShoppingCart, Info, Globe, AlertTriangle, CheckCircle } from 'lucide-react';
+import { FileText, Building, ShoppingCart, Info, Globe, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
@@ -93,6 +93,28 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
             {cfopInfo.description}
           </AlertDescription>
         </Alert>
+
+        {/* NOVA SEÇÃO: IMPOSTO SELETIVO */}
+        <div className="space-y-3">
+          <h3 className="font-semibold flex items-center gap-2"><Zap className="h-4 w-4 text-yellow-400" /> Imposto Seletivo (IS)</h3>
+          {product.taxAnalysis.incideIS ? (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Incidência de Imposto Seletivo</AlertTitle>
+              <AlertDescription className="text-xs">
+                Este produto, com base em seu NCM ({product.ncm}), está sujeito à cobrança do Imposto Seletivo. A alíquota definida nos parâmetros será aplicada.
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Alert variant="default" className="bg-green-500/10 border-green-500/30 text-green-400">
+              <CheckCircle className="h-4 w-4" />
+              <AlertTitle>Não Incidência de Imposto Seletivo</AlertTitle>
+              <AlertDescription className="text-xs">
+                Este produto não se enquadra nas categorias sujeitas ao Imposto Seletivo.
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
 
         {/* NOVA SEÇÃO: CLASSIFICAÇÃO IBS/CBS */}
         {classificationDetails && (

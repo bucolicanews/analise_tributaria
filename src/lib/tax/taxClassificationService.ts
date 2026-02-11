@@ -1,6 +1,7 @@
 import { cClassTribData, CClassTribEntry } from './cClassTribData';
 import { cstIbsCbsData, CstIbsCbsEntry } from './cstIbsCbsData';
 import { ncmData } from './ncmData';
+import { selectiveTaxNcmSet, selectiveTaxNcmExceptionsSet } from './selectiveTaxNcmData';
 
 // Create maps for efficient lookups
 const cClassMap = new Map<number, CClassTribEntry>();
@@ -46,6 +47,29 @@ export function findCClassByNcm(ncm: string | undefined): number | null {
   }
 
   return null; // Return null if no match is found
+}
+
+export function checkIfNcmHasSelectiveTax(ncm: string | undefined): boolean {
+  if (!ncm) {
+    return false;
+  }
+
+  const cleanedNcm = ncm.replace(/\./g, '');
+
+  // Primeiro, verifica exceções específicas
+  if (selectiveTaxNcmExceptionsSet.has(cleanedNcm)) {
+    return false;
+  }
+
+  // Depois, verifica correspondências do mais específico para o menos específico
+  for (let i = cleanedNcm.length; i >= 2; i--) {
+    const partialNcm = cleanedNcm.substring(0, i);
+    if (selectiveTaxNcmSet.has(partialNcm)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export function getClassificationDetails(cClassCode: number) {
