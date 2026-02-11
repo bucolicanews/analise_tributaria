@@ -1,4 +1,5 @@
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
+import { findCClassByNcm } from "./tax/taxClassificationService";
 
 export const calculatePricing = (
   product: Product,
@@ -229,6 +230,10 @@ export const calculatePricing = (
   } else {
     pisCofinsClassification = 'Débito e Crédito (Não Cumulativo)';
   }
+  
+  const foundCClass = findCClassByNcm(product.ncm);
+  const cClassTrib = foundCClass !== null ? foundCClass : 1;
+  const wasNcmFound = foundCClass !== null;
   // --- FIM DA LÓGICA DE CLASSIFICAÇÃO ---
 
   // --- LÓGICA DE SUGESTÃO DE CÓDIGOS DE SAÍDA (PARA SIMPLES NACIONAL) ---
@@ -293,6 +298,7 @@ export const calculatePricing = (
     taxAnalysis: {
       icms: icmsClassification,
       pisCofins: pisCofinsClassification,
+      wasNcmFound: wasNcmFound,
     },
 
     // Códigos sugeridos para a venda (saída)
@@ -301,7 +307,6 @@ export const calculatePricing = (
       pisCofinsCst: suggestedPisCofinsCst,
     },
     
-    // Classe de tributação (padrão por enquanto)
-    cClassTrib: 1,
+    cClassTrib: cClassTrib,
   };
 };

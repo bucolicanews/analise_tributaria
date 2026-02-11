@@ -2,7 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CalculatedProduct } from "@/types/pricing";
-import { FileText, Building, ShoppingCart, Info, Globe } from 'lucide-react';
+import { FileText, Building, ShoppingCart, Info, Globe, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
@@ -98,13 +98,25 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
         {classificationDetails && (
           <div className="space-y-3">
             <h3 className="font-semibold flex items-center gap-2"><Globe className="h-4 w-4 text-blue-400" /> Classificação Tributária (IBS/CBS - Reforma)</h3>
-            <Alert variant="default" className="bg-blue-500/10 border-blue-500/30 text-blue-400">
-              <Info className="h-4 w-4" />
-              <AlertTitle>Análise Preliminar</AlertTitle>
-              <AlertDescription className="text-xs">
-                Esta é uma classificação padrão. A associação automática do NCM do produto com a classe de tributação correta será implementada em breve.
-              </AlertDescription>
-            </Alert>
+            
+            {product.taxAnalysis.wasNcmFound ? (
+              <Alert variant="default" className="bg-green-500/10 border-green-500/30 text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <AlertTitle>Classificação Automática</AlertTitle>
+                <AlertDescription className="text-xs">
+                  A classe de tributação foi identificada automaticamente com base no NCM do produto ({product.ncm}).
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Classificação Padrão Aplicada</AlertTitle>
+                <AlertDescription className="text-xs">
+                  O NCM deste produto ({product.ncm || 'N/A'}) não foi encontrado na tabela de referência. Foi aplicada a classificação padrão (Tributação Integral).
+                </AlertDescription>
+              </Alert>
+            )}
+
             <div className="p-3 rounded-md bg-muted/50 border border-border/50 space-y-1">
               <DetailRow label="cClassTrib" value={classificationDetails.cClass.code} isBadge />
               <DetailRow label="Nome" value={classificationDetails.cClass.name} />
