@@ -19,9 +19,15 @@ export const formatDataForAI = (
 Você é um Especialista em Tributação e Estratégia de Negócios, focado na Reforma Tributária Brasileira (IVA Dual).
 Sua tarefa é analisar os dados de precificação abaixo, validar a classificação tributária e fornecer um parecer estratégico sobre a saúde financeira da operação.
 
-## 1. Resumo Executivo da Operação (Cenário Simulado)
+## 1. Contexto da Empresa e Operação
 
-- **Regime Tributário:** ${params.taxRegime}${params.taxRegime === TaxRegime.SimplesNacional ? (params.generateIvaCredit ? " (Híbrido)" : " (Padrão)") : ""}
+- **Receita Bruta Acumulada (12 meses):** ${params.faturamento12Meses ? formatCurrency(params.faturamento12Meses) : "Não informado"}
+- **Regime Tributário Simulado:** ${params.taxRegime}
+${params.taxRegime === TaxRegime.SimplesNacional ? `- **Anexo do Simples:** ${params.anexoSimples || "Não informado"}\n- **Alíquota Efetiva Informada:** ${formatPercent(params.simplesNacionalRate)}` : ""}
+- **Tipo de Operação:** ${params.tipoOperacao || "Não informado"}
+
+## 2. Resumo Executivo da Operação (Cenário Simulado)
+
 - **Margem de Lucro Alvo:** ${formatPercent(params.profitMargin)}
 - **Custos Fixos Totais (CFT):** ${formatCurrency(totalFixedExpenses)}
 - **Estoque Total de Unidades (ETU):** ${formatNumber(params.totalStockUnits)}
@@ -36,7 +42,7 @@ Sua tarefa é analisar os dados de precificação abaixo, validar a classificaç
 
 ---
 
-## 2. Detalhamento dos Produtos Analisados
+## 3. Detalhamento dos Produtos Analisados
 
 `;
 
@@ -86,7 +92,7 @@ Sua tarefa é analisar os dados de precificação abaixo, validar a classificaç
 
 Com base em todos os dados fornecidos, realize uma análise estratégica completa:
 
-1.  **Validação da Classificação Tributária:** Para cada produto, confirme se a \`cClassTrib\` atribuída está correta com base no NCM e nas regras da Reforma Tributária (Cesta Básica, Saúde, Educação, etc.). Se identificar uma classificação incorreta, aponte o erro e sugira a classificação correta.
+1.  **Validação da Classificação Tributária:** Para cada produto, confirme se a \`cClassTrib\` atribuída está correta com base no NCM e nas regras da Reforma Tributária (Cesta Básica, Saúde, Educação, etc.). Considere o contexto da empresa (faturamento, anexo, tipo de operação) para validar a alíquota de imposto informada.
 2.  **Análise de Rentabilidade:** Avalie a saúde financeira da operação. O lucro líquido total e unitário é sustentável? A margem de lucro alvo está sendo atingida?
 3.  **Impacto dos Custos:** Analise a composição dos custos. O Custo Fixo Rateado (CFU) ou o percentual de Perdas parecem excessivos? Eles estão impactando significativamente a margem?
 4.  **Parecer Estratégico Final:** Forneça uma conclusão clara. A precificação está correta? Quais são os maiores riscos e oportunidades? Dê recomendações práticas para otimizar a carga tributária e aumentar a lucratividade.

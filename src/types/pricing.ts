@@ -74,6 +74,11 @@ export interface CalculationParams {
   useSelectiveTaxDebit: boolean; // Débito Imposto Seletivo (Venda)
   useCbsDebit: boolean; // Débito CBS (Venda)
   ibsDebitPercentage: number; // Débito IBS (Venda)
+
+  // Novos campos de contexto da empresa
+  faturamento12Meses?: number;
+  anexoSimples?: string;
+  tipoOperacao?: 'Varejo' | 'Atacado';
 }
 
 export interface CalculatedProduct extends Product {

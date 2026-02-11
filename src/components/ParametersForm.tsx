@@ -72,6 +72,11 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [useCbsDebit, setUseCbsDebit] = useState<boolean>(true);
   const [ibsDebitPercentage, setIbsDebitPercentage] = useState<string>("100");
 
+  // Novos campos de contexto
+  const [faturamento12Meses, setFaturamento12Meses] = useState<string>("");
+  const [anexoSimples, setAnexoSimples] = useState<string>("");
+  const [tipoOperacao, setTipoOperacao] = useState<'Varejo' | 'Atacado'>('Varejo');
+
 
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
     { name: "Aluguel", value: 3000 },
@@ -213,6 +218,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       useSelectiveTaxDebit,
       useCbsDebit,
       ibsDebitPercentage: parseFloat(ibsDebitPercentage),
+      // Novos campos de contexto
+      faturamento12Meses: parseFloat(faturamento12Meses) || undefined,
+      anexoSimples: anexoSimples || undefined,
+      tipoOperacao: tipoOperacao,
     });
 
     toast.success("Cálculos realizados com sucesso!");
@@ -236,9 +245,38 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         <Calculator className="h-4 w-4 mr-2" /> Gerar Relatório
       </Button>
 
-      {/* 1. Regime Tributário */}
-      <div className="space-y-2">
-        <Label htmlFor="taxRegime" className="font-bold text-lg">1. Regime Tributário</Label>
+      {/* 1. Contexto da Empresa */}
+      <div className="space-y-4 border-t border-border pt-4">
+        <h3 className="font-bold text-lg">1. Contexto da Empresa</h3>
+        <div className="space-y-2">
+          <Label htmlFor="faturamento12Meses">Receita Bruta (Últimos 12 Meses)</Label>
+          <Input
+            id="faturamento12Meses"
+            type="number"
+            step="0.01"
+            placeholder="R$"
+            value={faturamento12Meses}
+            onChange={(e) => setFaturamento12Meses(e.target.value)}
+            disabled={disabled}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="tipoOperacao">Tipo de Operação Principal</Label>
+          <Select onValueChange={(value: 'Varejo' | 'Atacado') => setTipoOperacao(value)} value={tipoOperacao} disabled={disabled}>
+            <SelectTrigger id="tipoOperacao">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Varejo">Varejo (Consumidor Final)</SelectItem>
+              <SelectItem value="Atacado">Atacado (Revenda)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* 2. Regime Tributário */}
+      <div className="space-y-2 border-t border-border pt-4">
+        <Label htmlFor="taxRegime" className="font-bold text-lg">2. Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
           if (value !== TaxRegime.SimplesNacional) {
@@ -256,18 +294,29 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         </Select>
       </div>
 
-      {/* 2. Impostos e Transição */}
+      {/* 3. Impostos e Transição */}
       <div className="space-y-6 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">2. Impostos e Transição Tributária</h3>
+        <h3 className="font-bold text-lg">3. Impostos e Transição Tributária</h3>
 
-        {/* 2.1. Alíquotas do Regime */}
+        {/* 3.1. Alíquotas do Regime */}
         <div className="space-y-3 rounded-md border p-4">
           <Label className="font-semibold">Alíquotas do Regime</Label>
           
           {isSimplesNacional && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="simples">Alíquota Simples Nacional (%)</Label>
+                <Label htmlFor="anexoSimples">Anexo do Simples Nacional</Label>
+                <Input
+                  id="anexoSimples"
+                  type="text"
+                  placeholder="Ex: Anexo I, Anexo II"
+                  value={anexoSimples}
+                  onChange={(e) => setAnexoSimples(e.target.value)}
+                  disabled={disabled}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="simples">Alíquota Efetiva do Simples Nacional (%)</Label>
                 <Input
                   id="simples"
                   type="number"
@@ -276,7 +325,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                   onChange={(e) => setSimplesNacionalRate(e.target.value)}
                   disabled={disabled}
                 />
-                <p className="text-xs text-muted-foreground">(Inclui IRPJ, CSLL, PIS, COFINS, ICMS, ISS, IPI, CPP)</p>
+                <p className="text-xs text-muted-foreground">(Alíquota real calculada com base no faturamento)</p>
               </div>
               <div className="flex items-center justify-between space-x-2 border-t border-border pt-3">
                 <Label htmlFor="generateIvaCredit" className="flex flex-col space-y-1">
@@ -350,7 +399,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           )}
         </div>
 
-        {/* 2.2. IVA Dual (CBS/IBS) - Condicional */}
+        {/* 3.2. IVA Dual (CBS/IBS) - Condicional */}
         {showIvaDualRates && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Alíquotas IVA Dual (CBS/IBS)</Label>
@@ -381,7 +430,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        {/* 2.3. Imposto Seletivo (IS) - Condicional */}
+        {/* 3.3. Imposto Seletivo (IS) - Condicional */}
         {showSelectiveTaxControls && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Imposto Seletivo (IS)</Label>
@@ -429,7 +478,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        {/* 2.4. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
+        {/* 3.4. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
         {showCreditControls && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
@@ -461,7 +510,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        {/* 2.5. Parâmetros de Transição (Débito - Venda) - Condicional */}
+        {/* 3.5. Parâmetros de Transição (Débito - Venda) - Condicional */}
         {(isLucroPresumido || isLucroReal || isSimplesHibrido) && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Débito (Venda)</Label>
@@ -511,9 +560,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         )}
       </div>
 
-      {/* 3. Margem de Lucro */}
+      {/* 4. Margem de Lucro */}
       <div className="space-y-2 border-t border-border pt-4">
-        <Label htmlFor="profit" className="font-bold text-lg">3. Margem de Lucro Líquida Alvo (%)</Label>
+        <Label htmlFor="profit" className="font-bold text-lg">4. Margem de Lucro Líquida Alvo (%)</Label>
         <Input
           id="profit"
           type="number"
@@ -530,9 +579,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         />
       </div>
 
-      {/* 4. Custos Fixos e Estoque */}
+      {/* 5. Custos Fixos e Estoque */}
       <div className="space-y-6 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">4. Custos Fixos e Estoque</h3>
+        <h3 className="font-bold text-lg">5. Custos Fixos e Estoque</h3>
         
         <div className="space-y-2">
           <Label htmlFor="payroll">Folha de Pagamento (R$)</Label>
@@ -633,9 +682,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         </div>
       </div>
 
-      {/* 5. Despesas Variáveis */}
+      {/* 6. Despesas Variáveis */}
       <div className="space-y-3 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">5. Despesas Variáveis (Venda)</h3>
+        <h3 className="font-bold text-lg">6. Despesas Variáveis (Venda)</h3>
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <Label>Despesas Variáveis Percentuais</Label>
