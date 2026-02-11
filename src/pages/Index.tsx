@@ -94,7 +94,9 @@ const Index = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.errorMessage || data.message || `Erro ${response.status}: ${response.statusText}`);
+        // Se o n8n retornar um erro estruturado, pegamos a mensagem real
+        const errorMsg = data.errorMessage || data.message || `Erro ${response.status}`;
+        throw new Error(errorMsg);
       }
       
       const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
@@ -107,10 +109,10 @@ const Index = () => {
       }, 100);
 
     } catch (error: any) {
-      console.error(error);
+      console.error("Erro na requisição:", error);
       toast.error("Erro no n8n", { 
         id: toastId,
-        description: error.message || "Verifique a configuração do seu workflow."
+        description: error.message || "Verifique a configuração do seu gatilho Webhook no n8n."
       });
     } finally {
       setIsSending(false);
