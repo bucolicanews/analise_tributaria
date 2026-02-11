@@ -122,11 +122,17 @@ const Index = () => {
       const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
       
       const webhooks = {
-        test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
-        production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
+        test: localStorage.getItem('jota-webhook-test'),
+        production: localStorage.getItem('jota-webhook-prod')
       };
 
-      const response = await fetch(webhooks[environment], {
+      const webhookUrl = webhooks[environment];
+
+      if (!webhookUrl) {
+        throw new Error(`URL do webhook de ${environment} não configurada. Por favor, verifique a página de Configurações.`);
+      }
+
+      const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: { analise: promptText } }),
@@ -150,9 +156,9 @@ const Index = () => {
 
     } catch (error: any) {
       console.error("Erro na requisição:", error);
-      toast.error("Erro no n8n", { 
+      toast.error("Erro ao enviar para análise", { 
         id: toastId,
-        description: error.message || "Verifique a configuração do seu gatilho Webhook no n8n."
+        description: error.message || "Verifique a URL do webhook e a conexão com o n8n."
       });
     } finally {
       setIsSending(false);

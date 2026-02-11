@@ -8,24 +8,30 @@ import { toast } from "sonner";
 import { Textarea } from '@/components/ui/textarea';
 
 const Configuracao = () => {
-  // Estado para webhooks
-  const [webhookTestUrl, setWebhookTestUrl] = useState('https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
-  const [webhookProdUrl, setWebhookProdUrl] = useState('https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
+  // Estado para webhooks, inicializado com valores do localStorage ou padrão
+  const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
+  const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
 
-  // Estado para dados da empresa
-  const [razaoSocial, setRazaoSocial] = useState('');
-  const [nomeFantasia, setNomeFantasia] = useState('');
-  const [cnpj, setCnpj] = useState('');
-  const [faturamento12Meses, setFaturamento12Meses] = useState('');
-  const [cnaes, setCnaes] = useState('');
+  // Estado para dados da empresa, inicializado com valores do localStorage
+  const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('jota-razaoSocial') || '');
+  const [nomeFantasia, setNomeFantasia] = useState(localStorage.getItem('jota-nomeFantasia') || '');
+  const [cnpj, setCnpj] = useState(localStorage.getItem('jota-cnpj') || '');
+  const [faturamento12Meses, setFaturamento12Meses] = useState(localStorage.getItem('jota-faturamento12Meses') || '');
+  const [cnaes, setCnaes] = useState(localStorage.getItem('jota-cnaes') || '');
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const companyData = { razaoSocial, nomeFantasia, cnpj, faturamento12Meses, cnaes };
-    const webhookData = { webhookTestUrl, webhookProdUrl };
     
-    console.log("Salvando dados da empresa:", companyData);
-    console.log("Salvando webhooks:", webhookData);
+    // Salva os dados da empresa no localStorage
+    localStorage.setItem('jota-razaoSocial', razaoSocial);
+    localStorage.setItem('jota-nomeFantasia', nomeFantasia);
+    localStorage.setItem('jota-cnpj', cnpj);
+    localStorage.setItem('jota-faturamento12Meses', faturamento12Meses);
+    localStorage.setItem('jota-cnaes', cnaes);
+
+    // Salva os webhooks no localStorage
+    localStorage.setItem('jota-webhook-test', webhookTestUrl);
+    localStorage.setItem('jota-webhook-prod', webhookProdUrl);
     
     toast.success("Configurações salvas com sucesso!");
   };
