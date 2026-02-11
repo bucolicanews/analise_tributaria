@@ -629,13 +629,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               
               {params.taxRegime === TaxRegime.SimplesNacional ? (
                 <React.Fragment>
-                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
-                  <TableHead colSpan={6} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
+                  <TableHead colSpan={7} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
+                  <TableHead colSpan={7} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
                   <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
                 </React.Fragment>
               ) : (
                 <React.Fragment>
-                  <TableHead colSpan={11} className="text-center">{params.taxRegime}</TableHead>
+                  <TableHead colSpan={12} className="text-center">{params.taxRegime}</TableHead>
                 </React.Fragment>
               )}
             </TableRow>
@@ -645,6 +645,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   {/* Simples Nacional Padrão */}
                   <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
+                  <TableHead className="text-right">Imp. Seletivo</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
@@ -652,6 +653,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   {/* Simples Nacional Híbrido */}
                   <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
+                  <TableHead className="text-right">Imp. Seletivo</TableHead>
                   <TableHead className="text-right">Imposto Total</TableHead>
                   <TableHead className="text-right">Lucro Líq.</TableHead>
                   <TableHead className="text-right">Margem %</TableHead>
@@ -667,6 +669,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   <TableHead className="text-right">Déb. IBS</TableHead>
                   <TableHead className="text-right">IRPJ a Pagar</TableHead>
                   <TableHead className="text-right">CSLL a Pagar</TableHead>
+                  <TableHead className="text-right">Imp. Seletivo</TableHead>
                   <TableHead className="text-right">Imposto Líq.</TableHead>
                   <TableHead className="text-right">Venda Mín. Com.</TableHead>
                   <TableHead className="text-right">Venda Sug. Com.</TableHead>
@@ -752,6 +755,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                           {productStandard ? formatCurrency(productStandard.sellingPrice) : formatCurrency(0)}
                         </TableCell>
                         <TableCell className="text-right text-destructive">
+                          {productStandard ? formatCurrency(productStandard.selectiveTaxToPay) : formatCurrency(0)}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
                           {productStandard ? formatCurrency(productStandard.taxToPay) : formatCurrency(0)}
                         </TableCell>
                         <TableCell className="text-right text-success">
@@ -770,6 +776,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                         </TableCell>
                         <TableCell className="text-right font-bold text-primary">
                           {productHybrid ? formatCurrency(productHybrid.sellingPrice) : formatCurrency(0)}
+                        </TableCell>
+                        <TableCell className="text-right text-destructive">
+                          {productHybrid ? formatCurrency(productHybrid.selectiveTaxToPay) : formatCurrency(0)}
                         </TableCell>
                         <TableCell className="text-right text-destructive">
                           {productHybrid ? formatCurrency(productHybrid.taxToPay) : formatCurrency(0)}
@@ -810,6 +819,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm text-destructive">
                           {formatCurrency(product.csllToPay)}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm text-destructive">
+                          {formatCurrency(product.selectiveTaxToPay)}
                         </TableCell>
                         <TableCell className="text-right font-mono text-sm font-semibold">
                           {formatCurrency(product.taxToPay)}

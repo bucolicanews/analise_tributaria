@@ -114,6 +114,7 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
               </AlertDescription>
             </Alert>
           )}
+          <DetailRow label="Valor IS Calculado" value={product.selectiveTaxToPay} />
         </div>
 
         {/* NOVA SEÇÃO: CLASSIFICAÇÃO IBS/CBS */}
