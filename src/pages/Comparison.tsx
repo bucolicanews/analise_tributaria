@@ -3,9 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle, CheckCircle2, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
-import { globalProducts, globalParams, globalSelectedProductCodes } from './Index';
 import { calculatePricing } from '@/lib/pricing';
-import { CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
+import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
 import { cn } from '@/lib/utils';
 
@@ -21,12 +20,10 @@ const calculateGlobalSummaryForComparison = (
 ): GlobalSummaryData => {
   
   const productsToSummarize = productsToCalculate.map(p => {
-    // Recalculate selling price and taxes based on the overridden profit margin (0% for min sale)
     const tempParams = { ...currentParams, profitMargin: profitMarginOverride };
     return calculatePricing(p, tempParams, cfu);
   });
 
-  // Summing up values directly from the calculated products
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
@@ -48,7 +45,6 @@ const calculateGlobalSummaryForComparison = (
   const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
 
-  // Break-even point calculation (simplified for comparison, using the same logic as ProductsTable)
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
   
   const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
@@ -59,7 +55,7 @@ const calculateGlobalSummaryForComparison = (
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
   } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-  } else { // Simples Nacional
+  } else {
     if (currentParams.generateIvaCredit) {
       totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
@@ -105,102 +101,71 @@ const formatPercent = (value: number) => {
 };
 
 const Comparison = () => {
-  const products = globalProducts;
-  const params = globalParams;
-  const selectedProductCodes = globalSelectedProductCodes;
-
-  const productsToCalculate = useMemo(() => {
-    return products.filter(p => selectedProductCodes.has(p.code));
-  }, [products, selectedProductCodes]);
-
   const comparisonData = useMemo(() => {
-    if (!params || productsToCalculate.length === 0) {
+    // Load data from sessionStorage
+    const storedParams = sessionStorage.getItem('jota-calc-params');
+    const storedProducts = sessionStorage.getItem('jota-calc-products');
+    const storedSelection = sessionStorage.getItem('jota-calc-selection');
+
+    if (!storedParams || !storedProducts || !storedSelection) {
       return null;
     }
 
-    // 1. Consolidar Custos Fixos Totais (CFT)
-    const inssPatronalValue = params.taxRegime !== TaxRegime.SimplesNacional
-      ? params.payroll * (params.inssPatronalRate / 100)
-      : 0;
-    const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
-    const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
-    const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
-    const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+    try {
+      const params: CalculationParams = JSON.parse(storedParams);
+      const products: Product[] = JSON.parse(storedProducts);
+      const selectedProductCodes: Set<string> = new Set(JSON.parse(storedSelection));
+      
+      const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
 
-    // 2. Calcular os 4 cenários
-    
-    // --- Simples Nacional Padrão (SN) ---
-    const paramsSN = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
-    const calculatedProductsSN = productsToCalculate.map(p => calculatePricing(p, paramsSN, cfu));
-    const summarySN = calculateGlobalSummaryForComparison(
-      calculatedProductsSN,
-      paramsSN,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML,
-      params.profitMargin
-    );
-    
-    // --- Simples Nacional Híbrido (SNH) ---
-    const paramsSNH = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
-    const calculatedProductsSNH = productsToCalculate.map(p => calculatePricing(p, paramsSNH, cfu));
-    const summarySNH = calculateGlobalSummaryForComparison(
-      calculatedProductsSNH,
-      paramsSNH,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML,
-      params.profitMargin
-    );
-    
-    // --- Lucro Presumido (LP) ---
-    const paramsLP = { ...params, taxRegime: TaxRegime.LucroPresumido };
-    const calculatedProductsLP = productsToCalculate.map(p => calculatePricing(p, paramsLP, cfu));
-    const summaryLP = calculateGlobalSummaryForComparison(
-      calculatedProductsLP,
-      paramsLP,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML,
-      params.profitMargin
-    );
+      if (productsToCalculate.length === 0) return null;
 
-    // --- Lucro Real (LR) ---
-    const paramsLR = { ...params, taxRegime: TaxRegime.LucroReal };
-    const calculatedProductsLR = productsToCalculate.map(p => calculatePricing(p, paramsLR, cfu));
-    const summaryLR = calculateGlobalSummaryForComparison(
-      calculatedProductsLR,
-      paramsLR,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML,
-      params.profitMargin
-    );
+      const inssPatronalValue = params.taxRegime !== TaxRegime.SimplesNacional
+        ? params.payroll * (params.inssPatronalRate / 100)
+        : 0;
+      const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
+      const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
+      const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+      const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-    // --- Determinar o Vencedor (Maior Lucro Líquido Total) ---
-    const results = [
-      { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },
-      { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Híbrido)", summary: summarySNH, isApplicable: true },
-      { regime: TaxRegime.LucroPresumido, label: "Lucro Presumido", summary: summaryLP, isApplicable: true },
-      { regime: TaxRegime.LucroReal, label: "Lucro Real", summary: summaryLR, isApplicable: true },
-    ];
+      const paramsSN = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
+      const calculatedProductsSN = productsToCalculate.map(p => calculatePricing(p, paramsSN, cfu));
+      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      
+      const paramsSNH = { ...params, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
+      const calculatedProductsSNH = productsToCalculate.map(p => calculatePricing(p, paramsSNH, cfu));
+      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+      
+      const paramsLP = { ...params, taxRegime: TaxRegime.LucroPresumido };
+      const calculatedProductsLP = productsToCalculate.map(p => calculatePricing(p, paramsLP, cfu));
+      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
 
-    let bestResult = results[0];
-    for (let i = 1; i < results.length; i++) {
-      if (results[i].summary.totalProfit > bestResult.summary.totalProfit) {
-        bestResult = results[i];
+      const paramsLR = { ...params, taxRegime: TaxRegime.LucroReal };
+      const calculatedProductsLR = productsToCalculate.map(p => calculatePricing(p, paramsLR, cfu));
+      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML, params.profitMargin);
+
+      const results = [
+        { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },
+        { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Híbrido)", summary: summarySNH, isApplicable: true },
+        { regime: TaxRegime.LucroPresumido, label: "Lucro Presumido", summary: summaryLP, isApplicable: true },
+        { regime: TaxRegime.LucroReal, label: "Lucro Real", summary: summaryLR, isApplicable: true },
+      ];
+
+      let bestResult = results[0];
+      for (let i = 1; i < results.length; i++) {
+        if (results[i].summary.totalProfit > bestResult.summary.totalProfit) {
+          bestResult = results[i];
+        }
       }
+
+      return { results, bestResult, productsToCalculateCount: productsToCalculate.length };
+    } catch (error) {
+      console.error("Failed to process comparison data", error);
+      return null;
     }
+  }, []);
 
-    return { results, bestResult };
-
-  }, [params, productsToCalculate]);
-
-  if (!params || productsToCalculate.length === 0 || !comparisonData) {
+  if (!comparisonData) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card className="shadow-card">
@@ -212,7 +177,7 @@ const Comparison = () => {
               Dados insuficientes para comparação
             </h3>
             <p className="text-muted-foreground max-w-md">
-              Por favor, volte para a página de Análise de Precificação, faça o upload dos arquivos XML e preencha todos os parâmetros de cálculo.
+              Por favor, volte para a página de Análise de Precificação, faça o upload dos arquivos XML, preencha todos os parâmetros de cálculo e clique em "Gerar Relatório".
             </p>
           </div>
         </Card>
@@ -220,7 +185,7 @@ const Comparison = () => {
     );
   }
 
-  const { results, bestResult } = comparisonData;
+  const { results, bestResult, productsToCalculateCount } = comparisonData;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -240,7 +205,7 @@ const Comparison = () => {
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground mb-4">
-            A comparação abaixo utiliza os **{productsToCalculate.length} produtos selecionados** e os **parâmetros de custo fixo e margem alvo** definidos na aba de Precificação.
+            A comparação abaixo utiliza os **{productsToCalculateCount} produtos selecionados** e os **parâmetros de custo fixo e margem alvo** definidos na aba de Precificação.
           </p>
 
           <div className="overflow-x-auto">
@@ -250,7 +215,7 @@ const Comparison = () => {
                   <TableHead className="w-[200px]">Métrica</TableHead>
                   {results.map((res) => (
                     <TableHead 
-                      key={res.label} // Usando label como chave, pois o regime pode ser o mesmo (Simples Nacional)
+                      key={res.label}
                       className={cn(
                         "text-right font-bold",
                         res === bestResult ? "text-success" : "text-muted-foreground"
@@ -263,7 +228,6 @@ const Comparison = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* Linha 1: Venda Total */}
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Venda Total Sugerida</TableCell>
                   {results.map((res) => (
@@ -273,7 +237,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
                 
-                {/* Linha 2: Impostos Totais */}
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-destructive" /> Impostos Líquidos Totais</TableCell>
                   {results.map((res) => (
@@ -283,7 +246,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
                 
-                {/* Linha 3: Despesas Variáveis */}
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-yellow-500" /> Despesas Variáveis Totais</TableCell>
                   {results.map((res) => (
@@ -293,7 +255,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
 
-                {/* Linha 4: Margem de Contribuição */}
                 <TableRow className="bg-muted/50">
                   <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-accent" /> Margem de Contribuição Total</TableCell>
                   {results.map((res) => (
@@ -303,7 +264,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
                 
-                {/* Linha 5: Lucro Líquido Total */}
                 <TableRow className="bg-success/10">
                   <TableCell className="font-extrabold flex items-center gap-2"><DollarSign className="h-4 w-4 text-success" /> LUCRO LÍQUIDO TOTAL</TableCell>
                   {results.map((res) => (
@@ -319,7 +279,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
                 
-                {/* Linha 6: Margem de Lucro Líquida % */}
                 <TableRow>
                   <TableCell className="font-semibold">Margem de Lucro Líquida %</TableCell>
                   {results.map((res) => (
@@ -329,7 +288,6 @@ const Comparison = () => {
                   ))}
                 </TableRow>
                 
-                {/* Linha 7: Ponto de Equilíbrio */}
                 <TableRow>
                   <TableCell className="font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-muted-foreground" /> Ponto de Equilíbrio (Mensal)</TableCell>
                   {results.map((res) => (
@@ -343,8 +301,6 @@ const Comparison = () => {
           </div>
         </CardContent>
       </Card>
-      
-      {/* Removendo o alerta sobre o Simples Híbrido, pois ele agora está incluído */}
     </div>
   );
 };

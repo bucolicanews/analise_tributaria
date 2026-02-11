@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { Upload, FileText, Calculator, Bot, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -18,41 +18,82 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-let globalProducts: Product[] = [];
-let globalParams: CalculationParams | null = null;
-let globalSelectedProductCodes: Set<string> = new Set();
-let globalSummary: GlobalSummaryData | null = null;
+// These are now deprecated and will be removed in a future step.
+// Data is now managed via sessionStorage.
+export let globalProducts: Product[] = [];
+export let globalParams: CalculationParams | null = null;
+export let globalSelectedProductCodes: Set<string> = new Set();
+export let globalSummary: GlobalSummaryData | null = null;
 
 const Index = () => {
-  const [products, setProducts] = useState<Product[]>(globalProducts);
-  const [params, setParams] = useState<CalculationParams | null>(globalParams);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
-  const [summary, setSummary] = useState<GlobalSummaryData | null>(globalSummary);
-  const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(globalSelectedProductCodes);
+  const [summary, setSummary] = useState<GlobalSummaryData | null>(null);
+  const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
 
+  // Load data from sessionStorage on initial render
+  useEffect(() => {
+    try {
+      const storedProducts = sessionStorage.getItem('jota-calc-products');
+      const storedParams = sessionStorage.getItem('jota-calc-params');
+      const storedSelection = sessionStorage.getItem('jota-calc-selection');
+
+      if (storedProducts) {
+        const parsedProducts = JSON.parse(storedProducts);
+        setProducts(parsedProducts);
+        globalProducts = parsedProducts;
+      }
+      if (storedParams) {
+        const parsedParams = JSON.parse(storedParams);
+        setParams(parsedParams);
+        globalParams = parsedParams;
+      }
+      if (storedSelection) {
+        const parsedSelection = new Set(JSON.parse(storedSelection));
+        setSelectedProductCodes(parsedSelection);
+        globalSelectedProductCodes = parsedSelection;
+      }
+    } catch (error) {
+      console.error("Failed to load data from session storage", error);
+      sessionStorage.clear(); // Clear corrupted data
+    }
+  }, []);
+
+
   const handleXmlParsed = (parsedProducts: Product[]) => {
-    globalProducts = parsedProducts;
     setProducts(parsedProducts);
     const initialSelection = new Set(parsedProducts.map(p => p.code));
-    globalSelectedProductCodes = initialSelection;
     setSelectedProductCodes(initialSelection);
+    
+    // Update globals and session storage
+    globalProducts = parsedProducts;
+    globalSelectedProductCodes = initialSelection;
+    sessionStorage.setItem('jota-calc-products', JSON.stringify(parsedProducts));
+    sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(initialSelection)));
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
-    globalParams = calculationParams;
     setParams(calculationParams);
+    
+    // Update globals and session storage
+    globalParams = calculationParams;
+    sessionStorage.setItem('jota-calc-params', JSON.stringify(calculationParams));
   };
 
   const handleSummaryCalculated = (newSummary: GlobalSummaryData) => {
-    globalSummary = newSummary;
     setSummary(newSummary);
+    globalSummary = newSummary; // Keep global for now if needed elsewhere
   };
 
   const handleSelectionChange = (newSelection: Set<string>) => {
-    globalSelectedProductCodes = newSelection;
     setSelectedProductCodes(newSelection);
+    
+    // Update globals and session storage
+    globalSelectedProductCodes = newSelection;
+    sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(newSelection)));
   };
 
   const { cfu, totalFixedExpenses, calculatedProducts, productsToDisplay } = useMemo(() => {
@@ -94,7 +135,6 @@ const Index = () => {
       const data = await response.json();
 
       if (!response.ok) {
-        // Se o n8n retornar um erro estruturado, pegamos a mensagem real
         const errorMsg = data.errorMessage || data.message || `Erro ${response.status}`;
         throw new Error(errorMsg);
       }
@@ -215,4 +255,3 @@ const Index = () => {
 };
 
 export default Index;
-export { globalProducts, globalParams, globalSelectedProductCodes, globalSummary };
