@@ -506,7 +506,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   return (
     <div className="space-y-6">
       <Dialog open={!!selectedProductForDetails} onOpenChange={(isOpen) => !isOpen && setSelectedProductForDetails(null)}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
           {selectedProductForDetails && <ProductTaxDetails product={selectedProductForDetails} />}
         </DialogContent>
       </Dialog>
