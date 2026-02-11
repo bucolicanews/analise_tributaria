@@ -37,6 +37,12 @@ export interface VariableExpense {
   percentage: number;
 }
 
+export interface SelectiveTaxRate {
+  ncm: string;
+  rate: number;
+  description: string;
+}
+
 export interface CalculationParams {
   profitMargin: number;
   fixedExpenses: FixedExpense[];
@@ -58,7 +64,8 @@ export interface CalculationParams {
   // Alíquotas de impostos
   cbsRate: number;
   ibsRate: number;
-  selectiveTaxRate: number;
+  defaultSelectiveTaxRate: number; // Renomeado para alíquota padrão/fallback
+  selectiveTaxRates: SelectiveTaxRate[]; // Novo: Alíquotas específicas por NCM
 
   // Parâmetros de Transição (Crédito e Débito)
   usePisCofins: boolean; // Crédito PIS/COFINS (Entrada)

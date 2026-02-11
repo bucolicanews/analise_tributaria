@@ -3,7 +3,7 @@ import { Plus, Trash2, AlertTriangle, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { CalculationParams, FixedExpense, VariableExpense, TaxRegime } from "@/types/pricing";
+import { CalculationParams, FixedExpense, VariableExpense, TaxRegime, SelectiveTaxRate } from "@/types/pricing";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -58,7 +58,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   
   const [cbsRate, setCbsRate] = useState<string>("8.8");
   const [ibsRate, setIbsRate] = useState<string>("17.7");
-  const [selectiveTaxRate, setSelectiveTaxRate] = useState<string>("0");
+  const [defaultSelectiveTaxRate, setDefaultSelectiveTaxRate] = useState<string>("0");
+  const [selectiveTaxRates, setSelectiveTaxRates] = useState<SelectiveTaxRate[]>([
+    { ncm: "2203", rate: 10, description: "Cervejas" },
+  ]);
 
   // Parâmetros de Transição (Crédito)
   const [usePisCofins, setUsePisCofins] = useState<boolean>(true);
@@ -90,7 +93,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     // Aplica os controles de débito na taxa de imposto
     const cbs = useCbsDebit ? (parseFloat(cbsRate) || 0) : 0;
     const ibs = (parseFloat(ibsRate) || 0) * (parseFloat(ibsDebitPercentage) / 100);
-    const selective = useSelectiveTaxDebit ? (parseFloat(selectiveTaxRate) || 0) : 0;
+    // Para a margem máxima, consideramos a maior alíquota de IS possível como pior caso.
+    const maxSelectiveRate = Math.max(parseFloat(defaultSelectiveTaxRate) || 0, ...selectiveTaxRates.map(r => r.rate));
+    const selective = useSelectiveTaxDebit ? maxSelectiveRate : 0;
 
     if (taxRegime === TaxRegime.LucroPresumido) {
       const irpj = parseFloat(irpjRate) || 0;
@@ -104,10 +109,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     } else { // Simples Nacional
       if (generateIvaCredit) {
         const simples = parseFloat(simplesNacionalRate) || 0;
-        // No Simples Híbrido, o Simples é pago integralmente, e CBS/IBS são pagos por fora (e controlados pelo débito)
         totalTaxRate = simples + cbs + ibs + selective;
       } else {
-        // No Simples Padrão, apenas o Simples e o Imposto Seletivo são pagos
         totalTaxRate = (parseFloat(simplesNacionalRate) || 0) + selective;
       }
     }
@@ -115,45 +118,41 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
     
     return 100 - totalOtherPercentages;
-  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, selectiveTaxRate, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit, irpjRateLucroReal, csllRateLucroReal]);
+  }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, defaultSelectiveTaxRate, selectiveTaxRates, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit, irpjRateLucroReal, csllRateLucroReal]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
   // ------------------------------------------
 
 
-  const addFixedExpense = () => {
-    setFixedExpenses([...fixedExpenses, { name: "", value: 0 }]);
-  };
-
-  const removeFixedExpense = (index: number) => {
-    setFixedExpenses(fixedExpenses.filter((_, i) => i !== index));
-  };
-
+  const addFixedExpense = () => setFixedExpenses([...fixedExpenses, { name: "", value: 0 }]);
+  const removeFixedExpense = (index: number) => setFixedExpenses(fixedExpenses.filter((_, i) => i !== index));
   const updateFixedExpense = (index: number, field: keyof FixedExpense, value: string | number) => {
     const updated = [...fixedExpenses];
     updated[index] = { ...updated[index], [field]: value };
     setFixedExpenses(updated);
   };
 
-  const addVariableExpense = () => {
-    setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }]);
-  };
-
-  const removeVariableExpense = (index: number) => {
-    setVariableExpenses(variableExpenses.filter((_, i) => i !== index));
-  };
-
+  const addVariableExpense = () => setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }]);
+  const removeVariableExpense = (index: number) => setVariableExpenses(variableExpenses.filter((_, i) => i !== index));
   const updateVariableExpense = (index: number, field: keyof VariableExpense, value: string | number) => {
     const updated = [...variableExpenses];
     updated[index] = { ...updated[index], [field]: value };
     setVariableExpenses(updated);
   };
 
+  const addSelectiveTaxRate = () => setSelectiveTaxRates([...selectiveTaxRates, { ncm: "", rate: 0, description: "" }]);
+  const removeSelectiveTaxRate = (index: number) => setSelectiveTaxRates(selectiveTaxRates.filter((_, i) => i !== index));
+  const updateSelectiveTaxRate = (index: number, field: keyof SelectiveTaxRate, value: string | number) => {
+    const updated = [...selectiveTaxRates];
+    updated[index] = { ...updated[index], [field]: value };
+    setSelectiveTaxRates(updated);
+  };
+
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!profitMargin || !payroll || !inssPatronalRate || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !selectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
+    if (!profitMargin || !payroll || !inssPatronalRate || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !defaultSelectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
       toast.error("Campos obrigatórios", {
         description: "Preencha todos os campos principais, de impostos e de transição.",
       });
@@ -206,7 +205,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       csllRateLucroReal: parseFloat(csllRateLucroReal),
       cbsRate: parseFloat(cbsRate),
       ibsRate: parseFloat(ibsRate),
-      selectiveTaxRate: parseFloat(selectiveTaxRate),
+      defaultSelectiveTaxRate: parseFloat(defaultSelectiveTaxRate),
+      selectiveTaxRates,
       // Parâmetros de Transição
       usePisCofins,
       icmsPercentage: parseFloat(icmsPercentage),
@@ -241,7 +241,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         <Label htmlFor="taxRegime" className="font-bold text-lg">1. Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
-          // Resetar generateIvaCredit se mudar para Lucro Presumido/Real
           if (value !== TaxRegime.SimplesNacional) {
             setGenerateIvaCredit(false);
           }
@@ -351,7 +350,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           )}
         </div>
 
-        {/* 2.2. IVA Dual (CBS/IBS) e Imposto Seletivo (IS) - Condicional */}
+        {/* 2.2. IVA Dual (CBS/IBS) - Condicional */}
         {showIvaDualRates && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Alíquotas IVA Dual (CBS/IBS)</Label>
@@ -382,30 +381,58 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
+        {/* 2.3. Imposto Seletivo (IS) - Condicional */}
         {showSelectiveTaxControls && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Imposto Seletivo (IS)</Label>
             <div className="space-y-2">
-              <Label htmlFor="selectiveTaxRate">Alíquota Imposto Seletivo (%)</Label>
+              <Label htmlFor="defaultSelectiveTaxRate">Alíquota Padrão do Imposto Seletivo (%)</Label>
               <Input
-                id="selectiveTaxRate"
+                id="defaultSelectiveTaxRate"
                 type="number"
                 step="0.01"
-                value={selectiveTaxRate}
-                onChange={(e) => setSelectiveTaxRate(e.target.value)}
+                value={defaultSelectiveTaxRate}
+                onChange={(e) => setDefaultSelectiveTaxRate(e.target.value)}
                 disabled={disabled}
               />
-              <p className="text-xs text-muted-foreground">(Incide sobre produtos prejudiciais à saúde/meio ambiente, similar ao IPI)</p>
+              <p className="text-xs text-muted-foreground">(Alíquota de fallback, usada se um NCM específico não for encontrado abaixo)</p>
+            </div>
+            <div className="space-y-3 pt-3 border-t border-border">
+              <div className="flex items-center justify-between">
+                <Label>Alíquotas Específicas por NCM</Label>
+                <Button type="button" size="sm" variant="outline" onClick={addSelectiveTaxRate} disabled={disabled}>
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              {selectiveTaxRates.map((rate, index) => (
+                <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                  <Input
+                    placeholder="NCM (ex: 2203)"
+                    value={rate.ncm}
+                    onChange={(e) => updateSelectiveTaxRate(index, "ncm", e.target.value)}
+                    disabled={disabled}
+                  />
+                  <Input
+                    placeholder="%"
+                    type="number"
+                    step="0.01"
+                    value={rate.rate}
+                    onChange={(e) => updateSelectiveTaxRate(index, "rate", parseFloat(e.target.value) || 0)}
+                    disabled={disabled}
+                  />
+                  <Button type="button" size="icon" variant="ghost" onClick={() => removeSelectiveTaxRate(index)} disabled={disabled}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* 2.3. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
+        {/* 2.4. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
         {showCreditControls && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
-            
-            {/* Controle de Crédito PIS/COFINS (Entrada) */}
             <div className="flex items-center justify-between space-x-2">
               <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
                 <span>Usar Créditos de PIS/COFINS (Entrada)</span>
@@ -413,15 +440,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                   (Simula a manutenção do crédito PIS/COFINS na transição)
                 </span>
               </Label>
-              <Switch
-                id="usePisCofins"
-                checked={usePisCofins}
-                onCheckedChange={setUsePisCofins}
-                disabled={disabled}
-              />
+              <Switch id="usePisCofins" checked={usePisCofins} onCheckedChange={setUsePisCofins} disabled={disabled} />
             </div>
-            
-            {/* Controle de Crédito ICMS (Entrada) */}
             <div className="space-y-2">
               <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
               <Input
@@ -441,12 +461,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
 
-        {/* 2.4. Parâmetros de Transição (Débito - Venda) - Condicional */}
+        {/* 2.5. Parâmetros de Transição (Débito - Venda) - Condicional */}
         {(isLucroPresumido || isLucroReal || isSimplesHibrido) && (
           <div className="space-y-3 rounded-md border p-4">
             <Label className="font-semibold">Controles de Débito (Venda)</Label>
-            
-            {/* Controle de Débito IPI/IS (Venda) */}
             <div className="flex items-center justify-between space-x-2">
               <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
                 <span>Calcular Imposto Seletivo (IPI/IS)</span>
@@ -454,15 +472,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                   (Desative para simular a extinção do IPI/IS na venda)
                 </span>
               </Label>
-              <Switch
-                id="useSelectiveTaxDebit"
-                checked={useSelectiveTaxDebit}
-                onCheckedChange={setUseSelectiveTaxDebit}
-                disabled={disabled}
-              />
+              <Switch id="useSelectiveTaxDebit" checked={useSelectiveTaxDebit} onCheckedChange={setUseSelectiveTaxDebit} disabled={disabled} />
             </div>
-
-            {/* Controle de Débito PIS/COFINS/CBS (Venda) */}
             <div className="flex items-center justify-between space-x-2">
               <Label htmlFor="useCbsDebit" className="flex flex-col space-y-1">
                 <span>Calcular CBS (PIS/COFINS)</span>
@@ -470,15 +481,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                   (Desative para simular a extinção do PIS/COFINS/CBS na venda)
                 </span>
               </Label>
-              <Switch
-                id="useCbsDebit"
-                checked={useCbsDebit}
-                onCheckedChange={setUseCbsDebit}
-                disabled={disabled}
-              />
+              <Switch id="useCbsDebit" checked={useCbsDebit} onCheckedChange={setUseCbsDebit} disabled={disabled} />
             </div>
-
-            {/* Controle de Débito ICMS/ISS/IBS (Venda) */}
             <div className="space-y-2">
               <Label htmlFor="ibsDebitPercentage">Percentual de Débito IBS a ser considerado (%)</Label>
               <Input
@@ -498,7 +502,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
           </div>
         )}
         
-        {/* Se for Simples Padrão, não mostra controles de débito de IVA/IS */}
         {isSimplesNacional && !isSimplesHibrido && (
           <div className="rounded-md border p-4">
             <p className="text-sm text-muted-foreground">
