@@ -91,24 +91,27 @@ const Index = () => {
         body: JSON.stringify({ prompt: { analise: promptText } }),
       });
 
-      if (!response.ok) throw new Error(`Erro: ${response.statusText}`);
-
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.errorMessage || data.message || `Erro ${response.status}: ${response.statusText}`);
+      }
       
-      // Tenta extrair o texto da resposta do n8n (ajustado para o formato comum de retorno de IA)
       const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
       
       setAiReport(reportText);
       toast.success("Análise concluída com sucesso!", { id: toastId });
       
-      // Scroll suave para o relatório
       setTimeout(() => {
         document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      toast.error("Falha na comunicação com a IA.", { id: toastId });
+      toast.error("Erro no n8n", { 
+        id: toastId,
+        description: error.message || "Verifique a configuração do seu workflow."
+      });
     } finally {
       setIsSending(false);
     }
