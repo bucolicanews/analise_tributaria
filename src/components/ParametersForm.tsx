@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Plus, Trash2, AlertTriangle, Calculator } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { CalculationParams, FixedExpense, VariableExpense, TaxRegime, SelectiveT
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { calculateSimplesNacionalEffectiveRate } from "@/lib/simplesNacional";
 
 interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
@@ -45,7 +46,7 @@ const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
   const [profitMargin, setProfitMargin] = useState<string>("9.5");
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido);
-  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("10");
+  const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("0");
   const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false);
   const [irpjRate, setIrpjRate] = useState<string>("1.2");
   const [csllRate, setCsllRate] = useState<string>("1.08");
@@ -85,6 +86,20 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
     { name: "Comissão", percentage: 5 },
   ]);
+
+  // Efeito para calcular a alíquota do Simples Nacional automaticamente
+  useEffect(() => {
+    if (taxRegime === TaxRegime.SimplesNacional) {
+      const rbt12 = parseFloat(faturamento12Meses) || 0;
+      if (anexoSimples && rbt12 > 0) {
+        const rate = calculateSimplesNacionalEffectiveRate(anexoSimples, rbt12);
+        setSimplesNacionalRate(rate.toFixed(2));
+      } else {
+        setSimplesNacionalRate("0"); // Reseta se não houver anexo ou faturamento
+      }
+    }
+  }, [faturamento12Meses, anexoSimples, taxRegime]);
+
 
   // --- Lógica de Cálculo da Margem Máxima ---
   const maxProfitMargin = useMemo(() => {
@@ -328,8 +343,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
                   value={simplesNacionalRate}
                   onChange={(e) => setSimplesNacionalRate(e.target.value)}
                   disabled={disabled}
+                  readOnly={isSimplesNacional}
+                  title={isSimplesNacional ? "Calculado automaticamente com base no faturamento e anexo" : ""}
                 />
-                <p className="text-xs text-muted-foreground">(Alíquota real calculada com base no faturamento)</p>
+                {isSimplesNacional && <p className="text-xs text-muted-foreground">Calculado automaticamente com base no faturamento e anexo.</p>}
               </div>
               <div className="flex items-center justify-between space-x-2 border-t border-border pt-3">
                 <Label htmlFor="generateIvaCredit" className="flex flex-col space-y-1">
