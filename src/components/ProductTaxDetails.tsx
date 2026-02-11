@@ -109,6 +109,16 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
               <DetailRow label="cClassTrib" value={classificationDetails.cClass.code} isBadge />
               <DetailRow label="Nome" value={classificationDetails.cClass.name} />
               <DetailRow label="Descrição" value={classificationDetails.cClass.description} />
+              
+              {classificationDetails.cClass.lcSourceText && (
+                <div className="py-1.5 border-b border-border/50">
+                  <span className="text-muted-foreground">LC Redação:</span>
+                  <blockquote className="mt-1 pl-3 border-l-2 border-primary text-xs whitespace-pre-wrap font-mono text-foreground/80">
+                    {classificationDetails.cClass.lcSourceText}
+                  </blockquote>
+                </div>
+              )}
+
               <DetailRow label="CST-IBS/CBS" value={`${classificationDetails.cst?.code} - ${classificationDetails.cst?.description}`} />
               <DetailRow label="Última Atualização" value={classificationDetails.cClass.lastUpdate} />
               {classificationDetails.cClass.link && (
