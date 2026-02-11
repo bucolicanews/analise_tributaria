@@ -121,4 +121,10 @@ export interface CalculatedProduct extends Product {
     icms: 'Substituição Tributária' | 'Tributado Integralmente';
     pisCofins: 'Monofásico (Receita Segregada)' | 'Tributado (Alíquota Unificada no DAS)' | 'Débito e Crédito (Não Cumulativo)';
   };
+
+  // NOVO: Códigos sugeridos para a venda (saída)
+  suggestedCodes: {
+    icmsCstOrCsosn: string;
+    pisCofinsCst: string;
+  };
 }

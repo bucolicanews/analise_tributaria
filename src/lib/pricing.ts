@@ -231,6 +231,18 @@ export const calculatePricing = (
   }
   // --- FIM DA LÓGICA DE CLASSIFICAÇÃO ---
 
+  // --- LÓGICA DE SUGESTÃO DE CÓDIGOS DE SAÍDA (PARA SIMPLES NACIONAL) ---
+  let suggestedIcmsCstOrCsosn = '102'; // Padrão: Tributado Integralmente
+  if (isIcmsST) {
+    suggestedIcmsCstOrCsosn = '500'; // ICMS cobrado anteriormente por ST
+  }
+
+  let suggestedPisCofinsCst = '01'; // Padrão: Operação Tributável
+  if (isPisCofinsMonofasico) {
+    suggestedPisCofinsCst = '04'; // Operação Tributável Monofásica - Revenda
+  }
+  // --- FIM DA LÓGICA DE SUGESTÃO ---
+
   return {
     ...product,
     effectiveCost,
@@ -281,6 +293,12 @@ export const calculatePricing = (
     taxAnalysis: {
       icms: icmsClassification,
       pisCofins: pisCofinsClassification,
+    },
+
+    // Códigos sugeridos para a venda (saída)
+    suggestedCodes: {
+      icmsCstOrCsosn: suggestedIcmsCstOrCsosn,
+      pisCofinsCst: suggestedPisCofinsCst,
     },
   };
 };
