@@ -2,9 +2,8 @@ import { CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing
 import { GlobalSummaryData } from "@/components/ProductsTable";
 import { getClassificationDetails } from "./tax/taxClassificationService";
 
-const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
 const formatPercent = (value: number) => `${(value || 0).toFixed(2)}%`;
-const formatNumber = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
 
 export const formatDataForAI = (
   params: CalculationParams,
@@ -26,13 +25,13 @@ export const formatDataForAI = (
   let prompt = `
 # ANÁLISE ESTRATÉGICA DE PRECIFICAÇÃO E TRIBUTAÇÃO (REFORMA TRIBUTÁRIA)
 
-**OBJETIVO:** Atuar como um consultor financeiro e tributário sênior. Sua missão é analisar os dados de uma simulação de precificação sob as novas regras da Reforma Tributária (IVA Dual) e fornecer um parecer estratégico claro, apontando riscos, oportunidades e fornecendo recomendações práticas.
+**OBJETIVO:** Atuar como um consultor financeiro e tributário sênior. Sua missão é analisar os dados de uma simulação de precificação e fornecer um parecer estratégico, apontando riscos, oportunidades e recomendações práticas. **Seja crítico e não apenas repita os dados.**
 
 ---
 
 ## 1. CONTEXTO DA SIMULAÇÃO (PARÂMETROS FORNECIDOS PELO USUÁRIO)
 
-Esta seção resume as premissas que o usuário configurou para gerar os resultados abaixo. Use este contexto para fundamentar sua análise.
+Esta seção resume as premissas que o usuário configurou. Use este contexto para fundamentar sua análise e, principalmente, para **questionar premissas que pareçam irrealistas.**
 
 - **Regime Tributário:** **${params.taxRegime}**
 ${params.taxRegime === TaxRegime.SimplesNacional ? `
@@ -40,30 +39,18 @@ ${params.taxRegime === TaxRegime.SimplesNacional ? `
 - **Faturamento Anual (Base p/ Alíquota):** ${formatCurrency(params.faturamento12Meses)}
 - **Alíquota Efetiva do Simples:** ${formatPercent(params.simplesNacionalRate)}
 ` : ""}
-${params.taxRegime === TaxRegime.LucroPresumido ? `
-- **Alíquota IRPJ (Presumido):** ${formatPercent(params.irpjRate)}
-- **Alíquota CSLL (Presumido):** ${formatPercent(params.csllRate)}
-` : ""}
-${params.taxRegime === TaxRegime.LucroReal ? `
-- **Alíquota IRPJ (Real):** ${formatPercent(params.irpjRateLucroReal)}
-- **Alíquota CSLL (Real):** ${formatPercent(params.csllRateLucroReal)}
-` : ""}
-
-- **Custos Fixos Totais (Mensal):** ${formatCurrency(params.fixedCosts)}
-- **Margem de Lucro Alvo:** ${formatPercent(params.profitMargin)}
+- **Custos Fixos Totais (Mensal):** ${formatCurrency(params.fixedCostsTotal)}
+- **Margem de Lucro Alvo (Única):** ${formatPercent(params.profitMargin)}
 - **Percentual de Perdas (Quebra):** ${formatPercent(params.lossPercentage)}
 - **Despesas Variáveis sobre a Venda:** ${getVariableExpensesText()}
-- **Gera Crédito de IVA para Cliente (Simples Nacional)?** ${params.generateIvaCredit ? "Sim" : "Não"}
 
 ---
 
 ## 2. RESULTADOS FINANCEIROS GLOBAIS (CÁLCULO AUTOMÁTICO)
 
-Estes são os resultados consolidados da simulação, com base nos parâmetros acima.
+Estes são os resultados consolidados da simulação.
 
 - **Venda Total (Faturamento):** ${formatCurrency(summary.totalSelling)}
-- **Custo Total dos Produtos (Aquisição + Perdas + Custo Fixo Rateado):** ${formatCurrency(summary.totalCost)}
-- **Impostos Totais:** ${formatCurrency(summary.totalTax)} (${formatPercent(summary.totalTaxPercent)} do faturamento)
 - **Lucro Líquido Total:** ${formatCurrency(summary.totalProfit)} (${formatPercent(summary.profitMarginPercent)} do faturamento)
 - **Ponto de Equilíbrio (Faturamento Mínimo para Cobrir Custos Fixos):** **${formatCurrency(summary.breakEvenPoint)}**
 
@@ -81,41 +68,33 @@ Análise individual de cada item na simulação.
     const productProfitMargin = p.sellingPrice > 0 ? (p.valueForProfit / p.sellingPrice) * 100 : 0;
 
     prompt += `
-### Produto ${index + 1}: ${p.name} (Cód: ${p.code})
+### Produto ${index + 1}: ${p.name}
 - **NCM:** ${p.ncm || "N/A"}
 - **Preço de Venda Unitário:** ${formatCurrency(p.sellingPrice)}
-- **Custo de Aquisição Unitário:** ${formatCurrency(p.cost)}
-- **Impostos Unitários:** ${formatCurrency(p.taxToPay)}
 - **Lucro Líquido Unitário:** ${formatCurrency(p.valueForProfit)} (${formatPercent(productProfitMargin)})
-
-**Análise Tributária do Produto:**
 - **Imposto Seletivo (IS):** ${p.taxAnalysis.incideIS ? `Sim. Alíquota calculada: ${formatPercent(p.selectiveTaxToPay > 0 && p.sellingPrice > 0 ? (p.selectiveTaxToPay / p.sellingPrice * 100) : 0)}.` : "Não"}
-  - **Observação para a IA:** Se o regime for Simples Nacional, o IS ser 0.00% está **CORRETO**, pois o imposto é monofásico (pago pela indústria). Não aponte isso como um erro.
-- **Classificação IBS/CBS (cClassTrib):** \`${p.cClassTrib} - ${cClassDescription}\`
-- **Validação da Classificação (Sistema):** ${p.taxAnalysis.wasNcmFound ? "NCM encontrado nas listas de exceção da Reforma." : "NCM não encontrado, aplicada classificação padrão."}
-
+  - **Nota para IA:** Se o regime for Simples Nacional, o IS ser 0.00% está **CORRETO**. Não aponte isso como um erro.
+- **Classificação IBS/CBS (Sistema):** \`${p.cClassTrib} - ${cClassDescription}\` (${p.taxAnalysis.wasNcmFound ? "NCM específico" : "Classificação Padrão"})
 `;
   });
 
   prompt += `
 ---
 
-## 4. SUA TAREFA COMO CONSULTOR DE IA
+## 4. SUA TAREFA COMO CONSULTOR DE IA (SEJA CRÍTICO E PROATIVO)
 
-Com base em **todo o contexto fornecido (seções 1, 2 e 3)**, elabore uma análise estratégica concisa e acionável.
+Com base em **todo o contexto fornecido**, elabore uma análise estratégica concisa e acionável.
 
 **Responda seguindo estritamente esta estrutura:**
 
-1.  **PARECER ESTRATÉGICO (3 a 4 parágrafos):** Comece com um resumo executivo. A operação é saudável? O regime tributário escolhido parece adequado? Comente sobre o Ponto de Equilíbrio em relação ao faturamento total. Aponte os principais riscos e oportunidades (ex: margem de lucro, carga tributária, peso dos custos fixos).
+1.  **PARECER ESTRATÉGICO (3 a 4 parágrafos):** Comece com um resumo executivo. A operação é saudável? O Ponto de Equilíbrio é realista em relação ao faturamento? Aponte os principais riscos e oportunidades.
 
-2.  **PONTOS DE ATENÇÃO E RECOMENDAÇÕES (Use bullet points):**
-    *   **Validação Tributária:** Com base nos NCMs e no regime, a classificação e as alíquotas parecem corretas? Há alguma oportunidade de otimização (ex: produto que poderia estar na cesta básica e não está)?
-    *   **Precificação e Rentabilidade:** A margem de lucro alvo está sendo alcançada? Algum produto está com margem negativa ou muito baixa? Recomende ações se necessário (ex: renegociar custos, ajustar preço de venda).
-    *   **Análise de Custos:** O custo fixo parece alto para o faturamento gerado? O percentual de perdas é realista para o tipo de produto?
+2.  **ANÁLISE CRÍTICA DOS PARÂMETROS (Use bullet points):**
+    *   **Despesas Variáveis e Perdas:** Os valores de ${formatPercent(params.lossPercentage)} para perdas e 0.00% para despesas variáveis são realistas? **Alerte o usuário sobre o impacto de custos ocultos** como taxas de cartão (geralmente 2-4%), comissões ou fretes, que podem corroer drasticamente o lucro.
+    *   **Mix de Margens de Lucro:** A margem de lucro única de ${formatPercent(params.profitMargin)} é adequada para **todos** os produtos listados? Se houver categorias muito diferentes (ex: alimentos vs. eletrônicos), discuta a viabilidade e a prática de mercado de aplicar margens diferentes por categoria para otimizar a competitividade e o lucro geral.
+    *   **Validação Tributária e Sugestão de NCM:** A classificação tributária dos produtos parece correta? Se você identificar um produto com nome claro (ex: "Cerveja", "Refrigerante") mas com um NCM genérico ou ausente, **sugira o NCM correto** e comente sobre o impacto que a classificação correta teria nos impostos.
 
-3.  **TABELA DE SÍNTESE (Opcional):** Se identificar produtos com problemas claros (ex: margem negativa, classificação incorreta), crie uma tabela simples para destacá-los.
-
-**IMPORTANTE:** Sua análise deve ser crítica e inteligente. Não apenas repita os dados. Conecte os parâmetros da seção 1 com os resultados da seção 2 para explicar *por que* os números são o que são. Por exemplo, se o Ponto de Equilíbrio é alto, relacione isso com o valor dos Custos Fixos. Se o lucro está baixo, verifique se a causa são os impostos, as perdas ou as despesas variáveis.
+3.  **RECOMENDAÇÕES FINAIS:** Dê conselhos práticos e acionáveis baseados na sua análise.
 `;
 
   return prompt.trim();

@@ -76,11 +76,22 @@ const Index = () => {
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
-    setParams(calculationParams);
+    // Calculate total fixed costs and add it to the params object before saving
+    const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
+      ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
+      : 0;
+    const totalFixed = calculationParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + calculationParams.payroll + inss;
+    
+    const paramsToSave = {
+      ...calculationParams,
+      fixedCostsTotal: totalFixed // Add the calculated total
+    };
+
+    setParams(paramsToSave);
     
     // Update globals and session storage
-    globalParams = calculationParams;
-    sessionStorage.setItem('jota-calc-params', JSON.stringify(calculationParams));
+    globalParams = paramsToSave;
+    sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsToSave));
   };
 
   const handleSummaryCalculated = (newSummary: GlobalSummaryData) => {
