@@ -122,7 +122,7 @@ const Index = () => {
       const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
       
       const webhooks = {
-        test: localStorage.getItem('jota-webhook-test'),
+        test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
         production: localStorage.getItem('jota-webhook-prod')
       };
 
