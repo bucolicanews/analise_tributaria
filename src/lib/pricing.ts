@@ -40,7 +40,7 @@ export const calculatePricing = (
   
   // --- LÓGICA PARA ENCONTRAR A ALÍQUOTA CORRETA DO IMPOSTO SELETIVO ---
   let selectiveTaxRateForProduct = 0;
-  if (incideIS) {
+  if (incideIS && params.taxRegime !== TaxRegime.SimplesNacional) {
     const ncm = product.ncm?.replace(/\./g, '') || '';
     let bestMatchRate: number | null = null;
     let longestMatch = 0;
