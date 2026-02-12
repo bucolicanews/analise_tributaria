@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -62,6 +62,28 @@ const Index = () => {
     }
   }, []);
 
+  const handleNewConsultation = () => {
+    setProducts([]);
+    setParams(null);
+    setSummary(null);
+    setSelectedProductCodes(new Set());
+    setAiReport(null);
+
+    // Clear globals
+    globalProducts = [];
+    globalParams = null;
+    globalSelectedProductCodes = new Set();
+    globalSummary = null;
+
+    // Clear session storage
+    sessionStorage.removeItem('jota-calc-products');
+    sessionStorage.removeItem('jota-calc-params');
+    sessionStorage.removeItem('jota-calc-selection');
+
+    toast.success("Nova consulta iniciada.", {
+      description: "Todos os dados foram limpos.",
+    });
+  };
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     setProducts(parsedProducts);
@@ -130,7 +152,7 @@ const Index = () => {
     const toastId = toast.loading(`Aguardando análise da IA (${environment})...`);
 
     try {
-      const promptText = formatDataForAI(params, summary, calculatedProducts, totalFixedExpenses, cfu);
+      const promptText = formatDataForAI(params, summary, calculatedProducts);
       
       const webhooks = {
         test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
@@ -192,9 +214,15 @@ const Index = () => {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
           <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <Upload className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Upload de XML</h2>
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">Upload de XML</h2>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleNewConsultation}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Nova Consulta
+              </Button>
             </div>
             <XmlUploader onXmlParsed={handleXmlParsed} />
           </Card>
