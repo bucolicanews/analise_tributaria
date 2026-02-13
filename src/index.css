@@ -116,3 +116,37 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Estilos específicos para impressão */
+@media print {
+  body > #root > div > header,
+  body > #root > div > nav,
+  body > #root > div > footer {
+    display: none !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Garante que o conteúdo do diálogo de relatório ocupe o espaço */
+  body > [data-radix-dialog-portal] {
+    position: static !important;
+  }
+  
+  [data-radix-dialog-overlay] {
+    display: none !important;
+  }
+
+  [data-radix-dialog-content] {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}
