@@ -11,7 +11,6 @@ import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/type
 import { calculatePricing } from "@/lib/pricing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { SummarySection } from './summary/SummarySection';
 import { CostSummaryUnitary } from './summary/CostSummaryUnitary';
 import { CostSummaryTotal } from './summary/CostSummaryTotal';
 import { TaxSummary } from './summary/TaxSummary';
@@ -32,12 +31,10 @@ import { ProductTaxDetails } from './ProductTaxDetails';
 interface ProductsTableProps {
   products: Product[];
   params: CalculationParams;
-  onSummaryCalculated: (summary: GlobalSummaryData) => void;
   selectedProductCodes: Set<string>;
   onSelectionChange: (newSelection: Set<string>) => void;
 }
 
-// Define a type for the summary data to ensure consistency
 export interface GlobalSummaryData {
   totalSelling: number;
   totalTax: number;
@@ -47,8 +44,6 @@ export interface GlobalSummaryData {
   totalVariableExpensesValue: number;
   totalContributionMargin: number;
   totalTaxPercent: number;
-
-  // Detailed Tax Info
   totalCbsCredit: number;
   totalIbsCredit: number;
   totalCbsDebit: number;
@@ -62,56 +57,23 @@ export interface GlobalSummaryData {
   totalIvaCreditForClient: number;
 }
 
-// Helper function to calculate global summary for a given set of products and parameters
 const calculateGlobalSummary = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
-  globalFixedExpenses: number, // This is the total fixed expenses of the company
-  xmlProductAcquisitionCostAdjusted: number, // This is the total acquisition cost of products in THIS XML (adjusted for loss)
+  globalFixedExpenses: number,
   totalVariableExpensesPercent: number,
-  cfu: number, // Custo Fixo por Unidade (per inner unit/stock unit)
-  totalInnerUnitsInXML: number, // Total quantity of INNER units in THIS XML (used for fixed cost allocation)
-  profitMarginOverride?: number // New parameter to allow overriding profit margin for min sale
+  cfu: number,
+  totalInnerUnitsInXML: number,
+  profitMarginOverride?: number
 ): GlobalSummaryData => {
+  const defaultSummary: GlobalSummaryData = { totalSelling: 0, totalTax: 0, totalProfit: 0, profitMarginPercent: 0, breakEvenPoint: 0, totalVariableExpensesValue: 0, totalContributionMargin: 0, totalTaxPercent: 0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
+  if (productsToSummarize.length === 0) return defaultSummary;
 
-  const effectiveProfitMargin = profitMarginOverride !== undefined ? profitMarginOverride : currentParams.profitMargin;
-
-  // Default summary data for invalid calculations
-  const defaultSummary: GlobalSummaryData = {
-    totalSelling: 0,
-    totalTax: 0,
-    totalProfit: 0,
-    profitMarginPercent: 0,
-    breakEvenPoint: 0,
-    totalVariableExpensesValue: 0,
-    totalContributionMargin: 0,
-    totalTaxPercent: 0,
-    totalCbsCredit: 0,
-    totalIbsCredit: 0,
-    totalCbsDebit: 0,
-    totalIbsDebit: 0,
-    totalCbsTaxToPay: 0,
-    totalIbsTaxToPay: 0,
-    totalIrpjToPay: 0,
-    totalCsllToPay: 0,
-    totalSimplesToPay: 0,
-    totalSelectiveTaxToPay: 0,
-    totalIvaCreditForClient: 0,
-  };
-
-  if (productsToSummarize.length === 0) {
-    return defaultSummary;
-  }
-
-  // Summing up values directly from the calculated products
-  // Note: All calculated values (sellingPrice, taxToPay, valueForProfit, etc.) are per COMMERCIAL unit.
-  // We multiply by product.quantity (commercial units) to get the total value for the note.
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
+  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
   const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
-
   const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
   const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
   const totalCbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
@@ -127,21 +89,16 @@ const calculateGlobalSummary = (
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
   const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
 
-  // Recalculate total variable costs ratio including taxes that vary with sales
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
-  
-  // Aplica os controles de débito nas alíquotas para o cálculo do Markup Divisor
   const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
   const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.selectiveTaxRate / 100 : 0;
-
+  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0;
 
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
   } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
-    // Para o ponto de equilíbrio, o lucro é zero, portanto IRPJ e CSLL são zero.
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-  } else { // Simples Nacional
+  } else {
     if (currentParams.generateIvaCredit) {
       totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
@@ -149,359 +106,156 @@ const calculateGlobalSummary = (
     }
   }
 
-  // Contribution Margin Ratio (CMR)
   const contributionMarginRatio = 1 - totalVariableCostsRatio;
-
-  // Break-even point calculation (using global fixed expenses and company-wide contribution margin ratio)
   const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
 
-
-  return {
-    totalSelling: totalSellingSum,
-    totalTax: totalTaxSum,
-    totalProfit: totalProfitSum,
-    profitMarginPercent: profitMarginPercent,
-    breakEvenPoint: breakEvenPoint,
-    totalVariableExpensesValue: totalVariableExpensesValueSum,
-    totalContributionMargin: totalContributionMarginSum,
-    totalTaxPercent: totalTaxPercent,
-    totalCbsCredit: totalCbsCreditSum,
-    totalIbsCredit: totalIbsCreditSum,
-    totalCbsDebit: totalCbsDebitSum,
-    totalIbsDebit: totalIbsDebitSum,
-    totalCbsTaxToPay: totalCbsTaxToPaySum,
-    totalIbsTaxToPay: totalIbsTaxToPaySum,
-    totalIrpjToPay: totalIrpjToPaySum,
-    totalCsllToPay: totalCsllToPaySum,
-    totalSimplesToPay: totalSimplesToPaySum,
-    totalSelectiveTaxToPay: totalSelectiveTaxToPaySum,
-    totalIvaCreditForClient: totalIvaCreditForClientSum,
-  };
+  return { totalSelling: totalSellingSum, totalTax: totalTaxSum, totalProfit: totalProfitSum, profitMarginPercent, breakEvenPoint, totalVariableExpensesValue: totalVariableExpensesValueSum, totalContributionMargin: totalContributionMarginSum, totalTaxPercent, totalCbsCredit: totalCbsCreditSum, totalIbsCredit: totalIbsCreditSum, totalCbsDebit: totalCbsDebitSum, totalIbsDebit: totalIbsDebitSum, totalCbsTaxToPay: totalCbsTaxToPaySum, totalIbsTaxToPay: totalIbsTaxToPaySum, totalIrpjToPay: totalIrpjToPaySum, totalCsllToPay: totalCsllToPaySum, totalSimplesToPay: totalSimplesToPaySum, totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, totalIvaCreditForClient: totalIvaCreditForClientSum };
 };
 
-export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, onSummaryCalculated, selectedProductCodes, onSelectionChange }) => {
+export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, selectedProductCodes, onSelectionChange }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(100); // Novo estado para itens por página
+  const [itemsPerPage, setItemsPerPage] = useState(100);
   const [selectedProductForDetails, setSelectedProductForDetails] = useState<CalculatedProduct | null>(null);
 
-  // Early return if no products to display
-  if (!products || products.length === 0) {
-    return null;
-  }
+  if (!products || products.length === 0) return null;
 
-  // --- Lógica de Seleção ---
   const allProductCodes = products.map(p => p.code);
   const isAllSelected = selectedProductCodes.size === products.length && products.length > 0;
   const isIndeterminate = selectedProductCodes.size > 0 && selectedProductCodes.size < products.length;
 
-  const handleToggleAll = (checked: boolean) => {
-    if (checked) {
-      onSelectionChange(new Set(allProductCodes));
-    } else {
-      onSelectionChange(new Set());
-    }
-  };
-
+  const handleToggleAll = (checked: boolean) => onSelectionChange(checked ? new Set(allProductCodes) : new Set());
   const handleToggleProduct = (code: string, checked: boolean) => {
     const newSelection = new Set(selectedProductCodes);
-    if (checked) {
-      newSelection.add(code);
-    } else {
-      newSelection.delete(code);
-    }
+    if (checked) newSelection.add(code);
+    else newSelection.delete(code);
     onSelectionChange(newSelection);
   };
 
-  // 1. Filtrar produtos para cálculo e exibição (apenas os selecionados)
-  const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
+  const {
+    summaryDataBestSale,
+    summaryDataMinSale,
+    cumpData,
+    totalProductAcquisitionCostBeforeLoss,
+    totalProductAcquisitionCostAdjusted,
+    totalInnerUnitsInXML,
+    totalFixedExpenses,
+    totalVariableExpensesPercent,
+    totalOptionCost,
+    allCalculatedProducts,
+    cfu
+  } = useMemo(() => {
+    const productsToCalculate = products.filter(p => selectedProductCodes.has(p.code));
+    const totalFixedExpenses = params.fixedCostsTotal || 0;
+    const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
 
-  // 2. Consolidar Custos Fixos Totais (CFT)
-  const inssPatronalValue = params.taxRegime !== TaxRegime.SimplesNacional
-    ? params.payroll * (params.inssPatronalRate / 100)
-    : 0;
-  const totalFixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inssPatronalValue;
+    const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+    const totalProductAcquisitionCostBeforeLoss = productsToCalculate.reduce((sum, p) => sum + p.cost * p.quantity, 0);
+    let totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss;
+    if (params.lossPercentage > 0 && params.lossPercentage < 100) {
+      totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss / (1 - params.lossPercentage / 100);
+    } else if (params.lossPercentage >= 100) {
+      totalProductAcquisitionCostAdjusted = Infinity;
+    }
+    const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-  // 3. Calcular Custo Fixo por Unidade (CFU)
-  let cfu = 0;
-  if (params.totalStockUnits > 0) {
-    cfu = totalFixedExpenses / params.totalStockUnits;
-  }
+    let calculatedProductsForBestSale: CalculatedProduct[];
+    let calculatedProductsForMinSale: CalculatedProduct[];
+    let totalOptionCost = 0;
 
-  // --- EFEITO PARA AVISO DE ETU ZERO (Executa apenas uma vez quando a condição é atendida) ---
+    if (params.taxRegime === TaxRegime.SimplesNacional) {
+      const standard = productsToCalculate.map(p => calculatePricing(p, { ...params, generateIvaCredit: false }, cfu));
+      const hybrid = productsToCalculate.map(p => calculatePricing(p, { ...params, generateIvaCredit: true }, cfu));
+      calculatedProductsForBestSale = params.generateIvaCredit ? hybrid : standard;
+      
+      const paramsForMinSale = { ...params, profitMargin: 0 };
+      calculatedProductsForMinSale = params.generateIvaCredit
+        ? productsToCalculate.map(p => calculatePricing(p, { ...paramsForMinSale, generateIvaCredit: true }, cfu))
+        : productsToCalculate.map(p => calculatePricing(p, { ...paramsForMinSale, generateIvaCredit: false }, cfu));
+
+      const summaryStandard = calculateGlobalSummary(standard, { ...params, generateIvaCredit: false }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+      const summaryHybrid = calculateGlobalSummary(hybrid, { ...params, generateIvaCredit: true }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+      totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
+    } else {
+      calculatedProductsForBestSale = productsToCalculate.map(p => calculatePricing(p, params, cfu));
+      calculatedProductsForMinSale = productsToCalculate.map(p => calculatePricing(p, { ...params, profitMargin: 0 }, cfu));
+    }
+
+    const summaryDataBestSale = calculateGlobalSummary(calculatedProductsForBestSale, params, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+    const summaryDataMinSale = calculateGlobalSummary(calculatedProductsForMinSale, { ...params, profitMargin: 0 }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+
+    let cumpData = null;
+    if (totalInnerUnitsInXML > 0) {
+      cumpData = {
+        cumpBruto: totalProductAcquisitionCostBeforeLoss / totalInnerUnitsInXML,
+        cumpPlusLoss: totalProductAcquisitionCostAdjusted / totalInnerUnitsInXML,
+        cumpTotal: (totalProductAcquisitionCostAdjusted / totalInnerUnitsInXML) + cfu,
+        cfu,
+      };
+    }
+    
+    const allCalculatedProducts = products.map(p => calculatePricing(p, params, cfu));
+
+    return { summaryDataBestSale, summaryDataMinSale, cumpData, totalProductAcquisitionCostBeforeLoss, totalProductAcquisitionCostAdjusted, totalInnerUnitsInXML, totalFixedExpenses, totalVariableExpensesPercent, totalOptionCost, allCalculatedProducts, cfu };
+  }, [products, params, selectedProductCodes]);
+
   useEffect(() => {
     if (products.length > 0 && params.totalStockUnits === 0) {
       toast.warning("Estoque Total de Unidades (ETU) é zero.", {
-        description: "O rateio de custos fixos não será aplicado. Por favor, insira um valor maior que zero para o ETU.",
+        description: "O rateio de custos fixos não será aplicado. Insira um valor maior que zero.",
         duration: 5000,
       });
     }
   }, [products.length, params.totalStockUnits]);
-  // ------------------------------------------------------------------------------------------
 
+  const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+  const formatPercent = (value: number) => new Intl.NumberFormat("pt-BR", { style: "percent", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value / 100);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-    }).format(value);
-  };
-
-  const formatPercent = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "percent",
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value / 100);
-  };
-
-  // --- Cálculo dos Produtos para os Cenários (apenas produtos selecionados) ---
-  let calculatedProductsStandard: CalculatedProduct[] = [];
-  let calculatedProductsHybrid: CalculatedProduct[] = [];
-  let calculatedProductsPresumido: CalculatedProduct[] = [];
-  let calculatedProductsReal: CalculatedProduct[] = [];
-
-  if (params.taxRegime === TaxRegime.SimplesNacional) {
-    calculatedProductsStandard = productsToCalculate.map((product) =>
-      calculatePricing(product, { ...params, generateIvaCredit: false }, cfu)
-    );
-    calculatedProductsHybrid = productsToCalculate.map((product) =>
-      calculatePricing(product, { ...params, generateIvaCredit: true }, cfu)
-    );
-  } else if (params.taxRegime === TaxRegime.LucroPresumido) {
-    calculatedProductsPresumido = productsToCalculate.map((product) =>
-      calculatePricing(product, params, cfu)
-    );
-  } else { // Lucro Real
-    calculatedProductsReal = productsToCalculate.map((product) =>
-      calculatePricing(product, params, cfu)
-    );
-  }
-
-  // --- Cálculos para o Resumo Global ---
-  const totalVariableExpensesPercent = params.variableExpenses.reduce(
-    (sum, exp) => sum + exp.percentage,
-    0
-  );
-
-  // Custo Bruto Total (Acquisition Cost before loss adjustment) - APENAS DOS SELECIONADOS
-  const totalProductAcquisitionCostBeforeLoss = productsToCalculate.reduce((sum, p) => sum + p.cost * p.quantity, 0);
-
-  // Custo Ajustado Total (Acquisition Cost adjusted for loss) - APENAS DOS SELECIONADOS
-  let totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss;
-  if (params.lossPercentage > 0 && params.lossPercentage < 100) {
-    if (totalProductAcquisitionCostBeforeLoss > 0) {
-        totalProductAcquisitionCostAdjusted = totalProductAcquisitionCostBeforeLoss / (1 - params.lossPercentage / 100);
-    } else {
-        totalProductAcquisitionCostAdjusted = 0;
-    }
-  } else if (params.lossPercentage >= 100) {
-    totalProductAcquisitionCostAdjusted = Infinity;
-  }
-
-  // Calculate total quantity of INNER units in the XML (APENAS DOS SELECIONADOS)
-  const totalInnerUnitsInXML = productsToCalculate.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-  
-  // Total units used for fixed cost allocation (CFU is per inner unit/stock unit)
-  const totalUnitsForFixedCostAllocation = totalInnerUnitsInXML;
-
-
-  // Determine the set of calculated products for the current regime/scenario
-  let calculatedProductsForBestSale: CalculatedProduct[];
-  if (params.taxRegime === TaxRegime.SimplesNacional) {
-    calculatedProductsForBestSale = params.generateIvaCredit ? calculatedProductsHybrid : calculatedProductsStandard;
-  } else if (params.taxRegime === TaxRegime.LucroPresumido) {
-    calculatedProductsForBestSale = calculatedProductsPresumido;
-  } else {
-    calculatedProductsForBestSale = calculatedProductsReal;
-  }
-
-  // Calculate summary for "Best Sale" (with target profit margin)
-  const summaryDataBestSale = calculateGlobalSummary(
-    calculatedProductsForBestSale,
-    params,
-    totalFixedExpenses,
-    totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
-    totalVariableExpensesPercent,
-    cfu,
-    totalUnitsForFixedCostAllocation, // Pass total inner units
-    params.profitMargin
-  );
-
-  // Use useEffect to call onSummaryCalculated when summaryDataBestSale changes
-  useEffect(() => {
-    if (summaryDataBestSale) {
-      onSummaryCalculated(summaryDataBestSale);
-    }
-  }, [summaryDataBestSale, onSummaryCalculated]);
-
-
-  // Calculate summary for "Minimum Sale" (with 0% profit margin)
-  const paramsForMinSale = { ...params, profitMargin: 0 };
-  let calculatedProductsForMinSale: CalculatedProduct[];
-
-  if (params.taxRegime === TaxRegime.SimplesNacional) {
-    calculatedProductsForMinSale = params.generateIvaCredit ? 
-      productsToCalculate.map((product) => calculatePricing(product, { ...paramsForMinSale, generateIvaCredit: true }, cfu)) :
-      productsToCalculate.map((product) => calculatePricing(product, { ...paramsForMinSale, generateIvaCredit: false }, cfu));
-  } else {
-    calculatedProductsForMinSale = productsToCalculate.map((product) => calculatePricing(product, paramsForMinSale, cfu));
-  }
-  const summaryDataMinSale = calculateGlobalSummary(
-    calculatedProductsForMinSale,
-    paramsForMinSale,
-    totalFixedExpenses,
-    totalProductAcquisitionCostAdjusted, // Use adjusted cost for summary calculations
-    totalVariableExpensesPercent,
-    cfu,
-    totalUnitsForFixedCostAllocation, // Pass total inner units
-    0
-  );
-
-  // Calculate totalOptionCost only if both Simples Nacional scenarios are valid
-  let totalOptionCost = 0;
-  if (params.taxRegime === TaxRegime.SimplesNacional) {
-    const summaryStandard = calculateGlobalSummary(
-      calculatedProductsStandard,
-      { ...params, generateIvaCredit: false },
-      totalFixedExpenses,
-      totalProductAcquisitionCostAdjusted,
-      totalVariableExpensesPercent,
-      cfu,
-      totalUnitsForFixedCostAllocation
-    );
-    const summaryHybrid = calculateGlobalSummary(
-      calculatedProductsHybrid,
-      { ...params, generateIvaCredit: true },
-      totalFixedExpenses,
-      totalProductAcquisitionCostAdjusted,
-      totalVariableExpensesPercent,
-      cfu,
-      totalUnitsForFixedCostAllocation
-    );
-    
-    if (summaryStandard.totalTax !== 0 || summaryHybrid.totalTax !== 0) {
-      totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
-    }
-  }
-
-  // --- CÁLCULO DO CUSTO UNITÁRIO MÉDIO PONDERADO (CUMP) ---
-  let cumpData = null;
-  
-  if (totalInnerUnitsInXML > 0) {
-    // CUMP Bruto: Total Acquisition Cost / Total Inner Units
-    const cumpBruto = totalProductAcquisitionCostBeforeLoss / totalInnerUnitsInXML;
-    // CUMP Plus Loss: Total Adjusted Cost / Total Inner Units
-    const cumpPlusLoss = totalProductAcquisitionCostAdjusted / totalInnerUnitsInXML;
-    
-    const cumpTotal = cumpPlusLoss + cfu; // CUMP Ajustado + CFU (CFU já é por unidade interna)
-    
-    cumpData = {
-      cumpBruto,
-      cumpPlusLoss,
-      cumpTotal,
-      cfu,
-    };
-  }
-
-  // --- FILTRAGEM, PAGINAÇÃO E RENDERIZAÇÃO ---
   const lowerCaseSearchTerm = searchTerm.toLowerCase();
-  
-  const allCalculatedProducts = useMemo(() => {
-    return products
-      .map(product => calculatePricing(product, params, cfu))
-      .filter(product => 
-        product.code.toLowerCase().includes(lowerCaseSearchTerm) ||
-        product.name.toLowerCase().includes(lowerCaseSearchTerm)
-      );
-  }, [products, params, cfu, lowerCaseSearchTerm]);
+  const filteredProducts = useMemo(() => allCalculatedProducts.filter(p => 
+    p.code.toLowerCase().includes(lowerCaseSearchTerm) || p.name.toLowerCase().includes(lowerCaseSearchTerm)
+  ), [allCalculatedProducts, lowerCaseSearchTerm]);
 
-  // Lógica de Paginação
-  const totalItems = allCalculatedProducts.length;
-  
-  // Se itemsPerPage for MAX_SAFE_INTEGER, tratamos como "Todos"
+  const totalItems = filteredProducts.length;
   const effectiveItemsPerPage = itemsPerPage === Number.MAX_SAFE_INTEGER ? totalItems : itemsPerPage;
-  
   const totalPages = Math.ceil(totalItems / effectiveItemsPerPage);
   const startIndex = (currentPage - 1) * effectiveItemsPerPage;
   const endIndex = startIndex + effectiveItemsPerPage;
-  
-  const productsToRender = allCalculatedProducts.slice(startIndex, endIndex);
+  const productsToRender = filteredProducts.slice(startIndex, endIndex);
 
-  // Reset page if search term changes or itemsPerPage changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, products, itemsPerPage]);
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, products, itemsPerPage]);
 
-  const handleNextPage = () => {
-    if (currentPage < totalPages) {
-      setCurrentPage(currentPage + 1);
-    }
-  };
+  const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
+  const handlePreviousPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
+  const handleItemsPerPageChange = (value: string) => setItemsPerPage(value === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(value, 10));
 
-  const handlePreviousPage = () => {
-    if (currentPage > 1) {
-      setCurrentPage(currentPage - 1);
-    }
-  };
-
-  const handleItemsPerPageChange = (value: string) => {
-    // Usamos um valor especial para 'Todos'
-    const newLimit = value === 'all' ? Number.MAX_SAFE_INTEGER : parseInt(value, 10);
-    setItemsPerPage(newLimit);
-  };
-
-  // --- CÁLCULOS PARA ALERTAS ---
-  const unitVariableExpensesBestSale = totalUnitsForFixedCostAllocation > 0 
-    ? summaryDataBestSale.totalVariableExpensesValue / totalUnitsForFixedCostAllocation 
-    : 0;
-
-  // 1. ALERTA DE LUCRO NEGATIVO
+  const unitVariableExpensesBestSale = totalInnerUnitsInXML > 0 ? summaryDataBestSale.totalVariableExpensesValue / totalInnerUnitsInXML : 0;
   const isProfitNegative = summaryDataBestSale.totalProfit < 0;
+  const isCfuCritical = cfu > unitVariableExpensesBestSale;
+  const TAX_THRESHOLD = 30;
+  const isTaxHigh = summaryDataBestSale.totalTaxPercent > TAX_THRESHOLD;
+
   const profitAlert = isProfitNegative && (
     <Alert variant="destructive" className="mt-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Alerta Crítico: Lucro Líquido Negativo</AlertTitle>
-      <AlertDescription>
-        O Lucro Líquido Total da Nota ({formatCurrency(summaryDataBestSale.totalProfit)}) está negativo no Cenário Alvo. Isso significa que o preço de venda sugerido não é suficiente para cobrir os custos (Aquisição + Fixo) e as despesas variáveis, mesmo antes de atingir a margem de lucro alvo.
-        <br/>
-        <strong>Ação Sugerida:</strong> Aumente o preço de venda, reduza custos de aquisição, ou diminua as despesas/alíquotas percentuais.
-      </AlertDescription>
+      <AlertDescription>O Lucro Líquido Total da Nota ({formatCurrency(summaryDataBestSale.totalProfit)}) está negativo. O preço de venda não cobre todos os custos e despesas.</AlertDescription>
     </Alert>
   );
-
-  // 2. ALERTA DE CUSTO FIXO (CFU)
-  // Condição: CFU é maior que a Despesa Variável Unitária (Alvo)
-  const isCfuCritical = cfu > unitVariableExpensesBestSale; 
   const cfuAlert = isCfuCritical && (
     <Alert variant="destructive" className="mt-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Atenção: Custo Fixo Rateado (CFU) Crítico</AlertTitle>
-      <AlertDescription>
-        O Custo Fixo Rateado por Unidade Interna (CFU) é de <strong>{formatCurrency(cfu)}</strong>. Este valor é a contribuição mínima que cada unidade vendida deve gerar para cobrir as despesas fixas globais ({formatCurrency(totalFixedExpenses)}).
-        <br/>
-        A Despesa Variável Unitária (Alvo) é de {formatCurrency(unitVariableExpensesBestSale)}. O CFU é superior, indicando alta dependência de volume para cobrir custos fixos.
-        <br/>
-        <strong>Ação Sugerida:</strong> Revise o **Estoque Total de Unidades (ETU)** ou as **Despesas Fixas Globais** para garantir que o rateio seja realista e sustentável.
-      </AlertDescription>
+      <AlertDescription>O Custo Fixo por Unidade (CFU) de <strong>{formatCurrency(cfu)}</strong> é superior à Despesa Variável Unitária, indicando alta dependência de volume para cobrir custos fixos.</AlertDescription>
     </Alert>
   );
-
-  // 3. ALERTA DE IMPOSTO ALTO (Lucro Presumido)
-  const TAX_THRESHOLD = 30;
-  const isTaxHigh = summaryDataBestSale.totalTaxPercent > TAX_THRESHOLD;
   const taxAlert = isTaxHigh && (
     <Alert variant="destructive" className="mt-4">
       <AlertTriangle className="h-4 w-4" />
       <AlertTitle>Alerta: Carga Tributária Elevada</AlertTitle>
-      <AlertDescription>
-        A carga tributária líquida total ({summaryDataBestSale.totalTaxPercent.toFixed(2)}% da Venda) está acima do limite de atenção de {TAX_THRESHOLD}%.
-        <br/>
-        <strong>Ação Sugerida:</strong> Verifique se o regime tributário ({params.taxRegime}) é o mais vantajoso ou se há créditos de impostos não capturados no XML.
-      </AlertDescription>
+      <AlertDescription>A carga tributária líquida ({summaryDataBestSale.totalTaxPercent.toFixed(2)}%) está acima do limite de atenção de {TAX_THRESHOLD}%. Verifique se o regime tributário é o mais vantajoso.</AlertDescription>
     </Alert>
   );
-
 
   return (
     <div className="space-y-6">
@@ -511,455 +265,116 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
         </DialogContent>
       </Dialog>
 
-      <div className="summary rounded-lg bg-muted/30 border border-border p-4 mb-6">
-        <h2 className="text-lg font-semibold mb-2">Parâmetros da Simulação</h2>
-        <p className="text-sm text-muted-foreground">
-          <strong>Regime Tributário:</strong> {params.taxRegime}
-          {params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit && " (Híbrido - Gerando Crédito IVA)"}
-          {params.taxRegime === TaxRegime.SimplesNacional && !params.generateIvaCredit && " (Padrão - Sem Crédito IVA)"}
-          <br/>
-          <strong>Margem de Lucro Alvo:</strong> {formatPercent(params.profitMargin)}<br/>
-          
-          {/* Detalhes da Transição */}
-          <strong className="mt-2 block">Transição (Crédito):</strong>
-          PIS/COFINS Crédito: {params.usePisCofins ? "Ativo" : "Inativo"} | ICMS Crédito: {formatPercent(params.icmsPercentage)}
-          <br/>
-          <strong>Transição (Débito):</strong>
-          IS/IPI Débito: {params.useSelectiveTaxDebit ? "Ativo" : "Inativo"} | CBS Débito: {params.useCbsDebit ? "Ativo" : "Inativo"} | IBS Débito: {formatPercent(params.ibsDebitPercentage)}
-          <br/>
-
-          {/* Detalhes das Alíquotas */}
-          {params.taxRegime === TaxRegime.LucroPresumido ? (
-            <React.Fragment>
-              <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRate)}), CSLL ({formatPercent(params.csllRate)}), IS ({formatPercent(params.selectiveTaxRate)})
-            </React.Fragment>
-          ) : params.taxRegime === TaxRegime.LucroReal ? (
-            <React.Fragment>
-              <strong>Alíquotas:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)}), IRPJ ({formatPercent(params.irpjRateLucroReal)}), CSLL ({formatPercent(params.csllRateLucroReal)}), IS ({formatPercent(params.selectiveTaxRate)})
-            </React.Fragment>
-          ) : (
-            <React.Fragment>
-              <strong>Alíquota Simples:</strong> {formatPercent(params.simplesNacionalRate)}
-              {params.generateIvaCredit && (
-                <React.Fragment>
-                  <br/><strong>Alíquotas IVA:</strong> CBS ({formatPercent(params.cbsRate)}), IBS ({formatPercent(params.ibsRate)})
-                </React.Fragment>
-              )}
-              <br/><strong>Alíquota IS:</strong> {formatPercent(params.selectiveTaxRate)}
-            </React.Fragment>
-          )}<br/>
-          <strong>Folha de Pagamento:</strong> {formatCurrency(params.payroll)}<br/>
-          {params.taxRegime !== TaxRegime.SimplesNacional && (
-            <>
-              <strong>INSS Patronal ({formatPercent(params.inssPatronalRate)}):</strong> {formatCurrency(inssPatronalValue)}<br/>
-            </>
-          )}
-          <strong>Custos Fixos Totais (CFT):</strong> {formatCurrency(totalFixedExpenses)}<br/>
-          <strong>Estoque Total de Unidades (ETU):</strong> {params.totalStockUnits.toLocaleString('pt-BR')}<br/>
-          <strong>Custo Fixo por Unidade (CFU):</strong> {formatCurrency(cfu)}<br/>
-          <strong>Perdas e Quebras:</strong> {formatPercent(params.lossPercentage)}
-        </p>
-      </div>
-      
-      {/* NOVO RESUMO EXECUTIVO */}
       <ExecutiveSummary
         summaryDataBestSale={summaryDataBestSale}
         cumpData={cumpData}
         totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
-        totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
+        totalInnerUnitsInXML={totalInnerUnitsInXML}
         params={params}
-        totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss} // Passando o novo prop
+        totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss}
       />
-      {/* FIM NOVO RESUMO EXECUTIVO */}
 
-      {/* Controles de Seleção e Busca */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleToggleAll(true)}
-            disabled={isAllSelected}
-          >
-            Marcar Todos
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => handleToggleAll(false)}
-            disabled={selectedProductCodes.size === 0}
-          >
-            Limpar Todos
-          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleToggleAll(true)} disabled={isAllSelected}>Marcar Todos</Button>
+          <Button variant="outline" size="sm" onClick={() => handleToggleAll(false)} disabled={selectedProductCodes.size === 0}>Limpar Todos</Button>
         </div>
-        <Input
-          placeholder="Buscar produto por código ou nome..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1"
-        />
+        <Input placeholder="Buscar produto por código ou nome..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="flex-1" />
       </div>
 
       <div className="overflow-x-auto rounded-lg border border-border">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[40px]" rowSpan={2}>
-                <Checkbox
-                  checked={isAllSelected}
-                  onCheckedChange={handleToggleAll}
-                  aria-label="Selecionar todos"
-                  className={cn(isIndeterminate && "bg-primary")}
-                />
-              </TableHead>
-              <TableHead rowSpan={2}>Código</TableHead>
-              <TableHead rowSpan={2} className="min-w-[300px]">Produto</TableHead>
-              <TableHead rowSpan={2}>Ações</TableHead>
-              <TableHead rowSpan={2}>Unid. Com.</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Qtd. Estoque</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Custo Aquisição (Unit)</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Custo Fixo Rateado (Unit)</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Custo Total Base (Unit)</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Markup %</TableHead>
-              {/* Novas colunas para unidade interna */}
-              <TableHead className="text-right" rowSpan={2}>Qtd. Interna</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Custo Unid. Int.</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Venda Mín. Unid. Int.</TableHead>
-              <TableHead className="text-right" rowSpan={2}>Venda Sug. Unid. Int.</TableHead>
-              
-              {params.taxRegime === TaxRegime.SimplesNacional ? (
-                <React.Fragment>
-                  <TableHead colSpan={7} className="text-center border-l border-r">Simples Nacional Padrão</TableHead>
-                  <TableHead colSpan={7} className="text-center border-l border-r">Simples Nacional Híbrido (IVA por Fora)</TableHead>
-                  <TableHead rowSpan={2} className="text-right">Custo da Opção (R$)</TableHead>
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  <TableHead colSpan={12} className="text-center">{params.taxRegime}</TableHead>
-                </React.Fragment>
-              )}
-            </TableRow>
-            <TableRow>
-              {params.taxRegime === TaxRegime.SimplesNacional ? (
-                <React.Fragment>
-                  {/* Simples Nacional Padrão */}
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
-                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
-                  <TableHead className="text-right">Imp. Seletivo</TableHead>
-                  <TableHead className="text-right">Imposto Total</TableHead>
-                  <TableHead className="text-right">Lucro Líq.</TableHead>
-                  <TableHead className="text-right">Margem %</TableHead>
-                  <TableHead className="text-right">Crédito Cliente</TableHead>
-                  {/* Simples Nacional Híbrido */}
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
-                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
-                  <TableHead className="text-right">Imp. Seletivo</TableHead>
-                  <TableHead className="text-right">Imposto Total</TableHead>
-                  <TableHead className="text-right">Lucro Líq.</TableHead>
-                  <TableHead className="text-right">Margem %</TableHead>
-                  <TableHead className="text-right">Crédito Cliente</TableHead>
-                  <TableHead className="text-right">Simples a Pagar</TableHead>
-                </React.Fragment>
-              ) : (
-                <React.Fragment>
-                  {/* Lucro Presumido / Real */}
-                  <TableHead className="text-right">Créd. CBS</TableHead>
-                  <TableHead className="text-right">Créd. IBS</TableHead>
-                  <TableHead className="text-right">Déb. CBS</TableHead>
-                  <TableHead className="text-right">Déb. IBS</TableHead>
-                  <TableHead className="text-right">IRPJ a Pagar</TableHead>
-                  <TableHead className="text-right">CSLL a Pagar</TableHead>
-                  <TableHead className="text-right">Imp. Seletivo</TableHead>
-                  <TableHead className="text-right">Imposto Líq.</TableHead>
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
-                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
-                  <TableHead className="text-right">Margem %</TableHead>
-                  <TableHead className="text-right">Crédito Cliente</TableHead>
-                </React.Fragment>
-              )}
+              <TableHead className="w-[40px]"><Checkbox checked={isAllSelected} onCheckedChange={handleToggleAll} aria-label="Selecionar todos" className={cn(isIndeterminate && "bg-primary")} /></TableHead>
+              <TableHead>Código</TableHead>
+              <TableHead className="min-w-[300px]">Produto</TableHead>
+              <TableHead>Ações</TableHead>
+              <TableHead>Unid. Com.</TableHead>
+              <TableHead className="text-right">Qtd. Estoque</TableHead>
+              <TableHead className="text-right">Custo Aquisição (Unit)</TableHead>
+              <TableHead className="text-right">Custo Fixo Rateado (Unit)</TableHead>
+              <TableHead className="text-right">Custo Total Base (Unit)</TableHead>
+              <TableHead className="text-right">Markup %</TableHead>
+              <TableHead className="text-right">Qtd. Interna</TableHead>
+              <TableHead className="text-right">Custo Unid. Int.</TableHead>
+              <TableHead className="text-right">Venda Mín. Unid. Int.</TableHead>
+              <TableHead className="text-right">Venda Sug. Unid. Int.</TableHead>
+              <TableHead className="text-right">Venda Mín. Com.</TableHead>
+              <TableHead className="text-right">Venda Sug. Com.</TableHead>
+              <TableHead className="text-right">Imposto Líq.</TableHead>
+              <TableHead className="text-right">Margem %</TableHead>
+              <TableHead className="text-right">Crédito Cliente</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {productsToRender.map((product, index) => {
-                const isSelected = selectedProductCodes.has(product.code);
-                
-                const fixedCostPerCommercialUnit = cfu * product.innerQuantity;
-                
-                const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit;
-                const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
-
-                const productStandard = calculatedProductsStandard.find(p => p.code === product.code);
-                const productHybrid = calculatedProductsHybrid.find(p => p.code === product.code);
-                
-                const productProfitStandard = productStandard ? productStandard.sellingPrice - productStandard.cost - productStandard.taxToPay - (productStandard.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit : 0;
-                const productProfitMarginStandard = productStandard && productStandard.sellingPrice > 0 ? (productProfitStandard / productStandard.sellingPrice) * 100 : 0;
-
-                const productProfitHybrid = productHybrid ? productHybrid.sellingPrice - productHybrid.cost - productHybrid.taxToPay - (productHybrid.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit : 0;
-                const productProfitMarginHybrid = productHybrid && productHybrid.sellingPrice > 0 ? (productProfitHybrid / productHybrid.sellingPrice) * 100 : 0;
-
-                const optionCostPerProduct = productHybrid && productStandard ? productHybrid.taxToPay - productStandard.taxToPay : 0;
-
-
-                return (
-                  <TableRow key={index} className={cn(
-                    product.status === "PREÇO CORRIGIDO" ? "bg-yellow-900/20" : "",
-                    !isSelected && "opacity-50 hover:opacity-100 transition-opacity"
-                  )}>
-                    <TableCell>
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={(checked) => handleToggleProduct(product.code, !!checked)}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{product.code}</TableCell>
-                    <TableCell className="max-w-[300px] whitespace-normal text-left">
-                      {product.name}
-                    </TableCell>
-                    <TableCell>
-                      <Button variant="ghost" size="icon" onClick={() => setSelectedProductForDetails(product)}>
-                        <FileText className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                    <TableCell className="font-mono text-xs">{product.unit}</TableCell>
-                    <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {formatCurrency(product.cost)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                      {formatCurrency(fixedCostPerCommercialUnit)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm font-semibold">
-                      {formatCurrency(product.cost + fixedCostPerCommercialUnit)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-accent">
-                      {formatPercent(product.markupPercentage)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-xs">{product.innerQuantity}</TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      {formatCurrency(product.costPerInnerUnit)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-yellow-500">
-                      {formatCurrency(product.minSellingPricePerInnerUnit)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm text-primary">
-                      {formatCurrency(product.sellingPricePerInnerUnit)}
-                    </TableCell>
-
-                    {params.taxRegime === TaxRegime.SimplesNacional ? (
-                      <React.Fragment>
-                        {/* Simples Nacional Padrão */}
-                        <TableCell className="text-right font-bold text-yellow-500">
-                          {productStandard ? formatCurrency(productStandard.minSellingPrice) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-primary">
-                          {productStandard ? formatCurrency(productStandard.sellingPrice) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {productStandard ? formatCurrency(productStandard.selectiveTaxToPay) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {productStandard ? formatCurrency(productStandard.taxToPay) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {productStandard ? formatCurrency(productProfitStandard) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {productStandard ? formatPercent(productProfitMarginStandard) : formatPercent(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-muted-foreground">
-                          {productStandard ? formatCurrency(productStandard.ivaCreditForClient) : formatCurrency(0)}
-                        </TableCell>
-
-                        {/* Simples Nacional Híbrido */}
-                        <TableCell className="text-right font-bold text-yellow-500">
-                          {productHybrid ? formatCurrency(productHybrid.minSellingPrice) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-primary">
-                          {productHybrid ? formatCurrency(productHybrid.sellingPrice) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {productHybrid ? formatCurrency(productHybrid.selectiveTaxToPay) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {productHybrid ? formatCurrency(productHybrid.taxToPay) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {productHybrid ? formatCurrency(productProfitHybrid) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {productHybrid ? formatPercent(productProfitMarginHybrid) : formatPercent(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-success">
-                          {productHybrid ? formatCurrency(productHybrid.ivaCreditForClient) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right text-destructive">
-                          {productHybrid ? formatCurrency(productHybrid.simplesToPay) : formatCurrency(0)}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-yellow-500">
-                          {formatCurrency(optionCostPerProduct)}
-                        </TableCell>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        {/* Lucro Presumido / Real */}
-                        <TableCell className="text-right font-mono text-sm text-success">
-                          {formatCurrency(product.cbsCredit)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-success">
-                          {formatCurrency(product.ibsCredit)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-destructive">
-                          {formatCurrency(product.cbsDebit)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-destructive">
-                          {formatCurrency(product.ibsDebit)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-destructive">
-                          {formatCurrency(product.irpjToPay)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-destructive">
-                          {formatCurrency(product.csllToPay)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-destructive">
-                          {formatCurrency(product.selectiveTaxToPay)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-semibold">
-                          {formatCurrency(product.taxToPay)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-bold text-yellow-500">
-                          {formatCurrency(product.minSellingPrice)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm font-bold text-primary">
-                          {formatCurrency(product.sellingPrice)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-success">
-                          {formatPercent(productProfitMargin)}
-                        </TableCell>
-                        <TableCell className="text-right font-mono text-sm text-success">
-                          {formatCurrency(product.ivaCreditForClient)}
-                        </TableCell>
-                      </React.Fragment>
-                    )}
-                  </TableRow>
-                );
-              })
-            }
+              const isSelected = selectedProductCodes.has(product.code);
+              const fixedCostPerCommercialUnit = cfu * product.innerQuantity;
+              const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit;
+              const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
+              return (
+                <TableRow key={index} className={cn(!isSelected && "opacity-50 hover:opacity-100 transition-opacity")}>
+                  <TableCell><Checkbox checked={isSelected} onCheckedChange={(checked) => handleToggleProduct(product.code, !!checked)} /></TableCell>
+                  <TableCell className="font-mono text-xs">{product.code}</TableCell>
+                  <TableCell className="max-w-[300px] whitespace-normal text-left">{product.name}</TableCell>
+                  <TableCell><Button variant="ghost" size="icon" onClick={() => setSelectedProductForDetails(product)}><FileText className="h-4 w-4" /></Button></TableCell>
+                  <TableCell className="font-mono text-xs">{product.unit}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{formatCurrency(product.cost)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-muted-foreground">{formatCurrency(fixedCostPerCommercialUnit)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm font-semibold">{formatCurrency(product.cost + fixedCostPerCommercialUnit)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-accent">{formatPercent(product.markupPercentage)}</TableCell>
+                  <TableCell className="text-right font-mono text-xs">{product.innerQuantity}</TableCell>
+                  <TableCell className="text-right font-mono text-sm">{formatCurrency(product.costPerInnerUnit)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-yellow-500">{formatCurrency(product.minSellingPricePerInnerUnit)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-primary">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm font-bold text-yellow-500">{formatCurrency(product.minSellingPrice)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm font-bold text-primary">{formatCurrency(product.sellingPrice)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm font-semibold">{formatCurrency(product.taxToPay)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-success">{formatPercent(productProfitMargin)}</TableCell>
+                  <TableCell className="text-right font-mono text-sm text-success">{formatCurrency(product.ivaCreditForClient)}</TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>
       
-      {/* Controles de Paginação */}
       {totalItems > 0 && (
         <div className="flex flex-col sm:flex-row items-center justify-between py-2 gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             Itens por página:
             <Select value={String(itemsPerPage === Number.MAX_SAFE_INTEGER ? 'all' : itemsPerPage)} onValueChange={handleItemsPerPageChange}>
-              <SelectTrigger className="w-[100px]">
-                <SelectValue placeholder="100" />
-              </SelectTrigger>
+              <SelectTrigger className="w-[100px]"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="10">10</SelectItem>
-                <SelectItem value="30">30</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-                <SelectItem value="150">150</SelectItem>
-                <SelectItem value="200">200</SelectItem>
-                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="10">10</SelectItem><SelectItem value="30">30</SelectItem><SelectItem value="50">50</SelectItem><SelectItem value="100">100</SelectItem><SelectItem value="150">150</SelectItem><SelectItem value="200">200</SelectItem><SelectItem value="all">Todos</SelectItem>
               </SelectContent>
             </Select>
           </div>
-          
-          <div className="text-sm text-muted-foreground">
-            Página {currentPage} de {totalPages} ({totalItems} produtos)
-          </div>
-          
+          <div className="text-sm text-muted-foreground">Página {currentPage} de {totalPages} ({totalItems} produtos)</div>
           <div className="space-x-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePreviousPage}
-              disabled={currentPage === 1}
-            >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleNextPage}
-              disabled={currentPage === totalPages}
-            >
-              Próxima <ChevronRight className="h-4 w-4 ml-1" />
-            </Button>
+            <Button variant="outline" size="sm" onClick={handlePreviousPage} disabled={currentPage === 1}><ChevronLeft className="h-4 w-4 mr-1" /> Anterior</Button>
+            <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage === totalPages}>Próxima <ChevronRight className="h-4 w-4 ml-1" /></Button>
           </div>
         </div>
       )}
 
-      {/* New Summary Sections - now stacked vertically */}
       <div className="space-y-6">
-        {/* 1. Resumo de Custos Totais da Nota */}
-        <CostSummaryTotal
-          totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss}
-          totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted}
-          cfu={cfu}
-          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
-        />
-        
-        {/* 2. Resumo de Custos Unitários (CUMP) - Só aparece se houver produtos selecionados */}
-        {cumpData && (
-          <CostSummaryUnitary
-            cumpData={cumpData}
-          />
-        )}
-
-        <SalesSummaryTotal
-          totalSellingBestSale={summaryDataBestSale.totalSelling}
-          totalSellingMinSale={summaryDataMinSale.totalSelling}
-        />
-
-        <SalesSummaryUnitary
-          totalSellingBestSale={summaryDataBestSale.totalSelling}
-          totalSellingMinSale={summaryDataMinSale.totalSelling}
-          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
-        />
-
-        <ExpenseSummary
-          totalFixedExpenses={totalFixedExpenses}
-          totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue}
-          totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue}
-          cfu={cfu}
-          totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
-        />
-        
-        {/* Alerta de Custo Fixo (CFU) */}
+        <CostSummaryTotal totalProductAcquisitionCostBeforeLoss={totalProductAcquisitionCostBeforeLoss} totalProductAcquisitionCostAdjusted={totalProductAcquisitionCostAdjusted} cfu={cfu} totalInnerUnitsInXML={totalInnerUnitsInXML} />
+        {cumpData && <CostSummaryUnitary cumpData={cumpData} />}
+        <SalesSummaryTotal totalSellingBestSale={summaryDataBestSale.totalSelling} totalSellingMinSale={summaryDataMinSale.totalSelling} />
+        <SalesSummaryUnitary totalSellingBestSale={summaryDataBestSale.totalSelling} totalSellingMinSale={summaryDataMinSale.totalSelling} totalInnerUnitsInXML={totalInnerUnitsInXML} />
+        <ExpenseSummary totalFixedExpenses={totalFixedExpenses} totalVariableExpensesValueBestSale={summaryDataBestSale.totalVariableExpensesValue} totalVariableExpensesValueMinSale={summaryDataMinSale.totalVariableExpensesValue} cfu={cfu} totalInnerUnitsInXML={totalInnerUnitsInXML} />
         {cfu > 0 && cfuAlert}
-
-        <TaxSummary
-          params={params}
-          summaryDataBestSale={summaryDataBestSale}
-          summaryDataMinSale={summaryDataMinSale}
-          totalOptionCost={totalOptionCost}
-        />
-        
-        {/* Alerta de Carga Tributária Alta (Lucro Presumido) */}
+        <TaxSummary params={params} summaryDataBestSale={summaryDataBestSale} summaryDataMinSale={summaryDataMinSale} totalOptionCost={totalOptionCost} />
         {(params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) && taxAlert}
-
-        {/* Alerta de Lucro Negativo */}
         {profitAlert}
       </div>
 
-      <OverallResultSummary
-        totalProductAcquisitionCost={totalProductAcquisitionCostAdjusted}
-        totalFixedExpenses={totalFixedExpenses}
-        totalVariableExpensesPercent={totalVariableExpensesPercent}
-        summaryDataBestSale={summaryDataBestSale}
-        summaryDataMinSale={summaryDataMinSale}
-        cfu={cfu}
-        totalInnerUnitsInXML={totalUnitsForFixedCostAllocation}
-      />
+      <OverallResultSummary totalProductAcquisitionCost={totalProductAcquisitionCostAdjusted} totalFixedExpenses={totalFixedExpenses} totalVariableExpensesPercent={totalVariableExpensesPercent} summaryDataBestSale={summaryDataBestSale} summaryDataMinSale={summaryDataMinSale} cfu={cfu} totalInnerUnitsInXML={totalInnerUnitsInXML} />
 
-      <p className="text-xs text-muted-foreground mt-4">
-        *Esta é uma simulação baseada nas propostas da Reforma Tributária. Os valores e regras finais dependem da aprovação das Leis Complementares.
-      </p>
+      <p className="text-xs text-muted-foreground mt-4">*Esta é uma simulação baseada nas propostas da Reforma Tributária. Os valores e regras finais dependem da aprovação das Leis Complementares.</p>
     </div>
   );
 };

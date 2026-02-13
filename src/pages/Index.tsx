@@ -18,18 +18,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-// These are now deprecated and will be removed in a future step.
-// Data is now managed via sessionStorage.
-export let globalProducts: Product[] = [];
-export let globalParams: CalculationParams | null = null;
-export let globalSelectedProductCodes: Set<string> = new Set();
-export let globalSummary: GlobalSummaryData | null = null;
-
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
-  const [summary, setSummary] = useState<GlobalSummaryData | null>(null);
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
@@ -41,21 +33,10 @@ const Index = () => {
       const storedParams = sessionStorage.getItem('jota-calc-params');
       const storedSelection = sessionStorage.getItem('jota-calc-selection');
 
-      if (storedProducts) {
-        const parsedProducts = JSON.parse(storedProducts);
-        setProducts(parsedProducts);
-        globalProducts = parsedProducts;
-      }
-      if (storedParams) {
-        const parsedParams = JSON.parse(storedParams);
-        setParams(parsedParams);
-        globalParams = parsedParams;
-      }
-      if (storedSelection) {
-        const parsedSelection = new Set(JSON.parse(storedSelection));
-        setSelectedProductCodes(parsedSelection);
-        globalSelectedProductCodes = parsedSelection;
-      }
+      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      if (storedParams) setParams(JSON.parse(storedParams));
+      if (storedSelection) setSelectedProductCodes(new Set(JSON.parse(storedSelection)));
+      
     } catch (error) {
       console.error("Failed to load data from session storage", error);
       sessionStorage.clear(); // Clear corrupted data
@@ -65,81 +46,76 @@ const Index = () => {
   const handleNewConsultation = () => {
     setProducts([]);
     setParams(null);
-    setSummary(null);
     setSelectedProductCodes(new Set());
     setAiReport(null);
-
-    // Clear globals
-    globalProducts = [];
-    globalParams = null;
-    globalSelectedProductCodes = new Set();
-    globalSummary = null;
-
-    // Clear session storage
-    sessionStorage.removeItem('jota-calc-products');
-    sessionStorage.removeItem('jota-calc-params');
-    sessionStorage.removeItem('jota-calc-selection');
-
-    toast.success("Nova consulta iniciada.", {
-      description: "Todos os dados foram limpos.",
-    });
+    sessionStorage.clear();
+    toast.success("Nova consulta iniciada.", { description: "Todos os dados foram limpos." });
   };
 
   const handleXmlParsed = (parsedProducts: Product[]) => {
     setProducts(parsedProducts);
     const initialSelection = new Set(parsedProducts.map(p => p.code));
     setSelectedProductCodes(initialSelection);
-    
-    // Update globals and session storage
-    globalProducts = parsedProducts;
-    globalSelectedProductCodes = initialSelection;
     sessionStorage.setItem('jota-calc-products', JSON.stringify(parsedProducts));
     sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(initialSelection)));
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
-    // Calculate total fixed costs and add it to the params object before saving
     const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
       ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
       : 0;
     const totalFixed = calculationParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + calculationParams.payroll + inss;
     
-    const paramsToSave = {
-      ...calculationParams,
-      fixedCostsTotal: totalFixed // Add the calculated total
-    };
-
+    const paramsToSave = { ...calculationParams, fixedCostsTotal: totalFixed };
     setParams(paramsToSave);
-    
-    // Update globals and session storage
-    globalParams = paramsToSave;
     sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsToSave));
-  };
-
-  const handleSummaryCalculated = (newSummary: GlobalSummaryData) => {
-    setSummary(newSummary);
-    globalSummary = newSummary; // Keep global for now if needed elsewhere
   };
 
   const handleSelectionChange = (newSelection: Set<string>) => {
     setSelectedProductCodes(newSelection);
-    
-    // Update globals and session storage
-    globalSelectedProductCodes = newSelection;
     sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(newSelection)));
   };
 
-  const { cfu, totalFixedExpenses, calculatedProducts, productsToDisplay } = useMemo(() => {
-    if (!params) return { cfu: 0, totalFixedExpenses: 0, calculatedProducts: [], productsToDisplay: [] };
-    const inss = params.taxRegime !== TaxRegime.SimplesNacional ? params.payroll * (params.inssPatronalRate / 100) : 0;
-    const fixedExpenses = params.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + params.payroll + inss;
-    const calculatedCfu = params.totalStockUnits > 0 ? fixedExpenses / params.totalStockUnits : 0;
-    const prodsToCalc = products.filter(p => selectedProductCodes.has(p.code));
-    const allCalculated = prodsToCalc.map(p => calculatePricing(p, params, calculatedCfu));
-    return { cfu: calculatedCfu, totalFixedExpenses: fixedExpenses, calculatedProducts: allCalculated, productsToDisplay: prodsToCalc };
+  // Centralized calculation logic
+  const calculationResults = useMemo(() => {
+    if (!params || products.length === 0) {
+      return {
+        summary: null,
+        calculatedProducts: [],
+        productsToDisplay: [],
+        totalFixedExpenses: 0,
+        firstCalculatedProduct: null,
+      };
+    }
+
+    const totalFixedExpenses = params.fixedCostsTotal || 0;
+    const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
+    
+    const productsToDisplay = products.filter(p => selectedProductCodes.has(p.code));
+    const calculatedProducts = productsToDisplay.map(p => calculatePricing(p, params, cfu));
+    
+    const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+    const totalInnerUnitsInXML = productsToDisplay.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+
+    const summary = calculateGlobalSummary(
+      calculatedProducts,
+      params,
+      totalFixedExpenses,
+      totalVariableExpensesPercent,
+      cfu,
+      totalInnerUnitsInXML
+    );
+
+    return {
+      summary,
+      calculatedProducts,
+      productsToDisplay,
+      totalFixedExpenses,
+      firstCalculatedProduct: calculatedProducts.length > 0 ? calculatedProducts[0] : null,
+    };
   }, [params, products, selectedProductCodes]);
 
-  const firstCalculatedProduct = calculatedProducts.length > 0 ? calculatedProducts[0] : null;
+  const { summary, calculatedProducts, productsToDisplay, firstCalculatedProduct } = calculationResults;
 
   const handleSendToWebhook = async (environment: 'test' | 'production') => {
     if (!params || !summary || calculatedProducts.length === 0) {
@@ -160,10 +136,7 @@ const Index = () => {
       };
 
       const webhookUrl = webhooks[environment];
-
-      if (!webhookUrl) {
-        throw new Error(`URL do webhook de ${environment} não configurada. Por favor, verifique a página de Configurações.`);
-      }
+      if (!webhookUrl) throw new Error(`URL do webhook de ${environment} não configurada.`);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -172,26 +145,19 @@ const Index = () => {
       });
 
       const data = await response.json();
-
-      if (!response.ok) {
-        const errorMsg = data.errorMessage || data.message || `Erro ${response.status}`;
-        throw new Error(errorMsg);
-      }
+      if (!response.ok) throw new Error(data.errorMessage || data.message || `Erro ${response.status}`);
       
       const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
       
       setAiReport(reportText);
       toast.success("Análise concluída com sucesso!", { id: toastId });
       
-      setTimeout(() => {
-        document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' });
-      }, 100);
+      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
 
     } catch (error: any) {
-      console.error("Erro na requisição:", error);
       toast.error("Erro ao enviar para análise", { 
         id: toastId,
-        description: error.message || "Verifique a URL do webhook e a conexão com o n8n."
+        description: error.message || "Verifique a URL do webhook e a conexão."
       });
     } finally {
       setIsSending(false);
@@ -205,7 +171,7 @@ const Index = () => {
       {summary && summary.breakEvenPoint > 0 && (
         <div className="text-center mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
           <h1 className="text-lg text-muted-foreground">
-            <span className="font-semibold">Mínimo Operacional Mensal:</span>{" "}
+            <span className="font-semibold">Ponto de Equilíbrio Operacional (Faturamento Mínimo Mensal):</span>{" "}
             <span className="text-xl text-yellow-500 font-extrabold">{formatCurrency(summary.breakEvenPoint)}</span>
           </h1>
         </div>
@@ -244,7 +210,7 @@ const Index = () => {
           )}
 
           {products.length > 0 && params ? (
-            <React.Fragment>
+            <>
               <Card className="shadow-elegant p-6">
                 <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
                   <h2 className="text-xl font-semibold">
@@ -272,7 +238,6 @@ const Index = () => {
                 <ProductsTable 
                   products={products} 
                   params={params} 
-                  onSummaryCalculated={handleSummaryCalculated} 
                   selectedProductCodes={selectedProductCodes}
                   onSelectionChange={handleSelectionChange}
                 />
@@ -283,7 +248,7 @@ const Index = () => {
                   <CalculationMemory products={[firstCalculatedProduct]} params={params} />
                 </Card>
               )}
-            </React.Fragment>
+            </>
           ) : (
             <Card className="shadow-card flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
               <div className="rounded-full bg-muted p-6 mb-4">
@@ -297,6 +262,63 @@ const Index = () => {
       </div>
     </div>
   );
+};
+
+// Helper function (can be moved to a separate file if needed)
+const calculateGlobalSummary = (
+  productsToSummarize: CalculatedProduct[],
+  currentParams: CalculationParams,
+  globalFixedExpenses: number,
+  totalVariableExpensesPercent: number,
+  cfu: number,
+  totalInnerUnitsInXML: number
+): GlobalSummaryData => {
+  if (productsToSummarize.length === 0) {
+    // Return a default empty summary
+    return { totalSelling: 0, totalTax: 0, totalProfit: 0, profitMarginPercent: 0, breakEvenPoint: 0, totalVariableExpensesValue: 0, totalContributionMargin: 0, totalTaxPercent: 0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
+  }
+
+  const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
+  const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
+  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
+  const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
+  const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
+  const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+  const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+  const totalCbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
+  const totalIbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
+  const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
+  const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
+  const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
+  const totalCsllToPaySum = productsToSummarize.reduce((sum, p) => sum + p.csllToPay * p.quantity, 0);
+  const totalSimplesToPaySum = productsToSummarize.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
+  const totalSelectiveTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
+  const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
+
+  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
+  const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
+
+  let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
+  const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
+  const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
+  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0;
+
+  if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
+    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
+  } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
+    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+  } else {
+    if (currentParams.generateIvaCredit) {
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+    } else {
+      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRateEffective;
+    }
+  }
+
+  const contributionMarginRatio = 1 - totalVariableCostsRatio;
+  const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
+
+  return { totalSelling: totalSellingSum, totalTax: totalTaxSum, totalProfit: totalProfitSum, profitMarginPercent, breakEvenPoint, totalVariableExpensesValue: totalVariableExpensesValueSum, totalContributionMargin: totalContributionMarginSum, totalTaxPercent, totalCbsCredit: totalCbsCreditSum, totalIbsCredit: totalIbsCreditSum, totalCbsDebit: totalCbsDebitSum, totalIbsDebit: totalIbsDebitSum, totalCbsTaxToPay: totalCbsTaxToPaySum, totalIbsTaxToPay: totalIbsTaxToPaySum, totalIrpjToPay: totalIrpjToPaySum, totalCsllToPay: totalCsllToPaySum, totalSimplesToPay: totalSimplesToPaySum, totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, totalIvaCreditForClient: totalIvaCreditForClientSum };
 };
 
 export default Index;

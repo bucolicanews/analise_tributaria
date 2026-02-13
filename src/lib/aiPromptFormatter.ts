@@ -36,10 +36,10 @@ Esta seção resume as premissas que o usuário configurou. Use este contexto pa
 - **Regime Tributário:** **${params.taxRegime}**
 ${params.taxRegime === TaxRegime.SimplesNacional ? `
 - **Anexo do Simples Nacional:** ${params.anexoSimples || "Não informado"}
-- **Faturamento Anual (Base p/ Alíquota):** ${formatCurrency(params.faturamento12Meses)}
+- **Faturamento Anual (Base p/ Alíquota):** ${formatCurrency(params.faturamento12Meses || 0)}
 - **Alíquota Efetiva do Simples:** ${formatPercent(params.simplesNacionalRate)}
 ` : ""}
-- **Custos Fixos Totais (Mensal):** ${formatCurrency(params.fixedCostsTotal)}
+- **Custos Fixos Totais (Mensal):** ${formatCurrency(params.fixedCostsTotal || 0)}
 - **Margem de Lucro Alvo (Única):** ${formatPercent(params.profitMargin)}
 - **Percentual de Perdas (Quebra):** ${formatPercent(params.lossPercentage)}
 - **Despesas Variáveis sobre a Venda:** ${getVariableExpensesText()}
@@ -90,7 +90,7 @@ Com base em **todo o contexto fornecido**, elabore uma análise estratégica con
 1.  **PARECER ESTRATÉGICO (3 a 4 parágrafos):** Comece com um resumo executivo. A operação é saudável? O Ponto de Equilíbrio é realista em relação ao faturamento? Aponte os principais riscos e oportunidades.
 
 2.  **ANÁLISE CRÍTICA DOS PARÂMETROS (Use bullet points):**
-    *   **Despesas Variáveis e Perdas:** Os valores de ${formatPercent(params.lossPercentage)} para perdas e 0.00% para despesas variáveis são realistas? **Alerte o usuário sobre o impacto de custos ocultos** como taxas de cartão (geralmente 2-4%), comissões ou fretes, que podem corroer drasticamente o lucro.
+    *   **Despesas Variáveis e Perdas:** Os valores de ${formatPercent(params.lossPercentage)} para perdas e ${getVariableExpensesText()} para despesas variáveis são realistas? **Alerte o usuário sobre o impacto de custos ocultos** como taxas de cartão (geralmente 2-4%), comissões ou fretes, que podem corroer drasticamente o lucro.
     *   **Mix de Margens de Lucro:** A margem de lucro única de ${formatPercent(params.profitMargin)} é adequada para **todos** os produtos listados? Se houver categorias muito diferentes (ex: alimentos vs. eletrônicos), discuta a viabilidade e a prática de mercado de aplicar margens diferentes por categoria para otimizar a competitividade e o lucro geral.
     *   **Validação Tributária e Sugestão de NCM:** A classificação tributária dos produtos parece correta? Se você identificar um produto com nome claro (ex: "Cerveja", "Refrigerante") mas com um NCM genérico ou ausente, **sugira o NCM correto** e comente sobre o impacto que a classificação correta teria nos impostos.
 
