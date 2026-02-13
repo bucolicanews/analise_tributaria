@@ -58,7 +58,7 @@ const calculateGlobalSummaryForComparison = (
     }
   }
 
-  const contributionMarginRatio = totalContributionMarginSum / totalSellingSum;
+  const contributionMarginRatio = 1 - totalVariableCostsRatio;
   const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
 
   return {
@@ -95,6 +95,17 @@ const formatPercent = (value: number) => {
   return `${value.toFixed(2)}%`;
 };
 
+// Helper to calculate total fixed costs from base params
+const calculateTotalFixedCosts = (params: CalculationParams): number => {
+  if (!params) return 0;
+  const inss = params.taxRegime !== TaxRegime.SimplesNacional
+    ? (params.payroll || 0) * ((params.inssPatronalRate || 0) / 100)
+    : 0;
+  const otherFixed = (params.fixedExpenses || []).reduce((sum, exp) => sum + exp.value, 0);
+  return otherFixed + (params.payroll || 0) + inss;
+};
+
+
 const Comparison = () => {
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -114,36 +125,35 @@ const Comparison = () => {
 
       if (productsToProcess.length === 0) return null;
 
+      // Recalculate total fixed costs here to ensure accuracy
+      const totalFixedCosts = calculateTotalFixedCosts(baseParams);
+
       const totalVariableExpensesPercent = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
       const totalInnerUnitsInXML = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
       // --- SIMPLES NACIONAL (PADRÃO) ---
       const paramsSN = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
-      const fixedExpensesSN = paramsSN.fixedCostsTotal || 0;
-      const cfuSN = paramsSN.totalStockUnits > 0 ? fixedExpensesSN / paramsSN.totalStockUnits : 0;
+      const cfuSN = paramsSN.totalStockUnits > 0 ? totalFixedCosts / paramsSN.totalStockUnits : 0;
       const calculatedProductsSN = productsToProcess.map(p => calculatePricing(p, paramsSN, cfuSN));
-      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, fixedExpensesSN, totalVariableExpensesPercent, cfuSN, totalInnerUnitsInXML, paramsSN.profitMargin);
+      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, totalFixedCosts, totalVariableExpensesPercent, cfuSN, totalInnerUnitsInXML, paramsSN.profitMargin);
       
       // --- SIMPLES NACIONAL (HÍBRIDO) ---
       const paramsSNH = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
-      const fixedExpensesSNH = paramsSNH.fixedCostsTotal || 0;
-      const cfuSNH = paramsSNH.totalStockUnits > 0 ? fixedExpensesSNH / paramsSNH.totalStockUnits : 0;
+      const cfuSNH = paramsSNH.totalStockUnits > 0 ? totalFixedCosts / paramsSNH.totalStockUnits : 0;
       const calculatedProductsSNH = productsToProcess.map(p => calculatePricing(p, paramsSNH, cfuSNH));
-      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, fixedExpensesSNH, totalVariableExpensesPercent, cfuSNH, totalInnerUnitsInXML, paramsSNH.profitMargin);
+      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, totalFixedCosts, totalVariableExpensesPercent, cfuSNH, totalInnerUnitsInXML, paramsSNH.profitMargin);
       
       // --- LUCRO PRESUMIDO ---
       const paramsLP = { ...baseParams, taxRegime: TaxRegime.LucroPresumido };
-      const fixedExpensesLP = paramsLP.fixedCostsTotal || 0;
-      const cfuLP = paramsLP.totalStockUnits > 0 ? fixedExpensesLP / paramsLP.totalStockUnits : 0;
+      const cfuLP = paramsLP.totalStockUnits > 0 ? totalFixedCosts / paramsLP.totalStockUnits : 0;
       const calculatedProductsLP = productsToProcess.map(p => calculatePricing(p, paramsLP, cfuLP));
-      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, fixedExpensesLP, totalVariableExpensesPercent, cfuLP, totalInnerUnitsInXML, paramsLP.profitMargin);
+      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, totalFixedCosts, totalVariableExpensesPercent, cfuLP, totalInnerUnitsInXML, paramsLP.profitMargin);
 
       // --- LUCRO REAL ---
       const paramsLR = { ...baseParams, taxRegime: TaxRegime.LucroReal };
-      const fixedExpensesLR = paramsLR.fixedCostsTotal || 0;
-      const cfuLR = paramsLR.totalStockUnits > 0 ? fixedExpensesLR / paramsLR.totalStockUnits : 0;
+      const cfuLR = paramsLR.totalStockUnits > 0 ? totalFixedCosts / paramsLR.totalStockUnits : 0;
       const calculatedProductsLR = productsToProcess.map(p => calculatePricing(p, paramsLR, cfuLR));
-      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, fixedExpensesLR, totalVariableExpensesPercent, cfuLR, totalInnerUnitsInXML, paramsLR.profitMargin);
+      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, totalFixedCosts, totalVariableExpensesPercent, cfuLR, totalInnerUnitsInXML, paramsLR.profitMargin);
 
       const results = [
         { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },

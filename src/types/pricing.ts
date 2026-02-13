@@ -79,6 +79,9 @@ export interface CalculationParams {
   faturamento12Meses?: number;
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
+
+  // Novo campo para armazenar o total calculado
+  fixedCostsTotal?: number;
 }
 
 export interface CalculatedProduct extends Product {
