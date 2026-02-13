@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -17,6 +17,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { SalesReport } from "@/components/SalesReport";
 
 const Index = () => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,6 +31,7 @@ const Index = () => {
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
+  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
   // Load data from sessionStorage on initial render
   useEffect(() => {
@@ -220,6 +227,19 @@ const Index = () => {
                     <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
                       {showMemory ? "Ocultar" : "Exibir"} Memória
                     </Button>
+
+                    <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={calculatedProducts.length === 0}>
+                          <BookOpen className="h-4 w-4 mr-2" />
+                          Relatório para Venda
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
+                        <SalesReport products={calculatedProducts} />
+                      </DialogContent>
+                    </Dialog>
+
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button size="sm" disabled={isSending} className="bg-accent hover:bg-accent/90 text-accent-foreground">
