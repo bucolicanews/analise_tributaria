@@ -1,101 +1,130 @@
 import { CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 import { GlobalSummaryData } from "@/components/ProductsTable";
-import { getClassificationDetails } from "./tax/taxClassificationService";
 
-const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value || 0);
-const formatPercent = (value: number) => `${(value || 0).toFixed(2)}%`;
+// Interfaces para o novo payload estruturado
+interface OptimizedAIPayload {
+  objective: string;
+  context: {
+    taxRegime: TaxRegime;
+    parameters: {
+      targetProfitMargin: number;
+      lossPercentage: number;
+      variableExpensesPercentage: number;
+      totalFixedCosts: number;
+    };
+  };
+  financialSummary: {
+    totalRevenue: number;
+    netProfit: number;
+    netProfitMargin: number;
+    breakEvenPoint: number;
+  };
+  productAnalysis: {
+    ncmGroups: AggregatedNcmData[];
+  };
+}
 
-export const formatDataForAI = (
+interface AggregatedNcmData {
+  ncm: string;
+  itemCount: number;
+  averageSellingPrice: number;
+  averageProfitMargin: number;
+  hasSelectiveTax: boolean;
+  selectiveTaxRate?: number;
+  cClassTrib?: number;
+}
+
+/**
+ * Cria um payload JSON otimizado para a análise de IA.
+ * Agrupa produtos por NCM para reduzir redundância e foca em dados estruturados.
+ * @param params Parâmetros de cálculo globais.
+ * @param summary Resumo financeiro global.
+ * @param products Lista de produtos calculados.
+ * @returns Um objeto JSON estruturado e otimizado.
+ */
+export const createOptimizedAIPayload = (
   params: CalculationParams,
   summary: GlobalSummaryData,
   products: CalculatedProduct[],
-): string => {
+): OptimizedAIPayload => {
   
-  const getVariableExpensesText = () => {
-    if (!params.variableExpenses || params.variableExpenses.length === 0) {
-      return "Nenhuma despesa variável informada (0.00%).";
+  // 1. Agrupar produtos por NCM
+  const ncmMap = new Map<string, {
+    itemCount: number;
+    totalSellingPrice: number;
+    totalProfit: number;
+    hasSelectiveTax: boolean;
+    selectiveTaxRateSum: number;
+    cClassTrib?: number;
+  }>();
+
+  for (const p of products) {
+    const ncm = p.ncm || "N/A";
+    if (!ncmMap.has(ncm)) {
+      ncmMap.set(ncm, {
+        itemCount: 0,
+        totalSellingPrice: 0,
+        totalProfit: 0,
+        hasSelectiveTax: false,
+        selectiveTaxRateSum: 0,
+        cClassTrib: p.cClassTrib,
+      });
     }
-    const expenseDetails = params.variableExpenses
-      .map(exp => `${exp.name}: ${formatPercent(exp.percentage)}`)
-      .join(", ");
-    const total = params.variableExpenses.reduce((acc, curr) => acc + curr.percentage, 0);
-    return `${expenseDetails} (Total: ${formatPercent(total)})`;
+
+    const group = ncmMap.get(ncm)!;
+    group.itemCount++;
+    group.totalSellingPrice += p.sellingPrice * p.quantity;
+    group.totalProfit += p.valueForProfit * p.quantity;
+    
+    if (p.taxAnalysis.incideIS) {
+      group.hasSelectiveTax = true;
+      const selectiveTaxRate = p.sellingPrice > 0 ? (p.selectiveTaxToPay / p.sellingPrice) * 100 : 0;
+      group.selectiveTaxRateSum += selectiveTaxRate;
+    }
+  }
+
+  // 2. Finalizar o cálculo das médias e formatar a saída
+  const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(
+    ([ncm, data]) => {
+      const averageSellingPrice = data.itemCount > 0 ? data.totalSellingPrice / data.itemCount : 0;
+      const averageProfit = data.itemCount > 0 ? data.totalProfit / data.itemCount : 0;
+      const averageProfitMargin = averageSellingPrice > 0 ? (averageProfit / averageSellingPrice) : 0;
+      const averageSelectiveTaxRate = data.hasSelectiveTax && data.itemCount > 0 ? data.selectiveTaxRateSum / data.itemCount : undefined;
+
+      return {
+        ncm,
+        itemCount: data.itemCount,
+        averageSellingPrice,
+        averageProfitMargin,
+        hasSelectiveTax: data.hasSelectiveTax,
+        selectiveTaxRate: averageSelectiveTaxRate,
+        cClassTrib: data.cClassTrib,
+      };
+    }
+  );
+
+  // 3. Montar o payload final
+  const payload: OptimizedAIPayload = {
+    objective: "Análise tributária estratégica da Reforma Tributária Brasileira",
+    context: {
+      taxRegime: params.taxRegime,
+      parameters: {
+        targetProfitMargin: params.profitMargin / 100,
+        lossPercentage: params.lossPercentage / 100,
+        variableExpensesPercentage: params.variableExpenses.reduce((acc, curr) => acc + curr.percentage, 0) / 100,
+        totalFixedCosts: params.fixedCostsTotal || 0,
+      },
+    },
+    financialSummary: {
+      totalRevenue: summary.totalSelling,
+      netProfit: summary.totalProfit,
+      netProfitMargin: summary.profitMarginPercent / 100,
+      breakEvenPoint: summary.breakEvenPoint,
+    },
+    productAnalysis: {
+      ncmGroups,
+    },
   };
 
-  let prompt = `
-# ANÁLISE ESTRATÉGICA DE PRECIFICAÇÃO E TRIBUTAÇÃO (REFORMA TRIBUTÁRIA)
-
-**OBJETIVO:** Atuar como um consultor financeiro e tributário sênior. Sua missão é analisar os dados de uma simulação de precificação e fornecer um parecer estratégico, apontando riscos, oportunidades e recomendações práticas. **Seja crítico e não apenas repita os dados.**
-
----
-
-## 1. CONTEXTO DA SIMULAÇÃO (PARÂMETROS FORNECIDOS PELO USUÁRIO)
-
-Esta seção resume as premissas que o usuário configurou. Use este contexto para fundamentar sua análise e, principalmente, para **questionar premissas que pareçam irrealistas.**
-
-- **Regime Tributário:** **${params.taxRegime}**
-${params.taxRegime === TaxRegime.SimplesNacional ? `
-- **Anexo do Simples Nacional:** ${params.anexoSimples || "Não informado"}
-- **Faturamento Anual (Base p/ Alíquota):** ${formatCurrency(params.faturamento12Meses || 0)}
-- **Alíquota Efetiva do Simples:** ${formatPercent(params.simplesNacionalRate)}
-` : ""}
-- **Custos Fixos Totais (Mensal):** ${formatCurrency(params.fixedCostsTotal || 0)}
-- **Margem de Lucro Alvo (Única):** ${formatPercent(params.profitMargin)}
-- **Percentual de Perdas (Quebra):** ${formatPercent(params.lossPercentage)}
-- **Despesas Variáveis sobre a Venda:** ${getVariableExpensesText()}
-
----
-
-## 2. RESULTADOS FINANCEIROS GLOBAIS (CÁLCULO AUTOMÁTICO)
-
-Estes são os resultados consolidados da simulação.
-
-- **Venda Total (Faturamento):** ${formatCurrency(summary.totalSelling)}
-- **Lucro Líquido Total:** ${formatCurrency(summary.totalProfit)} (${formatPercent(summary.profitMarginPercent)} do faturamento)
-- **Ponto de Equilíbrio (Faturamento Mínimo para Cobrir Custos Fixos):** **${formatCurrency(summary.breakEvenPoint)}**
-
----
-
-## 3. DETALHAMENTO POR PRODUTO
-
-Análise individual de cada item na simulação.
-
-`;
-
-  products.forEach((p, index) => {
-    const classificationDetails = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
-    const cClassDescription = classificationDetails?.cClass?.name || "Não classificado";
-    const productProfitMargin = p.sellingPrice > 0 ? (p.valueForProfit / p.sellingPrice) * 100 : 0;
-
-    prompt += `
-### Produto ${index + 1}: ${p.name}
-- **NCM:** ${p.ncm || "N/A"}
-- **Preço de Venda Unitário:** ${formatCurrency(p.sellingPrice)}
-- **Lucro Líquido Unitário:** ${formatCurrency(p.valueForProfit)} (${formatPercent(productProfitMargin)})
-- **Imposto Seletivo (IS):** ${p.taxAnalysis.incideIS ? `Sim. Alíquota calculada: ${formatPercent(p.selectiveTaxToPay > 0 && p.sellingPrice > 0 ? (p.selectiveTaxToPay / p.sellingPrice * 100) : 0)}.` : "Não"}
-  - **Nota para IA:** Se o regime for Simples Nacional, o IS ser 0.00% está **CORRETO**. Não aponte isso como um erro.
-- **Classificação IBS/CBS (Sistema):** \`${p.cClassTrib} - ${cClassDescription}\` (${p.taxAnalysis.wasNcmFound ? "NCM específico" : "Classificação Padrão"})
-`;
-  });
-
-  prompt += `
----
-
-## 4. SUA TAREFA COMO CONSULTOR DE IA (SEJA CRÍTICO E PROATIVO)
-
-Com base em **todo o contexto fornecido**, elabore uma análise estratégica concisa e acionável.
-
-**Responda seguindo estritamente esta estrutura:**
-
-1.  **PARECER ESTRATÉGICO (3 a 4 parágrafos):** Comece com um resumo executivo. A operação é saudável? O Ponto de Equilíbrio é realista em relação ao faturamento? Aponte os principais riscos e oportunidades.
-
-2.  **ANÁLISE CRÍTICA DOS PARÂMETROS (Use bullet points):**
-    *   **Despesas Variáveis e Perdas:** Os valores de ${formatPercent(params.lossPercentage)} para perdas e ${getVariableExpensesText()} para despesas variáveis são realistas? **Alerte o usuário sobre o impacto de custos ocultos** como taxas de cartão (geralmente 2-4%), comissões ou fretes, que podem corroer drasticamente o lucro.
-    *   **Mix de Margens de Lucro:** A margem de lucro única de ${formatPercent(params.profitMargin)} é adequada para **todos** os produtos listados? Se houver categorias muito diferentes (ex: alimentos vs. eletrônicos), discuta a viabilidade e a prática de mercado de aplicar margens diferentes por categoria para otimizar a competitividade e o lucro geral.
-    *   **Validação Tributária e Sugestão de NCM:** A classificação tributária dos produtos parece correta? Se você identificar um produto com nome claro (ex: "Cerveja", "Refrigerante") mas com um NCM genérico ou ausente, **sugira o NCM correto** e comente sobre o impacto que a classificação correta teria nos impostos.
-
-3.  **RECOMENDAÇÕES FINAIS:** Dê conselhos práticos e acionáveis baseados na sua análise.
-`;
-
-  return prompt.trim();
+  return payload;
 };

@@ -8,7 +8,7 @@ import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable";
 import { CalculationMemory } from "@/components/CalculationMemory";
 import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing";
-import { formatDataForAI } from "@/lib/aiPromptFormatter";
+import { createOptimizedAIPayload } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
 import { AiAnalysisReport } from "@/components/AiAnalysisReport";
 import {
@@ -135,7 +135,8 @@ const Index = () => {
     const toastId = toast.loading(`Aguardando análise da IA (${environment})...`);
 
     try {
-      const promptText = formatDataForAI(params, summary, calculatedProducts);
+      // **MUDANÇA PRINCIPAL AQUI**
+      const payload = createOptimizedAIPayload(params, summary, calculatedProducts);
       
       const webhooks = {
         test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
@@ -148,7 +149,8 @@ const Index = () => {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: { analise: promptText } }),
+        // **ENVIANDO O NOVO PAYLOAD OTIMIZADO**
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
