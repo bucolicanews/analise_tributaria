@@ -7,6 +7,7 @@ import { Search, Printer, Tags } from 'lucide-react';
 import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { generateProductListPdf } from '@/lib/pdfGenerator';
+import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -113,23 +114,41 @@ const ProductList = () => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredProducts.map(product => (
-                  <TableRow key={product.code}>
-                    <TableCell className="font-medium">{product.name}</TableCell>
-                    <TableCell className="font-mono">{product.code}</TableCell>
-                    <TableCell className="font-mono">{product.ean}</TableCell>
-                    <TableCell className="font-mono">{product.ncm}</TableCell>
-                    <TableCell className="font-mono">{product.cest}</TableCell>
-                    <TableCell className="font-mono font-bold">{product.suggestedCodes.icmsCstOrCsosn}</TableCell>
-                    <TableCell className="font-mono font-bold">{product.suggestedCodes.pisCofinsCst}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(product.cost + (product.valueForFixedCost / product.quantity))}</TableCell>
-                    <TableCell className="text-right font-mono">{formatCurrency(product.costPerInnerUnit)}</TableCell>
-                    <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPricePerInnerUnit)}</TableCell>
-                    <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
-                    <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPrice)}</TableCell>
-                    <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPrice)}</TableCell>
-                  </TableRow>
-                ))}
+                {filteredProducts.map(product => {
+                  const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
+                  return (
+                    <React.Fragment key={product.code}>
+                      <TableRow>
+                        <TableCell className="font-medium">{product.name}</TableCell>
+                        <TableCell className="font-mono">{product.code}</TableCell>
+                        <TableCell className="font-mono">{product.ean}</TableCell>
+                        <TableCell className="font-mono">{product.ncm}</TableCell>
+                        <TableCell className="font-mono">{product.cest}</TableCell>
+                        <TableCell className="font-mono font-bold">{product.suggestedCodes.icmsCstOrCsosn}</TableCell>
+                        <TableCell className="font-mono font-bold">{product.suggestedCodes.pisCofinsCst}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(product.cost + (product.valueForFixedCost / product.quantity))}</TableCell>
+                        <TableCell className="text-right font-mono">{formatCurrency(product.costPerInnerUnit)}</TableCell>
+                        <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPricePerInnerUnit)}</TableCell>
+                        <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
+                        <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPrice)}</TableCell>
+                        <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPrice)}</TableCell>
+                      </TableRow>
+                      {classificationDetails && (
+                        <TableRow className="bg-muted/30 hover:bg-muted/50">
+                          <TableCell colSpan={13} className="p-2 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-x-4 gap-y-1 flex-wrap px-2">
+                              <strong className="text-primary">Classificação IBS/CBS:</strong>
+                              <span><strong>cClassTrib:</strong> {classificationDetails.cClass.code}</span>
+                              <span className="flex-shrink-0"><strong>Nome:</strong> {classificationDetails.cClass.name}</span>
+                              <span><strong>CST:</strong> {`${classificationDetails.cst?.code} - ${classificationDetails.cst?.description}`}</span>
+                              <span><strong>Última Atualização:</strong> {classificationDetails.cClass.lastUpdate}</span>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>
