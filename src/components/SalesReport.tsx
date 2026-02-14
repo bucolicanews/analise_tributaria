@@ -37,7 +37,7 @@ export const SalesReport: React.FC<SalesReportProps> = ({ products }) => {
         <CardTitle>Relatório para Venda</CardTitle>
         <Button variant="outline" size="sm" onClick={() => generateSalesReportPdf(products)}>
           <Printer className="h-4 w-4 mr-2" />
-          Gerar PDF
+          Visualizar PDF
         </Button>
       </CardHeader>
       <CardContent>

@@ -88,7 +88,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
   });
 
   addHeaderFooter(doc);
-  doc.save('Lista_de_Produtos.pdf');
+  doc.output('pdfobjectnewwindow');
 };
 
 
@@ -148,5 +148,5 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
   });
 
   addHeaderFooter(doc);
-  doc.save('Relatorio_de_Venda.pdf');
+  doc.output('pdfobjectnewwindow');
 };
