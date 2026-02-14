@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Upload, BarChart3, Settings } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ interface LayoutProps {
 const navItems = [
   { to: '/', label: 'Análise do Regime Tributário', icon: Upload },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
+  { to: '/product-list', label: 'Lista de Produtos', icon: Tags },
   { to: '/configuracao', label: 'Configuração', icon: Settings },
 ];
 
