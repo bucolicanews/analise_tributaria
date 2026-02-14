@@ -27,43 +27,70 @@ const addHeaderFooter = (doc: jsPDF) => {
   }
 };
 
-// Gera o PDF da Lista de Produtos (tabela simplificada)
+// Gera o PDF da Lista de Produtos em formato de lista detalhada
 export const generateProductListPdf = (products: CalculatedProduct[]) => {
   const doc = new jsPDF({
-    orientation: 'landscape',
+    orientation: 'portrait',
   });
-
-  const head = [[
-    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CSOSN', 'CST PIS/COFINS', 
-    'Venda Mín. Com.', 'Venda Sug. Com.'
-  ]];
-
-  const body = products.map(p => [
-    p.name,
-    p.code,
-    p.ean || '-',
-    p.ncm || '-',
-    p.suggestedCodes.icmsCstOrCsosn,
-    p.suggestedCodes.pisCofinsCst,
-    formatCurrency(p.minSellingPrice),
-    formatCurrency(p.sellingPrice),
-  ]);
+  let finalY = 0;
 
   doc.setFontSize(18);
-  doc.text('Lista de Produtos para Cadastro', 14, 30);
+  doc.text('Lista de Produtos para Cadastro', 14, 22);
 
-  autoTable(doc, {
-    head,
-    body,
-    startY: 40,
-    theme: 'grid',
-    headStyles: { fillColor: [25, 95, 53] },
-    styles: { fontSize: 8 },
+  products.forEach((product, index) => {
+    let startY = index === 0 ? 35 : finalY + 10;
+
+    // Adiciona nova página se não houver espaço suficiente para o próximo item
+    if (startY > 250) {
+      doc.addPage();
+      finalY = 0;
+      startY = 22;
+    }
+
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    const title = `${product.name} (${product.code})`;
+    const splitTitle = doc.splitTextToSize(title, 180);
+    doc.text(splitTitle, 14, startY);
+    
+    const currentY = startY + (splitTitle.length * 5);
+
+    const body = [
+        ['Cód. Barras (EAN)', product.ean || '-'],
+        ['NCM', product.ncm || '-'],
+        ['CEST', product.cest || '-'],
+        ['CSOSN (Saída)', product.suggestedCodes.icmsCstOrCsosn],
+        ['CST PIS/COFINS (Saída)', product.suggestedCodes.pisCofinsCst],
+        ['---', '---'],
+        ['Custo Base Total (Com.)', formatCurrency(product.cost + (product.valueForFixedCost / product.quantity))],
+        ['Venda Mínima (Com.)', formatCurrency(product.minSellingPrice)],
+        ['Venda Sugerida (Com.)', formatCurrency(product.sellingPrice)],
+        ['---', '---'],
+        ['Custo (Unid. Int.)', formatCurrency(product.costPerInnerUnit)],
+        ['Venda Mínima (Unid. Int.)', formatCurrency(product.minSellingPricePerInnerUnit)],
+        ['Venda Sugerida (Unid. Int.)', formatCurrency(product.sellingPricePerInnerUnit)],
+    ];
+
+    autoTable(doc, {
+      body,
+      startY: currentY,
+      theme: 'plain',
+      styles: { fontSize: 9, cellPadding: 1.5 },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { halign: 'right' },
+      },
+      didDrawPage: (data) => {
+        finalY = data.cursor?.y || 0;
+      }
+    });
+    finalY = (doc as any).lastAutoTable.finalY;
   });
 
   addHeaderFooter(doc);
   doc.save('Lista_de_Produtos.pdf');
 };
+
 
 // Gera o PDF do Relatório de Vendas (detalhado por produto)
 export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
@@ -74,7 +101,13 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
   doc.text('Relatório Detalhado para Venda', 14, 22);
 
   products.forEach((product, index) => {
-    const startY = index === 0 ? 35 : finalY + 15;
+    let startY = index === 0 ? 35 : finalY + 15;
+
+    if (startY > 250) {
+      doc.addPage();
+      finalY = 0;
+      startY = 22;
+    }
 
     doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
@@ -104,7 +137,8 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: {
-        0: { fontStyle: 'bold' },
+        0: { fontStyle: 'bold', cellWidth: 70 },
+        1: { halign: 'right' },
       },
       didDrawPage: (data) => {
         finalY = data.cursor?.y || 0;
