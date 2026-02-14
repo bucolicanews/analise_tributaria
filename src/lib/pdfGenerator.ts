@@ -34,7 +34,8 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
   });
 
   const head = [[
-    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CSOSN', 'CST PIS/COFINS', 
+    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CEST', 'CSOSN', 'CST PIS/COFINS', 
+    'Custo Base Total', 'Custo Unid. Int.', 'Venda Mín. Unid. Int.', 'Venda Sug. Unid. Int.',
     'Venda Mín. Com.', 'Venda Sug. Com.'
   ]];
 
@@ -43,8 +44,13 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     p.code,
     p.ean || '-',
     p.ncm || '-',
+    p.cest || '-',
     p.suggestedCodes.icmsCstOrCsosn,
     p.suggestedCodes.pisCofinsCst,
+    formatCurrency(p.cost + (p.valueForFixedCost / p.quantity)),
+    formatCurrency(p.costPerInnerUnit),
+    formatCurrency(p.minSellingPricePerInnerUnit),
+    formatCurrency(p.sellingPricePerInnerUnit),
     formatCurrency(p.minSellingPrice),
     formatCurrency(p.sellingPrice),
   ]);
@@ -57,12 +63,16 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     body,
     startY: 40,
     theme: 'grid',
-    headStyles: { fillColor: [34, 139, 34] }, // Verde escuro, como na imagem
-    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [34, 139, 34] }, // Verde escuro
+    styles: { fontSize: 7, cellPadding: 1.5 },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      6: { halign: 'right' },
       7: { halign: 'right' },
+      8: { halign: 'right' },
+      9: { halign: 'right' },
+      10: { halign: 'right' },
+      11: { halign: 'right' },
+      12: { halign: 'right' },
     }
   });
 
