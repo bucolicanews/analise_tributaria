@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { CalculatedProduct } from '@/types/pricing';
+import { getClassificationDetails } from './tax/taxClassificationService';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -39,21 +40,42 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     'Venda Mín. Com.', 'Venda Sug. Com.'
   ]];
 
-  const body = products.map(p => [
-    p.name,
-    p.code,
-    p.ean || '-',
-    p.ncm || '-',
-    p.cest || '-',
-    p.suggestedCodes.icmsCstOrCsosn,
-    p.suggestedCodes.pisCofinsCst,
-    formatCurrency(p.cost + (p.valueForFixedCost / p.quantity)),
-    formatCurrency(p.costPerInnerUnit),
-    formatCurrency(p.minSellingPricePerInnerUnit),
-    formatCurrency(p.sellingPricePerInnerUnit),
-    formatCurrency(p.minSellingPrice),
-    formatCurrency(p.sellingPrice),
-  ]);
+  const body: any[] = [];
+  products.forEach(p => {
+    // Product row
+    body.push([
+      p.name,
+      p.code,
+      p.ean || '-',
+      p.ncm || '-',
+      p.cest || '-',
+      p.suggestedCodes.icmsCstOrCsosn,
+      p.suggestedCodes.pisCofinsCst,
+      formatCurrency(p.cost + (p.valueForFixedCost / p.quantity)),
+      formatCurrency(p.costPerInnerUnit),
+      formatCurrency(p.minSellingPricePerInnerUnit),
+      formatCurrency(p.sellingPricePerInnerUnit),
+      formatCurrency(p.minSellingPrice),
+      formatCurrency(p.sellingPrice),
+    ]);
+
+    // Classification row
+    const classificationDetails = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
+    if (classificationDetails) {
+      const classificationText = `Classificação IBS/CBS: cClassTrib: ${classificationDetails.cClass.code} | Nome: ${classificationDetails.cClass.name} | CST: ${classificationDetails.cst?.code} - ${classificationDetails.cst?.description} | Última Atualização: ${classificationDetails.cClass.lastUpdate}`;
+      
+      body.push([{
+        content: classificationText,
+        colSpan: 13,
+        styles: {
+          fillColor: [244, 244, 245], // muted
+          textColor: [100, 116, 139], // muted-foreground
+          fontSize: 6,
+          cellPadding: 1.5,
+        }
+      }]);
+    }
+  });
 
   doc.setFontSize(18);
   doc.text('Lista de Produtos para Cadastro', 14, 30);
