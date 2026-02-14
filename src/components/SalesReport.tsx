@@ -6,6 +6,7 @@ import { CalculatedProduct } from '@/types/pricing';
 import { ProductTaxDetails } from './ProductTaxDetails';
 import { cn } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { generateSalesReportPdf } from '@/lib/pdfGenerator';
 
 interface SalesReportProps {
   products: CalculatedProduct[];
@@ -31,46 +32,16 @@ export const SalesReport: React.FC<SalesReportProps> = ({ products }) => {
   }
 
   return (
-    <Card className="shadow-none border-none print:shadow-none print:border-none">
-      <CardHeader className="flex-row items-center justify-between sticky top-0 bg-background z-10 print:hidden">
+    <Card className="shadow-none border-none">
+      <CardHeader className="flex-row items-center justify-between sticky top-0 bg-background z-10">
         <CardTitle>Relatório para Venda</CardTitle>
-        <Button variant="outline" size="sm" onClick={() => window.print()}>
+        <Button variant="outline" size="sm" onClick={() => generateSalesReportPdf(products)}>
           <Printer className="h-4 w-4 mr-2" />
-          Imprimir
+          Gerar PDF
         </Button>
       </CardHeader>
       <CardContent>
-        {/* Visualização apenas para Impressão */}
-        <div className="hidden print:block">
-          <h2 className="text-xl font-bold mb-4">Relatório de Venda Simplificado</h2>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[40%]">Produto</TableHead>
-                <TableHead>Código</TableHead>
-                <TableHead>NCM</TableHead>
-                <TableHead className="text-right">Preço Custo (Unid. Int.)</TableHead>
-                <TableHead className="text-right">Preço Venda (Unid. Int.)</TableHead>
-                <TableHead className="text-right">Preço Venda (Unid. Com.)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.code}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell className="font-mono">{product.code}</TableCell>
-                  <TableCell className="font-mono">{product.ncm}</TableCell>
-                  <TableCell className="text-right font-mono">{formatCurrency(product.costPerInnerUnit)}</TableCell>
-                  <TableCell className="text-right font-mono font-bold text-primary">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
-                  <TableCell className="text-right font-mono font-bold text-primary">{formatCurrency(product.sellingPrice)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-
-        {/* Visualização Padrão (Tela) */}
-        <div className="space-y-8 print:hidden">
+        <div className="space-y-8">
           {products.map((product) => {
             const fixedCostPerCommercialUnit = (product.valueForFixedCost / product.quantity) || 0;
             const productProfit = product.sellingPrice - product.cost - product.taxToPay - product.valueForVariableExpenses - fixedCostPerCommercialUnit;

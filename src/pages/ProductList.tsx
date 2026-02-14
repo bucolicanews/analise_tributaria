@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Search, Printer, Tags } from 'lucide-react';
 import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
+import { generateProductListPdf } from '@/lib/pdfGenerator';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -68,19 +69,19 @@ const ProductList = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <Card className="shadow-card print:shadow-none print:border-none">
-        <CardHeader className="flex-row items-center justify-between print:hidden">
+      <Card className="shadow-card">
+        <CardHeader className="flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Tags className="h-6 w-6 text-primary" />
             Lista de Produtos para Cadastro
           </CardTitle>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
+          <Button variant="outline" size="sm" onClick={() => generateProductListPdf(filteredProducts)}>
             <Printer className="h-4 w-4 mr-2" />
-            Imprimir Lista
+            Gerar PDF
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="mb-4 print:hidden">
+          <div className="mb-4">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
