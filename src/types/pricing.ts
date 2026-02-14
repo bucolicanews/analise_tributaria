@@ -44,49 +44,69 @@ export interface SelectiveTaxRate {
   description: string;
 }
 
+// --- NOVAS INTERFACES ESTRATÉGICAS ---
+export type SupplierType = 'industria' | 'distribuidor' | 'importador' | 'desconhecido';
+export type CustomerType = 'B2C' | 'B2B' | 'misto' | 'desconhecido';
+
+export interface PurchaseProfile {
+  supplierType: SupplierType;
+  creditEligible: boolean;
+}
+
+export interface SalesProfile {
+  customerType: CustomerType;
+  percentageB2B: number;
+}
+
+export interface RegulatoryRisk {
+  essentialFoodCandidate: boolean;
+  healthTaxRisk: boolean;
+}
+
+export interface StrategicData {
+  purchaseProfile: PurchaseProfile;
+  salesProfile: SalesProfile;
+  regulatoryRisk: RegulatoryRisk;
+}
+// --- FIM DAS NOVAS INTERFACES ---
+
 export interface CalculationParams {
   profitMargin: number;
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
   payroll: number;
   inssPatronalRate: number;
-  totalStockUnits: number; // Novo: Estoque Total de Unidades para rateio de custos fixos
-  lossPercentage: number; // Novo: Porcentagem de perdas e quebras
+  totalStockUnits: number; 
+  lossPercentage: number; 
   
-  // Regimes tributários
   taxRegime: TaxRegime;
-  simplesNacionalRate: number; // Alíquota total do Simples Nacional (cheia)
-  generateIvaCredit: boolean; // Novo: Flag para Simples Nacional Híbrido (gerar crédito de IVA)
-  irpjRate: number; // Alíquota IRPJ para Lucro Presumido
-  csllRate: number; // Alíquota CSLL para Lucro Presumido
-  irpjRateLucroReal: number; // Alíquota IRPJ para Lucro Real
-  csllRateLucroReal: number; // Alíquota CSLL para Lucro Real
+  simplesNacionalRate: number; 
+  generateIvaCredit: boolean; 
+  irpjRate: number; 
+  csllRate: number; 
+  irpjRateLucroReal: number; 
+  csllRateLucroReal: number; 
 
-  // Alíquotas de impostos
   cbsRate: number;
   ibsRate: number;
-  defaultSelectiveTaxRate: number; // Renomeado para alíquota padrão/fallback
-  selectiveTaxRates: SelectiveTaxRate[]; // Novo: Alíquotas específicas por NCM
+  defaultSelectiveTaxRate: number; 
+  selectiveTaxRates: SelectiveTaxRate[]; 
 
-  // Parâmetros de Transição (Crédito e Débito)
-  usePisCofins: boolean; // Crédito PIS/COFINS (Entrada)
-  icmsPercentage: number; // Crédito ICMS (Entrada)
+  usePisCofins: boolean; 
+  icmsPercentage: number; 
 
-  useSelectiveTaxDebit: boolean; // Débito Imposto Seletivo (Venda)
-  useCbsDebit: boolean; // Débito CBS (Venda)
-  ibsDebitPercentage: number; // Débito IBS (Venda)
+  useSelectiveTaxDebit: boolean; 
+  useCbsDebit: boolean; 
+  ibsDebitPercentage: number; 
 
-  // Novos campos de contexto da empresa
   faturamento12Meses?: number;
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
 
-  // Novo campo para armazenar o total calculado
   fixedCostsTotal?: number;
 }
 
 export interface CalculatedProduct extends Product {
-  // Valores por Unidade Comercial
   effectiveCost: number;
   sellingPrice: number;
   minSellingPrice: number;
@@ -94,24 +114,22 @@ export interface CalculatedProduct extends Product {
   ibsCredit: number;
   cbsDebit: number;
   ibsDebit: number;
-  taxToPay: number; // Total tax to pay
-  cbsTaxToPay: number; // CBS a pagar (débito - crédito)
-  ibsTaxToPay: number; // IBS a pagar (débito - crédito)
-  irpjToPay: number; // Novo: IRPJ a pagar
-  csllToPay: number; // Novo: CSLL a pagar
-  simplesToPay: number; // Novo: Simples Nacional a pagar
-  selectiveTaxToPay: number; // Imposto Seletivo a pagar
+  taxToPay: number; 
+  cbsTaxToPay: number; 
+  ibsTaxToPay: number; 
+  irpjToPay: number; 
+  csllToPay: number; 
+  simplesToPay: number; 
+  selectiveTaxToPay: number; 
   markupPercentage: number;
 
-  // Novos campos: Detalhamento do Preço de Venda (por Unidade Comercial)
   valueForTaxes: number;
   valueForVariableExpenses: number;
   valueForFixedCost: number;
   valueForProfit: number;
-  contributionMargin: number; // Margem de Contribuição por Unidade Comercial
-  ivaCreditForClient: number; // Novo: Crédito de IVA gerado para o cliente (se aplicável)
+  contributionMargin: number; 
+  ivaCreditForClient: number; 
 
-  // Novos campos: Valores por Unidade Interna
   costPerInnerUnit: number;
   effectiveCostPerInnerUnit: number;
   sellingPricePerInnerUnit: number;
@@ -126,13 +144,12 @@ export interface CalculatedProduct extends Product {
   irpjToPayPerInnerUnit: number;
   csllToPayPerInnerUnit: number;
   simplesToPayPerInnerUnit: number;
-  selectiveTaxToPayPerInnerUnit: number; // Imposto Seletivo por unidade interna
+  selectiveTaxToPayPerInnerUnit: number; 
 
   cfop: string;
   cst: string;
-  status: "OK" | "PREÇO CORRIGIDO"; // Novo: Status do produto
+  status: "OK" | "PREÇO CORRIGIDO"; 
 
-  // NOVO: Objeto para análise tributária explícita
   taxAnalysis: {
     icms: 'Substituição Tributária' | 'Tributado Integralmente';
     pisCofins: 'Monofásico (Receita Segregada)' | 'Tributado (Alíquota Unificada no DAS)' | 'Débito e Crédito (Não Cumulativo)';
@@ -140,12 +157,13 @@ export interface CalculatedProduct extends Product {
     incideIS: boolean;
   };
 
-  // NOVO: Códigos sugeridos para a venda (saída)
   suggestedCodes: {
     icmsCstOrCsosn: string;
     pisCofinsCst: string;
   };
 
-  // NOVO: Classe de tributação da Reforma Tributária
   cClassTrib?: number;
+
+  // NOVO CAMPO PARA DADOS ESTRATÉGICOS
+  strategicData?: StrategicData;
 }

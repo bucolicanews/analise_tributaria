@@ -1,8 +1,8 @@
-import { CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
+import { CalculationParams, CalculatedProduct, TaxRegime, StrategicData } from "@/types/pricing";
 import { GlobalSummaryData } from "@/components/ProductsTable";
 
-// Interfaces para o novo payload estruturado
-interface OptimizedAIPayload {
+// Interfaces para o payload profissional
+interface ProfessionalAIPayload {
   objective: string;
   context: {
     taxRegime: TaxRegime;
@@ -27,84 +27,103 @@ interface OptimizedAIPayload {
 interface AggregatedNcmData {
   ncm: string;
   itemCount: number;
-  averageSellingPrice: number;
-  averageProfitMargin: number;
-  hasSelectiveTax: boolean;
-  selectiveTaxRate?: number;
-  cClassTrib?: number;
+  annualRevenueShare: number;
+  averageSalePrice: number;
+  averageCost: number;
+  selectiveTaxExposure: boolean;
+  supplierType: string;
+  customerMix: {
+    b2c: number;
+    b2b: number;
+  };
+  essentialRisk: boolean;
 }
 
+const defaultStrategicData: StrategicData = {
+  purchaseProfile: { supplierType: 'distribuidor', creditEligible: true },
+  salesProfile: { customerType: 'B2C', percentageB2B: 0 },
+  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false },
+};
+
 /**
- * Cria um payload JSON otimizado para a análise de IA.
- * Agrupa produtos por NCM para reduzir redundância e foca em dados estruturados.
+ * Cria um payload JSON de nível profissional para a análise de IA.
+ * Agrupa produtos por NCM e enriquece com dados estratégicos e métricas de negócio.
  * @param params Parâmetros de cálculo globais.
  * @param summary Resumo financeiro global.
- * @param products Lista de produtos calculados.
- * @returns Um objeto JSON estruturado e otimizado.
+ * @param products Lista de produtos calculados (já com dados estratégicos).
+ * @returns Um objeto JSON estruturado e profissional.
  */
 export const createOptimizedAIPayload = (
   params: CalculationParams,
   summary: GlobalSummaryData,
   products: CalculatedProduct[],
-): OptimizedAIPayload => {
+): ProfessionalAIPayload => {
   
-  // 1. Agrupar produtos por NCM
   const ncmMap = new Map<string, {
     itemCount: number;
-    totalSellingPrice: number;
-    totalProfit: number;
+    totalRevenue: number;
+    totalCost: number;
     hasSelectiveTax: boolean;
-    selectiveTaxRateSum: number;
-    cClassTrib?: number;
+    supplierTypes: Record<string, number>;
+    customerTypes: Record<string, number>;
+    essentialCandidates: number;
   }>();
 
   for (const p of products) {
     const ncm = p.ncm || "N/A";
+    const strategic = p.strategicData || defaultStrategicData;
+
     if (!ncmMap.has(ncm)) {
       ncmMap.set(ncm, {
         itemCount: 0,
-        totalSellingPrice: 0,
-        totalProfit: 0,
+        totalRevenue: 0,
+        totalCost: 0,
         hasSelectiveTax: false,
-        selectiveTaxRateSum: 0,
-        cClassTrib: p.cClassTrib,
+        supplierTypes: {},
+        customerTypes: {},
+        essentialCandidates: 0,
       });
     }
 
     const group = ncmMap.get(ncm)!;
+    const productRevenue = p.sellingPrice * p.quantity;
+    const productCost = p.cost * p.quantity;
+
     group.itemCount++;
-    group.totalSellingPrice += p.sellingPrice * p.quantity;
-    group.totalProfit += p.valueForProfit * p.quantity;
+    group.totalRevenue += productRevenue;
+    group.totalCost += productCost;
+    if (p.taxAnalysis.incideIS) group.hasSelectiveTax = true;
+    if (strategic.regulatoryRisk.essentialFoodCandidate) group.essentialCandidates++;
     
-    if (p.taxAnalysis.incideIS) {
-      group.hasSelectiveTax = true;
-      const selectiveTaxRate = p.sellingPrice > 0 ? (p.selectiveTaxToPay / p.sellingPrice) * 100 : 0;
-      group.selectiveTaxRateSum += selectiveTaxRate;
-    }
+    group.supplierTypes[strategic.purchaseProfile.supplierType] = (group.supplierTypes[strategic.purchaseProfile.supplierType] || 0) + 1;
+    group.customerTypes[strategic.salesProfile.customerType] = (group.customerTypes[strategic.salesProfile.customerType] || 0) + 1;
   }
 
-  // 2. Finalizar o cálculo das médias e formatar a saída
   const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(
     ([ncm, data]) => {
-      const averageSellingPrice = data.itemCount > 0 ? data.totalSellingPrice / data.itemCount : 0;
-      const averageProfit = data.itemCount > 0 ? data.totalProfit / data.itemCount : 0;
-      const averageProfitMargin = averageSellingPrice > 0 ? (averageProfit / averageSellingPrice) : 0;
-      const averageSelectiveTaxRate = data.hasSelectiveTax && data.itemCount > 0 ? data.selectiveTaxRateSum / data.itemCount : undefined;
+      const dominantSupplier = Object.keys(data.supplierTypes).reduce((a, b) => data.supplierTypes[a] > data.supplierTypes[b] ? a : b, 'desconhecido');
+      const dominantCustomer = Object.keys(data.customerTypes).reduce((a, b) => data.customerTypes[a] > data.customerTypes[b] ? a : b, 'desconhecido');
+      
+      let b2c = 0, b2b = 0;
+      if (dominantCustomer === 'B2C') b2c = 1;
+      if (dominantCustomer === 'B2B') b2b = 1;
+      if (dominantCustomer === 'misto') { b2c = 0.5; b2b = 0.5; }
 
       return {
         ncm,
         itemCount: data.itemCount,
-        averageSellingPrice,
-        averageProfitMargin,
-        hasSelectiveTax: data.hasSelectiveTax,
-        selectiveTaxRate: averageSelectiveTaxRate,
-        cClassTrib: data.cClassTrib,
+        annualRevenueShare: summary.totalSelling > 0 ? data.totalRevenue / summary.totalSelling : 0,
+        averageSalePrice: data.itemCount > 0 ? data.totalRevenue / data.itemCount : 0,
+        averageCost: data.itemCount > 0 ? data.totalCost / data.itemCount : 0,
+        selectiveTaxExposure: data.hasSelectiveTax,
+        supplierType: dominantSupplier,
+        customerMix: { b2c, b2b },
+        essentialRisk: data.essentialCandidates > 0,
       };
     }
   );
 
-  // 3. Montar o payload final
-  const payload: OptimizedAIPayload = {
+  const payload: ProfessionalAIPayload = {
     objective: "Análise tributária estratégica da Reforma Tributária Brasileira",
     context: {
       taxRegime: params.taxRegime,

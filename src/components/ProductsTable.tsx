@@ -7,7 +7,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
+import { Product, CalculationParams, CalculatedProduct, TaxRegime, StrategicData } from "@/types/pricing";
 import { calculatePricing } from "@/lib/pricing";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -21,12 +21,13 @@ import { Button } from "@/components/ui/button";
 import { SalesSummaryTotal } from './summary/SalesSummaryTotal';
 import { SalesSummaryUnitary } from './summary/SalesSummaryUnitary';
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, ChevronRight, AlertTriangle, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, AlertTriangle, FileText, BrainCircuit } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ExecutiveSummary } from './summary/ExecutiveSummary';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ProductTaxDetails } from './ProductTaxDetails';
+import { ProductStrategicDetails } from './ProductStrategicDetails';
 
 interface ProductsTableProps {
   products: Product[];
@@ -116,7 +117,8 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(100);
-  const [selectedProductForDetails, setSelectedProductForDetails] = useState<CalculatedProduct | null>(null);
+  const [editingProduct, setEditingProduct] = useState<CalculatedProduct | null>(null);
+  const [strategicDataMap, setStrategicDataMap] = useState<Map<string, StrategicData>>(new Map());
 
   if (!products || products.length === 0) return null;
 
@@ -130,6 +132,12 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     if (checked) newSelection.add(code);
     else newSelection.delete(code);
     onSelectionChange(newSelection);
+  };
+
+  const handleSaveStrategicData = (productCode: string, data: StrategicData) => {
+    const newMap = new Map(strategicDataMap);
+    newMap.set(productCode, data);
+    setStrategicDataMap(newMap);
   };
 
   const {
@@ -194,10 +202,13 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
       };
     }
     
-    const allCalculatedProducts = products.map(p => calculatePricing(p, params, cfu));
+    const allCalculatedProducts = products.map(p => {
+      const calculated = calculatePricing(p, params, cfu);
+      return { ...calculated, strategicData: strategicDataMap.get(p.code) };
+    });
 
     return { summaryDataBestSale, summaryDataMinSale, cumpData, totalProductAcquisitionCostBeforeLoss, totalProductAcquisitionCostAdjusted, totalInnerUnitsInXML, totalFixedExpenses, totalVariableExpensesPercent, totalOptionCost, allCalculatedProducts, cfu };
-  }, [products, params, selectedProductCodes]);
+  }, [products, params, selectedProductCodes, strategicDataMap]);
 
   useEffect(() => {
     if (products.length > 0 && params.totalStockUnits === 0) {
@@ -259,9 +270,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
 
   return (
     <div className="space-y-6">
-      <Dialog open={!!selectedProductForDetails} onOpenChange={(isOpen) => !isOpen && setSelectedProductForDetails(null)}>
-        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
-          {selectedProductForDetails && <ProductTaxDetails product={selectedProductForDetails} />}
+      <Dialog open={!!editingProduct} onOpenChange={(isOpen) => !isOpen && setEditingProduct(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {editingProduct && <ProductStrategicDetails product={editingProduct} onSave={handleSaveStrategicData} />}
         </DialogContent>
       </Dialog>
 
@@ -318,7 +329,21 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   <TableCell><Checkbox checked={isSelected} onCheckedChange={(checked) => handleToggleProduct(product.code, !!checked)} /></TableCell>
                   <TableCell className="font-mono text-xs">{product.code}</TableCell>
                   <TableCell className="max-w-[300px] whitespace-normal text-left">{product.name}</TableCell>
-                  <TableCell><Button variant="ghost" size="icon" onClick={() => setSelectedProductForDetails(product)}><FileText className="h-4 w-4" /></Button></TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <DialogTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={() => setEditingProduct(product)}><BrainCircuit className="h-4 w-4" /></Button>
+                      </DialogTrigger>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                           <Button variant="ghost" size="icon"><FileText className="h-4 w-4" /></Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-md max-h-[90dvh] overflow-y-auto">
+                           <ProductTaxDetails product={product} />
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                   <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatCurrency(product.cost)}</TableCell>
