@@ -24,6 +24,7 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const prod = det.querySelector("prod");
         const code = prod?.querySelector("cProd")?.textContent || "";
         const name = prod?.querySelector("xProd")?.textContent || "";
+        const ean = prod?.querySelector("cEAN")?.textContent || "";
         const costStr = prod?.querySelector("vUnCom")?.textContent || "0";
         const cost = parseFloat(costStr);
         const unit = prod?.querySelector("uCom")?.textContent || "UN"; // Extract commercial unit
@@ -79,6 +80,7 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         return {
           code,
           name,
+          ean,
           cost,
           unit,
           quantity,

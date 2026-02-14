@@ -41,7 +41,8 @@ const ProductList = () => {
     }
     return products.filter(product =>
       product.name.toLowerCase().includes(lowercasedFilter) ||
-      product.code.toLowerCase().includes(lowercasedFilter)
+      product.code.toLowerCase().includes(lowercasedFilter) ||
+      (product.ean && product.ean.toLowerCase().includes(lowercasedFilter))
     );
   }, [searchTerm, products]);
 
@@ -84,7 +85,7 @@ const ProductList = () => {
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar por nome ou código..."
+                placeholder="Buscar por nome, código ou cód. de barras..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -97,6 +98,7 @@ const ProductList = () => {
                 <TableRow>
                   <TableHead className="w-[30%]">Produto</TableHead>
                   <TableHead>Código</TableHead>
+                  <TableHead>Cód. Barras (EAN)</TableHead>
                   <TableHead>NCM</TableHead>
                   <TableHead>CEST</TableHead>
                   <TableHead>CSOSN (Saída)</TableHead>
@@ -114,6 +116,7 @@ const ProductList = () => {
                   <TableRow key={product.code}>
                     <TableCell className="font-medium">{product.name}</TableCell>
                     <TableCell className="font-mono">{product.code}</TableCell>
+                    <TableCell className="font-mono">{product.ean}</TableCell>
                     <TableCell className="font-mono">{product.ncm}</TableCell>
                     <TableCell className="font-mono">{product.cest}</TableCell>
                     <TableCell className="font-mono font-bold">{product.suggestedCodes.icmsCstOrCsosn}</TableCell>

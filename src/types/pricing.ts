@@ -7,6 +7,7 @@ export enum TaxRegime {
 export interface Product {
   code: string;
   name: string;
+  ean?: string; // Código de Barras (EAN)
   cost: number; // Custo por unidade comercial (e.g., por caixa)
   unit: string; // Unidade de medida comercial (e.g., CX, UN)
   quantity: number; // Quantidade de unidades comerciais (e.g., número de caixas)
