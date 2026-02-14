@@ -9,6 +9,7 @@ import { Layout } from "./components/Layout";
 import Comparison from "./pages/Comparison";
 import Configuracao from "./pages/Configuracao";
 import ProductList from "./pages/ProductList";
+import ImpactAnalysis from "./pages/ImpactAnalysis";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/comparison" element={<Comparison />} />
+            <Route path="/impact-analysis" element={<ImpactAnalysis />} />
             <Route path="/configuracao" element={<Configuracao />} />
             <Route path="/product-list" element={<ProductList />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

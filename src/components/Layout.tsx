@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Upload, BarChart3, Settings, Tags } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags, TrendingUp } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -11,6 +11,7 @@ interface LayoutProps {
 const navItems = [
   { to: '/', label: 'Análise do Regime Tributário', icon: Upload },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
+  { to: '/impact-analysis', label: 'Análise de Impacto', icon: TrendingUp },
   { to: '/product-list', label: 'Lista de Produtos', icon: Tags },
   { to: '/configuracao', label: 'Configuração', icon: Settings },
 ];
@@ -41,13 +42,13 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
 
       {/* Navigation Tabs */}
       <nav className="border-b border-border bg-card shadow-sm">
-        <div className="container mx-auto px-4 flex space-x-4">
+        <div className="container mx-auto px-4 flex space-x-4 overflow-x-auto">
           {navItems.map((item) => (
             <Link key={item.to} to={item.to}>
               <Button
                 variant="ghost"
                 className={cn(
-                  "py-6 px-4 rounded-none border-b-2 transition-colors",
+                  "py-6 px-4 rounded-none border-b-2 transition-colors whitespace-nowrap",
                   location.pathname === item.to
                     ? "border-primary text-primary font-semibold bg-primary/10 hover:bg-primary/20"
                     : "border-transparent text-muted-foreground hover:text-foreground hover:border-border"
