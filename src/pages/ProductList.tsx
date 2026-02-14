@@ -105,6 +105,8 @@ const ProductList = () => {
                   <TableHead className="text-right">Custo Unid. Int.</TableHead>
                   <TableHead className="text-right">Venda Mín. Unid. Int.</TableHead>
                   <TableHead className="text-right">Venda Sug. Unid. Int.</TableHead>
+                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
+                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -120,6 +122,8 @@ const ProductList = () => {
                     <TableCell className="text-right font-mono">{formatCurrency(product.costPerInnerUnit)}</TableCell>
                     <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPricePerInnerUnit)}</TableCell>
                     <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
+                    <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPrice)}</TableCell>
+                    <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPrice)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
