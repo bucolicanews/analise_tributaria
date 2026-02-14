@@ -16,7 +16,7 @@ export const calculatePricing = (
   const isIcmsST = ["10", "30", "60", "70", "90", "201", "202", "203", "500"].includes(product.cst || "");
   const icmsCreditPercentageFactor = params.icmsPercentage / 100;
   const ibsCredit = 
-    !isIcmsST && product.icmsCredit 
+    !isIcmsST && product.icmsCredit && params.taxRegime !== TaxRegime.SimplesNacional
     ? product.icmsCredit * icmsCreditPercentageFactor 
     : 0;
   
