@@ -1,17 +1,17 @@
 import { Product } from "@/types/pricing";
 
-// Helper to get text content of the first element with a given tag name
-const getText = (element: Element | null, tagName: string): string | null => {
-    if (!element) return null;
-    const nodes = element.getElementsByTagName(tagName);
-    return nodes.length > 0 ? nodes[0].textContent : null;
-};
-
-// Helper to get a specific element by tag name
+// Helper to get a specific element by tag name, ignoring namespace
 const getElement = (element: Element | Document, tagName: string): Element | null => {
-    const nodes = element.getElementsByTagName(tagName);
+    const nodes = element.getElementsByTagNameNS('*', tagName);
     return nodes.length > 0 ? nodes[0] : null;
 }
+
+// Helper to get text content of the first element with a given tag name, ignoring namespace
+const getText = (element: Element | null, tagName: string): string | null => {
+    if (!element) return null;
+    const node = getElement(element, tagName);
+    return node ? node.textContent : null;
+};
 
 export const parseXml = (
   xmlContent: string,
@@ -49,7 +49,7 @@ export const parseXml = (
         }
       }
 
-      const detElements = xmlDoc.getElementsByTagName("det");
+      const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
       if (detElements.length === 0) {
         throw new Error("Nenhum produto encontrado no XML");
       }
