@@ -9,31 +9,26 @@ export const calculatePricing = (
   
   // 1. Definição de Regime para Créditos
   // No Simples Nacional PADRÃO, não há recuperação de créditos de CBS/IBS.
+  // No Híbrido, a empresa opta por recolher e creditar IVA.
   const canRecoverCredits = params.taxRegime !== TaxRegime.SimplesNacional || params.generateIvaCredit;
 
-  // CBS substitui PIS/COFINS
   const cbsCredit = (canRecoverCredits && params.usePisCofins) ? (product.pisCredit + product.cofinsCredit) : 0;
-  
-  // IBS substitui ICMS
   const icmsCreditPercentageFactor = params.icmsPercentage / 100;
   const ibsCredit = (canRecoverCredits) ? (product.icmsCredit || 0) * icmsCreditPercentageFactor : 0;
   
   const totalCredit = cbsCredit + ibsCredit;
-
-  // 2. Custo efetivo (Preço pago - créditos recuperáveis)
   const effectiveCost = product.cost - totalCredit;
 
-  const fixedCostPerCommercialUnit = cfu * (product.innerQuantity > 0 ? product.innerQuantity : 1);
+  const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1;
+  const fixedCostPerCommercialUnit = cfu * innerQty;
   let baseCostForMarkup = product.cost + fixedCostPerCommercialUnit;
 
-  // 4. Incorporar perdas
   if (params.lossPercentage > 0 && params.lossPercentage < 100) {
     baseCostForMarkup = baseCostForMarkup / (1 - params.lossPercentage / 100);
   } else if (params.lossPercentage >= 100) {
     baseCostForMarkup = Infinity; 
   }
 
-  // --- LÓGICA DE CLASSIFICAÇÃO TRIBUTÁRIA ---
   const incideIS = checkIfNcmHasSelectiveTax(product.ncm);
   
   let selectiveTaxRateForProduct = 0;
@@ -67,20 +62,20 @@ export const calculatePricing = (
   let selectiveTaxToPay = 0;
   let ivaCreditForClient = 0;
 
+  // CÁLCULO DO MARKUP DIVISOR
   if (params.taxRegime === TaxRegime.LucroPresumido) {
     totalPercentageForMarkup = (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
   } else if (params.taxRegime === TaxRegime.LucroReal) {
     const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
-    if (irpjCsllRate >= 1) {
-      totalPercentageForMarkup = Infinity;
-    } else {
-      const profitComponent = (params.profitMargin / 100) / (1 - irpjCsllRate);
-      totalPercentageForMarkup = (totalVariableExpensesPercentage / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective + profitComponent;
-    }
+    const profitComponent = (irpjCsllRate < 1) ? (params.profitMargin / 100) / (1 - irpjCsllRate) : 0;
+    totalPercentageForMarkup = (totalVariableExpensesPercentage / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective + profitComponent;
   } else { // Simples Nacional
     if (params.generateIvaCredit) {
+      // HÍBRIDO: Paga Simples + (IBS/CBS - Créditos)
+      // O Markup precisa considerar o custo do Simples E o custo do IVA por fora
       totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
+      // PADRÃO: Paga apenas Simples (IBS/CBS embutidos)
       totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + selectiveTaxRateEffective;
     }
   }
@@ -95,22 +90,23 @@ export const calculatePricing = (
   let markupPercentage = 0;
   let status: "OK" | "PREÇO CORRIGIDO" = "OK";
 
-  if (markupDivisor <= 0 || baseCostForMarkup === Infinity) {
+  if (markupDivisor <= 0.05 || baseCostForMarkup === Infinity) {
     sellingPrice = 0;
     minSellingPrice = 0;
     status = "PREÇO CORRIGIDO";
   } else {
     sellingPrice = baseCostForMarkup / markupDivisor;
     
-    let totalTaxRateForMinPrice = 0;
+    // Preço Mínimo (Zero Lucro)
+    let minSellingTaxRate = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
-      totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
+      minSellingTaxRate = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
     } else if (params.taxRegime === TaxRegime.LucroReal) {
-      totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+      minSellingTaxRate = cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
-      totalTaxRateForMinPrice = params.generateIvaCredit ? (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective : (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
+      minSellingTaxRate = params.generateIvaCredit ? (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective : (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
     }
-    const minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + totalTaxRateForMinPrice);
+    const minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + minSellingTaxRate);
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
     selectiveTaxToPay = sellingPrice * selectiveTaxRateEffective;
@@ -141,14 +137,17 @@ export const calculatePricing = (
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
-    taxToPay = (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) 
-      ? (cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay)
-      : (simplesToPay + (params.generateIvaCredit ? (cbsTaxToPay + ibsTaxToPay) : 0) + selectiveTaxToPay);
+    // Soma total dos impostos
+    if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
+      taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay;
+    } else {
+      // No Híbrido, o IVA a pagar é adicional ao Simples
+      taxToPay = simplesToPay + selectiveTaxToPay + (params.generateIvaCredit ? (cbsTaxToPay + ibsTaxToPay) : 0);
+    }
 
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
   }
 
-  const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1;
   const contributionMargin = sellingPrice - (product.cost + (sellingPrice * (totalVariableExpensesPercentage / 100)));
 
   return {
