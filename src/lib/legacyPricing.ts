@@ -27,10 +27,8 @@ export const calculateLegacyPricing = (
   const totalAcquisitionCost = products.reduce((sum, p) => sum + p.cost * p.quantity, 0);
   const totalVariableExpensesPercent = params.variableExpenses.reduce((s, e) => s + e.percentage, 0) / 100;
   const totalFixedCosts = params.fixedCostsTotal || 0;
+  const targetProfitPercent = params.profitMargin / 100;
 
-  let totalRevenue = 0;
-  let taxBreakdown: any = {};
-  let totalTax = 0;
   let totalTaxRate = 0;
 
   if (params.taxRegime === TaxRegime.SimplesNacional) {
@@ -46,13 +44,13 @@ export const calculateLegacyPricing = (
     totalTaxRate = PIS_RATE + COFINS_RATE + ICMS_RATE + (IRPJ_PRESUMPTION * IRPJ_RATE) + (CSLL_PRESUMPTION * CSLL_RATE);
   }
 
-  // Se a soma das taxas for >= 1 (100%), a operação é matematicamente impossível
-  const divisor = 1 - totalVariableExpensesPercent - totalTaxRate;
+  // Divisor incluindo a margem de lucro alvo para uma comparação justa
+  const divisor = 1 - totalVariableExpensesPercent - totalTaxRate - targetProfitPercent;
   
-  if (divisor <= 0.01) { // Margem de contribuição mínima de 1% para ser "viável"
+  if (divisor <= 0.01) {
     return {
       regime: params.taxRegime,
-      totalRevenue: totalAcquisitionCost * 2, // Valor arbitrário para não quebrar a tela
+      totalRevenue: 0,
       totalTax: 0,
       totalAcquisitionCost,
       totalVariableExpenses: 0,
@@ -64,7 +62,9 @@ export const calculateLegacyPricing = (
     };
   }
 
-  totalRevenue = totalAcquisitionCost / divisor;
+  const totalRevenue = totalAcquisitionCost / divisor;
+  let taxBreakdown: any = {};
+  let totalTax = 0;
 
   if (params.taxRegime === TaxRegime.SimplesNacional) {
     totalTax = totalRevenue * totalTaxRate;
@@ -81,13 +81,16 @@ export const calculateLegacyPricing = (
   }
 
   const totalVariableExpenses = totalRevenue * totalVariableExpensesPercent;
-  const netProfit = totalRevenue - totalAcquisitionCost - totalVariableExpenses - totalFixedCosts - totalTax;
-
-  // Margem de Contribuição real após pagar o produto
-  const costOfGoodsRatio = totalAcquisitionCost / totalRevenue;
-  const contributionMarginRatio = 1 - (costOfGoodsRatio + totalVariableExpensesPercent + totalTaxRate);
   
-  // Ponto de equilíbrio só existe se a margem de contribuição for positiva
+  // Lucro Bruto (Venda - Impostos - Variáveis - Custo Produto)
+  const grossProfit = totalRevenue - totalTax - totalVariableExpenses - totalAcquisitionCost;
+  // Lucro Líquido (Lucro Bruto - Custos Fixos)
+  const netProfit = grossProfit - totalFixedCosts;
+
+  // Margem de Contribuição % = 1 - (Custo Produto% + Desp Var% + Impostos%)
+  const costRatio = totalAcquisitionCost / totalRevenue;
+  const contributionMarginRatio = 1 - (costRatio + totalVariableExpensesPercent + (totalTax / totalRevenue));
+  
   const breakEvenPoint = contributionMarginRatio > 0.001 ? totalFixedCosts / contributionMarginRatio : 0;
 
   return {
