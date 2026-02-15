@@ -159,7 +159,6 @@ const ProductList = () => {
                       <div className="flex gap-4 text-xs text-muted-foreground font-mono mt-1">
                         <span>Cód: {product.code}</span>
                         <span>EAN: {product.ean || '---'}</span>
-                        <span>NCM: {product.ncm}</span>
                       </div>
                     </div>
                     <div className="text-right">
@@ -179,7 +178,7 @@ const ProductList = () => {
                   </div>
 
                   {/* Detalhes de Cadastro */}
-                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-card border-b border-border">
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 p-4 bg-card border-b border-border">
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CSOSN / CST ICMS</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.suggestedCodes.icmsCstOrCsosn}</div>
@@ -191,6 +190,18 @@ const ProductList = () => {
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CFOP Venda</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">NCM</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.ncm || '---'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CEST</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cest || '---'}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Classe IBS/CBS</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cClassTrib || '1'}</div>
                     </div>
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">Origem</div>
@@ -233,7 +244,7 @@ const ProductList = () => {
                         <Info className="h-4 w-4 text-primary shrink-0" />
                         <div>
                           <span className="font-bold text-foreground">Reforma Tributária (IBS/CBS):</span>{' '}
-                          Classe {classificationDetails.cClass.code} - {classificationDetails.cClass.name}
+                          {classificationDetails.cClass.name}
                         </div>
                       </div>
                     </div>
