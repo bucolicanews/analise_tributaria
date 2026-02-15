@@ -1,5 +1,18 @@
 import { Product } from "@/types/pricing";
 
+// Helper to get text content of the first element with a given tag name
+const getText = (element: Element | null, tagName: string): string | null => {
+    if (!element) return null;
+    const nodes = element.getElementsByTagName(tagName);
+    return nodes.length > 0 ? nodes[0].textContent : null;
+};
+
+// Helper to get a specific element by tag name
+const getElement = (element: Element | Document, tagName: string): Element | null => {
+    const nodes = element.getElementsByTagName(tagName);
+    return nodes.length > 0 ? nodes[0] : null;
+}
+
 export const parseXml = (
   xmlContent: string,
   companyCnpj: string | null,
@@ -20,13 +33,15 @@ export const parseXml = (
         const cleanedCompanyCnpj = companyCnpj.replace(/\D/g, '');
         
         if (type === 'purchase') {
-          const destCnpj = xmlDoc.querySelector("dest > CNPJ")?.textContent;
+          const destElement = getElement(xmlDoc, "dest");
+          const destCnpj = destElement ? getText(destElement, "CNPJ") : null;
           const cleanedDestCnpj = destCnpj?.replace(/\D/g, '');
           if (!cleanedDestCnpj || cleanedDestCnpj !== cleanedCompanyCnpj) {
             throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário (${destCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
           }
         } else { // type === 'sales'
-          const emitCnpj = xmlDoc.querySelector("emit > CNPJ")?.textContent;
+          const emitElement = getElement(xmlDoc, "emit");
+          const emitCnpj = emitElement ? getText(emitElement, "CNPJ") : null;
           const cleanedEmitCnpj = emitCnpj?.replace(/\D/g, '');
           if (!cleanedEmitCnpj || cleanedEmitCnpj !== cleanedCompanyCnpj) {
             throw new Error(`Nota de Venda Rejeitada: O CNPJ do emitente (${emitCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
@@ -34,24 +49,24 @@ export const parseXml = (
         }
       }
 
-      const detElements = xmlDoc.querySelectorAll("det");
+      const detElements = xmlDoc.getElementsByTagName("det");
       if (detElements.length === 0) {
         throw new Error("Nenhum produto encontrado no XML");
       }
 
       const products: Product[] = Array.from(detElements).map((det) => {
-        const prod = det.querySelector("prod");
-        const code = prod?.querySelector("cProd")?.textContent || "";
-        const name = prod?.querySelector("xProd")?.textContent || "";
-        const ean = prod?.querySelector("cEAN")?.textContent || "";
-        const costStr = prod?.querySelector("vUnCom")?.textContent || "0";
+        const prod = getElement(det, "prod")!;
+        const code = getText(prod, "cProd") || "";
+        const name = getText(prod, "xProd") || "";
+        const ean = getText(prod, "cEAN") || "";
+        const costStr = getText(prod, "vUnCom") || "0";
         const cost = parseFloat(costStr);
-        const unit = prod?.querySelector("uCom")?.textContent || "UN";
-        const quantityStr = prod?.querySelector("qCom")?.textContent || "0";
+        const unit = getText(prod, "uCom") || "UN";
+        const quantityStr = getText(prod, "qCom") || "0";
         const quantity = parseFloat(quantityStr);
-        const cfop = prod?.querySelector("CFOP")?.textContent || "";
-        const ncm = prod?.querySelector("NCM")?.textContent || "";
-        const cest = prod?.querySelector("CEST")?.textContent || "";
+        const cfop = getText(prod, "CFOP") || "";
+        const ncm = getText(prod, "NCM") || "";
+        const cest = getText(prod, "CEST") || "";
         
         let innerQuantity = 1;
         const innerQuantityMatch = name.match(/(\d+)[xX]\d+G?/);
@@ -59,36 +74,39 @@ export const parseXml = (
           innerQuantity = parseInt(innerQuantityMatch[1], 10);
         }
 
-        const pisAliq = det.querySelector("PISAliq");
-        const pisNT = det.querySelector("PISNT");
-        const pisElement = pisAliq || pisNT;
-        const pisCreditStr = pisElement?.querySelector("vPIS")?.textContent || "0";
-        const pisCredit = parseFloat(pisCreditStr);
-        const pisCst = pisElement?.querySelector("CST")?.textContent || "";
-        const pisBaseStr = pisAliq?.querySelector("vBC")?.textContent || "0";
-        const pisRateStr = pisAliq?.querySelector("pPIS")?.textContent || "0";
-        const pisBase = parseFloat(pisBaseStr);
-        const pisRate = parseFloat(pisRateStr);
+        const pisParent = getElement(det, "PIS");
+        const pisElement = pisParent ? (getElement(pisParent, "PISAliq") || getElement(pisParent, "PISNT")) : null;
+        const pisCreditStr = getText(pisElement, "vPIS");
+        const pisCredit = parseFloat(pisCreditStr || "0");
+        const pisCst = getText(pisElement, "CST") || "";
+        const pisBaseStr = getText(pisElement, "vBC");
+        const pisRateStr = getText(pisElement, "pPIS");
+        const pisBase = parseFloat(pisBaseStr || "0");
+        const pisRate = parseFloat(pisRateStr || "0");
 
-        const cofinsAliq = det.querySelector("COFINSAliq");
-        const cofinsNT = det.querySelector("COFINSNT");
-        const cofinsElement = cofinsAliq || cofinsNT;
-        const cofinsCreditStr = cofinsElement?.querySelector("vCOFINS")?.textContent || "0";
-        const cofinsCredit = parseFloat(cofinsCreditStr);
-        const cofinsCst = cofinsElement?.querySelector("CST")?.textContent || "";
-        const cofinsBaseStr = cofinsAliq?.querySelector("vBC")?.textContent || "0";
-        const cofinsRateStr = cofinsAliq?.querySelector("pCOFINS")?.textContent || "0";
-        const cofinsBase = parseFloat(cofinsBaseStr);
-        const cofinsRate = parseFloat(cofinsRateStr);
+        const cofinsParent = getElement(det, "COFINS");
+        const cofinsElement = cofinsParent ? (getElement(cofinsParent, "COFINSAliq") || getElement(cofinsParent, "COFINSNT")) : null;
+        const cofinsCreditStr = getText(cofinsElement, "vCOFINS");
+        const cofinsCredit = parseFloat(cofinsCreditStr || "0");
+        const cofinsCst = getText(cofinsElement, "CST") || "";
+        const cofinsBaseStr = getText(cofinsElement, "vBC");
+        const cofinsRateStr = getText(cofinsElement, "pCOFINS");
+        const cofinsBase = parseFloat(cofinsBaseStr || "0");
+        const cofinsRate = parseFloat(cofinsRateStr || "0");
         
-        const icms = det.querySelector("ICMS");
-        const icmsCreditStr = icms?.querySelector("vICMS, vCredICMSSN")?.textContent || "0";
-        const icmsCredit = parseFloat(icmsCreditStr);
+        const icmsParent = getElement(det, "ICMS");
+        const vIcmsStr = getText(icmsParent, "vICMS");
+        const vCredIcmsSnStr = getText(icmsParent, "vCredICMSSN");
+        const icmsCreditStr = (vIcmsStr && parseFloat(vIcmsStr) > 0) ? vIcmsStr : vCredIcmsSnStr;
+        const icmsCredit = parseFloat(icmsCreditStr || "0");
         
-        const cst = icms?.querySelector("CST, CSOSN")?.textContent || "";
+        const cstStr = getText(icmsParent, "CST");
+        const csosnStr = getText(icmsParent, "CSOSN");
+        const cst = cstStr || csosnStr || "";
 
-        const ipi = det.querySelector("IPI");
-        const ipiCst = ipi?.querySelector("IPITrib > CST, IPINT > CST")?.textContent || "";
+        const ipiParent = getElement(det, "IPI");
+        const ipiElement = ipiParent ? (getElement(ipiParent, "IPITrib") || getElement(ipiParent, "IPINT")) : null;
+        const ipiCst = getText(ipiElement, "CST") || "";
 
         return {
           code, name, ean, cost, unit, quantity,
@@ -101,7 +119,7 @@ export const parseXml = (
       resolve(products);
     } catch (error) {
       console.error("Erro ao processar XML:", error);
-      reject(error);
+      reject(error as Error);
     }
   });
 };
