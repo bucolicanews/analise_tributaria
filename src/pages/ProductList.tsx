@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Printer, Tags } from 'lucide-react';
+import { Search, Printer, Tags, Info } from 'lucide-react';
 import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { generateProductListPdf } from '@/lib/pdfGenerator';
@@ -17,17 +17,25 @@ const ProductList = () => {
 
   useEffect(() => {
     try {
-      const storedRawProducts = sessionStorage.getItem('jota-calc-products');
+      // Corrigido: Usando as chaves corretas do sessionStorage
+      const storedRawProducts = sessionStorage.getItem('jota-calc-purchase-products');
       const storedParams = sessionStorage.getItem('jota-calc-params');
+      const storedSelection = sessionStorage.getItem('jota-calc-selection');
 
       if (storedRawProducts && storedParams) {
         const rawProducts: Product[] = JSON.parse(storedRawProducts);
         const params: CalculationParams = JSON.parse(storedParams);
+        const selectedCodes = new Set(JSON.parse(storedSelection || '[]'));
         
+        // Filtra apenas os produtos que foram selecionados na análise
+        const productsToProcess = selectedCodes.size > 0 
+          ? rawProducts.filter(p => selectedCodes.has(p.code))
+          : rawProducts;
+
         const totalFixedExpenses = params.fixedCostsTotal || 0;
         const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
 
-        const calculated = rawProducts.map(p => calculatePricing(p, params, cfu));
+        const calculated = productsToProcess.map(p => calculatePricing(p, params, cfu));
         setProducts(calculated);
       }
     } catch (error) {
@@ -38,9 +46,8 @@ const ProductList = () => {
 
   const filteredProducts = useMemo(() => {
     const lowercasedFilter = searchTerm.toLowerCase();
-    if (!lowercasedFilter) {
-      return products;
-    }
+    if (!lowercasedFilter) return products;
+    
     return products.filter(product =>
       product.name.toLowerCase().includes(lowercasedFilter) ||
       product.code.toLowerCase().includes(lowercasedFilter) ||
@@ -56,11 +63,9 @@ const ProductList = () => {
             <div className="rounded-full bg-muted p-6 mb-4">
               <Tags className="h-12 w-12 text-muted-foreground" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">
-              Nenhum produto para listar
-            </h3>
+            <h3 className="text-xl font-semibold mb-2">Nenhum produto na lista</h3>
             <p className="text-muted-foreground max-w-md">
-              Por favor, realize uma análise na página principal primeiro. Os produtos calculados aparecerão aqui.
+              Realize o cálculo na página de Precificação e selecione os produtos para que eles apareçam aqui com os códigos de venda sugeridos.
             </p>
           </div>
         </Card>
@@ -69,88 +74,101 @@ const ProductList = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 space-y-6">
       <Card className="shadow-card">
-        <CardHeader className="flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <Tags className="h-6 w-6 text-primary" />
-            Lista de Produtos para Cadastro
-          </CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Tags className="h-6 w-6 text-primary" />
+              Guia de Cadastro para Venda
+            </CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">Use estes códigos para atualizar o cadastro no seu ERP.</p>
+          </div>
           <Button variant="outline" size="sm" onClick={() => generateProductListPdf(filteredProducts)}>
             <Printer className="h-4 w-4 mr-2" />
-            Visualizar PDF
+            Imprimir Lista
           </Button>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
+          <div className="mb-6">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 type="search"
-                placeholder="Buscar por nome, código ou cód. de barras..."
+                placeholder="Buscar por nome, código ou EAN..."
                 className="pl-8"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
           </div>
-          <div className="overflow-x-auto rounded-lg border border-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[30%]">Produto</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead>Cód. Barras (EAN)</TableHead>
-                  <TableHead>NCM</TableHead>
-                  <TableHead>CEST</TableHead>
-                  <TableHead>CSOSN (Saída)</TableHead>
-                  <TableHead>CST PIS/COFINS (Saída)</TableHead>
-                  <TableHead className="text-right">Custo Base Total</TableHead>
-                  <TableHead className="text-right">Custo Unid. Int.</TableHead>
-                  <TableHead className="text-right">Venda Mín. Unid. Int.</TableHead>
-                  <TableHead className="text-right">Venda Sug. Unid. Int.</TableHead>
-                  <TableHead className="text-right">Venda Mín. Com.</TableHead>
-                  <TableHead className="text-right">Venda Sug. Com.</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map(product => {
-                  const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
-                  return (
-                    <React.Fragment key={product.code}>
-                      <TableRow>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell className="font-mono">{product.code}</TableCell>
-                        <TableCell className="font-mono">{product.ean}</TableCell>
-                        <TableCell className="font-mono">{product.ncm}</TableCell>
-                        <TableCell className="font-mono">{product.cest}</TableCell>
-                        <TableCell className="font-mono font-bold">{product.suggestedCodes.icmsCstOrCsosn}</TableCell>
-                        <TableCell className="font-mono font-bold">{product.suggestedCodes.pisCofinsCst}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(product.cost + (product.valueForFixedCost / product.quantity))}</TableCell>
-                        <TableCell className="text-right font-mono">{formatCurrency(product.costPerInnerUnit)}</TableCell>
-                        <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPricePerInnerUnit)}</TableCell>
-                        <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPricePerInnerUnit)}</TableCell>
-                        <TableCell className="text-right font-mono text-yellow-500">{formatCurrency(product.minSellingPrice)}</TableCell>
-                        <TableCell className="text-right font-mono text-primary font-bold">{formatCurrency(product.sellingPrice)}</TableCell>
-                      </TableRow>
-                      {classificationDetails && (
-                        <TableRow className="bg-muted/30 hover:bg-muted/50">
-                          <TableCell colSpan={13} className="p-2 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-x-4 gap-y-1 flex-wrap px-2">
-                              <strong className="text-primary">Classificação IBS/CBS:</strong>
-                              <span><strong>cClassTrib:</strong> {classificationDetails.cClass.code}</span>
-                              <span className="flex-shrink-0"><strong>Nome:</strong> {classificationDetails.cClass.name}</span>
-                              <span><strong>CST:</strong> {`${classificationDetails.cst?.code} - ${classificationDetails.cst?.description}`}</span>
-                              <span><strong>Última Atualização:</strong> {classificationDetails.cClass.lastUpdate}</span>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </React.Fragment>
-                  );
-                })}
-              </TableBody>
-            </Table>
+
+          <div className="space-y-6">
+            {filteredProducts.map(product => {
+              const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
+              
+              return (
+                <div key={product.code} className="rounded-lg border border-border overflow-hidden shadow-sm">
+                  {/* Cabeçalho do Produto */}
+                  <div className="bg-muted/30 p-4 border-b border-border flex justify-between items-center">
+                    <div>
+                      <h3 className="font-bold text-lg">{product.name}</h3>
+                      <div className="flex gap-4 text-xs text-muted-foreground font-mono mt-1">
+                        <span>Cód: {product.code}</span>
+                        <span>EAN: {product.ean || '---'}</span>
+                        <span>NCM: {product.ncm}</span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-xs text-muted-foreground">Preço Sugerido (Varejo)</div>
+                      <div className="text-xl font-extrabold text-primary">{formatCurrency(product.sellingPricePerInnerUnit)}</div>
+                    </div>
+                  </div>
+
+                  {/* Detalhes de Cadastro (O que o usuário deve preencher) */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-card">
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CSOSN / CST ICMS</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
+                        {product.suggestedCodes.icmsCstOrCsosn}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CST PIS/COFINS</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
+                        {product.suggestedCodes.pisCofinsCst}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CFOP de Venda</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
+                        {product.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'}
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Origem</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
+                        0 (Nacional)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Classificação Reforma Tributária (Opcional/Informativo) */}
+                  {classificationDetails && (
+                    <div className="p-4 border-t border-border bg-muted/10">
+                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Info className="h-4 w-4 text-primary shrink-0" />
+                        <div>
+                          <span className="font-bold text-foreground">Reforma Tributária (IBS/CBS):</span>{' '}
+                          Classe {classificationDetails.cClass.code} - {classificationDetails.cClass.name} | 
+                          CST Sugerido: {classificationDetails.cst?.code}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
