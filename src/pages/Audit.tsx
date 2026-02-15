@@ -3,7 +3,19 @@
 import React, { useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle2, Info, XCircle, AlertTriangle, ShieldCheck, Package, Calculator } from 'lucide-react';
+import { 
+  AlertCircle, 
+  CheckCircle2, 
+  Info, 
+  XCircle, 
+  AlertTriangle, 
+  ShieldCheck, 
+  Package, 
+  Calculator,
+  TrendingUp,
+  TrendingDown,
+  Check
+} from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from '@/lib/pricing';
 import { findCClassByNcm, getClassificationDetails } from '@/lib/tax/taxClassificationService';
@@ -69,9 +81,7 @@ const Audit = () => {
       const ncm = purchase?.ncm || sale.ncm || '';
       const cstPurchase = purchase?.cst || '';
       const isST = ['10', '30', '60', '70', '201', '202', '203', '500'].includes(cstPurchase);
-      const isMonofasico = ['04', '05', '06'].includes(purchase?.pisCst || '');
 
-      // Cálculo da Sugestão (usando os dados da compra como base de custo)
       const baseProduct = purchase || sale;
       const calculated = calculatePricing(baseProduct, params, cfu);
       const classification = calculated.cClassTrib ? getClassificationDetails(calculated.cClassTrib) : null;
@@ -80,6 +90,7 @@ const Audit = () => {
         if (purchase.ncm !== sale.ncm) discrepancies.push('NCM');
         if (purchase.cst !== sale.cst) discrepancies.push('CST/CSOSN');
         const saleIsTributado = ['101', '102', '00', '20'].includes(sale.cst || "");
+        
         if (isST && saleIsTributado) riskType = 'overpayment';
         else if (!isST && sale.cst === '500') riskType = 'underpayment';
         else if (discrepancies.length > 0) riskType = 'generic';
@@ -108,14 +119,11 @@ const Audit = () => {
   const AuditList = ({ items }: { items: typeof auditResults }) => (
     <div className="space-y-6">
       {items.map((result, idx) => {
-        const { calculated, cfu, totalVarPct } = result;
-        
-        // Cálculos para o MathBlock
+        const { calculated, cfu } = result;
         const comFixedCost = cfu * (calculated.innerQuantity || 1);
         const comTotalBaseCost = calculated.cost + comFixedCost;
         const comGrossProfit = calculated.sellingPrice - comTotalBaseCost;
         const comNetProfit = comGrossProfit - calculated.taxToPay - calculated.valueForVariableExpenses;
-
         const innerQty = calculated.innerQuantity || 1;
         const unitSelling = calculated.sellingPricePerInnerUnit;
         const unitAcqCost = calculated.cost / innerQty;
@@ -128,7 +136,6 @@ const Audit = () => {
 
         return (
           <div key={idx} className="rounded-lg border border-border overflow-hidden shadow-sm bg-card animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {/* Cabeçalho */}
             <div className="bg-muted/30 p-4 border-b border-border flex justify-between items-center">
               <div>
                 <div className="flex items-center gap-2">
@@ -146,25 +153,45 @@ const Audit = () => {
               </div>
             </div>
 
-            {/* Alertas de Risco */}
+            {/* ALERTAS DE RISCO COM SETAS */}
             {result.riskType !== 'none' && (
               <div className={cn(
-                "px-4 py-2 border-b text-xs flex items-center gap-2",
-                result.riskType === 'overpayment' ? "bg-blue-500/10 text-blue-500" : "bg-destructive/10 text-destructive"
+                "px-4 py-3 border-b text-xs flex items-center gap-3",
+                result.riskType === 'overpayment' ? "bg-blue-500/10 text-blue-500 border-blue-500/20" : 
+                result.riskType === 'underpayment' ? "bg-destructive/10 text-destructive border-destructive/20" :
+                "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
               )}>
-                <AlertTriangle className="h-4 w-4" />
-                <span className="font-bold">
-                  {result.riskType === 'overpayment' ? "Bitributação Identificada (Pagamento a MAIOR)" : "Risco de Malha Fina (Pagamento a MENOR)"}
-                </span>
-                <span className="opacity-80">
-                  {result.riskType === 'overpayment' 
-                    ? "- Produto com ST na compra está sendo tributado novamente na venda." 
-                    : "- Produto informado como ST sem ter o direito creditório da compra."}
-                </span>
+                <div className="shrink-0">
+                  {result.riskType === 'overpayment' ? <TrendingUp className="h-5 w-5" /> : 
+                   result.riskType === 'underpayment' ? <TrendingDown className="h-5 w-5" /> :
+                   <AlertTriangle className="h-5 w-5" />}
+                </div>
+                <div className="space-y-0.5">
+                  <div className="font-bold uppercase tracking-tight">
+                    {result.riskType === 'overpayment' ? "Ineficiência Fiscal: Bitributação (Pagamento a MAIOR)" : 
+                     result.riskType === 'underpayment' ? "Inconformidade Fiscal: Risco de Passivo (Pagamento a MENOR)" :
+                     "Divergência Cadastral Identificada"}
+                  </div>
+                  <div className="opacity-90 leading-normal">
+                    {result.riskType === 'overpayment' ? 
+                      "O produto teve o ICMS retido por Substituição Tributária (ST) na entrada, mas está sendo tributado novamente no seu cadastro de venda. Isso gera pagamento duplicado de imposto." : 
+                     result.riskType === 'underpayment' ? 
+                      "O item está sendo vendido com segregação de ST/Monofásico, porém a nota de entrada indica que ele é tributado integralmente. Risco de autuação por falta de recolhimento." :
+                      "Existem códigos (NCM ou CST) na venda que não condizem com a Nota de Entrada do fornecedor."}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Métricas */}
+            {/* STATUS OK TRIBUTÁRIO */}
+            {result.status === 'ok' && (
+              <div className="px-4 py-2 border-b bg-success/10 text-success text-xs flex items-center gap-2">
+                <Check className="h-4 w-4" />
+                <span className="font-bold uppercase">Conformidade Tributária Identificada</span>
+                <span className="opacity-80">- O cadastro de venda está alinhado com a entrada fiscal do produto.</span>
+              </div>
+            )}
+
             <div className="flex flex-wrap bg-muted/10 border-b border-border py-2 px-1">
               <MetricItem label="Custo Total Base" value={formatCurrency(comTotalBaseCost)} />
               <MetricItem label="Custo Unid. Int." value={formatCurrency(unitTotalBaseCost)} />
@@ -174,7 +201,6 @@ const Audit = () => {
               <MetricItem label="Imposto Líq. Com." value={formatCurrency(calculated.taxToPay)} className="text-destructive" />
             </div>
 
-            {/* Correção Sugerida */}
             <div className="p-4 bg-card border-b border-border">
               <div className="text-[10px] font-bold text-primary uppercase mb-3 flex items-center gap-2">
                 <ShieldCheck className="h-3 w-3" /> Correção Sugerida p/ Cadastro
@@ -190,7 +216,6 @@ const Audit = () => {
               </div>
             </div>
 
-            {/* Matemática */}
             <div className="px-4 bg-success/5 border-b border-border">
               <MathBlock 
                 label="Cálculo Comercial (UN)"
@@ -218,7 +243,6 @@ const Audit = () => {
               />
             </div>
 
-            {/* Info Reforma */}
             {result.classification && (
               <div className="p-3 bg-muted/20">
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -269,7 +293,6 @@ const Audit = () => {
   );
 };
 
-// Componente Badge local simples
 const Badge = ({ children, variant, className }: { children: React.ReactNode, variant: 'destructive' | 'success' | 'outline', className?: string }) => (
   <span className={cn(
     "px-1.5 py-0.5 rounded text-[8px] font-bold uppercase",
