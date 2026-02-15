@@ -5,7 +5,17 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import { 
+  BarChart3, 
+  TrendingUp, 
+  TrendingDown, 
+  Info, 
+  CreditCard, 
+  Wallet, 
+  Percent,
+  AlertTriangle,
+  CheckCircle2
+} from 'lucide-react';
 import { Product, CalculationParams } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { calculateLegacyPricing } from '@/lib/legacyPricing';
@@ -19,7 +29,6 @@ const ImpactAnalysis = () => {
   const [futureCbsRate, setFutureCbsRate] = useState(8.8);
 
   const analysisData = useMemo(() => {
-    // CORREÇÃO: Usando as chaves corretas que definimos no Index.tsx
     const storedParams = sessionStorage.getItem('jota-calc-params');
     const storedProducts = sessionStorage.getItem('jota-calc-purchase-products');
     const storedSelection = sessionStorage.getItem('jota-calc-selection');
@@ -59,7 +68,6 @@ const ImpactAnalysis = () => {
         netProfit: futureNetProfit,
       };
 
-      // --- Cálculo do Impacto ---
       const taxImpact = futureResult.totalTax - legacyResult.totalTax;
       const profitImpact = futureResult.netProfit - legacyResult.netProfit;
       const taxImpactPercent = legacyResult.totalTax > 0 ? (taxImpact / legacyResult.totalTax) * 100 : 0;
@@ -102,80 +110,173 @@ const ImpactAnalysis = () => {
 
   const { legacyResult, futureResult, impact, productCount } = analysisData;
   const isProfitNegative = impact.profit < 0;
+  const isCargaFiscalMenor = impact.tax < 0;
 
   return (
-    <div className="container mx-auto px-4 py-8 space-y-6">
-      <Card className="shadow-card">
+    <div className="container mx-auto px-4 py-8 space-y-8">
+      <Card className="shadow-card border-primary/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-primary" />
+          <CardTitle className="flex items-center gap-2 text-primary">
+            <BarChart3 className="h-6 w-6" />
             Simulador de Impacto da Reforma Tributária
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Comparativo técnico entre o sistema atual (Legado) e o novo modelo (Reforma) baseado em {productCount} produtos.
+            Comparativo técnico entre o sistema atual (Legado) e o novo modelo (Reforma) baseado em {productCount} produtos selecionados.
           </p>
         </CardHeader>
-        <CardContent className="grid md:grid-cols-2 gap-6">
+        <CardContent className="grid md:grid-cols-2 gap-8">
           <div className="space-y-4">
-            <Label>Alíquota IBS Estimada: <span className="font-bold text-primary">{futureIbsRate.toFixed(1)}%</span></Label>
+            <div className="flex justify-between items-center">
+              <Label className="text-sm font-semibold">Alíquota IBS Estimada (Estado/Mun)</Label>
+              <span className="font-mono font-bold text-primary">{futureIbsRate.toFixed(1)}%</span>
+            </div>
             <Slider defaultValue={[17.7]} value={[futureIbsRate]} onValueChange={([val]) => setFutureIbsRate(val)} max={30} step={0.1} />
+            <p className="text-[10px] text-muted-foreground">Substitui ICMS e ISS.</p>
           </div>
           <div className="space-y-4">
-            <Label>Alíquota CBS Estimada: <span className="font-bold text-primary">{futureCbsRate.toFixed(1)}%</span></Label>
+            <div className="flex justify-between items-center">
+              <Label className="text-sm font-semibold">Alíquota CBS Estimada (Federal)</Label>
+              <span className="font-mono font-bold text-primary">{futureCbsRate.toFixed(1)}%</span>
+            </div>
             <Slider defaultValue={[8.8]} value={[futureCbsRate]} onValueChange={([val]) => setFutureCbsRate(val)} max={15} step={0.1} />
+            <p className="text-[10px] text-muted-foreground">Substitui PIS e COFINS.</p>
           </div>
         </CardContent>
       </Card>
 
-      <Alert variant={isProfitNegative ? "destructive" : "default"} className={!isProfitNegative ? "bg-success/10 border-success text-success-foreground" : ""}>
-        {isProfitNegative ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-        <AlertTitle className="font-bold">Análise Prospectiva</AlertTitle>
-        <AlertDescription>
-          Com as alíquotas simuladas, seu Lucro Líquido variaria em <span className="font-extrabold">{formatCurrency(impact.profit)} ({formatPercent(impact.profitPercent)})</span>.
-          A Carga Tributária total sofreria uma alteração de <span className="font-extrabold">{formatCurrency(impact.tax)} ({formatPercent(impact.taxPercent)})</span>.
-        </AlertDescription>
-      </Alert>
+      {/* BLOCO DE INSIGHTS ESTRATÉGICOS */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Insight 1: Receita */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 bg-primary/10 rounded-full text-primary">
+                <TrendingUp className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-sm uppercase tracking-wider">Receita Sugerida</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              O sistema sugere uma receita de <span className="text-foreground font-bold">{formatCurrency(futureResult.totalRevenue)}</span>. 
+              Isso representa o faturamento necessário para cobrir sua estrutura fixa e impostos, garantindo a lucratividade desejada.
+            </p>
+          </CardContent>
+        </Card>
 
-      <Card className="shadow-elegant">
-        <CardHeader>
-          <CardTitle>Demonstrativo Comparativo Financeiro</CardTitle>
+        {/* Insight 2: Impostos */}
+        <Card className={cn("border-border", isCargaFiscalMenor ? "bg-success/5 border-success/20" : "bg-destructive/5 border-destructive/20")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={cn("p-2 rounded-full", isCargaFiscalMenor ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive")}>
+                <CreditCard className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-sm uppercase tracking-wider">Carga Tributária</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              A carga cai para <span className="text-foreground font-bold">{formatCurrency(futureResult.totalTax)}</span>. 
+              {isCargaFiscalMenor 
+                ? " O ganho de créditos na Reforma compensa as novas alíquotas, reduzindo sua conta com o governo em " + formatPercent(Math.abs(impact.taxPercent)) + "."
+                : " Atenção: as novas alíquotas superam os créditos recuperados neste lote específico."}
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Insight 3: Lucro */}
+        <Card className={cn("border-border", impact.profit > 0 ? "bg-accent/5 border-accent/20" : "bg-destructive/5 border-destructive/20")}>
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className={cn("p-2 rounded-full", impact.profit > 0 ? "bg-accent/10 text-accent" : "bg-destructive/10 text-destructive")}>
+                <Wallet className="h-5 w-5" />
+              </div>
+              <h3 className="font-bold text-sm uppercase tracking-wider">Resultado Líquido</h3>
+            </div>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {legacyResult.netProfit < 0 
+                ? "Sua operação atual é deficitária. A Reforma, aliada à nova precificação, permite recuperar " + formatCurrency(impact.profit) + " de margem perdida."
+                : "Seu lucro variará em " + formatCurrency(impact.profit) + ". O modelo de IVA Dual traz mais segurança jurídica para seu lucro."}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card className="shadow-elegant border-border overflow-hidden">
+        <CardHeader className="bg-muted/30 border-b">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-muted-foreground" />
+            Demonstrativo Comparativo Financeiro
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="w-[250px]">Métrica da Operação</TableHead>
-                <TableHead className="text-right">Cenário Atual (Legado)</TableHead>
-                <TableHead className="text-right">Cenário Futuro (Reforma)</TableHead>
-                <TableHead className="text-right">Impacto (R$)</TableHead>
-                <TableHead className="text-right">Impacto (%)</TableHead>
+              <TableRow className="bg-muted/10">
+                <TableHead className="w-[300px] pl-6 font-bold text-xs uppercase">Métrica da Operação</TableHead>
+                <TableHead className="text-right font-bold text-xs uppercase">Cenário Atual (Legado)</TableHead>
+                <TableHead className="text-right font-bold text-xs uppercase">Cenário Futuro (Reforma)</TableHead>
+                <TableHead className="text-right font-bold text-xs uppercase">Impacto (R$)</TableHead>
+                <TableHead className="text-right pr-6 font-bold text-xs uppercase">Impacto (%)</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow>
-                <TableCell className="font-semibold">Receita Bruta Total</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(legacyResult.totalRevenue)}</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(futureResult.totalRevenue)}</TableCell>
-                <TableCell colSpan={2} className="text-right text-muted-foreground font-mono">-</TableCell>
+              <TableRow className="hover:bg-muted/5">
+                <TableCell className="font-medium pl-6">
+                  <div className="flex flex-col">
+                    <span>Receita Bruta Total</span>
+                    <span className="text-[10px] text-muted-foreground">Faturamento projetado p/ o lote</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">{formatCurrency(legacyResult.totalRevenue)}</TableCell>
+                <TableCell className="text-right font-mono text-sm font-bold text-primary">{formatCurrency(futureResult.totalRevenue)}</TableCell>
+                <TableCell colSpan={2} className="text-right text-muted-foreground font-mono text-xs italic pr-6">Base de cálculo p/ impostos</TableCell>
               </TableRow>
-              <TableRow className="bg-destructive/5">
-                <TableCell className="font-semibold">Carga Tributária Total</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(legacyResult.totalTax)}</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(futureResult.totalTax)}</TableCell>
-                <TableCell className={cn("text-right font-mono font-bold", impact.tax > 0 ? "text-destructive" : "text-success")}>{formatCurrency(impact.tax)}</TableCell>
-                <TableCell className={cn("text-right font-mono font-bold", impact.tax > 0 ? "text-destructive" : "text-success")}>{formatPercent(impact.taxPercent)}</TableCell>
+              <TableRow className="hover:bg-muted/5 border-t">
+                <TableCell className="font-medium pl-6">
+                  <div className="flex flex-col">
+                    <span>Carga Tributária Total</span>
+                    <span className="text-[10px] text-muted-foreground">PIS+COFINS+ICMS vs CBS+IBS</span>
+                  </div>
+                </TableCell>
+                <TableCell className="text-right font-mono text-sm">{formatCurrency(legacyResult.totalTax)}</TableCell>
+                <TableCell className="text-right font-mono text-sm">{formatCurrency(futureResult.totalTax)}</TableCell>
+                <TableCell className={cn("text-right font-mono text-sm font-bold", impact.tax > 0 ? "text-destructive" : "text-success")}>
+                  {formatCurrency(impact.tax)}
+                </TableCell>
+                <TableCell className={cn("text-right font-mono text-sm font-bold pr-6", impact.tax > 0 ? "text-destructive" : "text-success")}>
+                  {formatPercent(impact.taxPercent)}
+                </TableCell>
               </TableRow>
-              <TableRow className="bg-success/5">
-                <TableCell className="font-semibold">Lucro Líquido Final</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(legacyResult.netProfit)}</TableCell>
-                <TableCell className="text-right font-mono">{formatCurrency(futureResult.netProfit)}</TableCell>
-                <TableCell className={cn("text-right font-mono font-bold", isProfitNegative ? "text-destructive" : "text-success")}>{formatCurrency(impact.profit)}</TableCell>
-                <TableCell className={cn("text-right font-mono font-bold", isProfitNegative ? "text-destructive" : "text-success")}>{formatPercent(impact.profitPercent)}</TableCell>
+              <TableRow className="bg-muted/5 border-t-2 border-border/80">
+                <TableCell className="font-extrabold pl-6 text-foreground uppercase">
+                  <div className="flex flex-col">
+                    <span>Lucro Líquido Final</span>
+                    <span className="text-[10px] text-muted-foreground normal-case font-normal">Sobra após custos e impostos</span>
+                  </div>
+                </TableCell>
+                <TableCell className={cn("text-right font-mono text-sm font-bold", legacyResult.netProfit < 0 ? "text-destructive" : "")}>
+                  {formatCurrency(legacyResult.netProfit)}
+                </TableCell>
+                <TableCell className={cn("text-right font-mono text-base font-black", futureResult.netProfit < 0 ? "text-destructive" : "text-success")}>
+                  {formatCurrency(futureResult.netProfit)}
+                </TableCell>
+                <TableCell className={cn("text-right font-mono text-sm font-bold", impact.profit < 0 ? "text-destructive" : "text-success")}>
+                  {formatCurrency(impact.profit)}
+                </TableCell>
+                <TableCell className={cn("text-right font-mono text-sm font-bold pr-6", impact.profit < 0 ? "text-destructive" : "text-success")}>
+                  {legacyResult.netProfit < 0 ? "Recup. Operacional" : formatPercent(impact.profitPercent)}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      <Alert className="bg-primary/5 border-primary/30">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-sm font-bold uppercase">Nota Explicativa</AlertTitle>
+        <AlertDescription className="text-xs leading-relaxed opacity-80">
+          O cenário de "Lucro Negativo" no modelo Legado ocorre porque a carga tributária atual aliada à estrutura de custos fixos informada consome toda a margem da operação. 
+          A Reforma Tributária (IBS/CBS) atua como um catalisador de eficiência, permitindo a recuperação de créditos que hoje são perdidos, transformando o prejuízo em resultado positivo.
+        </AlertDescription>
+      </Alert>
     </div>
   );
 };
