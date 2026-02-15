@@ -11,7 +11,8 @@ import {
   Info,
   Target,
   AlertTriangle,
-  ArrowRight
+  ArrowRight,
+  CalculatorIcon
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
@@ -125,6 +126,10 @@ const ImpactAnalysis = () => {
 
   const { legacyResult, futureResult, impact } = analysisData;
 
+  // Calculando somas totais de despesas
+  const legacyTotalDeductions = legacyResult.totalAcquisitionCost + legacyResult.totalVariableExpenses + legacyResult.totalFixedCosts + legacyResult.totalTax;
+  const futureTotalDeductions = futureResult.totalAcquisitionCost + futureResult.totalVariableExpenses + futureResult.totalFixedCosts + futureResult.totalTax;
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <Card className="shadow-card border-primary/20">
@@ -185,6 +190,16 @@ const ImpactAnalysis = () => {
                     )}
                   </div>
 
+                  <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-muted-foreground italic">
+                    <div className="flex items-center gap-2">
+                      <CalculatorIcon className="h-3 w-3" />
+                      <span className="text-[10px] font-bold uppercase">Total de Deduções</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold">
+                      {formatCurrency(legacyTotalDeductions)}
+                    </span>
+                  </div>
+
                   <div className="mt-6 pt-4 border-t-2 border-dashed flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Equal className="h-5 w-5 text-muted-foreground" />
@@ -243,6 +258,16 @@ const ImpactAnalysis = () => {
                     <div className="bg-success/10 p-2 rounded mt-2 border border-success/20 text-[10px] text-success font-bold text-center">
                       SISTEMA DE CRÉDITO FINANCEIRO ATIVO
                     </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-primary/20 flex items-center justify-between text-primary/70 italic">
+                    <div className="flex items-center gap-2">
+                      <CalculatorIcon className="h-3 w-3" />
+                      <span className="text-[10px] font-bold uppercase">Total de Deduções</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold">
+                      {formatCurrency(futureTotalDeductions)}
+                    </span>
                   </div>
 
                   <div className="mt-6 pt-4 border-t-2 border-primary/20 border-dashed flex items-center justify-between">
