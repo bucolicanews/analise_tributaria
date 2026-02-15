@@ -6,15 +6,17 @@ export const calculatePricing = (
   params: CalculationParams,
   cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
-  // 1. Créditos (Simulação Reforma) - No futuro, o crédito é financeiro (pago na etapa anterior = crédito agora)
   
+  // 1. Definição de Regime para Créditos
+  // No Simples Nacional PADRÃO, não há recuperação de créditos de CBS/IBS.
+  const canRecoverCredits = params.taxRegime !== TaxRegime.SimplesNacional || params.generateIvaCredit;
+
   // CBS substitui PIS/COFINS
-  const cbsCredit = params.usePisCofins ? (product.pisCredit + product.cofinsCredit) : 0;
+  const cbsCredit = (canRecoverCredits && params.usePisCofins) ? (product.pisCredit + product.cofinsCredit) : 0;
   
   // IBS substitui ICMS
-  // Mesmo que seja ST hoje, na Reforma o imposto pago na entrada gera crédito financeiro
   const icmsCreditPercentageFactor = params.icmsPercentage / 100;
-  const ibsCredit = (product.icmsCredit || 0) * icmsCreditPercentageFactor;
+  const ibsCredit = (canRecoverCredits) ? (product.icmsCredit || 0) * icmsCreditPercentageFactor : 0;
   
   const totalCredit = cbsCredit + ibsCredit;
 
