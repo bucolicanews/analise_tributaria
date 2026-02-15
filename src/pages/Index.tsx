@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -23,9 +23,11 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SalesReport } from "@/components/SalesReport";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Index = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [purchaseProducts, setPurchaseProducts] = useState<Product[]>([]);
+  const [salesProducts, setSalesProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
   const [showMemory, setShowMemory] = useState(false);
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
@@ -36,11 +38,13 @@ const Index = () => {
   // Load data from sessionStorage on initial render
   useEffect(() => {
     try {
-      const storedProducts = sessionStorage.getItem('jota-calc-products');
+      const storedPurchaseProducts = sessionStorage.getItem('jota-calc-purchase-products');
+      const storedSalesProducts = sessionStorage.getItem('jota-calc-sales-products');
       const storedParams = sessionStorage.getItem('jota-calc-params');
       const storedSelection = sessionStorage.getItem('jota-calc-selection');
 
-      if (storedProducts) setProducts(JSON.parse(storedProducts));
+      if (storedPurchaseProducts) setPurchaseProducts(JSON.parse(storedPurchaseProducts));
+      if (storedSalesProducts) setSalesProducts(JSON.parse(storedSalesProducts));
       if (storedParams) setParams(JSON.parse(storedParams));
       if (storedSelection) setSelectedProductCodes(new Set(JSON.parse(storedSelection)));
       
@@ -51,7 +55,8 @@ const Index = () => {
   }, []);
 
   const handleNewConsultation = () => {
-    setProducts([]);
+    setPurchaseProducts([]);
+    setSalesProducts([]);
     setParams(null);
     setSelectedProductCodes(new Set());
     setAiReport(null);
@@ -59,12 +64,20 @@ const Index = () => {
     toast.success("Nova consulta iniciada.", { description: "Todos os dados foram limpos." });
   };
 
-  const handleXmlParsed = (parsedProducts: Product[]) => {
-    setProducts(parsedProducts);
+  const handlePurchaseXmlParsed = (parsedProducts: Product[]) => {
+    setPurchaseProducts(parsedProducts);
     const initialSelection = new Set(parsedProducts.map(p => p.code));
     setSelectedProductCodes(initialSelection);
-    sessionStorage.setItem('jota-calc-products', JSON.stringify(parsedProducts));
+    sessionStorage.setItem('jota-calc-purchase-products', JSON.stringify(parsedProducts));
     sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(initialSelection)));
+  };
+
+  const handleSalesXmlParsed = (parsedProducts: Product[]) => {
+    setSalesProducts(parsedProducts);
+    sessionStorage.setItem('jota-calc-sales-products', JSON.stringify(parsedProducts));
+    toast.info(`${parsedProducts.length} produtos de venda carregados.`, {
+      description: "O próximo passo será a página de auditoria para comparar com as compras."
+    });
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
@@ -85,7 +98,7 @@ const Index = () => {
 
   // Centralized calculation logic
   const calculationResults = useMemo(() => {
-    if (!params || products.length === 0) {
+    if (!params || purchaseProducts.length === 0) {
       return {
         summary: null,
         calculatedProducts: [],
@@ -98,7 +111,7 @@ const Index = () => {
     const totalFixedExpenses = params.fixedCostsTotal || 0;
     const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
     
-    const productsToDisplay = products.filter(p => selectedProductCodes.has(p.code));
+    const productsToDisplay = purchaseProducts.filter(p => selectedProductCodes.has(p.code));
     const calculatedProducts = productsToDisplay.map(p => calculatePricing(p, params, cfu));
     
     const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
@@ -120,7 +133,7 @@ const Index = () => {
       totalFixedExpenses,
       firstCalculatedProduct: calculatedProducts.length > 0 ? calculatedProducts[0] : null,
     };
-  }, [params, products, selectedProductCodes]);
+  }, [params, purchaseProducts, selectedProductCodes]);
 
   const { summary, calculatedProducts, productsToDisplay, firstCalculatedProduct } = calculationResults;
 
@@ -135,7 +148,6 @@ const Index = () => {
     const toastId = toast.loading(`Aguardando análise da IA (${environment})...`);
 
     try {
-      // **MUDANÇA PRINCIPAL AQUI**
       const payload = createOptimizedAIPayload(params, summary, calculatedProducts);
       
       const webhooks = {
@@ -149,7 +161,6 @@ const Index = () => {
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        // **ENVIANDO O NOVO PAYLOAD OTIMIZADO**
         body: JSON.stringify(payload),
       });
 
@@ -188,26 +199,42 @@ const Index = () => {
       
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">Upload de XML</h2>
+          <div className="space-y-6">
+            <Card className="shadow-card p-6">
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-primary" />
+                  <h2 className="text-lg font-semibold">1. Upload de Notas de Compra (Entrada)</h2>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleNewConsultation}>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Nova Consulta
+                </Button>
               </div>
-              <Button variant="outline" size="sm" onClick={handleNewConsultation}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Nova Consulta
-              </Button>
-            </div>
-            <XmlUploader onXmlParsed={handleXmlParsed} />
-          </Card>
+              <XmlUploader onXmlParsed={handlePurchaseXmlParsed} />
+            </Card>
+            <Card className="shadow-card p-6">
+              <div className="mb-4 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold">2. Upload de Notas de Venda (Saída)</h2>
+              </div>
+              <XmlUploader onXmlParsed={handleSalesXmlParsed} />
+              <Alert className="mt-4">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertTitle>Funcionalidade em Desenvolvimento</AlertTitle>
+                <AlertDescription>
+                  O upload de notas de venda é o primeiro passo para a nossa futura ferramenta de auditoria fiscal.
+                </AlertDescription>
+              </Alert>
+            </Card>
+          </div>
 
           <Card className="shadow-card p-6">
             <div className="mb-4 flex items-center gap-2">
               <FileText className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
             </div>
-            <ParametersForm onCalculate={handleCalculate} disabled={products.length === 0} />
+            <ParametersForm onCalculate={handleCalculate} disabled={purchaseProducts.length === 0} />
           </Card>
         </div>
 
@@ -218,12 +245,12 @@ const Index = () => {
             </div>
           )}
 
-          {products.length > 0 && params ? (
+          {purchaseProducts.length > 0 && params ? (
             <>
               <Card className="shadow-elegant p-6">
                 <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
                   <h2 className="text-xl font-semibold">
-                    Relatório de Precificação ({productsToDisplay.length} de {products.length} produtos)
+                    Relatório de Precificação ({productsToDisplay.length} de {purchaseProducts.length} produtos)
                   </h2>
                   <div className="flex gap-2">
                     <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
@@ -258,7 +285,7 @@ const Index = () => {
                   </div>
                 </div>
                 <ProductsTable 
-                  products={products} 
+                  products={purchaseProducts} 
                   params={params} 
                   selectedProductCodes={selectedProductCodes}
                   onSelectionChange={handleSelectionChange}
