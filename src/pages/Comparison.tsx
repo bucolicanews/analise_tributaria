@@ -8,7 +8,6 @@ import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/type
 import { GlobalSummaryData } from '@/components/ProductsTable';
 import { cn } from '@/lib/utils';
 
-// Helper function to calculate global summary for a given set of products and parameters
 const calculateGlobalSummaryForComparison = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
@@ -18,7 +17,6 @@ const calculateGlobalSummaryForComparison = (
   totalInnerUnitsInXML: number,
   profitMarginOverride: number
 ): GlobalSummaryData => {
-  
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
@@ -41,10 +39,9 @@ const calculateGlobalSummaryForComparison = (
   const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
 
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
-  
   const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
   const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0; // Note: Simplified for comparison summary
+  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0;
 
   if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
     totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
@@ -84,229 +81,77 @@ const calculateGlobalSummaryForComparison = (
   };
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value);
-};
-
-const formatPercent = (value: number) => {
-  return `${value.toFixed(2)}%`;
-};
-
-// Helper to calculate total fixed costs from base params
-const calculateTotalFixedCosts = (params: CalculationParams): number => {
-  if (!params) return 0;
-  const inss = params.taxRegime !== TaxRegime.SimplesNacional
-    ? (params.payroll || 0) * ((params.inssPatronalRate || 0) / 100)
-    : 0;
-  const otherFixed = (params.fixedExpenses || []).reduce((sum, exp) => sum + exp.value, 0);
-  return otherFixed + (params.payroll || 0) + inss;
-};
-
+const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
 const Comparison = () => {
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
-    const storedProducts = sessionStorage.getItem('jota-calc-products');
+    const storedProducts = sessionStorage.getItem('jota-calc-purchase-products');
     const storedSelection = sessionStorage.getItem('jota-calc-selection');
 
-    if (!storedParams || !storedProducts || !storedSelection) {
-      return null;
-    }
+    if (!storedParams || !storedProducts || !storedSelection) return null;
 
     try {
       const baseParams: CalculationParams = JSON.parse(storedParams);
       const products: Product[] = JSON.parse(storedProducts);
       const selectedProductCodes: Set<string> = new Set(JSON.parse(storedSelection));
-      
       const productsToProcess = products.filter(p => selectedProductCodes.has(p.code));
-
       if (productsToProcess.length === 0) return null;
 
-      // Recalculate total fixed costs here to ensure accuracy
-      const totalFixedCosts = calculateTotalFixedCosts(baseParams);
+      const totalFixedCosts = (baseParams.fixedCostsTotal || 0);
+      const totalVarPct = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+      const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-      const totalVariableExpensesPercent = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
-      const totalInnerUnitsInXML = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-
-      // --- SIMPLES NACIONAL (PADRÃO) ---
-      const paramsSN = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false };
-      const cfuSN = paramsSN.totalStockUnits > 0 ? totalFixedCosts / paramsSN.totalStockUnits : 0;
-      const calculatedProductsSN = productsToProcess.map(p => calculatePricing(p, paramsSN, cfuSN));
-      const summarySN = calculateGlobalSummaryForComparison(calculatedProductsSN, paramsSN, totalFixedCosts, totalVariableExpensesPercent, cfuSN, totalInnerUnitsInXML, paramsSN.profitMargin);
-      
-      // --- SIMPLES NACIONAL (HÍBRIDO) ---
-      const paramsSNH = { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true };
-      const cfuSNH = paramsSNH.totalStockUnits > 0 ? totalFixedCosts / paramsSNH.totalStockUnits : 0;
-      const calculatedProductsSNH = productsToProcess.map(p => calculatePricing(p, paramsSNH, cfuSNH));
-      const summarySNH = calculateGlobalSummaryForComparison(calculatedProductsSNH, paramsSNH, totalFixedCosts, totalVariableExpensesPercent, cfuSNH, totalInnerUnitsInXML, paramsSNH.profitMargin);
-      
-      // --- LUCRO PRESUMIDO ---
-      const paramsLP = { ...baseParams, taxRegime: TaxRegime.LucroPresumido };
-      const cfuLP = paramsLP.totalStockUnits > 0 ? totalFixedCosts / paramsLP.totalStockUnits : 0;
-      const calculatedProductsLP = productsToProcess.map(p => calculatePricing(p, paramsLP, cfuLP));
-      const summaryLP = calculateGlobalSummaryForComparison(calculatedProductsLP, paramsLP, totalFixedCosts, totalVariableExpensesPercent, cfuLP, totalInnerUnitsInXML, paramsLP.profitMargin);
-
-      // --- LUCRO REAL ---
-      const paramsLR = { ...baseParams, taxRegime: TaxRegime.LucroReal };
-      const cfuLR = paramsLR.totalStockUnits > 0 ? totalFixedCosts / paramsLR.totalStockUnits : 0;
-      const calculatedProductsLR = productsToProcess.map(p => calculatePricing(p, paramsLR, cfuLR));
-      const summaryLR = calculateGlobalSummaryForComparison(calculatedProductsLR, paramsLR, totalFixedCosts, totalVariableExpensesPercent, cfuLR, totalInnerUnitsInXML, paramsLR.profitMargin);
-
-      const results = [
-        { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Padrão)", summary: summarySN, isApplicable: true },
-        { regime: TaxRegime.SimplesNacional, label: "Simples Nacional (Híbrido)", summary: summarySNH, isApplicable: true },
-        { regime: TaxRegime.LucroPresumido, label: "Lucro Presumido", summary: summaryLP, isApplicable: true },
-        { regime: TaxRegime.LucroReal, label: "Lucro Real", summary: summaryLR, isApplicable: true },
+      const regimes = [
+        { label: "Simples Nacional (Padrão)", params: { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false } },
+        { label: "Simples Nacional (Híbrido)", params: { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true } },
+        { label: "Lucro Presumido", params: { ...baseParams, taxRegime: TaxRegime.LucroPresumido } },
+        { label: "Lucro Real", params: { ...baseParams, taxRegime: TaxRegime.LucroReal } },
       ];
 
-      let bestResult = results[0];
-      for (let i = 1; i < results.length; i++) {
-        if (results[i].summary.totalProfit > bestResult.summary.totalProfit) {
-          bestResult = results[i];
-        }
-      }
+      const results = regimes.map(r => {
+        const cfu = r.params.totalStockUnits > 0 ? totalFixedCosts / r.params.totalStockUnits : 0;
+        const calculated = productsToProcess.map(p => calculatePricing(p, r.params, cfu));
+        return {
+          label: r.label,
+          summary: calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin)
+        };
+      });
 
-      return { results, bestResult, productsToCalculateCount: productsToProcess.length };
-    } catch (error) {
-      console.error("Failed to process comparison data", error);
-      return null;
-    }
+      let bestResult = results[0];
+      results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
+
+      return { results, bestResult };
+    } catch (error) { return null; }
   }, []);
 
-  if (!comparisonData) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="shadow-card">
-          <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
-            <div className="rounded-full bg-muted p-6 mb-4">
-              <BarChart3 className="h-12 w-12 text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">
-              Dados insuficientes para comparação
-            </h3>
-            <p className="text-muted-foreground max-w-md">
-              Por favor, volte para a página de Análise de Precificação, faça o upload dos arquivos XML, preencha todos os parâmetros de cálculo e clique em "Gerar Relatório".
-            </p>
-          </div>
-        </Card>
-      </div>
-    );
-  }
-
-  const { results, bestResult, productsToCalculateCount } = comparisonData;
+  if (!comparisonData) return <div className="p-8 text-center">Dados insuficientes para comparação. Realize uma precificação primeiro.</div>;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
       <Card className="shadow-elegant border-primary/50">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3">
-            <TrendingUp className="h-6 w-6" />
-            Resultado do Comparativo de Regimes
-          </CardTitle>
+          <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3"><BarChart3 className="h-6 w-6" />Comparativo de Regimes Tributários</CardTitle>
           <Alert className="mt-4 bg-success/10 border-success text-success-foreground">
-            <CheckCircle2 className="h-4 w-4" />
-            <AlertTitle>Regime Mais Vantajoso (Maior Lucro Líquido)</AlertTitle>
-            <AlertDescription className="text-lg font-semibold">
-              O regime mais vantajoso para esta simulação é: <span className="text-success font-extrabold">{bestResult.label}</span>, com um Lucro Líquido Total de <span className="font-extrabold">{formatCurrency(bestResult.summary.totalProfit)}</span>.
-            </AlertDescription>
+            <CheckCircle2 className="h-4 w-4" /><AlertTitle>Regime Mais Vantajoso</AlertTitle>
+            <AlertDescription className="text-lg font-semibold">O melhor regime é: <span className="font-extrabold">{comparisonData.bestResult.label}</span>, com Lucro de <span className="font-extrabold">{formatCurrency(comparisonData.bestResult.summary.totalProfit)}</span>.</AlertDescription>
           </Alert>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground mb-4">
-            A comparação abaixo utiliza os **{productsToCalculateCount} produtos selecionados** e os **parâmetros de custo fixo e margem alvo** definidos na aba de Precificação.
-          </p>
-
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Métrica</TableHead>
-                  {results.map((res) => (
-                    <TableHead 
-                      key={res.label}
-                      className={cn(
-                        "text-right font-bold",
-                        res === bestResult ? "text-success" : "text-muted-foreground"
-                      )}
-                    >
-                      {res.label}
-                      {res === bestResult && <CheckCircle2 className="h-4 w-4 inline ml-2" />}
-                    </TableHead>
-                  ))}
+                  <TableHead>Métrica</TableHead>
+                  {comparisonData.results.map(res => <TableHead key={res.label} className="text-right">{res.label}</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow>
-                  <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Venda Total Sugerida</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className={cn("text-right font-bold", res === bestResult && "text-success")}>
-                      {formatCurrency(res.summary.totalSelling)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                <TableRow>
-                  <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-destructive" /> Impostos Líquidos Totais</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className={cn("text-right text-destructive font-bold", res === bestResult && "text-success")}>
-                      {formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                <TableRow>
-                  <TableCell className="font-semibold flex items-center gap-2"><DollarSign className="h-4 w-4 text-yellow-500" /> Despesas Variáveis Totais</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className={cn("text-right text-yellow-500 font-bold", res === bestResult && "text-success")}>
-                      {formatCurrency(res.summary.totalVariableExpensesValue)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-
-                <TableRow className="bg-muted/50">
-                  <TableCell className="font-semibold flex items-center gap-2"><TrendingUp className="h-4 w-4 text-accent" /> Margem de Contribuição Total</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className={cn("text-right text-accent font-bold", res === bestResult && "text-success")}>
-                      {formatCurrency(res.summary.totalContributionMargin)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                <TableRow className="bg-success/10">
-                  <TableCell className="font-extrabold flex items-center gap-2"><DollarSign className="h-4 w-4 text-success" /> LUCRO LÍQUIDO TOTAL</TableCell>
-                  {results.map((res) => (
-                    <TableCell 
-                      key={res.label} 
-                      className={cn(
-                        "text-right text-xl font-extrabold",
-                        res.summary.totalProfit < 0 ? "text-destructive" : "text-success"
-                      )}
-                    >
-                      {formatCurrency(res.summary.totalProfit)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                <TableRow>
-                  <TableCell className="font-semibold">Margem de Lucro Líquida %</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className={cn("text-right font-bold", res.summary.totalProfit < 0 ? "text-destructive" : "text-success")}>
-                      {formatPercent(res.summary.profitMarginPercent)}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                
-                <TableRow>
-                  <TableCell className="font-semibold flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-muted-foreground" /> Ponto de Equilíbrio (Mensal)</TableCell>
-                  {results.map((res) => (
-                    <TableCell key={res.label} className="text-right text-muted-foreground font-bold">
-                      {formatCurrency(res.summary.breakEvenPoint)}
-                    </TableCell>
-                  ))}
-                </TableRow>
+                <TableRow><TableCell className="font-semibold">Venda Sugerida</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.totalSelling)}</TableCell>)}</TableRow>
+                <TableRow><TableCell className="font-semibold">Impostos Líquidos</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-destructive">{formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})</TableCell>)}</TableRow>
+                <TableRow className="bg-success/10"><TableCell className="font-extrabold">LUCRO LÍQUIDO</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}</TableRow>
+                <TableRow><TableCell className="font-semibold">Ponto de Equilíbrio</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}</TableRow>
               </TableBody>
             </Table>
           </div>
