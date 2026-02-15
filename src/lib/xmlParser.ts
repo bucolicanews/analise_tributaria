@@ -32,7 +32,7 @@ export const parseXml = (
       // 1. VERIFICAR O TIPO DE ARQUIVO PELA TAG RAIZ E CONTEÚDO
       const rootTagName = xmlDoc.documentElement?.localName?.toLowerCase();
       const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
-      const infNfseElement = getElement(xmlDoc, "infNfse");
+      const infNfseElement = getElement(xmlDoc, "infNfse") || getElement(xmlDoc, "infNFSe");
 
       // Validação de CNPJ
       if (companyCnpj && companyCnpj.trim() !== "") {
@@ -61,7 +61,7 @@ export const parseXml = (
             partyCnpj = getText(emitElement, "CNPJ");
 
             if (!partyCnpj) { // If not found, it might be an NFSe
-                const prestadorElement = getElement(xmlDoc, "prestador") || getElement(xmlDoc, "PrestadorServico");
+                const prestadorElement = getElement(xmlDoc, "prestador") || getElement(xmlDoc, "PrestadorServico") || getElement(xmlDoc, "prest");
                 if (prestadorElement) {
                     // Try direct lookup first
                     partyCnpj = getText(prestadorElement, "CNPJ") || getText(prestadorElement, "Cnpj") || getText(prestadorElement, "cnpj");
@@ -136,21 +136,26 @@ export const parseXml = (
           };
         });
       } else if (infNfseElement) {
-        // É uma NFSe de Serviço
-        const servicoElement = getElement(infNfseElement, "servico");
-        const valoresElement = getElement(servicoElement, "valores");
+        // É uma NFSe de Serviço (Padrão Nacional/SPED ou Anterior)
+        const name = getText(xmlDoc, "xDescServ") || getText(xmlDoc, "discriminacao") || 'Serviço Prestado';
+        const code = getText(xmlDoc, "cTribNac") || getText(xmlDoc, "cServico") || 'SERVICO';
+        
+        // Busca flexível de valor
+        const vServ = getText(xmlDoc, "vServ");
+        const vServPrest = getText(xmlDoc, "vServPrest");
+        const cost = parseFloat(vServ || vServPrest || "0");
 
         const service: Product = {
-          code: getText(servicoElement, "cServico") || 'SERVICO',
-          name: getText(servicoElement, "discriminacao") || 'Serviço Prestado',
-          cost: parseFloat(getText(valoresElement, "vServPrest") || "0"),
+          code,
+          name,
+          cost,
           quantity: 1,
           unit: 'SV',
           innerQuantity: 1,
           // Mapeando impostos de serviço para os campos existentes
-          icmsCredit: parseFloat(getText(valoresElement, "vIss") || "0"), // ISS vira crédito de IBS
-          pisCredit: parseFloat(getText(valoresElement, "vPis") || "0"),
-          cofinsCredit: parseFloat(getText(valoresElement, "vCofins") || "0"),
+          icmsCredit: parseFloat(getText(xmlDoc, "vISSQN") || getText(xmlDoc, "vIss") || "0"), // ISS vira crédito de IBS
+          pisCredit: parseFloat(getText(xmlDoc, "vPis") || "0"),
+          cofinsCredit: parseFloat(getText(xmlDoc, "vCofins") || "0"),
           // Campos não aplicáveis a serviços
           ean: '', cfop: '', cst: '', ncm: '', cest: '', pisCst: '', cofinsCst: '', ipiCst: '',
           pisBase: 0, pisRate: 0, cofinsBase: 0, cofinsRate: 0,
@@ -166,7 +171,6 @@ export const parseXml = (
 
       resolve(products);
     } catch (error) {
-      console.error("Erro ao processar XML:", error);
       reject(error as Error);
     }
   });
