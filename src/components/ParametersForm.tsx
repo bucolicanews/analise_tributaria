@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Trash2, AlertTriangle, Calculator } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Calculator, Zap, Building2, Landmark, History } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -86,6 +86,65 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
     { name: "Comissão", percentage: 5 },
   ]);
+
+  // Função para aplicar Presets
+  const applyPreset = (type: 'simples' | 'hibrido' | 'presumido' | 'real') => {
+    // Valores comuns para todos
+    setProfitMargin("10");
+    setPayroll("10000");
+    setTotalStockUnits("5000");
+    setLossPercentage("1");
+    setFixedExpenses([{ name: "Aluguel", value: 3000 }]);
+    setVariableExpenses([{ name: "Comissão", percentage: 5 }]);
+    setCbsRate("8.8");
+    setIbsRate("17.7");
+    setDefaultSelectiveTaxRate("0");
+
+    if (type === 'simples') {
+        setTaxRegime(TaxRegime.SimplesNacional);
+        setGenerateIvaCredit(false);
+        setSimplesNacionalRate("4");
+        setAnexoSimples("Anexo I");
+        setFaturamento12Meses("180000");
+        setUsePisCofins(false);
+        setIcmsPercentage("0");
+        setUseSelectiveTaxDebit(false);
+        setUseCbsDebit(false);
+        setIbsDebitPercentage("0");
+    } else if (type === 'hibrido') {
+        setTaxRegime(TaxRegime.SimplesNacional);
+        setGenerateIvaCredit(true);
+        setSimplesNacionalRate("4");
+        setAnexoSimples("Anexo I");
+        setFaturamento12Meses("180000");
+        setUsePisCofins(true);
+        setIcmsPercentage("100");
+        setUseSelectiveTaxDebit(true);
+        setUseCbsDebit(true);
+        setIbsDebitPercentage("100");
+    } else if (type === 'presumido') {
+        setTaxRegime(TaxRegime.LucroPresumido);
+        setIrpjRate("1.2");
+        setCsllRate("1.08");
+        setInssPatronalRate("28.8");
+        setUsePisCofins(true);
+        setIcmsPercentage("100");
+        setUseSelectiveTaxDebit(true);
+        setUseCbsDebit(true);
+        setIbsDebitPercentage("100");
+    } else if (type === 'real') {
+        setTaxRegime(TaxRegime.LucroReal);
+        setIrpjRateLucroReal("15");
+        setCsllRateLucroReal("9");
+        setInssPatronalRate("28.8");
+        setUsePisCofins(true);
+        setIcmsPercentage("100");
+        setUseSelectiveTaxDebit(true);
+        setUseCbsDebit(true);
+        setIbsDebitPercentage("100");
+    }
+    toast.info(`Preset "${type.toUpperCase()}" aplicado com sucesso!`);
+  };
 
   // Efeito para calcular a alíquota do Simples Nacional automaticamente
   useEffect(() => {
@@ -252,6 +311,30 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
+      
+      {/* SEÇÃO DE PRESETS RÁPIDOS */}
+      <div className="space-y-3 rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
+        <div className="flex items-center gap-2 mb-2">
+            <Zap className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-bold uppercase text-primary">Preenchimento Rápido (Presets)</h3>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold" onClick={() => applyPreset('simples')}>
+                SIMPLES PADRÃO
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-accent border-accent/30" onClick={() => applyPreset('hibrido')}>
+                SIMPLES HÍBRIDO
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-blue-500 border-blue-500/30" onClick={() => applyPreset('presumido')}>
+                L. PRESUMIDO
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-success border-success/30" onClick={() => applyPreset('real')}>
+                LUCRO REAL
+            </Button>
+        </div>
+        <p className="text-[9px] text-muted-foreground italic">Clique em um botão para carregar configurações realistas automaticamente.</p>
+      </div>
+
       <Button 
         type="submit" 
         className="w-full bg-gradient-primary hover:opacity-90" 
