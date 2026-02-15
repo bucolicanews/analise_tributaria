@@ -53,20 +53,25 @@ const ImpactAnalysis = () => {
       const productsToProcess = products.filter(p => selectedProductCodes.has(p.code));
       if (productsToProcess.length === 0) return null;
 
-      const legacyResult = calculateLegacyPricing(productsToProcess, baseParams);
+      const totalGlobalFixedExpenses = baseParams.fixedCostsTotal || 0;
+      const cfu = baseParams.totalStockUnits > 0 ? totalGlobalFixedExpenses / baseParams.totalStockUnits : 0;
+      const totalInnerUnitsInNote = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+      
+      // Calculamos o rateio (proporção do custo fixo para esta nota)
+      const fixedCostProportionalToNote = cfu * totalInnerUnitsInNote;
+
+      // Ajustamos os parâmetros legados para usar apenas o rateio na comparação, para ser justo
+      const legacyParams = { ...baseParams, fixedCostsTotal: fixedCostProportionalToNote };
+      const legacyResult = calculateLegacyPricing(productsToProcess, legacyParams);
 
       const futureParams: CalculationParams = { ...baseParams, ibsRate: futureIbsRate, cbsRate: futureCbsRate };
-      const totalFixedExpenses = futureParams.fixedCostsTotal || 0;
-      const cfu = futureParams.totalStockUnits > 0 ? totalFixedExpenses / futureParams.totalStockUnits : 0;
-      
       const calculatedFuture = productsToProcess.map(p => calculatePricing(p, futureParams, cfu));
       
       const futureRevenue = calculatedFuture.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
       const futureTotalTax = calculatedFuture.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
       const futureAcqCost = calculatedFuture.reduce((sum, p) => sum + p.cost * p.quantity, 0);
       const futureVarExp = calculatedFuture.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
-      const futureFixedContrib = cfu * productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-      const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - futureFixedContrib - futureTotalTax;
+      const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - fixedCostProportionalToNote - futureTotalTax;
 
       // Cálculo Seguro do BEP Futuro
       const totalVarPct = futureParams.variableExpenses.reduce((s, e) => s + e.percentage, 0);
@@ -85,7 +90,7 @@ const ImpactAnalysis = () => {
 
       const costOfGoodsRatio = futureRevenue > 0 ? futureAcqCost / futureRevenue : 0;
       const futureContrMarginRatio = 1 - (costOfGoodsRatio + (totalVarPct / 100) + (totalFutureTaxRate / 100));
-      const futureBEP = futureContrMarginRatio > 0.001 ? totalFixedExpenses / futureContrMarginRatio : 0;
+      const futureBEP = futureContrMarginRatio > 0.001 ? totalGlobalFixedExpenses / futureContrMarginRatio : 0;
 
       return {
         legacyResult,
@@ -94,7 +99,7 @@ const ImpactAnalysis = () => {
           totalTax: futureTotalTax,
           totalAcquisitionCost: futureAcqCost,
           totalVariableExpenses: futureVarExp,
-          totalFixedCosts: futureFixedContrib,
+          totalFixedCosts: fixedCostProportionalToNote,
           netProfit: futureNetProfit,
           breakEvenPoint: futureBEP,
           params: futureParams,
@@ -102,7 +107,8 @@ const ImpactAnalysis = () => {
         },
         impact: {
           profit: futureNetProfit - legacyResult.netProfit,
-        }
+        },
+        fixedCostProportionalToNote
       };
     } catch (error) { return null; }
   }, [futureIbsRate, futureCbsRate]);
@@ -124,11 +130,10 @@ const ImpactAnalysis = () => {
     );
   }
 
-  const { legacyResult, futureResult, impact } = analysisData;
+  const { legacyResult, futureResult, impact, fixedCostProportionalToNote } = analysisData;
 
-  // Calculando somas totais de despesas
-  const legacyTotalDeductions = legacyResult.totalAcquisitionCost + legacyResult.totalVariableExpenses + legacyResult.totalFixedCosts + legacyResult.totalTax;
-  const futureTotalDeductions = futureResult.totalAcquisitionCost + futureResult.totalVariableExpenses + futureResult.totalFixedCosts + futureResult.totalTax;
+  const legacyTotalDeductions = legacyResult.totalAcquisitionCost + legacyResult.totalVariableExpenses + fixedCostProportionalToNote + legacyResult.totalTax;
+  const futureTotalDeductions = futureResult.totalAcquisitionCost + futureResult.totalVariableExpenses + fixedCostProportionalToNote + futureResult.totalTax;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
@@ -141,13 +146,12 @@ const ImpactAnalysis = () => {
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md mt-2">
             <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-xs text-blue-500/90 leading-relaxed">
-              <strong>Como este valor é calculado?</strong> A Receita Bruta abaixo é baseada no custo das suas <strong>Notas de Compra</strong>. O sistema projeta quanto você precisa vender hoje (Atual) vs amanhã (Reforma) para cobrir os impostos e despesas a partir do que você pagou ao fornecedor.
+              <strong>Comparação de Rateio:</strong> Agora ambos os cenários utilizam o <strong>Custo Fixo Rateado (R$ {fixedCostProportionalToNote.toFixed(2)})</strong> proporcional à quantidade de produtos nesta nota, permitindo uma análise justa de lucro líquido por operação.
             </p>
           </div>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-8">
           
-          {/* COLUNA 1: CENÁRIO ATUAL */}
           <div className="space-y-4">
             <h3 className="font-bold text-sm bg-muted p-2 rounded flex items-center justify-between uppercase">
               Cenário Atual (Legado)
@@ -169,10 +173,10 @@ const ImpactAnalysis = () => {
               ) : (
                 <>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Base: Notas de Compra):</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Proporcionais à Nota):</p>
                     <CalculationStep label="Custo de Aquisição (XML Compra)" value={legacyResult.totalAcquisitionCost} isNegative />
                     <CalculationStep label="Despesas Variáveis (Venda)" value={legacyResult.totalVariableExpenses} isNegative />
-                    <CalculationStep label="Custos Fixos Totais" value={legacyResult.totalFixedCosts} isNegative />
+                    <CalculationStep label="Custo Fixo Rateado (Proporcional)" value={fixedCostProportionalToNote} isNegative />
                   </div>
 
                   <div className="mt-4 space-y-1">
@@ -224,7 +228,6 @@ const ImpactAnalysis = () => {
             </div>
           </div>
 
-          {/* COLUNA 2: CENÁRIO FUTURO */}
           <div className="space-y-4">
             <h3 className="font-bold text-sm bg-primary/10 p-2 rounded flex items-center justify-between uppercase text-primary">
               Cenário Futuro (Reforma)
@@ -246,10 +249,10 @@ const ImpactAnalysis = () => {
               ) : (
                 <>
                   <div className="space-y-1">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Base: Notas de Compra):</p>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Proporcionais à Nota):</p>
                     <CalculationStep label="Custo Aquisição Ajustado (CUMP)" value={futureResult.totalAcquisitionCost} isNegative />
                     <CalculationStep label="Despesas Variáveis (Venda)" value={futureResult.totalVariableExpenses} isNegative />
-                    <CalculationStep label="Rateio de Custo Fixo (CFU)" value={futureResult.totalFixedCosts} isNegative />
+                    <CalculationStep label="Custo Fixo Rateado (Proporcional)" value={fixedCostProportionalToNote} isNegative />
                   </div>
 
                   <div className="mt-4 space-y-1">
