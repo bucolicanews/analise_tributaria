@@ -17,7 +17,11 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
   summaryDataMinSale,
   totalOptionCost,
 }) => {
-  const showIvaDetails = params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal || (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit);
+  // A regra de exibição de créditos: Presumido, Real ou Simples Híbrido
+  const showIvaDetails = 
+    params.taxRegime === TaxRegime.LucroPresumido || 
+    params.taxRegime === TaxRegime.LucroReal || 
+    (params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit);
 
   return (
     <SummarySection title="Impostos">
@@ -33,12 +37,15 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
         description={`(${summaryDataMinSale.totalTaxPercent.toFixed(2)}% da Venda)`}
         valueClassName="text-destructive"
       />
-      <SummaryCard
-        title="Imposto Seletivo a Pagar (Alvo)"
-        value={summaryDataBestSale.totalSelectiveTaxToPay}
-        valueClassName={params.useSelectiveTaxDebit ? "text-destructive" : "text-muted-foreground"}
-        description={params.useSelectiveTaxDebit ? undefined : "Desativado na Transição"}
-      />
+      
+      {showIvaDetails && (
+        <SummaryCard
+          title="Imposto Seletivo a Pagar (Alvo)"
+          value={summaryDataBestSale.totalSelectiveTaxToPay}
+          valueClassName={params.useSelectiveTaxDebit ? "text-destructive" : "text-muted-foreground"}
+          description={params.useSelectiveTaxDebit ? undefined : "Desativado na Transição"}
+        />
+      )}
 
       {(params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) && (
         <React.Fragment>
@@ -64,18 +71,12 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
           />
           {params.generateIvaCredit && (
             <SummaryCard
-              title="Simples Nacional a Pagar (Híbrido)"
-              value={summaryDataBestSale.totalSimplesToPay}
-              valueClassName="text-destructive"
-              description="Alíquota Simples (IRPJ, CSLL, CPP) + CBS/IBS por fora"
+              title="Custo da Opção Híbrida"
+              value={totalOptionCost}
+              valueClassName="text-yellow-500"
+              description="Diferença de impostos entre Simples Padrão e Híbrido"
             />
           )}
-          <SummaryCard
-            title="Custo da Opção Híbrida"
-            value={totalOptionCost}
-            valueClassName="text-yellow-500"
-            description="Diferença de impostos entre Simples Padrão e Híbrido"
-          />
         </React.Fragment>
       )}
 
@@ -85,7 +86,7 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
             title="Crédito CBS Total"
             value={summaryDataBestSale.totalCbsCredit}
             valueClassName={params.usePisCofins ? "text-success" : "text-muted-foreground"}
-            description={params.usePisCofins ? undefined : "PIS/COFINS Crédito Desativado"}
+            description={params.usePisCofins ? "Créditos de PIS/COFINS (CBS)" : "PIS/COFINS Crédito Desativado"}
           />
           <SummaryCard
             title="Débito CBS Total"
@@ -101,7 +102,7 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
             title="Crédito IBS Total"
             value={summaryDataBestSale.totalIbsCredit}
             valueClassName={params.icmsPercentage > 0 ? "text-success" : "text-muted-foreground"}
-            description={`ICMS Crédito: ${params.icmsPercentage.toFixed(0)}%`}
+            description={`ICMS/IPI Crédito: ${params.icmsPercentage.toFixed(0)}%`}
           />
           <SummaryCard
             title="Débito IBS Total"
@@ -117,7 +118,7 @@ export const TaxSummary: React.FC<TaxSummaryProps> = ({
             title="IVA Crédito p/ Cliente"
             value={summaryDataBestSale.totalIvaCreditForClient}
             valueClassName="text-success"
-            description="Crédito de IVA gerado para o cliente (se aplicável)"
+            description="Crédito de IVA gerado para o cliente (B2B)"
           />
         </React.Fragment>
       )}

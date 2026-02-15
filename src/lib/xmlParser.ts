@@ -72,7 +72,7 @@ export const parseXml = (
           const cofinsElement = getElement(det, "COFINS");
           const cofinsVal = parseFloat(getText(cofinsElement, "vCOFINS") || "0");
 
-          // CRÉDITOS IPI (Incorporado na CBS na Reforma)
+          // CRÉDITOS IPI
           const ipiElement = getElement(det, "IPI");
           const ipiVal = parseFloat(getText(ipiElement, "vIPI") || "0");
 
@@ -86,12 +86,13 @@ export const parseXml = (
           const cofinsCst = getText(getElement(cofinsElement, "COFINSAliq") || getElement(cofinsElement, "COFINSNT"), "CST") || "";
           const icmsCst = getText(icmsElement, "CST") || getText(icmsElement, "CSOSN") || "";
 
+          // No cálculo da Reforma, IPI e ST também geram crédito integral (IBS/CBS)
           return {
             code, name, ean, cost, unit, quantity,
-            innerQuantity: 1, // Default, será ajustado pelo nome se houver padrão
-            pisCredit: quantity > 0 ? (pisVal + (ipiVal / 2)) / quantity : 0, // IPI rateado entre CBS/IBS na simulação
-            cofinsCredit: quantity > 0 ? cofinsVal / quantity : 0,
-            icmsCredit: quantity > 0 ? (icmsVal + icmsSTVal + icmsSNVal + (ipiVal / 2)) / quantity : 0,
+            innerQuantity: 1, 
+            pisCredit: quantity > 0 ? (pisVal / quantity) : 0, 
+            cofinsCredit: quantity > 0 ? (cofinsVal / quantity) : 0,
+            icmsCredit: quantity > 0 ? (icmsVal + icmsSTVal + icmsSNVal + ipiVal) / quantity : 0,
             cfop, cst: icmsCst, ncm, cest, pisCst, cofinsCst,
             ipiCst: getText(ipiElement, "CST") || "",
           };
