@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   MinusCircle, 
   PlusCircle, 
-  Equal 
+  Equal,
+  Info
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
@@ -92,7 +93,12 @@ const ImpactAnalysis = () => {
             <Calculator className="h-6 w-6" />
             Memória de Cálculo Detalhada (Passo a Passo)
           </CardTitle>
-          <p className="text-sm text-muted-foreground">Entenda como cada centavo é calculado até chegar ao Lucro Líquido.</p>
+          <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md mt-2">
+            <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+            <p className="text-xs text-blue-500/90 leading-relaxed">
+              <strong>Como este valor é calculado?</strong> A Receita Bruta abaixo é baseada no custo das suas <strong>Notas de Compra</strong>. O sistema projeta quanto você precisa vender hoje (Atual) vs amanhã (Reforma) para cobrir os impostos e despesas a partir do que você pagou ao fornecedor.
+            </p>
+          </div>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-8">
           
@@ -105,13 +111,13 @@ const ImpactAnalysis = () => {
             
             <div className="p-4 border rounded-lg bg-card/50">
               <div className="flex items-center justify-between mb-4 border-b pb-2">
-                <span className="text-sm font-bold">1. Receita Bruta (Atual)</span>
+                <span className="text-sm font-bold">1. Receita Bruta Projetada</span>
                 <span className="font-mono text-primary font-bold">{formatCurrency(legacyResult.totalRevenue)}</span>
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos e Despesas:</p>
-                <CalculationStep label="Custo de Aquisição (Compra)" value={legacyResult.totalAcquisitionCost} isNegative />
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Base: Notas de Compra):</p>
+                <CalculationStep label="Custo de Aquisição (XML Compra)" value={legacyResult.totalAcquisitionCost} isNegative />
                 <CalculationStep label="Despesas Variáveis (Venda)" value={legacyResult.totalVariableExpenses} isNegative />
                 <CalculationStep label="Custos Fixos Totais" value={legacyResult.totalFixedCosts} isNegative />
               </div>
@@ -157,7 +163,7 @@ const ImpactAnalysis = () => {
               </div>
 
               <div className="space-y-1">
-                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos e Despesas:</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Custos (Base: Notas de Compra):</p>
                 <CalculationStep label="Custo Aquisição Ajustado (CUMP)" value={futureResult.totalAcquisitionCost} isNegative />
                 <CalculationStep label="Despesas Variáveis (Venda)" value={futureResult.totalVariableExpenses} isNegative />
                 <CalculationStep label="Rateio de Custo Fixo (CFU)" value={futureResult.totalFixedCosts} isNegative />
