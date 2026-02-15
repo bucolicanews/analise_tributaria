@@ -1,7 +1,8 @@
 import { Product } from "@/types/pricing";
 
 // Helper to get a specific element by tag name, ignoring namespace
-const getElement = (element: Element | Document, tagName: string): Element | null => {
+const getElement = (element: Element | Document | null, tagName: string): Element | null => {
+    if (!element) return null;
     const nodes = element.getElementsByTagNameNS('*', tagName);
     return nodes.length > 0 ? nodes[0] : null;
 }
@@ -45,7 +46,14 @@ export const parseXml = (
             if (!partyCnpj) { // If not found, it might be an NFSe
                 const tomadorElement = getElement(xmlDoc, "tomador") || getElement(xmlDoc, "TomadorServico");
                 if (tomadorElement) {
+                    // Try direct lookup first
                     partyCnpj = getText(tomadorElement, "Cnpj") || getText(tomadorElement, "cnpj");
+                    // If failed, try nested lookup for complex NFSe layouts
+                    if (!partyCnpj) {
+                        const idTomador = getElement(tomadorElement, "IdentificacaoTomador");
+                        const cpfCnpjElement = getElement(idTomador, "CpfCnpj");
+                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ");
+                    }
                 }
             }
         } else { // type === 'sales'
@@ -55,7 +63,13 @@ export const parseXml = (
             if (!partyCnpj) { // If not found, it might be an NFSe
                 const prestadorElement = getElement(xmlDoc, "prestador") || getElement(xmlDoc, "PrestadorServico");
                 if (prestadorElement) {
+                    // Try direct lookup first
                     partyCnpj = getText(prestadorElement, "Cnpj") || getText(prestadorElement, "cnpj");
+                     // If failed, try nested lookup
+                    if (!partyCnpj) {
+                        const cpfCnpjElement = getElement(prestadorElement, "CpfCnpj");
+                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ");
+                    }
                 }
             }
         }
