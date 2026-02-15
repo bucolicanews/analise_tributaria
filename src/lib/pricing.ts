@@ -6,23 +6,19 @@ export const calculatePricing = (
   params: CalculationParams,
   cfu: number // Custo Fixo por Unidade
 ): CalculatedProduct => {
-  // 1. Créditos (do XML) - por unidade comercial, respeitando os parâmetros de transição
+  // 1. Créditos (Simulação Reforma) - No futuro, o crédito é financeiro (pago na etapa anterior = crédito agora)
   
-  const cbsCredit = 
-    params.taxRegime !== TaxRegime.SimplesNacional && params.usePisCofins 
-    ? product.pisCredit + product.cofinsCredit 
-    : 0;
+  // CBS substitui PIS/COFINS
+  const cbsCredit = params.usePisCofins ? (product.pisCredit + product.cofinsCredit) : 0;
   
-  const isIcmsST = ["10", "30", "60", "70", "90", "201", "202", "203", "500"].includes(product.cst || "");
+  // IBS substitui ICMS
+  // Mesmo que seja ST hoje, na Reforma o imposto pago na entrada gera crédito financeiro
   const icmsCreditPercentageFactor = params.icmsPercentage / 100;
-  const ibsCredit = 
-    !isIcmsST && product.icmsCredit && params.taxRegime !== TaxRegime.SimplesNacional
-    ? product.icmsCredit * icmsCreditPercentageFactor 
-    : 0;
+  const ibsCredit = (product.icmsCredit || 0) * icmsCreditPercentageFactor;
   
   const totalCredit = cbsCredit + ibsCredit;
 
-  // 2. Custo efetivo
+  // 2. Custo efetivo (Preço pago - créditos recuperáveis)
   const effectiveCost = product.cost - totalCredit;
 
   const fixedCostPerCommercialUnit = cfu * (product.innerQuantity > 0 ? product.innerQuantity : 1);
@@ -38,14 +34,12 @@ export const calculatePricing = (
   // --- LÓGICA DE CLASSIFICAÇÃO TRIBUTÁRIA ---
   const incideIS = checkIfNcmHasSelectiveTax(product.ncm);
   
-  // --- LÓGICA PARA ENCONTRAR A ALÍQUOTA CORRETA DO IMPOSTO SELETIVO ---
   let selectiveTaxRateForProduct = 0;
-  if (incideIS && params.taxRegime !== TaxRegime.SimplesNacional) {
+  if (incideIS) {
     const ncm = product.ncm?.replace(/\./g, '') || '';
     let bestMatchRate: number | null = null;
     let longestMatch = 0;
 
-    // Procura a regra de NCM mais específica
     for (const rule of params.selectiveTaxRates) {
       const ruleNcm = rule.ncm.replace(/\./g, '');
       if (ncm.startsWith(ruleNcm) && ruleNcm.length > longestMatch) {
@@ -53,16 +47,10 @@ export const calculatePricing = (
         longestMatch = ruleNcm.length;
       }
     }
-    
-    // Se encontrou uma regra específica, usa ela. Senão, usa a padrão.
     selectiveTaxRateForProduct = bestMatchRate !== null ? bestMatchRate : params.defaultSelectiveTaxRate;
   }
 
-  // 5. Soma das alíquotas percentuais
-  const totalVariableExpensesPercentage = params.variableExpenses.reduce(
-    (sum, exp) => sum + exp.percentage,
-    0
-  );
+  const totalVariableExpensesPercentage = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
   
   const cbsRateEffective = params.useCbsDebit ? params.cbsRate / 100 : 0;
   const ibsRateEffective = (params.ibsRate / 100) * (params.ibsDebitPercentage / 100);
@@ -78,31 +66,20 @@ export const calculatePricing = (
   let ivaCreditForClient = 0;
 
   if (params.taxRegime === TaxRegime.LucroPresumido) {
-    totalPercentageForMarkup =
-      (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 +
-      cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+    totalPercentageForMarkup = (totalVariableExpensesPercentage + params.irpjRate + params.csllRate + params.profitMargin) / 100 + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
   } else if (params.taxRegime === TaxRegime.LucroReal) {
     const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
     if (irpjCsllRate >= 1) {
       totalPercentageForMarkup = Infinity;
     } else {
       const profitComponent = (params.profitMargin / 100) / (1 - irpjCsllRate);
-      totalPercentageForMarkup =
-        (totalVariableExpensesPercentage / 100) +
-        cbsRateEffective +
-        ibsRateEffective +
-        selectiveTaxRateEffective +
-        profitComponent;
+      totalPercentageForMarkup = (totalVariableExpensesPercentage / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective + profitComponent;
     }
   } else { // Simples Nacional
     if (params.generateIvaCredit) {
-      totalPercentageForMarkup =
-        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
-        cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+      totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
-      totalPercentageForMarkup =
-        (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 +
-        selectiveTaxRateEffective;
+      totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + selectiveTaxRateEffective;
     }
   }
 
@@ -116,12 +93,6 @@ export const calculatePricing = (
   let markupPercentage = 0;
   let status: "OK" | "PREÇO CORRIGIDO" = "OK";
 
-  let valueForTaxes = 0;
-  let valueForVariableExpenses = 0;
-  let valueForFixedCost = 0;
-  let valueForProfit = 0;
-  let contributionMargin = 0;
-
   if (markupDivisor <= 0 || baseCostForMarkup === Infinity) {
     sellingPrice = 0;
     minSellingPrice = 0;
@@ -129,110 +100,54 @@ export const calculatePricing = (
   } else {
     sellingPrice = baseCostForMarkup / markupDivisor;
     
-    let minSellingDivisor = 0;
     let totalTaxRateForMinPrice = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
     } else if (params.taxRegime === TaxRegime.LucroReal) {
       totalTaxRateForMinPrice = cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
-      if (params.generateIvaCredit) {
-        totalTaxRateForMinPrice = (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-      } else {
-        totalTaxRateForMinPrice = (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
-      }
+      totalTaxRateForMinPrice = params.generateIvaCredit ? (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective : (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
     }
-    minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + totalTaxRateForMinPrice);
+    const minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + totalTaxRateForMinPrice);
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
     selectiveTaxToPay = sellingPrice * selectiveTaxRateEffective;
     
-    if (params.taxRegime === TaxRegime.LucroPresumido) {
+    if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
       cbsDebit = sellingPrice * cbsRateEffective;
       ibsDebit = sellingPrice * ibsRateEffective;
-      irpjToPay = sellingPrice * (params.irpjRate / 100);
-      csllToPay = sellingPrice * (params.csllRate / 100);
-      ivaCreditForClient = cbsDebit + ibsDebit;
-    } else if (params.taxRegime === TaxRegime.LucroReal) {
-      cbsDebit = sellingPrice * cbsRateEffective;
-      ibsDebit = sellingPrice * ibsRateEffective;
-      const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
-      const netProfit = sellingPrice * (params.profitMargin / 100);
-      const pbt = (irpjCsllRate < 1) ? netProfit / (1 - irpjCsllRate) : 0;
-      irpjToPay = pbt * (params.irpjRateLucroReal / 100);
-      csllToPay = pbt * (params.csllRateLucroReal / 100);
+      if (params.taxRegime === TaxRegime.LucroPresumido) {
+        irpjToPay = sellingPrice * (params.irpjRate / 100);
+        csllToPay = sellingPrice * (params.csllRate / 100);
+      } else {
+        const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
+        const netProfit = sellingPrice * (params.profitMargin / 100);
+        const pbt = (irpjCsllRate < 1) ? netProfit / (1 - irpjCsllRate) : 0;
+        irpjToPay = pbt * (params.irpjRateLucroReal / 100);
+        csllToPay = pbt * (params.csllRateLucroReal / 100);
+      }
       ivaCreditForClient = cbsDebit + ibsDebit;
     } else {
+      simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
       if (params.generateIvaCredit) {
-        simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
         cbsDebit = sellingPrice * cbsRateEffective;
         ibsDebit = sellingPrice * ibsRateEffective;
         ivaCreditForClient = cbsDebit + ibsDebit;
-      } else {
-        simplesToPay = sellingPrice * (params.simplesNacionalRate / 100);
-        cbsDebit = 0;
-        ibsDebit = 0;
-        ivaCreditForClient = 0;
       }
     }
 
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
-    if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
-      taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay;
-    } else {
-      if (params.generateIvaCredit) {
-        taxToPay = simplesToPay + cbsTaxToPay + ibsTaxToPay + selectiveTaxToPay;
-      } else {
-        taxToPay = simplesToPay + selectiveTaxToPay;
-      }
-    }
+    taxToPay = (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) 
+      ? (cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay)
+      : (simplesToPay + (params.generateIvaCredit ? (cbsTaxToPay + ibsTaxToPay) : 0) + selectiveTaxToPay);
 
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
-    valueForTaxes = taxToPay;
-    valueForVariableExpenses = sellingPrice * (totalVariableExpensesPercentage / 100);
-    valueForFixedCost = fixedCostPerCommercialUnit;
-    valueForProfit = sellingPrice * (params.profitMargin / 100);
-    contributionMargin = sellingPrice - (product.cost + valueForVariableExpenses);
   }
 
   const innerQty = product.innerQuantity > 0 ? product.innerQuantity : 1;
-  const costPerInnerUnit = product.cost / innerQty;
-  const effectiveCostPerInnerUnit = effectiveCost / innerQty;
-  const sellingPricePerInnerUnit = sellingPrice / innerQty;
-  const minSellingPricePerInnerUnit = minSellingPrice / innerQty;
-  const cbsCreditPerInnerUnit = cbsCredit / innerQty;
-  const ibsCreditPerInnerUnit = ibsCredit / innerQty;
-  const cbsDebitPerInnerUnit = cbsDebit / innerQty;
-  const ibsDebitPerInnerUnit = ibsDebit / innerQty;
-  const cbsTaxToPayPerInnerUnit = cbsTaxToPay / innerQty;
-  const ibsTaxToPayPerInnerUnit = ibsTaxToPay / innerQty;
-  const irpjToPayPerInnerUnit = irpjToPay / innerQty;
-  const csllToPayPerInnerUnit = csllToPay / innerQty;
-  const simplesToPayPerInnerUnit = simplesToPay / innerQty;
-  const taxToPayPerInnerUnit = taxToPay / innerQty;
-  const selectiveTaxToPayPerInnerUnit = selectiveTaxToPay / innerQty;
-
-  const icmsClassification = isIcmsST ? 'Substituição Tributária' : 'Tributado Integralmente';
-  const isPisCofinsMonofasico = ["04", "05", "06", "07", "08", "09"].includes(product.pisCst || "");
-  let pisCofinsClassification: 'Monofásico (Receita Segregada)' | 'Tributado (Alíquota Unificada no DAS)' | 'Débito e Crédito (Não Cumulativo)';
-  if (params.taxRegime === TaxRegime.SimplesNacional) {
-    pisCofinsClassification = isPisCofinsMonofasico ? 'Monofásico (Receita Segregada)' : 'Tributado (Alíquota Unificada no DAS)';
-  } else {
-    pisCofinsClassification = 'Débito e Crédito (Não Cumulativo)';
-  }
-  const foundCClass = findCClassByNcm(product.ncm);
-  const cClassTrib = foundCClass !== null ? foundCClass : 1;
-  const wasNcmFound = foundCClass !== null;
-  let suggestedIcmsCstOrCsosn = '102';
-  if (isIcmsST) {
-    suggestedIcmsCstOrCsosn = '500';
-  }
-  let suggestedPisCofinsCst = '01';
-  if (isPisCofinsMonofasico) {
-    suggestedPisCofinsCst = '04';
-  }
+  const contributionMargin = sellingPrice - (product.cost + (sellingPrice * (totalVariableExpensesPercentage / 100)));
 
   return {
     ...product,
@@ -254,37 +169,37 @@ export const calculatePricing = (
     cfop: product.cfop || "5102",
     cst: product.cst || "101",
     status,
-    valueForTaxes: Math.max(0, valueForTaxes),
-    valueForVariableExpenses: Math.max(0, valueForVariableExpenses),
-    valueForFixedCost: Math.max(0, valueForFixedCost),
-    valueForProfit: Math.max(0, valueForProfit),
+    valueForTaxes: Math.max(0, taxToPay),
+    valueForVariableExpenses: Math.max(0, sellingPrice * (totalVariableExpensesPercentage / 100)),
+    valueForFixedCost: fixedCostPerCommercialUnit,
+    valueForProfit: sellingPrice * (params.profitMargin / 100),
     contributionMargin: contributionMargin,
     ivaCreditForClient: Math.max(0, ivaCreditForClient),
-    costPerInnerUnit,
-    effectiveCostPerInnerUnit,
-    sellingPricePerInnerUnit: Math.max(0, sellingPricePerInnerUnit),
-    minSellingPricePerInnerUnit: Math.max(0, minSellingPricePerInnerUnit),
-    cbsCreditPerInnerUnit,
-    ibsCreditPerInnerUnit,
-    cbsDebitPerInnerUnit: Math.max(0, cbsDebitPerInnerUnit),
-    ibsDebitPerInnerUnit: Math.max(0, ibsDebitPerInnerUnit),
-    taxToPayPerInnerUnit: Math.max(0, taxToPayPerInnerUnit),
-    cbsTaxToPayPerInnerUnit: Math.max(0, cbsTaxToPayPerInnerUnit),
-    ibsTaxToPayPerInnerUnit: Math.max(0, ibsTaxToPayPerInnerUnit),
-    irpjToPayPerInnerUnit: Math.max(0, irpjToPayPerInnerUnit),
-    csllToPayPerInnerUnit: Math.max(0, csllToPayPerInnerUnit),
-    simplesToPayPerInnerUnit: Math.max(0, simplesToPayPerInnerUnit),
-    selectiveTaxToPayPerInnerUnit: Math.max(0, selectiveTaxToPayPerInnerUnit),
+    costPerInnerUnit: product.cost / innerQty,
+    effectiveCostPerInnerUnit: effectiveCost / innerQty,
+    sellingPricePerInnerUnit: sellingPrice / innerQty,
+    minSellingPricePerInnerUnit: minSellingPrice / innerQty,
+    cbsCreditPerInnerUnit: cbsCredit / innerQty,
+    ibsCreditPerInnerUnit: ibsCredit / innerQty,
+    cbsDebitPerInnerUnit: cbsDebit / innerQty,
+    ibsDebitPerInnerUnit: ibsDebit / innerQty,
+    taxToPayPerInnerUnit: taxToPay / innerQty,
+    cbsTaxToPayPerInnerUnit: cbsTaxToPay / innerQty,
+    ibsTaxToPayPerInnerUnit: ibsTaxToPay / innerQty,
+    irpjToPayPerInnerUnit: irpjToPay / innerQty,
+    csllToPayPerInnerUnit: csllToPay / innerQty,
+    simplesToPayPerInnerUnit: simplesToPay / innerQty,
+    selectiveTaxToPayPerInnerUnit: selectiveTaxToPay / innerQty,
     taxAnalysis: {
-      icms: icmsClassification,
-      pisCofins: pisCofinsClassification,
-      wasNcmFound: wasNcmFound,
+      icms: ['10', '30', '60', '70', '90', '201', '202', '203', '500'].includes(product.cst || "") ? 'Substituição Tributária' : 'Tributado Integralmente',
+      pisCofins: ["04", "05", "06", "07", "08", "09"].includes(product.pisCst || "") ? 'Monofásico (Receita Segregada)' : 'Tributado (Alíquota Unificada no DAS)',
+      wasNcmFound: findCClassByNcm(product.ncm) !== null,
       incideIS: incideIS,
     },
     suggestedCodes: {
-      icmsCstOrCsosn: suggestedIcmsCstOrCsosn,
-      pisCofinsCst: suggestedPisCofinsCst,
+      icmsCstOrCsosn: ['10', '30', '60', '70', '90', '201', '202', '203', '500'].includes(product.cst || "") ? '500' : '102',
+      pisCofinsCst: ["04", "05", "06", "07", "08", "09"].includes(product.pisCst || "") ? '04' : '01',
     },
-    cClassTrib: cClassTrib,
+    cClassTrib: findCClassByNcm(product.ncm) || 1,
   };
 };

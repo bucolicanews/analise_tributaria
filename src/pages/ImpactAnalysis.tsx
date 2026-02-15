@@ -73,8 +73,16 @@ const ImpactAnalysis = () => {
       const futureVarExp = calculatedFuture.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
       
       // Detalhando Impostos da Reforma
-      const totalFutureDebits = calculatedFuture.reduce((sum, p) => sum + (p.cbsDebit + p.ibsDebit + p.selectiveTaxToPay + p.irpjToPay + p.csllToPay + p.simplesToPay) * p.quantity, 0);
-      const totalFutureCredits = calculatedFuture.reduce((sum, p) => sum + (p.cbsCredit + p.ibsCredit) * p.quantity, 0);
+      const totalFutureCbsDebit = calculatedFuture.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
+      const totalFutureIbsDebit = calculatedFuture.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
+      const totalFutureSelectiveDebit = calculatedFuture.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
+      const totalFutureSimplesDebit = calculatedFuture.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
+      
+      const totalFutureCbsCredit = calculatedFuture.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
+      const totalFutureIbsCredit = calculatedFuture.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
+
+      const totalFutureDebits = totalFutureCbsDebit + totalFutureIbsDebit + totalFutureSelectiveDebit + totalFutureSimplesDebit;
+      const totalFutureCredits = totalFutureCbsCredit + totalFutureIbsCredit;
       const futureTotalTax = totalFutureDebits - totalFutureCredits;
       
       const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - fixedCostProportionalToNote - futureTotalTax;
@@ -102,6 +110,12 @@ const ImpactAnalysis = () => {
         legacyResult,
         futureResult: {
           totalRevenue: futureRevenue,
+          cbsDebit: totalFutureCbsDebit,
+          ibsDebit: totalFutureIbsDebit,
+          cbsCredit: totalFutureCbsCredit,
+          ibsCredit: totalFutureIbsCredit,
+          selectiveTax: totalFutureSelectiveDebit,
+          simplesTax: totalFutureSimplesDebit,
           totalDebits: totalFutureDebits,
           totalCredits: totalFutureCredits,
           totalTax: futureTotalTax,
@@ -254,10 +268,26 @@ const ImpactAnalysis = () => {
                     
                     {showTaxDetail ? (
                       <div className="animate-in fade-in slide-in-from-top-1 duration-200">
-                        <CalculationStep label="Débitos (Imposto s/ Venda)" value={futureResult.totalDebits} />
-                        <CalculationStep label="Créditos (Sistema Financeiro)" value={futureResult.totalCredits} isNegative color="text-success" />
+                        {/* DETALHAMENTO DE DÉBITOS */}
+                        <CalculationStep label="(+) Débitos s/ Venda" value={futureResult.totalDebits} />
+                        {futureResult.params.taxRegime === TaxRegime.SimplesNacional && (
+                          <CalculationStep label="• Simples Nacional" value={futureResult.simplesTax} isSubItem />
+                        )}
+                        <CalculationStep label="• CBS (Federal)" value={futureResult.cbsDebit} isSubItem />
+                        <CalculationStep label="• IBS (Estadual/Mun)" value={futureResult.ibsDebit} isSubItem />
+                        {futureResult.selectiveTax > 0 && (
+                          <CalculationStep label="• Imposto Seletivo" value={futureResult.selectiveTax} isSubItem />
+                        )}
+
+                        {/* DETALHAMENTO DE CRÉDITOS */}
+                        <div className="mt-2">
+                          <CalculationStep label="(-) Créditos s/ Compra" value={futureResult.totalCredits} isNegative color="text-success" />
+                          <CalculationStep label="• Crédito CBS (Entrada)" value={futureResult.cbsCredit} isSubItem color="text-success" isNegative />
+                          <CalculationStep label="• Crédito IBS (Entrada)" value={futureResult.ibsCredit} isSubItem color="text-success" isNegative />
+                        </div>
+
                         <div className="border-t border-primary/20 mt-1 pt-1">
-                          <CalculationStep label="Imposto Líquido a Pagar" value={futureResult.totalTax} isNegative color="text-destructive" />
+                          <CalculationStep label="(=) Imposto Líquido a Pagar" value={futureResult.totalTax} isNegative color="text-destructive" />
                         </div>
                       </div>
                     ) : (
