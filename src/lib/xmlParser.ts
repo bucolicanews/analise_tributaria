@@ -33,11 +33,20 @@ export const parseXml = (
         const cleanedCompanyCnpj = companyCnpj.replace(/\D/g, '');
         
         if (type === 'purchase') {
+          let recipientCnpj: string | null = null;
           const destElement = getElement(xmlDoc, "dest");
-          const destCnpj = destElement ? getText(destElement, "CNPJ") : null;
-          const cleanedDestCnpj = destCnpj?.replace(/\D/g, '');
-          if (!cleanedDestCnpj || cleanedDestCnpj !== cleanedCompanyCnpj) {
-            throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário (${destCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
+          const tomaElement = getElement(xmlDoc, "toma"); // Tag para tomador de serviço em CTe
+
+          if (destElement) {
+            recipientCnpj = getText(destElement, "CNPJ");
+          } else if (tomaElement) {
+            recipientCnpj = getText(tomaElement, "CNPJ");
+          }
+          
+          const cleanedRecipientCnpj = recipientCnpj?.replace(/\D/g, '');
+
+          if (!cleanedRecipientCnpj || cleanedRecipientCnpj !== cleanedCompanyCnpj) {
+            throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário/tomador (${recipientCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
           }
         } else { // type === 'sales'
           const emitElement = getElement(xmlDoc, "emit");
@@ -51,7 +60,15 @@ export const parseXml = (
 
       const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
       if (detElements.length === 0) {
-        throw new Error("Nenhum produto encontrado no XML");
+        const isCTe = getElement(xmlDoc, "infCte") !== null;
+        const isNFSe = getElement(xmlDoc, "infNfse") !== null;
+        if (isCTe) {
+          throw new Error("Nenhum produto encontrado. Este arquivo parece ser um Conhecimento de Transporte (CTe), que não contém lista de produtos. Por favor, envie uma Nota Fiscal de Produto (NFe).");
+        }
+        if (isNFSe) {
+          throw new Error("Nenhum produto encontrado. Este arquivo parece ser uma Nota Fiscal de Serviço (NFSe), que não contém lista de produtos. Por favor, envie uma Nota Fiscal de Produto (NFe).");
+        }
+        throw new Error("Nenhum produto (tag <det>) encontrado no XML. Verifique se o arquivo é uma NFe válida.");
       }
 
       const products: Product[] = Array.from(detElements).map((det) => {
