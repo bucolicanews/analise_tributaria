@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { CalculatedProduct, StrategicData, SupplierType, CustomerType, EssentialityLevel } from '@/types/pricing';
+import { CalculatedProduct, StrategicData, SupplierType, CustomerType, EssentialityLevel, TaxRegime } from '@/types/pricing';
 import { toast } from 'sonner';
 
 interface ProductStrategicDetailsProps {
@@ -14,7 +14,7 @@ interface ProductStrategicDetailsProps {
 }
 
 const defaultStrategicData: StrategicData = {
-  purchaseProfile: { supplierType: 'distribuidor', creditEligible: true },
+  purchaseProfile: { supplierType: 'distribuidor', supplierRegime: 'desconhecido', creditEligible: true },
   salesProfile: { customerType: 'B2C', percentageB2B: 0, interestateSalesPercent: 0 },
   regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'standard' },
 };
@@ -58,6 +58,26 @@ export const ProductStrategicDetails: React.FC<ProductStrategicDetailsProps> = (
         </div>
 
         <div className="space-y-3 p-3 border rounded-md">
+          <h4 className="font-semibold">Perfil do Fornecedor (Lado Compra)</h4>
+          <div className="space-y-2">
+            <Label>Regime do Fornecedor</Label>
+            <Select
+              value={data.purchaseProfile.supplierRegime}
+              onValueChange={(value: any) => setData(d => ({ ...d, purchaseProfile: { ...d.purchaseProfile, supplierRegime: value } }))}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="desconhecido">Não Informado</SelectItem>
+                <SelectItem value={TaxRegime.SimplesNacional}>Simples Nacional</SelectItem>
+                <SelectItem value={TaxRegime.LucroPresumido}>Lucro Presumido</SelectItem>
+                <SelectItem value={TaxRegime.LucroReal}>Lucro Real</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">O regime do fornecedor determina o seu crédito financeiro de IBS/CBS.</p>
+          </div>
+        </div>
+
+        <div className="space-y-3 p-3 border rounded-md">
           <h4 className="font-semibold">Perfil de Mercado</h4>
           <div className="space-y-4">
             <div className="space-y-2">
@@ -67,7 +87,6 @@ export const ProductStrategicDetails: React.FC<ProductStrategicDetailsProps> = (
                 value={data.salesProfile.interestateSalesPercent} 
                 onChange={e => setData(d => ({ ...d, salesProfile: { ...d.salesProfile, interestateSalesPercent: parseFloat(e.target.value) || 0 } }))} 
               />
-              <p className="text-[10px] text-muted-foreground">Impacta crédito de destino e Difal futuro.</p>
             </div>
             <div className="space-y-2">
               <Label>Tipo de Cliente</Label>

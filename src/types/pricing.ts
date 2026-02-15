@@ -47,19 +47,20 @@ export type CustomerType = 'B2C' | 'B2B' | 'misto' | 'desconhecido';
 
 export interface PurchaseProfile {
   supplierType: SupplierType;
+  supplierRegime: TaxRegime | 'desconhecido'; // Novo: Impacta crédito IBS/CBS
   creditEligible: boolean;
 }
 
 export interface SalesProfile {
   customerType: CustomerType;
   percentageB2B: number;
-  interestateSalesPercent: number; // Novo: % de vendas para fora do estado
+  interestateSalesPercent: number; 
 }
 
 export interface RegulatoryRisk {
   essentialFoodCandidate: boolean;
   healthTaxRisk: boolean;
-  essentiality: EssentialityLevel; // Novo: Classificação LC 214
+  essentiality: EssentialityLevel; 
 }
 
 export interface StrategicData {
@@ -72,7 +73,8 @@ export interface CalculationParams {
   companyName?: string;
   companyCnpj?: string;
   companyCnaes?: string;
-  companyState?: string; // Novo: UF da Empresa
+  companyState?: string; 
+  companyLegalNature?: string; // Novo
   
   profitMargin: number;
   fixedExpenses: FixedExpense[];

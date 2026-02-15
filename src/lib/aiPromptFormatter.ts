@@ -28,9 +28,11 @@ interface ProfessionalAIPayload {
     breakEvenPoint: number;
     taxPressurePercent: number;
     interestateSalesAvgPercent: number;
+    financialConsistencyScore: number; // 0-100 (Receita vs Custo Fixo)
   };
   productAnalysis: {
     ncmGroups: AggregatedNcmData[];
+    transitionRiskScore: number; // 0-100
   };
 }
 
@@ -39,15 +41,18 @@ interface AggregatedNcmData {
   itemCount: number;
   revenueShare: number;
   averageSalePrice: number;
+  averageCost: number;
+  grossMarginPercent: number;
   essentialityLC214: string;
   selectiveTaxExposure: boolean;
-  supplierType: string;
+  supplierRegimeMix: Record<string, number>;
   customerMix: { b2c: number; b2b: number };
   interestateMix: number;
+  stExposure: boolean;
 }
 
 const defaultStrategicData: StrategicData = {
-  purchaseProfile: { supplierType: 'distribuidor', creditEligible: true },
+  purchaseProfile: { supplierType: 'distribuidor', supplierRegime: 'desconhecido', creditEligible: true },
   salesProfile: { customerType: 'B2C', percentageB2B: 0, interestateSalesPercent: 0 },
   regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'standard' },
 };
@@ -61,11 +66,13 @@ export const createOptimizedAIPayload = (
   const ncmMap = new Map<string, {
     itemCount: number;
     totalRevenue: number;
+    totalCost: number;
     essentialityCounts: Record<string, number>;
     hasSelectiveTax: boolean;
-    supplierTypes: Record<string, number>;
+    supplierRegimes: Record<string, number>;
     customerTypes: Record<string, number>;
     totalInterestatePercent: number;
+    stCount: number;
   }>();
 
   let globalInterestateSum = 0;
@@ -77,22 +84,27 @@ export const createOptimizedAIPayload = (
 
     if (!ncmMap.has(ncm)) {
       ncmMap.set(ncm, {
-        itemCount: 0, totalRevenue: 0, hasSelectiveTax: false,
-        essentialityCounts: {}, supplierTypes: {}, customerTypes: {}, totalInterestatePercent: 0
+        itemCount: 0, totalRevenue: 0, totalCost: 0, hasSelectiveTax: false,
+        essentialityCounts: {}, supplierRegimes: {}, customerTypes: {}, totalInterestatePercent: 0, stCount: 0
       });
     }
 
     const group = ncmMap.get(ncm)!;
     group.itemCount++;
     group.totalRevenue += (p.sellingPrice * p.quantity);
+    group.totalCost += (p.cost * p.quantity);
     group.totalInterestatePercent += strategic.salesProfile.interestateSalesPercent;
     
     const ess = strategic.regulatoryRisk.essentiality;
     group.essentialityCounts[ess] = (group.essentialityCounts[ess] || 0) + 1;
     
-    group.supplierTypes[strategic.purchaseProfile.supplierType] = (group.supplierTypes[strategic.purchaseProfile.supplierType] || 0) + 1;
+    const regime = strategic.purchaseProfile.supplierRegime;
+    group.supplierRegimes[regime] = (group.supplierRegimes[regime] || 0) + 1;
+    
     group.customerTypes[strategic.salesProfile.customerType] = (group.customerTypes[strategic.salesProfile.customerType] || 0) + 1;
+    
     if (p.taxAnalysis.incideIS) group.hasSelectiveTax = true;
+    if (p.taxAnalysis.icms === 'Substituição Tributária') group.stCount++;
   }
 
   const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(([ncm, data]) => {
@@ -102,16 +114,28 @@ export const createOptimizedAIPayload = (
       itemCount: data.itemCount,
       revenueShare: summary.totalSelling > 0 ? data.totalRevenue / summary.totalSelling : 0,
       averageSalePrice: data.itemCount > 0 ? data.totalRevenue / data.itemCount : 0,
+      averageCost: data.itemCount > 0 ? data.totalCost / data.itemCount : 0,
+      grossMarginPercent: data.totalRevenue > 0 ? ((data.totalRevenue - data.totalCost) / data.totalRevenue) * 100 : 0,
       essentialityLC214: dominantEss,
       selectiveTaxExposure: data.hasSelectiveTax,
-      supplierType: Object.keys(data.supplierTypes).reduce((a, b) => data.supplierTypes[a] > data.supplierTypes[b] ? a : b, 'distribuidor'),
+      supplierRegimeMix: data.supplierRegimes,
       customerMix: { b2c: 1, b2b: 0 },
-      interestateMix: data.totalInterestatePercent / data.itemCount
+      interestateMix: data.totalInterestatePercent / data.itemCount,
+      stExposure: data.stCount > 0
     };
   });
 
+  // Cálculo de Risco de Transição Simplificado
+  // Fatores: Dependência de ST, Margem Baixa, Exposição ao Seletivo
+  const avgMargin = ncmGroups.reduce((acc, g) => acc + g.grossMarginPercent, 0) / (ncmGroups.length || 1);
+  const stDependency = ncmGroups.filter(g => g.stExposure).length / (ncmGroups.length || 1);
+  const riskScore = Math.min(100, (stDependency * 40) + (avgMargin < 20 ? 30 : 0) + (ncmGroups.some(g => g.selectiveTaxExposure) ? 30 : 0));
+
+  // Score de Consistência Financeira (Receita vs Custo Fixo)
+  const consistencyScore = summary.totalSelling >= summary.breakEvenPoint ? 100 : Math.max(0, (summary.totalSelling / summary.breakEvenPoint) * 100);
+
   return {
-    objective: "Realizar auditoria fiscal e planejamento preventivo para a transição do IBS/CBS (2026-2033), considerando essencialidade e créditos interestaduais.",
+    objective: "Realizar auditoria fiscal e planejamento preventivo para a transição do IBS/CBS (2026-2033), considerando essencialidade, créditos de fornecedores e risco de capital de giro.",
     companyProfile: {
       name: params.companyName,
       cnpj: params.companyCnpj,
@@ -136,8 +160,12 @@ export const createOptimizedAIPayload = (
       netProfitMargin: summary.profitMarginPercent / 100,
       breakEvenPoint: summary.breakEvenPoint,
       taxPressurePercent: summary.totalTaxPercent / 100,
-      interestateSalesAvgPercent: products.length > 0 ? globalInterestateSum / products.length : 0
+      interestateSalesAvgPercent: products.length > 0 ? globalInterestateSum / products.length : 0,
+      financialConsistencyScore: consistencyScore
     },
-    productAnalysis: { ncmGroups }
+    productAnalysis: { 
+      ncmGroups,
+      transitionRiskScore: riskScore
+    }
   };
 };
