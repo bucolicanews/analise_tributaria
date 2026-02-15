@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Printer, Tags, Info } from 'lucide-react';
+import { Search, Printer, Tags, Info, DollarSign } from 'lucide-react';
 import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { generateProductListPdf } from '@/lib/pdfGenerator';
@@ -11,13 +11,19 @@ import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+const MetricItem = ({ label, value, className }: { label: string; value: string; className?: string }) => (
+  <div className="flex flex-col border-r border-border last:border-r-0 px-3 py-1">
+    <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label}</span>
+    <span className={`text-sm font-mono font-bold ${className}`}>{value}</span>
+  </div>
+);
+
 const ProductList = () => {
   const [products, setProducts] = useState<CalculatedProduct[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     try {
-      // Corrigido: Usando as chaves corretas do sessionStorage
       const storedRawProducts = sessionStorage.getItem('jota-calc-purchase-products');
       const storedParams = sessionStorage.getItem('jota-calc-params');
       const storedSelection = sessionStorage.getItem('jota-calc-selection');
@@ -27,7 +33,6 @@ const ProductList = () => {
         const params: CalculationParams = JSON.parse(storedParams);
         const selectedCodes = new Set(JSON.parse(storedSelection || '[]'));
         
-        // Filtra apenas os produtos que foram selecionados na análise
         const productsToProcess = selectedCodes.size > 0 
           ? rawProducts.filter(p => selectedCodes.has(p.code))
           : rawProducts;
@@ -106,7 +111,9 @@ const ProductList = () => {
           <div className="space-y-6">
             {filteredProducts.map(product => {
               const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
-              
+              const fixedCostPerComUnit = product.valueForFixedCost / product.quantity;
+              const totalBaseCostUnit = product.cost + fixedCostPerComUnit;
+
               return (
                 <div key={product.code} className="rounded-lg border border-border overflow-hidden shadow-sm">
                   {/* Cabeçalho do Produto */}
@@ -123,6 +130,17 @@ const ProductList = () => {
                       <div className="text-xs text-muted-foreground">Preço Sugerido (Varejo)</div>
                       <div className="text-xl font-extrabold text-primary">{formatCurrency(product.sellingPricePerInnerUnit)}</div>
                     </div>
+                  </div>
+
+                  {/* NOVO: Métricas Financeiras */}
+                  <div className="flex flex-wrap bg-muted/10 border-b border-border py-2 px-1">
+                    <MetricItem label="Custo Total Base (Unit)" value={formatCurrency(totalBaseCostUnit)} className="text-foreground" />
+                    <MetricItem label="Custo Unid. Int." value={formatCurrency(product.costPerInnerUnit)} className="text-foreground" />
+                    <MetricItem label="Venda Mín. Unid. Int." value={formatCurrency(product.minSellingPricePerInnerUnit)} className="text-yellow-500" />
+                    <MetricItem label="Venda Sug. Unid. Int." value={formatCurrency(product.sellingPricePerInnerUnit)} className="text-primary" />
+                    <MetricItem label="Venda Mín. Com." value={formatCurrency(product.minSellingPrice)} className="text-yellow-500" />
+                    <MetricItem label="Venda Sug. Com." value={formatCurrency(product.sellingPrice)} className="text-primary" />
+                    <MetricItem label="Imposto Líq." value={formatCurrency(product.taxToPay)} className="text-destructive" />
                   </div>
 
                   {/* Detalhes de Cadastro (O que o usuário deve preencher) */}
