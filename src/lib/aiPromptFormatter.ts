@@ -4,6 +4,12 @@ import { GlobalSummaryData } from "@/components/ProductsTable";
 // Interfaces para o payload profissional
 interface ProfessionalAIPayload {
   objective: string;
+  companyProfile: {
+    name?: string;
+    cnpj?: string;
+    cnaes?: string[];
+    legalNature?: string;
+  };
   context: {
     taxRegime: TaxRegime;
     parameters: {
@@ -124,7 +130,13 @@ export const createOptimizedAIPayload = (
   );
 
   const payload: ProfessionalAIPayload = {
-    objective: "Análise tributária estratégica da Reforma Tributária Brasileira",
+    objective: "Realizar análise tributária estratégica e de segurança jurídica, avaliando o enquadramento fiscal das atividades (CNAEs) em relação ao regime tributário simulado e à natureza jurídica da empresa.",
+    companyProfile: {
+      name: params.companyName,
+      cnpj: params.companyCnpj,
+      cnaes: params.companyCnaes?.split(',').map(c => c.trim()),
+      legalNature: params.companyLegalNature,
+    },
     context: {
       taxRegime: params.taxRegime,
       parameters: {
