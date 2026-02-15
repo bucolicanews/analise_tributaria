@@ -39,13 +39,25 @@ export const parseXml = (
         let partyCnpj: string | null = null;
 
         if (type === 'purchase') {
-          const destElement = getElement(xmlDoc, "dest"); // NFe
-          const tomadorElement = getElement(xmlDoc, "tomador"); // NFSe
-          partyCnpj = getText(destElement, "CNPJ") || getText(tomadorElement, "cnpj");
+            const destElement = getElement(xmlDoc, "dest"); // For NFe
+            partyCnpj = getText(destElement, "CNPJ");
+
+            if (!partyCnpj) { // If not found, it might be an NFSe
+                const tomadorElement = getElement(xmlDoc, "tomador") || getElement(xmlDoc, "TomadorServico");
+                if (tomadorElement) {
+                    partyCnpj = getText(tomadorElement, "Cnpj") || getText(tomadorElement, "cnpj");
+                }
+            }
         } else { // type === 'sales'
-          const emitElement = getElement(xmlDoc, "emit"); // NFe
-          const prestadorElement = getElement(xmlDoc, "prestador"); // NFSe
-          partyCnpj = getText(emitElement, "CNPJ") || getText(prestadorElement, "cnpj");
+            const emitElement = getElement(xmlDoc, "emit"); // For NFe
+            partyCnpj = getText(emitElement, "CNPJ");
+
+            if (!partyCnpj) { // If not found, it might be an NFSe
+                const prestadorElement = getElement(xmlDoc, "prestador") || getElement(xmlDoc, "PrestadorServico");
+                if (prestadorElement) {
+                    partyCnpj = getText(prestadorElement, "Cnpj") || getText(prestadorElement, "cnpj");
+                }
+            }
         }
         
         const cleanedPartyCnpj = partyCnpj?.replace(/\D/g, '');
