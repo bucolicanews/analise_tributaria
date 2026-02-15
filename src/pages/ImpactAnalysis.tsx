@@ -12,7 +12,9 @@ import {
   Target,
   AlertTriangle,
   ArrowRight,
-  CalculatorIcon
+  CalculatorIcon,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
@@ -23,13 +25,13 @@ import { useNavigate } from 'react-router-dom';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
-const CalculationStep = ({ label, value, isNegative = false, color = "text-foreground" }: { label: string, value: number, isNegative?: boolean, color?: string }) => (
-  <div className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
+const CalculationStep = ({ label, value, isNegative = false, color = "text-foreground", isSubItem = false }: { label: string, value: number, isNegative?: boolean, color?: string, isSubItem?: boolean }) => (
+  <div className={cn("flex items-center justify-between py-2 border-b border-border/50 last:border-0", isSubItem && "ml-4 opacity-80 py-1")}>
     <div className="flex items-center gap-2">
-      {isNegative ? <MinusCircle className="h-4 w-4 text-destructive" /> : <PlusCircle className="h-4 w-4 text-success" />}
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {isNegative ? <MinusCircle className={cn("h-4 w-4 text-destructive", isSubItem && "h-3 w-3")} /> : <PlusCircle className={cn("h-4 w-4 text-success", isSubItem && "h-3 w-3")} />}
+      <span className={cn("text-xs font-medium text-muted-foreground", isSubItem && "text-[10px]")}>{label}</span>
     </div>
-    <span className={cn("font-mono font-bold text-sm", color)}>{isNegative ? "-" : ""}{formatCurrency(value)}</span>
+    <span className={cn("font-mono font-bold text-sm", color, isSubItem && "text-xs")}>{isNegative ? "-" : ""}{formatCurrency(value)}</span>
   </div>
 );
 
@@ -37,6 +39,7 @@ const ImpactAnalysis = () => {
   const navigate = useNavigate();
   const [futureIbsRate, setFutureIbsRate] = useState(17.7);
   const [futureCbsRate, setFutureCbsRate] = useState(8.8);
+  const [showTaxDetail, setShowTaxDetail] = useState(true);
 
   const analysisData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -57,10 +60,8 @@ const ImpactAnalysis = () => {
       const cfu = baseParams.totalStockUnits > 0 ? totalGlobalFixedExpenses / baseParams.totalStockUnits : 0;
       const totalInnerUnitsInNote = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
       
-      // Calculamos o rateio (proporção do custo fixo para esta nota)
       const fixedCostProportionalToNote = cfu * totalInnerUnitsInNote;
 
-      // Ajustamos os parâmetros legados para usar apenas o rateio na comparação, para ser justo
       const legacyParams = { ...baseParams, fixedCostsTotal: fixedCostProportionalToNote };
       const legacyResult = calculateLegacyPricing(productsToProcess, legacyParams);
 
@@ -68,9 +69,14 @@ const ImpactAnalysis = () => {
       const calculatedFuture = productsToProcess.map(p => calculatePricing(p, futureParams, cfu));
       
       const futureRevenue = calculatedFuture.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
-      const futureTotalTax = calculatedFuture.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
       const futureAcqCost = calculatedFuture.reduce((sum, p) => sum + p.cost * p.quantity, 0);
       const futureVarExp = calculatedFuture.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
+      
+      // Detalhando Impostos da Reforma
+      const totalFutureDebits = calculatedFuture.reduce((sum, p) => sum + (p.cbsDebit + p.ibsDebit + p.selectiveTaxToPay + p.irpjToPay + p.csllToPay + p.simplesToPay) * p.quantity, 0);
+      const totalFutureCredits = calculatedFuture.reduce((sum, p) => sum + (p.cbsCredit + p.ibsCredit) * p.quantity, 0);
+      const futureTotalTax = totalFutureDebits - totalFutureCredits;
+      
       const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - fixedCostProportionalToNote - futureTotalTax;
 
       // Cálculo Seguro do BEP Futuro
@@ -96,6 +102,8 @@ const ImpactAnalysis = () => {
         legacyResult,
         futureResult: {
           totalRevenue: futureRevenue,
+          totalDebits: totalFutureDebits,
+          totalCredits: totalFutureCredits,
           totalTax: futureTotalTax,
           totalAcquisitionCost: futureAcqCost,
           totalVariableExpenses: futureVarExp,
@@ -146,7 +154,7 @@ const ImpactAnalysis = () => {
           <div className="flex items-start gap-2 p-3 bg-blue-500/10 border border-blue-500/20 rounded-md mt-2">
             <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
             <p className="text-xs text-blue-500/90 leading-relaxed">
-              <strong>Comparação de Rateio:</strong> Agora ambos os cenários utilizam o <strong>Custo Fixo Rateado (R$ {fixedCostProportionalToNote.toFixed(2)})</strong> proporcional à quantidade de produtos nesta nota, permitindo uma análise justa de lucro líquido por operação.
+              <strong>Análise Comparativa:</strong> Os custos de base estão alinhados pelo rateio proporcional. Abaixo, veja como os impostos da Reforma utilizam os créditos da compra para reduzir o valor final a pagar.
             </p>
           </div>
         </CardHeader>
@@ -181,17 +189,7 @@ const ImpactAnalysis = () => {
 
                   <div className="mt-4 space-y-1">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Impostos Atuais:</p>
-                    {legacyResult.regime === TaxRegime.SimplesNacional ? (
-                      <CalculationStep label={`Guia DAS (${futureResult.params.simplesNacionalRate}%)`} value={legacyResult.taxBreakdown.simples || 0} isNegative />
-                    ) : (
-                      <>
-                        <CalculationStep label="PIS (0,65%)" value={legacyResult.taxBreakdown.pis || 0} isNegative />
-                        <CalculationStep label="COFINS (3,00%)" value={legacyResult.taxBreakdown.cofins || 0} isNegative />
-                        <CalculationStep label="ICMS (18,00% est.)" value={legacyResult.taxBreakdown.icms || 0} isNegative />
-                        <CalculationStep label="IRPJ (Efetivo)" value={legacyResult.taxBreakdown.irpj || 0} isNegative />
-                        <CalculationStep label="CSLL (Efetivo)" value={legacyResult.taxBreakdown.csll || 0} isNegative />
-                      </>
-                    )}
+                    <CalculationStep label="Total Impostos s/ Faturamento" value={legacyResult.totalTax} isNegative />
                   </div>
 
                   <div className="mt-4 pt-3 border-t border-border/50 flex items-center justify-between text-muted-foreground italic">
@@ -211,16 +209,6 @@ const ImpactAnalysis = () => {
                     </div>
                     <span className={cn("text-xl font-black font-mono", legacyResult.netProfit < 0 ? "text-destructive" : "text-success")}>
                       {formatCurrency(legacyResult.netProfit)}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-yellow-600">
-                      <Target className="h-4 w-4" />
-                      <span className="text-[10px] font-bold uppercase">Faturamento Mínimo Mensal (Equilíbrio)</span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-yellow-600">
-                      {legacyResult.breakEvenPoint > 0 ? formatCurrency(legacyResult.breakEvenPoint) : "N/A"}
                     </span>
                   </div>
                 </>
@@ -256,8 +244,26 @@ const ImpactAnalysis = () => {
                   </div>
 
                   <div className="mt-4 space-y-1">
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase mb-2">Impostos da Reforma:</p>
-                    <CalculationStep label="Impostos Líquidos (Débito - Crédito)" value={futureResult.totalTax} isNegative />
+                    <div 
+                      className="flex items-center justify-between cursor-pointer hover:bg-primary/10 p-1 rounded transition-colors"
+                      onClick={() => setShowTaxDetail(!showTaxDetail)}
+                    >
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase">Impostos da Reforma:</p>
+                      {showTaxDetail ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    </div>
+                    
+                    {showTaxDetail ? (
+                      <div className="animate-in fade-in slide-in-from-top-1 duration-200">
+                        <CalculationStep label="Débitos (Imposto s/ Venda)" value={futureResult.totalDebits} />
+                        <CalculationStep label="Créditos (Sistema Financeiro)" value={futureResult.totalCredits} isNegative color="text-success" />
+                        <div className="border-t border-primary/20 mt-1 pt-1">
+                          <CalculationStep label="Imposto Líquido a Pagar" value={futureResult.totalTax} isNegative color="text-destructive" />
+                        </div>
+                      </div>
+                    ) : (
+                      <CalculationStep label="Impostos Líquidos (Saldo)" value={futureResult.totalTax} isNegative />
+                    )}
+                    
                     <div className="bg-success/10 p-2 rounded mt-2 border border-success/20 text-[10px] text-success font-bold text-center">
                       SISTEMA DE CRÉDITO FINANCEIRO ATIVO
                     </div>
@@ -280,16 +286,6 @@ const ImpactAnalysis = () => {
                     </div>
                     <span className="text-xl font-black font-mono text-success">
                       {formatCurrency(futureResult.netProfit)}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-primary">
-                      <Target className="h-4 w-4" />
-                      <span className="text-[10px] font-bold uppercase">Faturamento Mínimo Mensal (Equilíbrio)</span>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-primary">
-                      {futureResult.breakEvenPoint > 0 ? formatCurrency(futureResult.breakEvenPoint) : "N/A"}
                     </span>
                   </div>
                 </>
