@@ -5,11 +5,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { BarChart3, AlertTriangle, TrendingUp, TrendingDown } from 'lucide-react';
-import { Product, CalculationParams, CalculatedProduct } from '@/types/pricing';
+import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import { Product, CalculationParams } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
-import { calculateLegacyPricing, LegacyCalculationResult } from '@/lib/legacyPricing';
-import { GlobalSummaryData } from '@/components/ProductsTable';
+import { calculateLegacyPricing } from '@/lib/legacyPricing';
 import { cn } from '@/lib/utils';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -20,8 +19,9 @@ const ImpactAnalysis = () => {
   const [futureCbsRate, setFutureCbsRate] = useState(8.8);
 
   const analysisData = useMemo(() => {
+    // CORREÇÃO: Usando as chaves corretas que definimos no Index.tsx
     const storedParams = sessionStorage.getItem('jota-calc-params');
-    const storedProducts = sessionStorage.getItem('jota-calc-products');
+    const storedProducts = sessionStorage.getItem('jota-calc-purchase-products');
     const storedSelection = sessionStorage.getItem('jota-calc-selection');
 
     if (!storedParams || !storedProducts || !storedSelection) return null;
@@ -30,20 +30,23 @@ const ImpactAnalysis = () => {
       const baseParams: CalculationParams = JSON.parse(storedParams);
       const products: Product[] = JSON.parse(storedProducts);
       const selectedProductCodes: Set<string> = new Set(JSON.parse(storedSelection));
+      
       const productsToProcess = products.filter(p => selectedProductCodes.has(p.code));
       if (productsToProcess.length === 0) return null;
 
-      // --- Cenário ATUAL (Legado) ---
+      // --- Cenário ATUAL (Legado - Lucro Presumido) ---
       const legacyResult = calculateLegacyPricing(productsToProcess, baseParams);
 
-      // --- Cenário FUTURO (Reforma) ---
+      // --- Cenário FUTURO (Reforma - IBS/CBS) ---
       const futureParams: CalculationParams = {
         ...baseParams,
         ibsRate: futureIbsRate,
         cbsRate: futureCbsRate,
       };
+      
       const totalFixedExpenses = futureParams.fixedCostsTotal || 0;
       const cfu = futureParams.totalStockUnits > 0 ? totalFixedExpenses / futureParams.totalStockUnits : 0;
+      
       const calculatedProductsFuture = productsToProcess.map(p => calculatePricing(p, futureParams, cfu));
       
       const futureRevenue = calculatedProductsFuture.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
@@ -89,7 +92,7 @@ const ImpactAnalysis = () => {
             </div>
             <h3 className="text-xl font-semibold mb-2">Dados insuficientes para análise</h3>
             <p className="text-muted-foreground max-w-md">
-              Realize uma simulação na página de "Análise do Regime Tributário" primeiro.
+              Realize o upload de um XML e defina os parâmetros na página de **Precificação** primeiro para habilitar esta comparação.
             </p>
           </div>
         </Card>
@@ -109,7 +112,7 @@ const ImpactAnalysis = () => {
             Simulador de Impacto da Reforma Tributária
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Compare o cenário atual (Lucro Presumido) com o futuro (IBS/CBS), com base em {productCount} produtos selecionados.
+            Comparativo técnico entre o sistema atual (Legado) e o novo modelo (Reforma) baseado em {productCount} produtos.
           </p>
         </CardHeader>
         <CardContent className="grid md:grid-cols-2 gap-6">
@@ -126,22 +129,22 @@ const ImpactAnalysis = () => {
 
       <Alert variant={isProfitNegative ? "destructive" : "default"} className={!isProfitNegative ? "bg-success/10 border-success text-success-foreground" : ""}>
         {isProfitNegative ? <TrendingDown className="h-4 w-4" /> : <TrendingUp className="h-4 w-4" />}
-        <AlertTitle className="font-bold">Veredito da Simulação</AlertTitle>
+        <AlertTitle className="font-bold">Análise Prospectiva</AlertTitle>
         <AlertDescription>
-          Com as alíquotas estimadas, o Lucro Líquido teria uma variação de <span className="font-extrabold">{formatCurrency(impact.profit)} ({formatPercent(impact.profitPercent)})</span>.
-          A Carga Tributária total mudaria em <span className="font-extrabold">{formatCurrency(impact.tax)} ({formatPercent(impact.taxPercent)})</span>.
+          Com as alíquotas simuladas, seu Lucro Líquido variaria em <span className="font-extrabold">{formatCurrency(impact.profit)} ({formatPercent(impact.profitPercent)})</span>.
+          A Carga Tributária total sofreria uma alteração de <span className="font-extrabold">{formatCurrency(impact.tax)} ({formatPercent(impact.taxPercent)})</span>.
         </AlertDescription>
       </Alert>
 
       <Card className="shadow-elegant">
         <CardHeader>
-          <CardTitle>Relatório Comparativo</CardTitle>
+          <CardTitle>Demonstrativo Comparativo Financeiro</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[250px]">Métrica</TableHead>
+                <TableHead className="w-[250px]">Métrica da Operação</TableHead>
                 <TableHead className="text-right">Cenário Atual (Legado)</TableHead>
                 <TableHead className="text-right">Cenário Futuro (Reforma)</TableHead>
                 <TableHead className="text-right">Impacto (R$)</TableHead>
@@ -163,7 +166,7 @@ const ImpactAnalysis = () => {
                 <TableCell className={cn("text-right font-mono font-bold", impact.tax > 0 ? "text-destructive" : "text-success")}>{formatPercent(impact.taxPercent)}</TableCell>
               </TableRow>
               <TableRow className="bg-success/5">
-                <TableCell className="font-semibold">Lucro Líquido Total</TableCell>
+                <TableCell className="font-semibold">Lucro Líquido Final</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(legacyResult.netProfit)}</TableCell>
                 <TableCell className="text-right font-mono">{formatCurrency(futureResult.netProfit)}</TableCell>
                 <TableCell className={cn("text-right font-mono font-bold", isProfitNegative ? "text-destructive" : "text-success")}>{formatCurrency(impact.profit)}</TableCell>
