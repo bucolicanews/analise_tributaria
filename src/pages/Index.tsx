@@ -36,7 +36,7 @@ const Index = () => {
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
-  // Load data from sessionStorage on initial render
+  // Carregar dados salvos da sessão
   useEffect(() => {
     try {
       const storedPurchaseProducts = sessionStorage.getItem('jota-calc-purchase-products');
@@ -50,8 +50,7 @@ const Index = () => {
       if (storedSelection) setSelectedProductCodes(new Set(JSON.parse(storedSelection)));
       
     } catch (error) {
-      console.error("Failed to load data from session storage", error);
-      sessionStorage.clear(); // Clear corrupted data
+      console.error("Erro ao carregar sessão:", error);
     }
   }, []);
 
@@ -62,7 +61,7 @@ const Index = () => {
     setSelectedProductCodes(new Set());
     setAiReport(null);
     sessionStorage.clear();
-    toast.success("Nova consulta iniciada.", { description: "Todos os dados foram limpos." });
+    toast.success("Nova consulta iniciada.");
   };
 
   const handlePurchaseXmlParsed = (parsedProducts: Product[]) => {
@@ -76,20 +75,31 @@ const Index = () => {
   const handleSalesXmlParsed = (parsedProducts: Product[]) => {
     setSalesProducts(parsedProducts);
     sessionStorage.setItem('jota-calc-sales-products', JSON.stringify(parsedProducts));
-    toast.info(`${parsedProducts.length} produtos de venda carregados.`, {
-      description: "Você já pode acessar a Auditoria Fiscal."
-    });
+    toast.info(`${parsedProducts.length} notas de venda importadas para auditoria.`);
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
+    // Injetar dados da empresa salvos nas configurações
+    const companyName = localStorage.getItem('jota-razaoSocial') || "";
+    const companyCnpj = localStorage.getItem('jota-cnpj') || "";
+    const companyCnaes = localStorage.getItem('jota-cnaes') || "";
+
     const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
       ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
       : 0;
+    
     const totalFixed = calculationParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + calculationParams.payroll + inss;
     
-    const paramsToSave = { ...calculationParams, fixedCostsTotal: totalFixed };
-    setParams(paramsToSave);
-    sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsToSave));
+    const paramsWithProfile = { 
+      ...calculationParams, 
+      fixedCostsTotal: totalFixed,
+      companyName,
+      companyCnpj,
+      companyCnaes
+    };
+
+    setParams(paramsWithProfile);
+    sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsWithProfile));
   };
 
   const handleSelectionChange = (newSelection: Set<string>) => {
@@ -97,16 +107,9 @@ const Index = () => {
     sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(newSelection)));
   };
 
-  // Centralized calculation logic
   const calculationResults = useMemo(() => {
     if (!params || purchaseProducts.length === 0) {
-      return {
-        summary: null,
-        calculatedProducts: [],
-        productsToDisplay: [],
-        totalFixedExpenses: 0,
-        firstCalculatedProduct: null,
-      };
+      return { summary: null, calculatedProducts: [], productsToDisplay: [], totalFixedExpenses: 0, firstCalculatedProduct: null };
     }
 
     const totalFixedExpenses = params.fixedCostsTotal || 0;
@@ -140,13 +143,12 @@ const Index = () => {
 
   const handleSendToWebhook = async (environment: 'test' | 'production') => {
     if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Dados insuficientes para enviar.");
+      toast.error("Realize a precificação antes de enviar.");
       return;
     }
 
     setIsSending(true);
-    setAiReport(null);
-    const toastId = toast.loading(`Aguardando análise da IA (${environment})...`);
+    const toastId = toast.loading(`Iniciando Análise de Inteligência Fiscal (${environment})...`);
 
     try {
       const payload = createOptimizedAIPayload(params, summary, calculatedProducts);
@@ -157,7 +159,7 @@ const Index = () => {
       };
 
       const webhookUrl = webhooks[environment];
-      if (!webhookUrl) throw new Error(`URL do webhook de ${environment} não configurada.`);
+      if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado nas configurações.`);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -165,20 +167,20 @@ const Index = () => {
         body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.errorMessage || data.message || `Erro ${response.status}`);
+      if (!response.ok) throw new Error("Erro na comunicação com o servidor de IA.");
       
-      const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : JSON.stringify(data, null, 2));
+      const data = await response.json();
+      const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : "Análise concluída, verifique o sistema de BI.");
       
       setAiReport(reportText);
-      toast.success("Análise concluída com sucesso!", { id: toastId });
+      toast.success("Parecer Tributário gerado!", { id: toastId });
       
       setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
 
     } catch (error: any) {
-      toast.error("Erro ao enviar para análise", { 
+      toast.error("Falha na Análise Inteligente", { 
         id: toastId,
-        description: error.message || "Verifique a URL do webhook e a conexão."
+        description: error.message
       });
     } finally {
       setIsSending(false);
@@ -192,7 +194,7 @@ const Index = () => {
       {summary && summary.breakEvenPoint > 0 && (
         <div className="text-center mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
           <h1 className="text-lg text-muted-foreground">
-            <span className="font-semibold">Ponto de Equilíbrio Operacional (Faturamento Mínimo Mensal):</span>{" "}
+            <span className="font-semibold">Ponto de Equilíbrio Operacional (Venda Mínima Mensal):</span>{" "}
             <span className="text-xl text-yellow-500 font-extrabold">{formatCurrency(summary.breakEvenPoint)}</span>
           </h1>
         </div>
@@ -200,42 +202,29 @@ const Index = () => {
       
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
-          <div className="space-y-6">
-            <Card className="shadow-card p-6">
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Upload className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">1. Notas de Compra (Entrada)</h2>
-                </div>
-                <Button variant="outline" size="sm" onClick={handleNewConsultation}>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Limpar
-                </Button>
+          <Card className="shadow-card p-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold">1. Notas de Compra</h2>
               </div>
-              <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
-            </Card>
-            <Card className="shadow-card p-6">
-              <div className="mb-4 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <Upload className="h-5 w-5 text-accent" />
-                  <h2 className="text-lg font-semibold">2. Notas de Venda (Saída)</h2>
-                </div>
-                {salesProducts.length > 0 && (
-                   <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => navigate('/comparison')}>
-                      Auditoria <ArrowRight className="h-4 w-4 ml-1" />
-                   </Button>
-                )}
+              <Button variant="outline" size="sm" onClick={handleNewConsultation}>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Novo
+              </Button>
+            </div>
+            <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
+          </Card>
+          
+          <Card className="shadow-card p-6">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-accent" />
+                <h2 className="text-lg font-semibold">2. Notas de Venda</h2>
               </div>
-              <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
-              {salesProducts.length > 0 && (
-                <div className="mt-4">
-                  <Button variant="outline" className="w-full border-accent text-accent hover:bg-accent/10" onClick={() => navigate('/comparison')}>
-                    Acessar Auditoria Fiscal de Vendas
-                  </Button>
-                </div>
-              )}
-            </Card>
-          </div>
+            </div>
+            <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
+          </Card>
 
           <Card className="shadow-card p-6">
             <div className="mb-4 flex items-center gap-2">
@@ -257,9 +246,7 @@ const Index = () => {
             <>
               <Card className="shadow-elegant p-6">
                 <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-xl font-semibold">
-                    Relatório de Precificação ({productsToDisplay.length} de {purchaseProducts.length} produtos)
-                  </h2>
+                  <h2 className="text-xl font-semibold">Relatório de Precificação</h2>
                   <div className="flex gap-2">
                     <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
                       {showMemory ? "Ocultar" : "Exibir"} Memória
@@ -267,9 +254,9 @@ const Index = () => {
 
                     <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={calculatedProducts.length === 0}>
+                        <Button variant="outline" size="sm">
                           <BookOpen className="h-4 w-4 mr-2" />
-                          Relatório para Venda
+                          Relatório Venda
                         </Button>
                       </DialogTrigger>
                       <DialogContent className="sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
@@ -279,25 +266,20 @@ const Index = () => {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="sm" disabled={isSending} className="bg-accent hover:bg-accent/90 text-accent-foreground">
+                        <Button size="sm" disabled={isSending} className="bg-accent hover:bg-accent/90">
                           <Bot className="h-4 w-4 mr-2" />
-                          {isSending ? "Analisando..." : "Enviar para Análise AI"}
+                          {isSending ? "Analisando..." : "Auditoria IA"}
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Ambiente de Teste</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Ambiente de Produção</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Sandbox (Teste)</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Live (Produção)</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </div>
-                <ProductsTable 
-                  products={purchaseProducts} 
-                  params={params} 
-                  selectedProductCodes={selectedProductCodes}
-                  onSelectionChange={handleSelectionChange}
-                />
+                <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />
               </Card>
 
               {showMemory && firstCalculatedProduct && (
@@ -311,8 +293,8 @@ const Index = () => {
               <div className="rounded-full bg-muted p-6 mb-4">
                 <Calculator className="h-12 w-12 text-muted-foreground" />
               </div>
-              <h3 className="text-xl font-semibold mb-2">Nenhum cálculo realizado</h3>
-              <p className="text-muted-foreground max-w-md">Faça o upload de arquivos XML e preencha os parâmetros para gerar o relatório.</p>
+              <h3 className="text-xl font-semibold mb-2">Aguardando Importação</h3>
+              <p className="text-muted-foreground max-w-md">Importe suas notas fiscais de entrada para iniciar a análise estratégica de preços.</p>
             </Card>
           )}
         </div>
@@ -321,7 +303,6 @@ const Index = () => {
   );
 };
 
-// Helper function
 const calculateGlobalSummary = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,

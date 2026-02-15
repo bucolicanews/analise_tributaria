@@ -7,14 +7,14 @@ export enum TaxRegime {
 export interface Product {
   code: string;
   name: string;
-  ean?: string; // Código de Barras (EAN)
-  cost: number; // Custo por unidade comercial (e.g., por caixa)
-  unit: string; // Unidade de medida comercial (e.g., CX, UN)
-  quantity: number; // Quantidade de unidades comerciais (e.g., número de caixas)
-  innerQuantity: number; // Nova: Quantidade de unidades internas por unidade comercial (e.g., 30 de '30X300G')
-  pisCredit: number; // Crédito PIS por unidade comercial
-  cofinsCredit: number; // Crédito COFINS por unidade comercial
-  icmsCredit: number; // Crédito ICMS por unidade comercial
+  ean?: string; 
+  cost: number; 
+  unit: string; 
+  quantity: number; 
+  innerQuantity: number; 
+  pisCredit: number; 
+  cofinsCredit: number; 
+  icmsCredit: number; 
   cfop?: string;
   cst?: string;
   ncm?: string;
@@ -44,7 +44,6 @@ export interface SelectiveTaxRate {
   description: string;
 }
 
-// --- NOVAS INTERFACES ESTRATÉGICAS ---
 export type SupplierType = 'industria' | 'distribuidor' | 'importador' | 'desconhecido';
 export type CustomerType = 'B2C' | 'B2B' | 'misto' | 'desconhecido';
 
@@ -68,9 +67,14 @@ export interface StrategicData {
   salesProfile: SalesProfile;
   regulatoryRisk: RegulatoryRisk;
 }
-// --- FIM DAS NOVAS INTERFACES ---
 
 export interface CalculationParams {
+  // Campos de Perfil Empresarial (Novos)
+  companyName?: string;
+  companyCnpj?: string;
+  companyCnaes?: string;
+  companyLegalNature?: string;
+
   profitMargin: number;
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
@@ -163,7 +167,5 @@ export interface CalculatedProduct extends Product {
   };
 
   cClassTrib?: number;
-
-  // NOVO CAMPO PARA DADOS ESTRATÉGICOS
   strategicData?: StrategicData;
 }

@@ -1,7 +1,6 @@
 import { CalculationParams, CalculatedProduct, TaxRegime, StrategicData } from "@/types/pricing";
 import { GlobalSummaryData } from "@/components/ProductsTable";
 
-// Interfaces para o payload profissional
 interface ProfessionalAIPayload {
   objective: string;
   companyProfile: {
@@ -17,6 +16,7 @@ interface ProfessionalAIPayload {
       lossPercentage: number;
       variableExpensesPercentage: number;
       totalFixedCosts: number;
+      effectiveSimplesRate?: number;
     };
   };
   financialSummary: {
@@ -24,9 +24,15 @@ interface ProfessionalAIPayload {
     netProfit: number;
     netProfitMargin: number;
     breakEvenPoint: number;
+    taxPressurePercent: number;
   };
   productAnalysis: {
     ncmGroups: AggregatedNcmData[];
+  };
+  auditSummary?: {
+    totalItems: number;
+    divergentItems: number;
+    riskLevel: 'Baixo' | 'Médio' | 'Alto';
   };
 }
 
@@ -43,6 +49,7 @@ interface AggregatedNcmData {
     b2b: number;
   };
   essentialRisk: boolean;
+  suggestedTaxStatus: string;
 }
 
 const defaultStrategicData: StrategicData = {
@@ -51,14 +58,6 @@ const defaultStrategicData: StrategicData = {
   regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false },
 };
 
-/**
- * Cria um payload JSON de nível profissional para a análise de IA.
- * Agrupa produtos por NCM e enriquece com dados estratégicos e métricas de negócio.
- * @param params Parâmetros de cálculo globais.
- * @param summary Resumo financeiro global.
- * @param products Lista de produtos calculados (já com dados estratégicos).
- * @returns Um objeto JSON estruturado e profissional.
- */
 export const createOptimizedAIPayload = (
   params: CalculationParams,
   summary: GlobalSummaryData,
@@ -73,6 +72,7 @@ export const createOptimizedAIPayload = (
     supplierTypes: Record<string, number>;
     customerTypes: Record<string, number>;
     essentialCandidates: number;
+    dominantStatus: string;
   }>();
 
   for (const p of products) {
@@ -88,6 +88,7 @@ export const createOptimizedAIPayload = (
         supplierTypes: {},
         customerTypes: {},
         essentialCandidates: 0,
+        dominantStatus: p.taxAnalysis.icms
       });
     }
 
@@ -125,17 +126,18 @@ export const createOptimizedAIPayload = (
         supplierType: dominantSupplier,
         customerMix: { b2c, b2b },
         essentialRisk: data.essentialCandidates > 0,
+        suggestedTaxStatus: data.dominantStatus
       };
     }
   );
 
-  const payload: ProfessionalAIPayload = {
-    objective: "Realizar análise tributária estratégica e de segurança jurídica, avaliando o enquadramento fiscal das atividades (CNAEs) em relação ao regime tributário simulado e à natureza jurídica da empresa.",
+  return {
+    objective: "Realizar análise tributária de precisão cruzando perfil de CNAEs com regimes da Reforma Tributária. Identificar riscos de bitributação (ST/Monofásico) e exposição ao Imposto Seletivo.",
     companyProfile: {
       name: params.companyName,
       cnpj: params.companyCnpj,
       cnaes: params.companyCnaes?.split(',').map(c => c.trim()),
-      legalNature: params.companyLegalNature,
+      legalNature: params.companyLegalNature || "Não Informada",
     },
     context: {
       taxRegime: params.taxRegime,
@@ -144,6 +146,7 @@ export const createOptimizedAIPayload = (
         lossPercentage: params.lossPercentage / 100,
         variableExpensesPercentage: params.variableExpenses.reduce((acc, curr) => acc + curr.percentage, 0) / 100,
         totalFixedCosts: params.fixedCostsTotal || 0,
+        effectiveSimplesRate: params.simplesNacionalRate
       },
     },
     financialSummary: {
@@ -151,11 +154,10 @@ export const createOptimizedAIPayload = (
       netProfit: summary.totalProfit,
       netProfitMargin: summary.profitMarginPercent / 100,
       breakEvenPoint: summary.breakEvenPoint,
+      taxPressurePercent: summary.totalTaxPercent / 100
     },
     productAnalysis: {
       ncmGroups,
-    },
+    }
   };
-
-  return payload;
 };
