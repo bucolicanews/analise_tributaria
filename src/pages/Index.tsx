@@ -36,7 +36,6 @@ const Index = () => {
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
-  // Carregar dados salvos da sessão
   useEffect(() => {
     try {
       const storedPurchaseProducts = sessionStorage.getItem('jota-calc-purchase-products');
@@ -48,7 +47,6 @@ const Index = () => {
       if (storedSalesProducts) setSalesProducts(JSON.parse(storedSalesProducts));
       if (storedParams) setParams(JSON.parse(storedParams));
       if (storedSelection) setSelectedProductCodes(new Set(JSON.parse(storedSelection)));
-      
     } catch (error) {
       console.error("Erro ao carregar sessão:", error);
     }
@@ -79,10 +77,10 @@ const Index = () => {
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
-    // Injetar dados da empresa salvos nas configurações
     const companyName = localStorage.getItem('jota-razaoSocial') || "";
     const companyCnpj = localStorage.getItem('jota-cnpj') || "";
     const companyCnaes = localStorage.getItem('jota-cnaes') || "";
+    const companyState = localStorage.getItem('jota-uf') || "SP";
 
     const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
       ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
@@ -95,7 +93,8 @@ const Index = () => {
       fixedCostsTotal: totalFixed,
       companyName,
       companyCnpj,
-      companyCnaes
+      companyCnaes,
+      companyState
     };
 
     setParams(paramsWithProfile);
@@ -227,7 +226,7 @@ const Index = () => {
           </Card>
 
           <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center gap-2">
+            <div className="mb-4 flex items-center justify-between gap-2">
               <FileText className="h-5 w-5 text-primary" />
               <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
             </div>

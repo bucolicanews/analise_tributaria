@@ -4,6 +4,8 @@ export enum TaxRegime {
   LucroReal = "Lucro Real",
 }
 
+export type EssentialityLevel = 'zero' | 'reduced' | 'standard' | 'superfluous';
+
 export interface Product {
   code: string;
   name: string;
@@ -22,10 +24,6 @@ export interface Product {
   pisCst?: string;
   cofinsCst?: string;
   ipiCst?: string;
-  pisBase?: number;
-  pisRate?: number;
-  cofinsBase?: number;
-  cofinsRate?: number;
 }
 
 export interface FixedExpense {
@@ -55,11 +53,13 @@ export interface PurchaseProfile {
 export interface SalesProfile {
   customerType: CustomerType;
   percentageB2B: number;
+  interestateSalesPercent: number; // Novo: % de vendas para fora do estado
 }
 
 export interface RegulatoryRisk {
   essentialFoodCandidate: boolean;
   healthTaxRisk: boolean;
+  essentiality: EssentialityLevel; // Novo: Classificação LC 214
 }
 
 export interface StrategicData {
@@ -69,12 +69,11 @@ export interface StrategicData {
 }
 
 export interface CalculationParams {
-  // Campos de Perfil Empresarial (Novos)
   companyName?: string;
   companyCnpj?: string;
   companyCnaes?: string;
-  companyLegalNature?: string;
-
+  companyState?: string; // Novo: UF da Empresa
+  
   profitMargin: number;
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];

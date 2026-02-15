@@ -7,10 +7,12 @@ interface ProfessionalAIPayload {
     name?: string;
     cnpj?: string;
     cnaes?: string[];
-    legalNature?: string;
+    state: string;
+    legalNature: string;
   };
   context: {
     taxRegime: TaxRegime;
+    timeframe: "Mensal" | "Anual";
     parameters: {
       targetProfitMargin: number;
       lossPercentage: number;
@@ -25,37 +27,29 @@ interface ProfessionalAIPayload {
     netProfitMargin: number;
     breakEvenPoint: number;
     taxPressurePercent: number;
+    interestateSalesAvgPercent: number;
   };
   productAnalysis: {
     ncmGroups: AggregatedNcmData[];
-  };
-  auditSummary?: {
-    totalItems: number;
-    divergentItems: number;
-    riskLevel: 'Baixo' | 'Médio' | 'Alto';
   };
 }
 
 interface AggregatedNcmData {
   ncm: string;
   itemCount: number;
-  annualRevenueShare: number;
+  revenueShare: number;
   averageSalePrice: number;
-  averageCost: number;
+  essentialityLC214: string;
   selectiveTaxExposure: boolean;
   supplierType: string;
-  customerMix: {
-    b2c: number;
-    b2b: number;
-  };
-  essentialRisk: boolean;
-  suggestedTaxStatus: string;
+  customerMix: { b2c: number; b2b: number };
+  interestateMix: number;
 }
 
 const defaultStrategicData: StrategicData = {
   purchaseProfile: { supplierType: 'distribuidor', creditEligible: true },
-  salesProfile: { customerType: 'B2C', percentageB2B: 0 },
-  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false },
+  salesProfile: { customerType: 'B2C', percentageB2B: 0, interestateSalesPercent: 0 },
+  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'standard' },
 };
 
 export const createOptimizedAIPayload = (
@@ -67,97 +61,83 @@ export const createOptimizedAIPayload = (
   const ncmMap = new Map<string, {
     itemCount: number;
     totalRevenue: number;
-    totalCost: number;
+    essentialityCounts: Record<string, number>;
     hasSelectiveTax: boolean;
     supplierTypes: Record<string, number>;
     customerTypes: Record<string, number>;
-    essentialCandidates: number;
-    dominantStatus: string;
+    totalInterestatePercent: number;
   }>();
+
+  let globalInterestateSum = 0;
 
   for (const p of products) {
     const ncm = p.ncm || "N/A";
     const strategic = p.strategicData || defaultStrategicData;
+    globalInterestateSum += strategic.salesProfile.interestateSalesPercent;
 
     if (!ncmMap.has(ncm)) {
       ncmMap.set(ncm, {
-        itemCount: 0,
-        totalRevenue: 0,
-        totalCost: 0,
-        hasSelectiveTax: false,
-        supplierTypes: {},
-        customerTypes: {},
-        essentialCandidates: 0,
-        dominantStatus: p.taxAnalysis.icms
+        itemCount: 0, totalRevenue: 0, hasSelectiveTax: false,
+        essentialityCounts: {}, supplierTypes: {}, customerTypes: {}, totalInterestatePercent: 0
       });
     }
 
     const group = ncmMap.get(ncm)!;
-    const productRevenue = p.sellingPrice * p.quantity;
-    const productCost = p.cost * p.quantity;
-
     group.itemCount++;
-    group.totalRevenue += productRevenue;
-    group.totalCost += productCost;
-    if (p.taxAnalysis.incideIS) group.hasSelectiveTax = true;
-    if (strategic.regulatoryRisk.essentialFoodCandidate) group.essentialCandidates++;
+    group.totalRevenue += (p.sellingPrice * p.quantity);
+    group.totalInterestatePercent += strategic.salesProfile.interestateSalesPercent;
+    
+    const ess = strategic.regulatoryRisk.essentiality;
+    group.essentialityCounts[ess] = (group.essentialityCounts[ess] || 0) + 1;
     
     group.supplierTypes[strategic.purchaseProfile.supplierType] = (group.supplierTypes[strategic.purchaseProfile.supplierType] || 0) + 1;
     group.customerTypes[strategic.salesProfile.customerType] = (group.customerTypes[strategic.salesProfile.customerType] || 0) + 1;
+    if (p.taxAnalysis.incideIS) group.hasSelectiveTax = true;
   }
 
-  const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(
-    ([ncm, data]) => {
-      const dominantSupplier = Object.keys(data.supplierTypes).reduce((a, b) => data.supplierTypes[a] > data.supplierTypes[b] ? a : b, 'desconhecido');
-      const dominantCustomer = Object.keys(data.customerTypes).reduce((a, b) => data.customerTypes[a] > data.customerTypes[b] ? a : b, 'desconhecido');
-      
-      let b2c = 0, b2b = 0;
-      if (dominantCustomer === 'B2C') b2c = 1;
-      if (dominantCustomer === 'B2B') b2b = 1;
-      if (dominantCustomer === 'misto') { b2c = 0.5; b2b = 0.5; }
-
-      return {
-        ncm,
-        itemCount: data.itemCount,
-        annualRevenueShare: summary.totalSelling > 0 ? data.totalRevenue / summary.totalSelling : 0,
-        averageSalePrice: data.itemCount > 0 ? data.totalRevenue / data.itemCount : 0,
-        averageCost: data.itemCount > 0 ? data.totalCost / data.itemCount : 0,
-        selectiveTaxExposure: data.hasSelectiveTax,
-        supplierType: dominantSupplier,
-        customerMix: { b2c, b2b },
-        essentialRisk: data.essentialCandidates > 0,
-        suggestedTaxStatus: data.dominantStatus
-      };
-    }
-  );
+  const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(([ncm, data]) => {
+    const dominantEss = Object.keys(data.essentialityCounts).reduce((a, b) => data.essentialityCounts[a] > data.essentialityCounts[b] ? a : b, 'standard');
+    return {
+      ncm,
+      itemCount: data.itemCount,
+      revenueShare: summary.totalSelling > 0 ? data.totalRevenue / summary.totalSelling : 0,
+      averageSalePrice: data.itemCount > 0 ? data.totalRevenue / data.itemCount : 0,
+      essentialityLC214: dominantEss,
+      selectiveTaxExposure: data.hasSelectiveTax,
+      supplierType: Object.keys(data.supplierTypes).reduce((a, b) => data.supplierTypes[a] > data.supplierTypes[b] ? a : b, 'distribuidor'),
+      customerMix: { b2c: 1, b2b: 0 },
+      interestateMix: data.totalInterestatePercent / data.itemCount
+    };
+  });
 
   return {
-    objective: "Realizar análise tributária de precisão cruzando perfil de CNAEs com regimes da Reforma Tributária. Identificar riscos de bitributação (ST/Monofásico) e exposição ao Imposto Seletivo.",
+    objective: "Realizar auditoria fiscal e planejamento preventivo para a transição do IBS/CBS (2026-2033), considerando essencialidade e créditos interestaduais.",
     companyProfile: {
       name: params.companyName,
       cnpj: params.companyCnpj,
-      cnaes: params.companyCnaes?.split(',').map(c => c.trim()),
-      legalNature: params.companyLegalNature || "Não Informada",
+      state: params.companyState || "SP",
+      cnaes: params.companyCnaes?.split(','),
+      legalNature: params.companyLegalNature || "ME/EPP"
     },
     context: {
       taxRegime: params.taxRegime,
+      timeframe: "Mensal",
       parameters: {
         targetProfitMargin: params.profitMargin / 100,
         lossPercentage: params.lossPercentage / 100,
-        variableExpensesPercentage: params.variableExpenses.reduce((acc, curr) => acc + curr.percentage, 0) / 100,
+        variableExpensesPercentage: params.variableExpenses.reduce((a, b) => a + b.percentage, 0) / 100,
         totalFixedCosts: params.fixedCostsTotal || 0,
         effectiveSimplesRate: params.simplesNacionalRate
-      },
+      }
     },
     financialSummary: {
       totalRevenue: summary.totalSelling,
       netProfit: summary.totalProfit,
       netProfitMargin: summary.profitMarginPercent / 100,
       breakEvenPoint: summary.breakEvenPoint,
-      taxPressurePercent: summary.totalTaxPercent / 100
+      taxPressurePercent: summary.totalTaxPercent / 100,
+      interestateSalesAvgPercent: products.length > 0 ? globalInterestateSum / products.length : 0
     },
-    productAnalysis: {
-      ncmGroups,
-    }
+    productAnalysis: { ncmGroups }
   };
 };
