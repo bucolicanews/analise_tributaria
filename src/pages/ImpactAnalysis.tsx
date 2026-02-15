@@ -8,7 +8,8 @@ import {
   MinusCircle, 
   PlusCircle, 
   Equal,
-  Info
+  Info,
+  Target
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
@@ -63,6 +64,25 @@ const ImpactAnalysis = () => {
       const futureFixedContrib = cfu * productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
       const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - futureFixedContrib - futureTotalTax;
 
+      // Cálculo do Ponto de Equilíbrio Futuro
+      const totalVarPct = futureParams.variableExpenses.reduce((s, e) => s + e.percentage, 0);
+      const cbsRateEff = futureParams.useCbsDebit ? futureParams.cbsRate : 0;
+      const ibsRateEff = futureParams.ibsRate * (futureParams.ibsDebitPercentage / 100);
+      const isRateEff = futureParams.useSelectiveTaxDebit ? futureParams.defaultSelectiveTaxRate : 0;
+      
+      let totalFutureTaxRate = 0;
+      if (futureParams.taxRegime === TaxRegime.SimplesNacional) {
+          totalFutureTaxRate = futureParams.generateIvaCredit 
+            ? (futureParams.simplesNacionalRate + cbsRateEff + ibsRateEff + isRateEff) 
+            : (futureParams.simplesNacionalRate + isRateEff);
+      } else {
+          totalFutureTaxRate = cbsRateEff + ibsRateEff + futureParams.irpjRate + futureParams.csllRate + isRateEff;
+      }
+
+      const costOfGoodsRatio = futureAcqCost / futureRevenue;
+      const futureContrMarginRatio = 1 - (costOfGoodsRatio + (totalVarPct / 100) + (totalFutureTaxRate / 100));
+      const futureBEP = futureContrMarginRatio > 0 ? totalFixedExpenses / futureContrMarginRatio : 0;
+
       return {
         legacyResult,
         futureResult: {
@@ -72,6 +92,7 @@ const ImpactAnalysis = () => {
           totalVariableExpenses: futureVarExp,
           totalFixedCosts: futureFixedContrib,
           netProfit: futureNetProfit,
+          breakEvenPoint: futureBEP,
           params: futureParams
         },
         impact: {
@@ -146,6 +167,14 @@ const ImpactAnalysis = () => {
                   {formatCurrency(legacyResult.netProfit)}
                 </span>
               </div>
+
+              <div className="mt-4 p-3 bg-yellow-500/5 border border-yellow-500/20 rounded flex items-center justify-between">
+                <div className="flex items-center gap-2 text-yellow-600">
+                  <Target className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase">Faturamento Mínimo Mensal (Equilíbrio)</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-yellow-600">{formatCurrency(legacyResult.breakEvenPoint)}</span>
+              </div>
             </div>
           </div>
 
@@ -185,6 +214,14 @@ const ImpactAnalysis = () => {
                 <span className="text-xl font-black font-mono text-success">
                   {formatCurrency(futureResult.netProfit)}
                 </span>
+              </div>
+
+              <div className="mt-4 p-3 bg-primary/5 border border-primary/20 rounded flex items-center justify-between">
+                <div className="flex items-center gap-2 text-primary">
+                  <Target className="h-4 w-4" />
+                  <span className="text-[10px] font-bold uppercase">Faturamento Mínimo Mensal (Equilíbrio)</span>
+                </div>
+                <span className="text-xs font-mono font-bold text-primary">{formatCurrency(futureResult.breakEvenPoint)}</span>
               </div>
             </div>
           </div>

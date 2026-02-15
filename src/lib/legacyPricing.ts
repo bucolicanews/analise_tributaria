@@ -8,6 +8,7 @@ export interface LegacyCalculationResult {
   totalVariableExpenses: number;
   totalFixedCosts: number;
   netProfit: number;
+  breakEvenPoint: number;
   taxBreakdown: {
     pis?: number;
     cofins?: number;
@@ -29,18 +30,14 @@ export const calculateLegacyPricing = (
   let totalRevenue = 0;
   let taxBreakdown: any = {};
   let totalTax = 0;
+  let totalTaxRate = 0;
 
   if (params.taxRegime === TaxRegime.SimplesNacional) {
-    // Cálculo Simples Nacional (Imposto sobre a Receita Bruta)
-    const simplesRate = params.simplesNacionalRate / 100;
-    // Receita = Custos / (1 - DespVar - Simples)
-    totalRevenue = totalAcquisitionCost / (1 - totalVariableExpensesPercent - simplesRate);
-    
-    const simplesAmount = totalRevenue * simplesRate;
-    taxBreakdown = { simples: simplesAmount };
-    totalTax = simplesAmount;
+    totalTaxRate = params.simplesNacionalRate / 100;
+    totalRevenue = totalAcquisitionCost / (1 - totalVariableExpensesPercent - totalTaxRate);
+    totalTax = totalRevenue * totalTaxRate;
+    taxBreakdown = { simples: totalTax };
   } else {
-    // Cálculo Lucro Presumido (Cascata padrão)
     const PIS_RATE = 0.0065;
     const COFINS_RATE = 0.03;
     const ICMS_RATE = 0.18; 
@@ -48,8 +45,9 @@ export const calculateLegacyPricing = (
     const CSLL_PRESUMPTION = 0.12; 
     const IRPJ_RATE = 0.15;
     const CSLL_RATE = 0.09;
-
-    totalRevenue = totalAcquisitionCost / (1 - totalVariableExpensesPercent - PIS_RATE - COFINS_RATE - ICMS_RATE - (IRPJ_PRESUMPTION * IRPJ_RATE) - (CSLL_PRESUMPTION * CSLL_RATE));
+    
+    totalTaxRate = PIS_RATE + COFINS_RATE + ICMS_RATE + (IRPJ_PRESUMPTION * IRPJ_RATE) + (CSLL_PRESUMPTION * CSLL_RATE);
+    totalRevenue = totalAcquisitionCost / (1 - totalVariableExpensesPercent - totalTaxRate);
 
     taxBreakdown = {
       pis: totalRevenue * PIS_RATE,
@@ -64,6 +62,12 @@ export const calculateLegacyPricing = (
   const totalVariableExpenses = totalRevenue * totalVariableExpensesPercent;
   const netProfit = totalRevenue - totalAcquisitionCost - totalVariableExpenses - totalFixedCosts - totalTax;
 
+  // Cálculo do Ponto de Equilíbrio: Custo Fixo / Margem de Contribuição %
+  // Margem de Contribuição % = 1 - (Custo Mercadoria % + Desp Var % + Impostos %)
+  const costOfGoodsPercent = totalAcquisitionCost / totalRevenue;
+  const contributionMarginRatio = 1 - (costOfGoodsPercent + totalVariableExpensesPercent + totalTaxRate);
+  const breakEvenPoint = contributionMarginRatio > 0 ? totalFixedCosts / contributionMarginRatio : 0;
+
   return {
     regime: params.taxRegime,
     totalRevenue,
@@ -72,6 +76,7 @@ export const calculateLegacyPricing = (
     totalVariableExpenses,
     totalFixedCosts,
     netProfit,
+    breakEvenPoint,
     taxBreakdown,
   };
 };
