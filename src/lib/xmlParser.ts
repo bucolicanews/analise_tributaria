@@ -52,7 +52,7 @@ export const parseXml = (
                     if (!partyCnpj) {
                         const idTomador = getElement(tomadorElement, "IdentificacaoTomador");
                         const cpfCnpjElement = getElement(idTomador, "CpfCnpj");
-                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ");
+                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ") || getText(cpfCnpjElement, "cnpj");
                     }
                 }
             }
@@ -68,7 +68,7 @@ export const parseXml = (
                      // If failed, try nested lookup
                     if (!partyCnpj) {
                         const cpfCnpjElement = getElement(prestadorElement, "CpfCnpj");
-                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ");
+                        partyCnpj = getText(cpfCnpjElement, "Cnpj") || getText(cpfCnpjElement, "CNPJ") || getText(cpfCnpjElement, "cnpj");
                     }
                 }
             }
