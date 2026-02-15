@@ -28,25 +28,30 @@ export const parseXml = (
         throw new Error("Erro ao processar XML. O arquivo pode estar corrompido.");
       }
 
-      // Validação de CNPJ
+      // 1. VERIFICAR O TIPO DE ARQUIVO PRIMEIRO
+      const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
+      if (detElements.length === 0) {
+        const isCTe = getElement(xmlDoc, "infCte") !== null;
+        const isNFSe = getElement(xmlDoc, "infNfse") !== null;
+        if (isCTe) {
+          throw new Error("Arquivo inválido: Este é um Conhecimento de Transporte (CTe). Por favor, envie a Nota Fiscal de Produto (NFe) correspondente.");
+        }
+        if (isNFSe) {
+          throw new Error("Arquivo inválido: Este é uma Nota Fiscal de Serviço (NFSe). O sistema processa apenas Notas Fiscais de Produto (NFe).");
+        }
+        throw new Error("Nenhum produto (tag <det>) encontrado no XML. Verifique se o arquivo é uma NFe válida.");
+      }
+
+      // 2. SE FOR UMA NFe VÁLIDA, PROSSEGUIR COM A VALIDAÇÃO DE CNPJ
       if (companyCnpj && companyCnpj.trim() !== "") {
         const cleanedCompanyCnpj = companyCnpj.replace(/\D/g, '');
         
         if (type === 'purchase') {
-          let recipientCnpj: string | null = null;
           const destElement = getElement(xmlDoc, "dest");
-          const tomaElement = getElement(xmlDoc, "toma"); // Tag para tomador de serviço em CTe
-
-          if (destElement) {
-            recipientCnpj = getText(destElement, "CNPJ");
-          } else if (tomaElement) {
-            recipientCnpj = getText(tomaElement, "CNPJ");
-          }
-          
-          const cleanedRecipientCnpj = recipientCnpj?.replace(/\D/g, '');
-
-          if (!cleanedRecipientCnpj || cleanedRecipientCnpj !== cleanedCompanyCnpj) {
-            throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário/tomador (${recipientCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
+          const destCnpj = destElement ? getText(destElement, "CNPJ") : null;
+          const cleanedDestCnpj = destCnpj?.replace(/\D/g, '');
+          if (!cleanedDestCnpj || cleanedDestCnpj !== cleanedCompanyCnpj) {
+            throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário (${destCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
           }
         } else { // type === 'sales'
           const emitElement = getElement(xmlDoc, "emit");
@@ -58,19 +63,7 @@ export const parseXml = (
         }
       }
 
-      const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
-      if (detElements.length === 0) {
-        const isCTe = getElement(xmlDoc, "infCte") !== null;
-        const isNFSe = getElement(xmlDoc, "infNfse") !== null;
-        if (isCTe) {
-          throw new Error("Nenhum produto encontrado. Este arquivo parece ser um Conhecimento de Transporte (CTe), que não contém lista de produtos. Por favor, envie uma Nota Fiscal de Produto (NFe).");
-        }
-        if (isNFSe) {
-          throw new Error("Nenhum produto encontrado. Este arquivo parece ser uma Nota Fiscal de Serviço (NFSe), que não contém lista de produtos. Por favor, envie uma Nota Fiscal de Produto (NFe).");
-        }
-        throw new Error("Nenhum produto (tag <det>) encontrado no XML. Verifique se o arquivo é uma NFe válida.");
-      }
-
+      // 3. PROCESSAR PRODUTOS
       const products: Product[] = Array.from(detElements).map((det) => {
         const prod = getElement(det, "prod")!;
         const code = getText(prod, "cProd") || "";
