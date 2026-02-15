@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -11,6 +11,7 @@ import { calculatePricing } from "@/lib/pricing";
 import { createOptimizedAIPayload } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
 import { AiAnalysisReport } from "@/components/AiAnalysisReport";
+import { useNavigate } from "react-router-dom";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,9 +24,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SalesReport } from "@/components/SalesReport";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const Index = () => {
+  const navigate = useNavigate();
   const [purchaseProducts, setPurchaseProducts] = useState<Product[]>([]);
   const [salesProducts, setSalesProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
@@ -76,7 +77,7 @@ const Index = () => {
     setSalesProducts(parsedProducts);
     sessionStorage.setItem('jota-calc-sales-products', JSON.stringify(parsedProducts));
     toast.info(`${parsedProducts.length} produtos de venda carregados.`, {
-      description: "O próximo passo será a página de auditoria para comparar com as compras."
+      description: "Você já pode acessar a Auditoria Fiscal."
     });
   };
 
@@ -204,28 +205,35 @@ const Index = () => {
               <div className="mb-4 flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   <Upload className="h-5 w-5 text-primary" />
-                  <h2 className="text-lg font-semibold">1. Upload de Notas de Compra (Entrada)</h2>
+                  <h2 className="text-lg font-semibold">1. Notas de Compra (Entrada)</h2>
                 </div>
                 <Button variant="outline" size="sm" onClick={handleNewConsultation}>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Nova Consulta
+                  Limpar
                 </Button>
               </div>
               <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
             </Card>
             <Card className="shadow-card p-6">
-              <div className="mb-4 flex items-center gap-2">
-                <Upload className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold">2. Upload de Notas de Venda (Saída)</h2>
+              <div className="mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Upload className="h-5 w-5 text-accent" />
+                  <h2 className="text-lg font-semibold">2. Notas de Venda (Saída)</h2>
+                </div>
+                {salesProducts.length > 0 && (
+                   <Button variant="default" size="sm" className="bg-accent hover:bg-accent/90" onClick={() => navigate('/comparison')}>
+                      Auditoria <ArrowRight className="h-4 w-4 ml-1" />
+                   </Button>
+                )}
               </div>
               <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
-              <Alert className="mt-4">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertTitle>Funcionalidade em Desenvolvimento</AlertTitle>
-                <AlertDescription>
-                  O upload de notas de venda é o primeiro passo para a nossa futura ferramenta de auditoria fiscal.
-                </AlertDescription>
-              </Alert>
+              {salesProducts.length > 0 && (
+                <div className="mt-4">
+                  <Button variant="outline" className="w-full border-accent text-accent hover:bg-accent/10" onClick={() => navigate('/comparison')}>
+                    Acessar Auditoria Fiscal de Vendas
+                  </Button>
+                </div>
+              )}
             </Card>
           </div>
 
@@ -313,7 +321,7 @@ const Index = () => {
   );
 };
 
-// Helper function (can be moved to a separate file if needed)
+// Helper function
 const calculateGlobalSummary = (
   productsToSummarize: CalculatedProduct[],
   currentParams: CalculationParams,
@@ -323,7 +331,6 @@ const calculateGlobalSummary = (
   totalInnerUnitsInXML: number
 ): GlobalSummaryData => {
   if (productsToSummarize.length === 0) {
-    // Return a default empty summary
     return { totalSelling: 0, totalTax: 0, totalProfit: 0, profitMarginPercent: 0, breakEvenPoint: 0, totalVariableExpensesValue: 0, totalContributionMargin: 0, totalTaxPercent: 0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
   }
 
