@@ -10,12 +10,15 @@ import {
   Equal,
   Info,
   Target,
-  AlertTriangle
+  AlertTriangle,
+  ArrowRight
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { calculateLegacyPricing } from '@/lib/legacyPricing';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -30,6 +33,7 @@ const CalculationStep = ({ label, value, isNegative = false, color = "text-foreg
 );
 
 const ImpactAnalysis = () => {
+  const navigate = useNavigate();
   const [futureIbsRate, setFutureIbsRate] = useState(17.7);
   const [futureCbsRate, setFutureCbsRate] = useState(8.8);
 
@@ -52,7 +56,7 @@ const ImpactAnalysis = () => {
 
       const futureParams: CalculationParams = { ...baseParams, ibsRate: futureIbsRate, cbsRate: futureCbsRate };
       const totalFixedExpenses = futureParams.fixedCostsTotal || 0;
-      const cfu = futureParams.totalStockUnits > 0 ? totalFixedCosts / futureParams.totalStockUnits : 0;
+      const cfu = futureParams.totalStockUnits > 0 ? totalFixedExpenses / futureParams.totalStockUnits : 0;
       
       const calculatedFuture = productsToProcess.map(p => calculatePricing(p, futureParams, cfu));
       
@@ -102,7 +106,22 @@ const ImpactAnalysis = () => {
     } catch (error) { return null; }
   }, [futureIbsRate, futureCbsRate]);
 
-  if (!analysisData) return <div className="p-12 text-center">Dados insuficientes.</div>;
+  if (!analysisData) {
+    return (
+      <div className="container mx-auto px-4 py-12 text-center">
+        <Card className="max-w-md mx-auto p-8 shadow-card flex flex-col items-center gap-4 border-dashed border-2 border-primary/20 bg-muted/30">
+          <Calculator className="h-12 w-12 text-muted-foreground" />
+          <h2 className="text-xl font-bold">Simulação Não Iniciada</h2>
+          <p className="text-sm text-muted-foreground">
+            Para realizar a análise de impacto, você precisa primeiro carregar um XML e gerar o relatório na aba de Precificação.
+          </p>
+          <Button onClick={() => navigate('/')} className="mt-2">
+            Ir para Precificação <ArrowRight className="h-4 w-4 ml-2" />
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   const { legacyResult, futureResult, impact } = analysisData;
 
