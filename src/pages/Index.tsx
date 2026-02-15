@@ -211,14 +211,14 @@ const Index = () => {
                   Nova Consulta
                 </Button>
               </div>
-              <XmlUploader onXmlParsed={handlePurchaseXmlParsed} />
+              <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
             </Card>
             <Card className="shadow-card p-6">
               <div className="mb-4 flex items-center gap-2">
                 <Upload className="h-5 w-5 text-accent" />
                 <h2 className="text-lg font-semibold">2. Upload de Notas de Venda (Saída)</h2>
               </div>
-              <XmlUploader onXmlParsed={handleSalesXmlParsed} />
+              <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
               <Alert className="mt-4">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Funcionalidade em Desenvolvimento</AlertTitle>

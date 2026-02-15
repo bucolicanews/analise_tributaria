@@ -1,47 +1,64 @@
 import { Product } from "@/types/pricing";
 
-export const parseXml = (xmlContent: string): Promise<Product[]> => {
+export const parseXml = (
+  xmlContent: string,
+  companyCnpj: string | null,
+  type: 'purchase' | 'sales'
+): Promise<Product[]> => {
   return new Promise((resolve, reject) => {
     try {
       const parser = new DOMParser();
       const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
 
-      // Check for parsing errors
       const parserError = xmlDoc.querySelector("parsererror");
       if (parserError) {
-        throw new Error("Erro ao processar XML");
+        throw new Error("Erro ao processar XML. O arquivo pode estar corrompido.");
       }
 
-      // Get all product items (det elements)
+      // Validação de CNPJ
+      if (companyCnpj && companyCnpj.trim() !== "") {
+        const cleanedCompanyCnpj = companyCnpj.replace(/\D/g, '');
+        
+        if (type === 'purchase') {
+          const destCnpj = xmlDoc.querySelector("dest > CNPJ")?.textContent;
+          const cleanedDestCnpj = destCnpj?.replace(/\D/g, '');
+          if (!cleanedDestCnpj || cleanedDestCnpj !== cleanedCompanyCnpj) {
+            throw new Error(`Nota de Compra Rejeitada: O CNPJ do destinatário (${destCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
+          }
+        } else { // type === 'sales'
+          const emitCnpj = xmlDoc.querySelector("emit > CNPJ")?.textContent;
+          const cleanedEmitCnpj = emitCnpj?.replace(/\D/g, '');
+          if (!cleanedEmitCnpj || cleanedEmitCnpj !== cleanedCompanyCnpj) {
+            throw new Error(`Nota de Venda Rejeitada: O CNPJ do emitente (${emitCnpj || 'N/A'}) não corresponde ao da sua empresa.`);
+          }
+        }
+      }
+
       const detElements = xmlDoc.querySelectorAll("det");
-      
       if (detElements.length === 0) {
         throw new Error("Nenhum produto encontrado no XML");
       }
 
       const products: Product[] = Array.from(detElements).map((det) => {
-        // Product info
         const prod = det.querySelector("prod");
         const code = prod?.querySelector("cProd")?.textContent || "";
         const name = prod?.querySelector("xProd")?.textContent || "";
         const ean = prod?.querySelector("cEAN")?.textContent || "";
         const costStr = prod?.querySelector("vUnCom")?.textContent || "0";
         const cost = parseFloat(costStr);
-        const unit = prod?.querySelector("uCom")?.textContent || "UN"; // Extract commercial unit
+        const unit = prod?.querySelector("uCom")?.textContent || "UN";
         const quantityStr = prod?.querySelector("qCom")?.textContent || "0";
-        const quantity = parseFloat(quantityStr); // Extract commercial quantity
+        const quantity = parseFloat(quantityStr);
         const cfop = prod?.querySelector("CFOP")?.textContent || "";
         const ncm = prod?.querySelector("NCM")?.textContent || "";
         const cest = prod?.querySelector("CEST")?.textContent || "";
         
-        // Extract inner quantity from product name (e.g., "30" from "30X300G")
         let innerQuantity = 1;
-        const innerQuantityMatch = name.match(/(\d+)[xX]\d+G?/); // Matches "30X300G" and captures "30"
+        const innerQuantityMatch = name.match(/(\d+)[xX]\d+G?/);
         if (innerQuantityMatch && innerQuantityMatch[1]) {
           innerQuantity = parseInt(innerQuantityMatch[1], 10);
         }
 
-        // Tax info - PIS
         const pisAliq = det.querySelector("PISAliq");
         const pisNT = det.querySelector("PISNT");
         const pisElement = pisAliq || pisNT;
@@ -53,7 +70,6 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const pisBase = parseFloat(pisBaseStr);
         const pisRate = parseFloat(pisRateStr);
 
-        // Tax info - COFINS
         const cofinsAliq = det.querySelector("COFINSAliq");
         const cofinsNT = det.querySelector("COFINSNT");
         const cofinsElement = cofinsAliq || cofinsNT;
@@ -65,40 +81,20 @@ export const parseXml = (xmlContent: string): Promise<Product[]> => {
         const cofinsBase = parseFloat(cofinsBaseStr);
         const cofinsRate = parseFloat(cofinsRateStr);
         
-        // Tax info - ICMS (IBS)
         const icms = det.querySelector("ICMS");
         const icmsCreditStr = icms?.querySelector("vICMS, vCredICMSSN")?.textContent || "0";
         const icmsCredit = parseFloat(icmsCreditStr);
         
-        // CST/CSOSN
         const cst = icms?.querySelector("CST, CSOSN")?.textContent || "";
 
-        // Tax info - IPI
         const ipi = det.querySelector("IPI");
         const ipiCst = ipi?.querySelector("IPITrib > CST, IPINT > CST")?.textContent || "";
 
         return {
-          code,
-          name,
-          ean,
-          cost,
-          unit,
-          quantity,
-          innerQuantity: innerQuantity > 0 ? innerQuantity : 1, // Ensure innerQuantity is at least 1
-          pisCredit,
-          cofinsCredit,
-          icmsCredit,
-          cfop,
-          cst,
-          ncm,
-          cest,
-          pisCst,
-          cofinsCst,
-          ipiCst,
-          pisBase,
-          pisRate,
-          cofinsBase,
-          cofinsRate,
+          code, name, ean, cost, unit, quantity,
+          innerQuantity: innerQuantity > 0 ? innerQuantity : 1,
+          pisCredit, cofinsCredit, icmsCredit, cfop, cst, ncm, cest,
+          pisCst, cofinsCst, ipiCst, pisBase, pisRate, cofinsBase, cofinsRate,
         };
       });
 

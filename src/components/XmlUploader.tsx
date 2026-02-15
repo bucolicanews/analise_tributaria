@@ -7,14 +7,15 @@ import { toast } from "sonner";
 
 interface XmlUploaderProps {
   onXmlParsed: (products: Product[]) => void;
+  uploadType: 'purchase' | 'sales';
 }
 
-export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
+export const XmlUploader = ({ onXmlParsed, uploadType }: XmlUploaderProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [fileNames, setFileNames] = useState<string[]>([]);
   const [productCount, setProductCount] = useState<number>(0);
-  const [totalXmlCount, setTotalXmlCount] = useState<number>(0); // State for total XMLs processed
+  const [totalXmlCount, setTotalXmlCount] = useState<number>(0);
 
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -24,6 +25,15 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
     setFileNames([]);
     setProductCount(0);
     setTotalXmlCount(0);
+
+    const companyCnpj = localStorage.getItem('jota-cnpj');
+    if (!companyCnpj) {
+      toast.error("CNPJ não configurado", {
+        description: "Por favor, cadastre o CNPJ da sua empresa na página de Configurações antes de importar as notas.",
+      });
+      setIsLoading(false);
+      return;
+    }
 
     let allProducts: Product[] = [];
     let currentProcessedXmlCount = 0;
@@ -36,7 +46,7 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
         if (file.name.toLowerCase().endsWith(".xml")) {
           currentProcessedXmlCount++;
           const text = await file.text();
-          const products = await parseXml(text);
+          const products = await parseXml(text, companyCnpj, uploadType);
           allProducts.push(...products);
         } else {
           toast.error("Formato inválido", {
@@ -50,7 +60,6 @@ export const XmlUploader = ({ onXmlParsed }: XmlUploaderProps) => {
         toast.error("Limite de arquivos excedido", {
           description: `Foram processados ${currentProcessedXmlCount} arquivos XML, mas o limite é de 100.`,
         });
-        // Truncate products if the limit is exceeded, to prevent processing too many
         allProducts = allProducts.slice(0, 100 * 100); 
       }
 
