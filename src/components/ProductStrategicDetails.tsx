@@ -3,9 +3,8 @@ import { DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { CalculatedProduct, StrategicData, SupplierType, CustomerType, EssentialityLevel, TaxRegime } from '@/types/pricing';
+import { CalculatedProduct, StrategicData, CustomerType, EssentialityLevel, TaxRegime } from '@/types/pricing';
 import { toast } from 'sonner';
 
 interface ProductStrategicDetailsProps {
@@ -16,7 +15,7 @@ interface ProductStrategicDetailsProps {
 const defaultStrategicData: StrategicData = {
   purchaseProfile: { supplierType: 'distribuidor', supplierRegime: 'desconhecido', creditEligible: true },
   salesProfile: { customerType: 'B2C', percentageB2B: 0, interestateSalesPercent: 0 },
-  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'standard' },
+  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'padrao' },
 };
 
 export const ProductStrategicDetails: React.FC<ProductStrategicDetailsProps> = ({ product, onSave }) => {
@@ -48,10 +47,10 @@ export const ProductStrategicDetails: React.FC<ProductStrategicDetailsProps> = (
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="zero">Cesta Básica Nacional (Alíquota Zero)</SelectItem>
-                <SelectItem value="reduced">Cesta Básica Estendida (60% Redução)</SelectItem>
-                <SelectItem value="standard">Tributação Padrão (IBS/CBS Cheio)</SelectItem>
-                <SelectItem value="superfluous">Imposto Seletivo (Incentivo ao Desestímulo)</SelectItem>
+                <SelectItem value="cesta_basica">Cesta Básica Nacional (Alíquota Zero)</SelectItem>
+                <SelectItem value="reducao_60">Alíquota Reduzida (Redução de 60%)</SelectItem>
+                <SelectItem value="padrao">Alíquota Padrão (IBS/CBS Integral)</SelectItem>
+                <SelectItem value="potencial_seletivo">Imposto Seletivo (Desestímulo)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -73,7 +72,6 @@ export const ProductStrategicDetails: React.FC<ProductStrategicDetailsProps> = (
                 <SelectItem value={TaxRegime.LucroReal}>Lucro Real</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-muted-foreground">O regime do fornecedor determina o seu crédito financeiro de IBS/CBS.</p>
           </div>
         </div>
 

@@ -29,13 +29,15 @@ interface ProfessionalAIPayload {
     taxPressurePercent: number;
     interestateSalesAvgPercent: number;
     financialConsistencyScore: number; 
-    stCapitalLockValue: number; // Valor de ST embutido que bloqueia capital
-    expectedWorkingCapitalReleasePercent: number; // Expectativa de liberação de caixa
+    stCapitalLockValue: number; 
+    expectedWorkingCapitalReleasePercent: number; 
+    estimatedIBSCBSImpactPercent: number; // Novo: Impacto projetado da reforma
+    estimatedMarginAfterTransition: number; // Novo: Margem projetada pós-reforma
   };
   productAnalysis: {
     ncmGroups: AggregatedNcmData[];
     transitionRiskScore: number; 
-    taxImpactProjectionPercent: number; // Impacto projetado na carga tributária
+    taxImpactProjectionPercent: number; 
   };
 }
 
@@ -46,9 +48,10 @@ interface AggregatedNcmData {
   averageSalePrice: number;
   averageCost: number;
   grossMarginPercent: number;
-  essentialityCategory: string; // Granular: cesta_basica, reduzida, etc
+  lc214Category: string; // Granularidade real
   selectiveTaxExposure: boolean;
   supplierRegimeMix: Record<string, number>;
+  estimatedCreditPercent: number; // Novo: Modelagem de crédito
   customerMix: { b2c: number; b2b: number };
   stImpactValue: number;
 }
@@ -56,7 +59,7 @@ interface AggregatedNcmData {
 const defaultStrategicData: StrategicData = {
   purchaseProfile: { supplierType: 'distribuidor', supplierRegime: 'desconhecido', creditEligible: true },
   salesProfile: { customerType: 'B2C', percentageB2B: 0, interestateSalesPercent: 0 },
-  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'standard' },
+  regulatoryRisk: { essentialFoodCandidate: false, healthTaxRisk: false, essentiality: 'padrao' },
 };
 
 export const createOptimizedAIPayload = (
@@ -108,16 +111,22 @@ export const createOptimizedAIPayload = (
     
     if (p.taxAnalysis.incideIS) group.hasSelectiveTax = true;
     
-    // Estimativa de Capital Preso em ST (valor de compra com ST vs custo limpo)
     if (p.taxAnalysis.icms === 'Substituição Tributária') {
-      const stEstimated = p.cost * 0.15; // Estimativa conservadora de MVA/ST
+      const stEstimated = p.cost * 0.15; 
       group.stValue += stEstimated;
       stCapitalLockValue += (stEstimated * p.quantity);
     }
   }
 
   const ncmGroups: AggregatedNcmData[] = Array.from(ncmMap.entries()).map(([ncm, data]) => {
-    const dominantEss = Object.keys(data.essentialityCounts).reduce((a, b) => data.essentialityCounts[a] > data.essentialityCounts[b] ? a : b, 'standard');
+    const dominantEss = Object.keys(data.essentialityCounts).reduce((a, b) => data.essentialityCounts[a] > data.essentialityCounts[b] ? a : b, 'padrao');
+    
+    // Modelagem de Crédito Estimado por Regime de Fornecedor
+    let estimatedCredit = 0.265; // Padrão Lucro Real/Presumido (IBS/CBS ~ 26.5%)
+    if (data.supplierRegimes[TaxRegime.SimplesNacional] > data.itemCount * 0.5) {
+      estimatedCredit = 0.04; // Crédito reduzido se compra majoritariamente de Simples
+    }
+
     return {
       ncm,
       itemCount: data.itemCount,
@@ -125,23 +134,21 @@ export const createOptimizedAIPayload = (
       averageSalePrice: data.itemCount > 0 ? data.totalRevenue / data.itemCount : 0,
       averageCost: data.itemCount > 0 ? data.totalCost / data.itemCount : 0,
       grossMarginPercent: data.totalRevenue > 0 ? ((data.totalRevenue - data.totalCost) / data.totalRevenue) * 100 : 0,
-      essentialityCategory: dominantEss,
+      lc214Category: dominantEss,
       selectiveTaxExposure: data.hasSelectiveTax,
       supplierRegimeMix: data.supplierRegimes,
+      estimatedCreditPercent: estimatedCredit,
       customerMix: { b2c: 1, b2b: 0 },
-      interestateMix: data.totalInterestatePercent / data.itemCount,
       stImpactValue: data.stValue
     };
   });
 
-  const avgMargin = ncmGroups.reduce((acc, g) => acc + g.grossMarginPercent, 0) / (ncmGroups.length || 1);
-  const stDependency = ncmGroups.filter(g => g.stImpactValue > 0).length / (ncmGroups.length || 1);
-  const riskScore = Math.min(100, (stDependency * 40) + (avgMargin < 20 ? 30 : 0) + (ncmGroups.some(g => g.selectiveTaxExposure) ? 30 : 0));
-
-  const consistencyScore = summary.totalSelling >= summary.breakEvenPoint ? 100 : Math.max(0, (summary.totalSelling / summary.breakEvenPoint) * 100);
+  const futureTaxRate = 0.265; // Projeção IBS/CBS Padrão
+  const currentTaxRate = summary.totalTaxPercent / 100;
+  const estimatedImpact = futureTaxRate - currentTaxRate;
 
   return {
-    objective: "Análise consultiva Big4 de transição para EC 132/2023. Foco em liberação de capital de giro por fim da ST, impacto na margem líquida e creditamento B2B.",
+    objective: "Consultoria Estratégica Transição EC 132. Foco: Liberação de capital de giro (fim ST), modelagem de créditos B2B e impacto na margem líquida pós-2033.",
     companyProfile: {
       name: params.companyName,
       cnpj: params.companyCnpj,
@@ -167,14 +174,16 @@ export const createOptimizedAIPayload = (
       breakEvenPoint: summary.breakEvenPoint,
       taxPressurePercent: summary.totalTaxPercent / 100,
       interestateSalesAvgPercent: products.length > 0 ? globalInterestateSum / products.length : 0,
-      financialConsistencyScore: consistencyScore,
+      financialConsistencyScore: summary.totalSelling >= summary.breakEvenPoint ? 100 : 50,
       stCapitalLockValue,
-      expectedWorkingCapitalReleasePercent: (stCapitalLockValue / summary.totalSelling) * 100
+      expectedWorkingCapitalReleasePercent: summary.totalSelling > 0 ? (stCapitalLockValue / summary.totalSelling) * 100 : 0,
+      estimatedIBSCBSImpactPercent: estimatedImpact,
+      estimatedMarginAfterTransition: (summary.profitMarginPercent / 100) - estimatedImpact
     },
     productAnalysis: { 
       ncmGroups,
-      transitionRiskScore: riskScore,
-      taxImpactProjectionPercent: (params.ibsRate + params.cbsRate) - summary.totalTaxPercent
+      transitionRiskScore: Math.min(100, (stCapitalLockValue / (summary.totalSelling || 1) * 200) + (estimatedImpact * 100)),
+      taxImpactProjectionPercent: estimatedImpact
     }
   };
 };

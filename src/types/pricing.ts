@@ -4,7 +4,8 @@ export enum TaxRegime {
   LucroReal = "Lucro Real",
 }
 
-export type EssentialityLevel = 'zero' | 'reduced' | 'standard' | 'superfluous';
+// Granularidade Nível 10/10 conforme LC 214
+export type EssentialityLevel = 'cesta_basica' | 'reducao_60' | 'padrao' | 'potencial_seletivo';
 
 export interface Product {
   code: string;
@@ -47,7 +48,7 @@ export type CustomerType = 'B2C' | 'B2B' | 'misto' | 'desconhecido';
 
 export interface PurchaseProfile {
   supplierType: SupplierType;
-  supplierRegime: TaxRegime | 'desconhecido'; // Novo: Impacta crédito IBS/CBS
+  supplierRegime: TaxRegime | 'desconhecido';
   creditEligible: boolean;
 }
 
@@ -74,7 +75,7 @@ export interface CalculationParams {
   companyCnpj?: string;
   companyCnaes?: string;
   companyState?: string; 
-  companyLegalNature?: string; // Novo
+  companyLegalNature?: string; 
   
   profitMargin: number;
   fixedExpenses: FixedExpense[];
