@@ -14,7 +14,8 @@ import {
   Calculator,
   TrendingUp,
   TrendingDown,
-  Check
+  Check,
+  ArrowRightLeft
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from '@/lib/pricing';
@@ -30,10 +31,15 @@ const MetricItem = ({ label, value, className }: { label: string; value: string;
   </div>
 );
 
-const TaxBox = ({ label, value }: { label: string; value: string | number }) => (
+const TaxBox = ({ label, value, variant = 'suggested' }: { label: string; value: string | number, variant?: 'current' | 'suggested' }) => (
   <div className="space-y-1 flex-1 min-w-[120px]">
-    <div className="text-[10px] font-bold text-muted-foreground uppercase truncate text-center">{label}</div>
-    <div className="text-sm font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
+    <div className="text-[9px] font-bold text-muted-foreground uppercase truncate text-center">{label}</div>
+    <div className={cn(
+      "text-xs font-mono font-bold p-2 rounded border text-center",
+      variant === 'suggested' 
+        ? "text-primary bg-primary/5 border-primary/20" 
+        : "text-muted-foreground bg-muted/50 border-border"
+    )}>
       {value}
     </div>
   </div>
@@ -70,7 +76,6 @@ const Audit = () => {
 
     const totalFixedCosts = params.fixedCostsTotal || 0;
     const cfu = params.totalStockUnits > 0 ? totalFixedCosts / params.totalStockUnits : 0;
-    const totalVarPct = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
 
     return salesProducts.map(sale => {
       const purchase = purchaseProducts.find(p => p.code === sale.code);
@@ -78,10 +83,6 @@ const Audit = () => {
       
       let riskType: 'overpayment' | 'underpayment' | 'generic' | 'none' = 'none';
       
-      const ncm = purchase?.ncm || sale.ncm || '';
-      const cstPurchase = purchase?.cst || '';
-      const isST = ['10', '30', '60', '70', '201', '202', '203', '500'].includes(cstPurchase);
-
       const baseProduct = purchase || sale;
       const calculated = calculatePricing(baseProduct, params, cfu);
       const classification = calculated.cClassTrib ? getClassificationDetails(calculated.cClassTrib) : null;
@@ -89,6 +90,8 @@ const Audit = () => {
       if (purchase) {
         if (purchase.ncm !== sale.ncm) discrepancies.push('NCM');
         if (purchase.cst !== sale.cst) discrepancies.push('CST/CSOSN');
+        
+        const isST = ['10', '30', '60', '70', '201', '202', '203', '500'].includes(purchase.cst || "");
         const saleIsTributado = ['101', '102', '00', '20'].includes(sale.cst || "");
         
         if (isST && saleIsTributado) riskType = 'overpayment';
@@ -106,8 +109,7 @@ const Audit = () => {
         riskType,
         calculated,
         classification,
-        cfu,
-        totalVarPct
+        cfu
       };
     });
   }, [purchaseProducts, salesProducts, params]);
@@ -131,7 +133,7 @@ const Audit = () => {
         const unitTotalBaseCost = unitAcqCost + unitFixedCost;
         const unitGrossProfit = unitSelling - unitTotalBaseCost;
         const unitTax = calculated.taxToPayPerInnerUnit;
-        const unitVarExp = (calculated.valueForVariableExpenses / calculated.quantity) / innerQty;
+        const unitVarExp = (calculated.valueForVariableExpenses / (calculated.quantity || 1)) / innerQty;
         const unitNetProfit = unitGrossProfit - unitTax - unitVarExp;
 
         return (
@@ -153,7 +155,7 @@ const Audit = () => {
               </div>
             </div>
 
-            {/* ALERTAS DE RISCO COM SETAS */}
+            {/* ALERTAS DE RISCO */}
             {result.riskType !== 'none' && (
               <div className={cn(
                 "px-4 py-3 border-b text-xs flex items-center gap-3",
@@ -174,21 +176,21 @@ const Audit = () => {
                   </div>
                   <div className="opacity-90 leading-normal">
                     {result.riskType === 'overpayment' ? 
-                      "O produto teve o ICMS retido por Substituição Tributária (ST) na entrada, mas está sendo tributado novamente no seu cadastro de venda. Isso gera pagamento duplicado de imposto." : 
+                      "O produto teve o ICMS retido por Substituição Tributária (ST) na entrada, mas está sendo tributado novamente no seu cadastro de venda." : 
                      result.riskType === 'underpayment' ? 
-                      "O item está sendo vendido com segregação de ST/Monofásico, porém a nota de entrada indica que ele é tributado integralmente. Risco de autuação por falta de recolhimento." :
+                      "O item está sendo vendido com segregação de ST/Monofásico, porém a nota de entrada indica que ele é tributado integralmente." :
                       "Existem códigos (NCM ou CST) na venda que não condizem com a Nota de Entrada do fornecedor."}
                   </div>
                 </div>
               </div>
             )}
 
-            {/* STATUS OK TRIBUTÁRIO */}
+            {/* STATUS OK */}
             {result.status === 'ok' && (
               <div className="px-4 py-2 border-b bg-success/10 text-success text-xs flex items-center gap-2">
                 <Check className="h-4 w-4" />
                 <span className="font-bold uppercase">Conformidade Tributária Identificada</span>
-                <span className="opacity-80">- O cadastro de venda está alinhado com a entrada fiscal do produto.</span>
+                <span className="opacity-80">- Cadastro alinhado com a entrada fiscal.</span>
               </div>
             )}
 
@@ -201,22 +203,43 @@ const Audit = () => {
               <MetricItem label="Imposto Líq. Com." value={formatCurrency(calculated.taxToPay)} className="text-destructive" />
             </div>
 
-            <div className="p-4 bg-card border-b border-border">
-              <div className="text-[10px] font-bold text-primary uppercase mb-3 flex items-center gap-2">
-                <ShieldCheck className="h-3 w-3" /> Correção Sugerida p/ Cadastro
+            {/* COMPARAÇÃO DE CÓDIGOS */}
+            <div className="p-4 space-y-4">
+              {/* Situação Atual */}
+              <div className="space-y-3">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                  <XCircle className="h-3 w-3" /> Situação Atual (Extraída da Venda)
+                </div>
+                <div className="flex flex-wrap gap-4 opacity-70">
+                  <TaxBox variant="current" label="CSOSN / CST ICMS" value={result.sale.cst || '---'} />
+                  <TaxBox variant="current" label="CST PIS/COFINS" value={result.sale.pisCst || '---'} />
+                  <TaxBox variant="current" label="CFOP Venda" value={result.sale.cfop || '---'} />
+                  <TaxBox variant="current" label="NCM" value={result.sale.ncm || '---'} />
+                  <TaxBox variant="current" label="CEST" value={result.sale.cest || '---'} />
+                  <TaxBox variant="current" label="Classe IBS/CBS" value="---" />
+                  <TaxBox variant="current" label="Origem" value="---" />
+                </div>
               </div>
-              <div className="flex flex-wrap gap-4">
-                <TaxBox label="CSOSN / CST ICMS" value={calculated.suggestedCodes.icmsCstOrCsosn} />
-                <TaxBox label="CST PIS/COFINS" value={calculated.suggestedCodes.pisCofinsCst} />
-                <TaxBox label="CFOP Venda" value={calculated.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'} />
-                <TaxBox label="NCM" value={calculated.ncm || '---'} />
-                <TaxBox label="CEST" value={calculated.cest || '---'} />
-                <TaxBox label="Classe IBS/CBS" value={calculated.cClassTrib || '1'} />
-                <TaxBox label="Origem" value="0" />
+
+              {/* Sugestão */}
+              <div className="space-y-3 pt-4 border-t border-border/50">
+                <div className="text-[10px] font-bold text-primary uppercase flex items-center gap-2">
+                  <ShieldCheck className="h-3 w-3" /> Sugestão p/ Correção (Baseada na Compra)
+                </div>
+                <div className="flex flex-wrap gap-4">
+                  <TaxBox label="CSOSN / CST ICMS" value={calculated.suggestedCodes.icmsCstOrCsosn} />
+                  <TaxBox label="CST PIS/COFINS" value={calculated.suggestedCodes.pisCofinsCst} />
+                  <TaxBox label="CFOP Venda" value={calculated.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'} />
+                  <TaxBox label="NCM" value={calculated.ncm || '---'} />
+                  <TaxBox label="CEST" value={calculated.cest || '---'} />
+                  <TaxBox label="Classe IBS/CBS" value={calculated.cClassTrib || '1'} />
+                  <TaxBox label="Origem" value="0" />
+                </div>
               </div>
             </div>
 
-            <div className="px-4 bg-success/5 border-b border-border">
+            {/* Matemática */}
+            <div className="px-4 bg-success/5 border-b border-border border-t">
               <MathBlock 
                 label="Cálculo Comercial (UN)"
                 icon={Package}
@@ -242,16 +265,6 @@ const Audit = () => {
                 ]}
               />
             </div>
-
-            {result.classification && (
-              <div className="p-3 bg-muted/20">
-                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                  <Info className="h-3 w-3 text-primary" />
-                  <span className="font-bold text-foreground">Reforma Tributária (IBS/CBS):</span>
-                  {result.classification.cClass.name}
-                </div>
-              </div>
-            )}
           </div>
         );
       })}
