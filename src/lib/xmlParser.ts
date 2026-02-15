@@ -28,21 +28,22 @@ export const parseXml = (
         throw new Error("Erro ao processar XML. O arquivo pode estar corrompido.");
       }
 
-      // 1. VERIFICAR O TIPO DE ARQUIVO PRIMEIRO
-      const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
-      if (detElements.length === 0) {
-        const isCTe = getElement(xmlDoc, "infCte") !== null;
-        const isNFSe = getElement(xmlDoc, "infNfse") !== null;
-        if (isCTe) {
+      // 1. VERIFICAR O TIPO DE ARQUIVO PELA TAG RAIZ
+      const rootTagName = xmlDoc.documentElement?.localName?.toLowerCase();
+      if (rootTagName === 'cteproc' || rootTagName === 'cte') {
           throw new Error("Arquivo inválido: Este é um Conhecimento de Transporte (CTe). Por favor, envie a Nota Fiscal de Produto (NFe) correspondente.");
-        }
-        if (isNFSe) {
+      }
+      if (rootTagName === 'nfse' || rootTagName === 'compnfse') {
           throw new Error("Arquivo inválido: Este é uma Nota Fiscal de Serviço (NFSe). O sistema processa apenas Notas Fiscais de Produto (NFe).");
-        }
-        throw new Error("Nenhum produto (tag <det>) encontrado no XML. Verifique se o arquivo é uma NFe válida.");
       }
 
-      // 2. SE FOR UMA NFe VÁLIDA, PROSSEGUIR COM A VALIDAÇÃO DE CNPJ
+      // 2. VERIFICAR SE HÁ PRODUTOS
+      const detElements = xmlDoc.getElementsByTagNameNS("*", "det");
+      if (detElements.length === 0) {
+        throw new Error("Nenhum produto (tag <det>) encontrado no XML. Verifique se o arquivo é uma NFe de produto válida.");
+      }
+
+      // 3. SE FOR UMA NFe VÁLIDA, PROSSEGUIR COM A VALIDAÇÃO DE CNPJ
       if (companyCnpj && companyCnpj.trim() !== "") {
         const cleanedCompanyCnpj = companyCnpj.replace(/\D/g, '');
         
@@ -63,7 +64,7 @@ export const parseXml = (
         }
       }
 
-      // 3. PROCESSAR PRODUTOS
+      // 4. PROCESSAR PRODUTOS
       const products: Product[] = Array.from(detElements).map((det) => {
         const prod = getElement(det, "prod")!;
         const code = getText(prod, "cProd") || "";
