@@ -23,7 +23,10 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
-const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+const formatCurrency = (value: number) => {
+  const absValue = Math.abs(value);
+  return new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(absValue);
+};
 
 const CalculationStep = ({ label, value, isNegative = false, color = "text-foreground", isSubItem = false }: { label: string, value: number, isNegative?: boolean, color?: string, isSubItem?: boolean }) => (
   <div className={cn("flex items-center justify-between py-2 border-b border-border/50 last:border-0", isSubItem && "ml-4 opacity-80 py-1")}>
@@ -72,7 +75,6 @@ const ImpactAnalysis = () => {
       const futureAcqCost = calculatedFuture.reduce((sum, p) => sum + p.cost * p.quantity, 0);
       const futureVarExp = calculatedFuture.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
       
-      // Detalhando Impostos da Reforma
       const totalFutureCbsDebit = calculatedFuture.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
       const totalFutureIbsDebit = calculatedFuture.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
       const totalFutureSelectiveDebit = calculatedFuture.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
@@ -87,7 +89,6 @@ const ImpactAnalysis = () => {
       
       const futureNetProfit = futureRevenue - futureAcqCost - futureVarExp - fixedCostProportionalToNote - futureTotalTax;
 
-      // Cálculo Seguro do BEP Futuro
       const totalVarPct = futureParams.variableExpenses.reduce((s, e) => s + e.percentage, 0);
       const cbsRateEff = futureParams.useCbsDebit ? futureParams.cbsRate : 0;
       const ibsRateEff = futureParams.ibsRate * (futureParams.ibsDebitPercentage / 100);
@@ -287,11 +288,11 @@ const ImpactAnalysis = () => {
                         </div>
 
                         <div className="border-t border-primary/20 mt-1 pt-1">
-                          <CalculationStep label="(=) Imposto Líquido a Pagar" value={futureResult.totalTax} isNegative color="text-destructive" />
+                          <CalculationStep label="(=) Imposto Líquido a Pagar" value={futureResult.totalTax} isNegative={futureResult.totalTax > 0} color={futureResult.totalTax > 0 ? "text-destructive" : "text-success"} />
                         </div>
                       </div>
                     ) : (
-                      <CalculationStep label="Impostos Líquidos (Saldo)" value={futureResult.totalTax} isNegative />
+                      <CalculationStep label="Impostos Líquidos (Saldo)" value={futureResult.totalTax} isNegative={futureResult.totalTax > 0} />
                     )}
                     
                     <div className="bg-success/10 p-2 rounded mt-2 border border-success/20 text-[10px] text-success font-bold text-center">
