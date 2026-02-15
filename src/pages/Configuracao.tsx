@@ -16,7 +16,6 @@ const Configuracao = () => {
   const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('jota-razaoSocial') || '');
   const [nomeFantasia, setNomeFantasia] = useState(localStorage.getItem('jota-nomeFantasia') || '');
   const [cnpj, setCnpj] = useState(localStorage.getItem('jota-cnpj') || '');
-  const [faturamento12Meses, setFaturamento12Meses] = useState(localStorage.getItem('jota-faturamento12Meses') || '');
   const [cnaes, setCnaes] = useState(localStorage.getItem('jota-cnaes') || '');
 
   const handleSave = (e: React.FormEvent) => {
@@ -26,7 +25,6 @@ const Configuracao = () => {
     localStorage.setItem('jota-razaoSocial', razaoSocial);
     localStorage.setItem('jota-nomeFantasia', nomeFantasia);
     localStorage.setItem('jota-cnpj', cnpj);
-    localStorage.setItem('jota-faturamento12Meses', faturamento12Meses);
     localStorage.setItem('jota-cnaes', cnaes);
 
     // Salva os webhooks no localStorage
@@ -77,16 +75,6 @@ const Configuracao = () => {
                        id="cnpj"
                        value={cnpj}
                        onChange={(e) => setCnpj(e.target.value)}
-                    />
-                 </div>
-                 <div className="space-y-2">
-                    <Label htmlFor="faturamento">Faturamento (Últimos 12 Meses)</Label>
-                    <Input
-                       id="faturamento"
-                       type="number"
-                       placeholder="R$"
-                       value={faturamento12Meses}
-                       onChange={(e) => setFaturamento12Meses(e.target.value)}
                     />
                  </div>
                </div>
