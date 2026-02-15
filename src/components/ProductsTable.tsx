@@ -331,9 +331,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                   <TableCell className="max-w-[300px] whitespace-normal text-left">{product.name}</TableCell>
                   <TableCell>
                     <div className="flex gap-1">
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setEditingProduct(product)}><BrainCircuit className="h-4 w-4" /></Button>
-                      </DialogTrigger>
+                      <Button variant="ghost" size="icon" onClick={() => setEditingProduct(product)}><BrainCircuit className="h-4 w-4" /></Button>
                       <Dialog>
                         <DialogTrigger asChild>
                            <Button variant="ghost" size="icon"><FileText className="h-4 w-4" /></Button>
