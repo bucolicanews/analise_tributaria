@@ -44,10 +44,10 @@ export const parseXml = (
             partyCnpj = getText(destElement, "CNPJ");
 
             if (!partyCnpj) { // If not found, it might be an NFSe
-                const tomadorElement = getElement(xmlDoc, "tomador") || getElement(xmlDoc, "TomadorServico");
+                const tomadorElement = getElement(xmlDoc, "tomador") || getElement(xmlDoc, "TomadorServico") || getElement(xmlDoc, "toma");
                 if (tomadorElement) {
-                    // Try direct lookup first
-                    partyCnpj = getText(tomadorElement, "Cnpj") || getText(tomadorElement, "cnpj");
+                    // Try direct lookup first (for all variations)
+                    partyCnpj = getText(tomadorElement, "CNPJ") || getText(tomadorElement, "Cnpj") || getText(tomadorElement, "cnpj");
                     // If failed, try nested lookup for complex NFSe layouts
                     if (!partyCnpj) {
                         const idTomador = getElement(tomadorElement, "IdentificacaoTomador");
@@ -64,7 +64,7 @@ export const parseXml = (
                 const prestadorElement = getElement(xmlDoc, "prestador") || getElement(xmlDoc, "PrestadorServico");
                 if (prestadorElement) {
                     // Try direct lookup first
-                    partyCnpj = getText(prestadorElement, "Cnpj") || getText(prestadorElement, "cnpj");
+                    partyCnpj = getText(prestadorElement, "CNPJ") || getText(prestadorElement, "Cnpj") || getText(prestadorElement, "cnpj");
                      // If failed, try nested lookup
                     if (!partyCnpj) {
                         const cpfCnpjElement = getElement(prestadorElement, "CpfCnpj");
