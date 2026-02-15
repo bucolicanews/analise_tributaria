@@ -2,18 +2,18 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Upload, BarChart3, Settings, Tags, TrendingUp } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags, TrendingUp, Search } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
 }
 
 const navItems = [
-  { to: '/', label: 'Análise do Regime Tributário', icon: Upload },
-  { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
-  { to: '/impact-analysis', label: 'Análise de Impacto', icon: TrendingUp },
-  { to: '/product-list', label: 'Lista de Produtos', icon: Tags },
-  { to: '/configuracao', label: 'Configuração', icon: Settings },
+  { to: '/', label: 'Análise de Precificação', icon: Upload },
+  { to: '/comparison', label: 'Auditoria Fiscal', icon: Search },
+  { to: '/impact', label: 'Análise de Impacto', icon: TrendingUp },
+  { to: '/products', label: 'Lista de Produtos', icon: Tags },
+  { to: '/configuracao', label: 'Configurações', icon: Settings },
 ];
 
 export const Layout: React.FC<LayoutProps> = ({ children }) => {
