@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, CheckCircle2, ShoppingCart, Search, FileWarning, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ShoppingCart, Search, FileWarning, XCircle, AlertTriangle } from 'lucide-react';
 import { Product } from "@/types/pricing";
 
 const Audit = () => {
@@ -54,13 +54,14 @@ const Audit = () => {
             <TableHead>Produto (Venda)</TableHead>
             <TableHead>NCM (Venda/Compra)</TableHead>
             <TableHead>CST (Venda/Compra)</TableHead>
-            <TableHead className="text-right">Status</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead className="w-[300px]">Observação de Risco</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {items.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                 Nenhum item nesta categoria.
               </TableCell>
             </TableRow>
@@ -97,7 +98,7 @@ const Audit = () => {
                     )}
                   </div>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell>
                   {result.status === 'unassociated' && (
                     <Badge variant="outline" className="text-yellow-600 border-yellow-200 bg-yellow-50">
                       <FileWarning className="h-3 w-3 mr-1" /> Não encontrado
@@ -112,6 +113,22 @@ const Audit = () => {
                     <Badge variant="outline" className="text-success border-success/30 bg-success/10">
                       <CheckCircle2 className="h-3 w-3 mr-1" /> Correto
                     </Badge>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {result.status === 'divergent' && (
+                    <div className="flex items-start gap-2 text-xs text-destructive bg-destructive/5 p-2 rounded border border-destructive/20">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <p><strong>Risco Fiscal Alto:</strong> Divergência detectada. Esta falha de cadastro pode causar o pagamento de imposto a menos, gerando passivo fiscal e multas.</p>
+                    </div>
+                  )}
+                  {result.status === 'unassociated' && (
+                    <p className="text-xs text-muted-foreground italic">Necessário importar a nota de compra correspondente para validar a entrada.</p>
+                  )}
+                  {result.status === 'ok' && (
+                    <div className="flex items-center gap-1 text-xs text-success">
+                      <CheckCircle2 className="h-3 w-3" /> Consistência garantida.
+                    </div>
                   )}
                 </TableCell>
               </TableRow>
