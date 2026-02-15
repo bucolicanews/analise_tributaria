@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Search, Printer, Tags, Info, DollarSign } from 'lucide-react';
+import { Search, Printer, Tags, Info, DollarSign, Calculator } from 'lucide-react';
 import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { generateProductListPdf } from '@/lib/pdfGenerator';
@@ -113,6 +113,7 @@ const ProductList = () => {
               const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
               const fixedCostPerComUnit = product.valueForFixedCost / product.quantity;
               const totalBaseCostUnit = product.cost + fixedCostPerComUnit;
+              const productProfit = product.sellingPrice - totalBaseCostUnit - product.taxToPay - product.valueForVariableExpenses;
 
               return (
                 <div key={product.code} className="rounded-lg border border-border overflow-hidden shadow-sm">
@@ -132,7 +133,7 @@ const ProductList = () => {
                     </div>
                   </div>
 
-                  {/* NOVO: Métricas Financeiras */}
+                  {/* Métricas Financeiras */}
                   <div className="flex flex-wrap bg-muted/10 border-b border-border py-2 px-1">
                     <MetricItem label="Custo Total Base (Unit)" value={formatCurrency(totalBaseCostUnit)} className="text-foreground" />
                     <MetricItem label="Custo Unid. Int." value={formatCurrency(product.costPerInnerUnit)} className="text-foreground" />
@@ -167,6 +168,40 @@ const ProductList = () => {
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">Origem</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">
                         0 (Nacional)
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RESUMO DE LUCRO (MATEMÁTICA) */}
+                  <div className="px-4 py-3 bg-success/5 border-t border-border flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div className="flex items-center gap-2 text-success font-bold text-xs uppercase">
+                      <Calculator className="h-4 w-4" />
+                      Cálculo do Lucro (Unid. Com.)
+                    </div>
+                    <div className="flex items-center gap-2 sm:gap-4 font-mono text-xs sm:text-sm">
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-muted-foreground uppercase">Venda</span>
+                        <span className="font-bold text-primary">{formatCurrency(product.sellingPrice)}</span>
+                      </div>
+                      <span className="text-muted-foreground">-</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-muted-foreground uppercase">Custo</span>
+                        <span className="font-bold">{formatCurrency(totalBaseCostUnit)}</span>
+                      </div>
+                      <span className="text-muted-foreground">-</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-muted-foreground uppercase">Imposto</span>
+                        <span className="font-bold text-destructive">{formatCurrency(product.taxToPay)}</span>
+                      </div>
+                      <span className="text-muted-foreground">-</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-muted-foreground uppercase">Variáv.</span>
+                        <span className="font-bold text-destructive">{formatCurrency(product.valueForVariableExpenses)}</span>
+                      </div>
+                      <span className="text-muted-foreground">=</span>
+                      <div className="flex flex-col items-center">
+                        <span className="text-[9px] text-success uppercase">Líquido</span>
+                        <span className="font-bold text-success text-base">{formatCurrency(productProfit)}</span>
                       </div>
                     </div>
                   </div>
