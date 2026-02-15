@@ -14,7 +14,6 @@ interface ParametersFormProps {
   disabled?: boolean;
 }
 
-// Componente auxiliar para exibir a margem máxima
 const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit: number, currentProfit: number, isInvalid: boolean }) => {
   const formatPercent = (value: number) => value.toFixed(2).replace('.', ',');
   
@@ -44,7 +43,7 @@ const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit
 
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
-  const [profitMargin, setProfitMargin] = useState<string>("9.5");
+  const [profitMargin, setProfitMargin] = useState<string>("12");
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido);
   const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("0");
   const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false);
@@ -52,10 +51,10 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [csllRate, setCsllRate] = useState<string>("1.08");
   const [irpjRateLucroReal, setIrpjRateLucroReal] = useState<string>("15");
   const [csllRateLucroReal, setCsllRateLucroReal] = useState<string>("9");
-  const [payroll, setPayroll] = useState<string>("10000");
+  const [payroll, setPayroll] = useState<string>("6500");
   const [inssPatronalRate, setInssPatronalRate] = useState<string>("28.8");
-  const [totalStockUnits, setTotalStockUnits] = useState<string>("5000");
-  const [lossPercentage, setLossPercentage] = useState<string>("1");
+  const [totalStockUnits, setTotalStockUnits] = useState<string>("3000");
+  const [lossPercentage, setLossPercentage] = useState<string>("1.5");
   
   const [cbsRate, setCbsRate] = useState<string>("8.8");
   const [ibsRate, setIbsRate] = useState<string>("17.7");
@@ -64,65 +63,68 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     { ncm: "2203", rate: 10, description: "Cervejas" },
   ]);
 
-  // Parâmetros de Transição (Crédito)
   const [usePisCofins, setUsePisCofins] = useState<boolean>(true);
   const [icmsPercentage, setIcmsPercentage] = useState<string>("100");
-
-  // Novos Parâmetros de Transição (Débito)
   const [useSelectiveTaxDebit, setUseSelectiveTaxDebit] = useState<boolean>(true);
   const [useCbsDebit, setUseCbsDebit] = useState<boolean>(true);
   const [ibsDebitPercentage, setIbsDebitPercentage] = useState<string>("100");
 
-  // Novos campos de contexto
-  const [faturamento12Meses, setFaturamento12Meses] = useState<string>("");
-  const [anexoSimples, setAnexoSimples] = useState<string>("");
+  const [faturamento12Meses, setFaturamento12Meses] = useState<string>("540000");
+  const [anexoSimples, setAnexoSimples] = useState<string>("Anexo I");
   const [tipoOperacao, setTipoOperacao] = useState<'Varejo' | 'Atacado'>('Varejo');
 
-
   const [fixedExpenses, setFixedExpenses] = useState<FixedExpense[]>([
-    { name: "Aluguel", value: 3000 },
+    { name: "Aluguel", value: 3500 },
+    { name: "Luz/Água/Internet", value: 950 },
+    { name: "Contador", value: 650 },
+    { name: "IPTU/TLPL/Taxas", value: 250 },
+    { name: "Uso e Consumo", value: 400 },
   ]);
   
   const [variableExpenses, setVariableExpenses] = useState<VariableExpense[]>([
-    { name: "Comissão", percentage: 5 },
+    { name: "Comissão", percentage: 2 },
+    { name: "Taxas Cartão", percentage: 3.5 },
+    { name: "Embalagens", percentage: 1 },
   ]);
 
-  // Função para aplicar Presets
   const applyPreset = (type: 'simples' | 'hibrido' | 'presumido' | 'real') => {
-    // Valores comuns para todos
-    setProfitMargin("10");
-    setPayroll("10000");
-    setTotalStockUnits("5000");
-    setLossPercentage("1");
-    setFixedExpenses([{ name: "Aluguel", value: 3000 }]);
-    setVariableExpenses([{ name: "Comissão", percentage: 5 }]);
-    setCbsRate("8.8");
-    setIbsRate("17.7");
-    setDefaultSelectiveTaxRate("0");
+    // Parâmetros de Mercado ME/EPP
+    setLossPercentage("2");
+    setTotalStockUnits("4000");
+    setProfitMargin("15");
+    
+    // Lista de despesas realistas para ME
+    const realisticFixed = [
+        { name: "Aluguel", value: 3500 },
+        { name: "Luz/Água/Internet", value: 950 },
+        { name: "Contador", value: 700 },
+        { name: "IPTU/Taxas", value: 300 },
+        { name: "Manutenção/Consumo", value: 500 },
+    ];
+    
+    const realisticVariable = [
+        { name: "Comissão", percentage: 3 },
+        { name: "Taxas Cartão", percentage: 3.5 },
+        { name: "Embalagens/Frete", percentage: 1.5 },
+    ];
 
-    if (type === 'simples') {
-        setTaxRegime(TaxRegime.SimplesNacional);
-        setGenerateIvaCredit(false);
-        setSimplesNacionalRate("4");
+    setFixedExpenses(realisticFixed);
+    setVariableExpenses(realisticVariable);
+
+    if (type === 'simples' || type === 'hibrido') {
+        setFaturamento12Meses("540000"); // 45k/mês
         setAnexoSimples("Anexo I");
-        setFaturamento12Meses("180000");
-        setUsePisCofins(false);
-        setIcmsPercentage("0");
-        setUseSelectiveTaxDebit(false);
-        setUseCbsDebit(false);
-        setIbsDebitPercentage("0");
-    } else if (type === 'hibrido') {
+        setPayroll("6500"); // 2 funcionários salário mínimo + encargos simples
         setTaxRegime(TaxRegime.SimplesNacional);
-        setGenerateIvaCredit(true);
-        setSimplesNacionalRate("4");
-        setAnexoSimples("Anexo I");
-        setFaturamento12Meses("180000");
-        setUsePisCofins(true);
-        setIcmsPercentage("100");
-        setUseSelectiveTaxDebit(true);
-        setUseCbsDebit(true);
-        setIbsDebitPercentage("100");
+        setGenerateIvaCredit(type === 'hibrido');
+        setUsePisCofins(type === 'hibrido');
+        setIcmsPercentage(type === 'hibrido' ? "100" : "0");
+        setUseSelectiveTaxDebit(type === 'hibrido');
+        setUseCbsDebit(type === 'hibrido');
+        setIbsDebitPercentage(type === 'hibrido' ? "100" : "0");
     } else if (type === 'presumido') {
+        setFaturamento12Meses("1800000"); // 150k/mês
+        setPayroll("18000");
         setTaxRegime(TaxRegime.LucroPresumido);
         setIrpjRate("1.2");
         setCsllRate("1.08");
@@ -133,6 +135,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setUseCbsDebit(true);
         setIbsDebitPercentage("100");
     } else if (type === 'real') {
+        setFaturamento12Meses("4800000"); // 400k/mês
+        setPayroll("45000");
         setTaxRegime(TaxRegime.LucroReal);
         setIrpjRateLucroReal("15");
         setCsllRateLucroReal("9");
@@ -143,10 +147,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setUseCbsDebit(true);
         setIbsDebitPercentage("100");
     }
-    toast.info(`Preset "${type.toUpperCase()}" aplicado com sucesso!`);
+    toast.info(`Preset "${type.toUpperCase()}" aplicado com dados realistas de mercado.`);
   };
 
-  // Efeito para calcular a alíquota do Simples Nacional automaticamente
   useEffect(() => {
     if (taxRegime === TaxRegime.SimplesNacional) {
       const rbt12 = parseFloat(faturamento12Meses) || 0;
@@ -154,119 +157,45 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         const rate = calculateSimplesNacionalEffectiveRate(anexoSimples, rbt12);
         setSimplesNacionalRate(rate.toFixed(2));
       } else {
-        setSimplesNacionalRate("0"); // Reseta se não houver anexo ou faturamento
+        setSimplesNacionalRate("0");
       }
     }
   }, [faturamento12Meses, anexoSimples, taxRegime]);
 
-
-  // --- Lógica de Cálculo da Margem Máxima ---
   const maxProfitMargin = useMemo(() => {
-    const totalVariableExpensesPercentage = variableExpenses.reduce(
-      (sum, exp) => sum + exp.percentage,
-      0
-    );
-    
+    const totalVariableExpensesPercentage = variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
     let totalTaxRate = 0;
-    
-    // Aplica os controles de débito na taxa de imposto
     const cbs = useCbsDebit ? (parseFloat(cbsRate) || 0) : 0;
     const ibs = (parseFloat(ibsRate) || 0) * (parseFloat(ibsDebitPercentage) / 100);
-    // Para a margem máxima, consideramos a maior alíquota de IS possível como pior caso.
     const maxSelectiveRate = Math.max(parseFloat(defaultSelectiveTaxRate) || 0, ...selectiveTaxRates.map(r => r.rate));
     const selective = useSelectiveTaxDebit ? maxSelectiveRate : 0;
 
     if (taxRegime === TaxRegime.LucroPresumido) {
-      const irpj = parseFloat(irpjRate) || 0;
-      const csll = parseFloat(csllRate) || 0;
-      totalTaxRate = cbs + ibs + irpj + csll + selective;
+      totalTaxRate = cbs + ibs + (parseFloat(irpjRate) || 0) + (parseFloat(csllRate) || 0) + selective;
     } else if (taxRegime === TaxRegime.LucroReal) {
       totalTaxRate = cbs + ibs + selective;
-      const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
       const irpjCsllRate = (parseFloat(irpjRateLucroReal) || 0) / 100 + (parseFloat(csllRateLucroReal) || 0) / 100;
-      return (100 - totalOtherPercentages) * (1 - irpjCsllRate);
-    } else { // Simples Nacional
-      if (generateIvaCredit) {
-        const simples = parseFloat(simplesNacionalRate) || 0;
-        totalTaxRate = simples + cbs + ibs + selective;
-      } else {
-        totalTaxRate = (parseFloat(simplesNacionalRate) || 0) + selective;
-      }
+      return (100 - (totalVariableExpensesPercentage + totalTaxRate)) * (1 - irpjCsllRate);
+    } else {
+      const simples = parseFloat(simplesNacionalRate) || 0;
+      totalTaxRate = generateIvaCredit ? simples + cbs + ibs + selective : simples + selective;
     }
-
-    const totalOtherPercentages = totalVariableExpensesPercentage + totalTaxRate;
-    
-    return 100 - totalOtherPercentages;
+    return 100 - (totalVariableExpensesPercentage + totalTaxRate);
   }, [variableExpenses, taxRegime, irpjRate, csllRate, generateIvaCredit, simplesNacionalRate, cbsRate, ibsRate, defaultSelectiveTaxRate, selectiveTaxRates, useCbsDebit, ibsDebitPercentage, useSelectiveTaxDebit, irpjRateLucroReal, csllRateLucroReal]);
 
   const currentProfit = parseFloat(profitMargin) || 0;
   const isProfitMarginInvalid = currentProfit > maxProfitMargin && maxProfitMargin > 0;
-  // ------------------------------------------
-
-
-  const addFixedExpense = () => setFixedExpenses([...fixedExpenses, { name: "", value: 0 }]);
-  const removeFixedExpense = (index: number) => setFixedExpenses(fixedExpenses.filter((_, i) => i !== index));
-  const updateFixedExpense = (index: number, field: keyof FixedExpense, value: string | number) => {
-    const updated = [...fixedExpenses];
-    updated[index] = { ...updated[index], [field]: value };
-    setFixedExpenses(updated);
-  };
-
-  const addVariableExpense = () => setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }]);
-  const removeVariableExpense = (index: number) => setVariableExpenses(variableExpenses.filter((_, i) => i !== index));
-  const updateVariableExpense = (index: number, field: keyof VariableExpense, value: string | number) => {
-    const updated = [...variableExpenses];
-    updated[index] = { ...updated[index], [field]: value };
-    setVariableExpenses(updated);
-  };
-
-  const addSelectiveTaxRate = () => setSelectiveTaxRates([...selectiveTaxRates, { ncm: "", rate: 0, description: "" }]);
-  const removeSelectiveTaxRate = (index: number) => setSelectiveTaxRates(selectiveTaxRates.filter((_, i) => i !== index));
-  const updateSelectiveTaxRate = (index: number, field: keyof SelectiveTaxRate, value: string | number) => {
-    const updated = [...selectiveTaxRates];
-    updated[index] = { ...updated[index], [field]: value };
-    setSelectiveTaxRates(updated);
-  };
 
   const handleCalculate = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!profitMargin || !payroll || !inssPatronalRate || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate || !defaultSelectiveTaxRate || !icmsPercentage || !ibsDebitPercentage) {
-      toast.error("Campos obrigatórios", {
-        description: "Preencha todos os campos principais, de impostos e de transição.",
-      });
+    if (!profitMargin || !payroll || !totalStockUnits || !lossPercentage || !cbsRate || !ibsRate) {
+      toast.error("Preencha todos os campos obrigatórios.");
       return;
     }
-
-    if (maxProfitMargin <= 0) {
-      toast.error("Cálculo Inviável", {
-        description: "A soma das despesas variáveis e impostos é 100% ou mais. Reduza as alíquotas.",
-      });
+    if (maxProfitMargin <= 0 || isProfitMarginInvalid) {
+      toast.error("Cálculo inviável com as alíquotas e margem atuais.");
       return;
     }
-
-    if (isProfitMarginInvalid) {
-      toast.error("Margem de Lucro Excedida", {
-        description: `A margem de lucro alvo (${currentProfit.toFixed(2)}%) excede a margem máxima permitida (${maxProfitMargin.toFixed(2)}%).`,
-      });
-      return;
-    }
-
-    if (taxRegime === TaxRegime.SimplesNacional && !simplesNacionalRate) {
-      toast.error("Campo obrigatório", { description: "Preencha a Alíquota do Simples Nacional." });
-      return;
-    }
-
-    if (taxRegime === TaxRegime.LucroPresumido && (!irpjRate || !csllRate)) {
-      toast.error("Campos obrigatórios", { description: "Preencha as alíquotas de IRPJ e CSLL." });
-      return;
-    }
-
-    if (taxRegime === TaxRegime.LucroReal && (!irpjRateLucroReal || !csllRateLucroReal)) {
-      toast.error("Campos obrigatórios", { description: "Preencha as alíquotas de IRPJ e CSLL para o Lucro Real." });
-      return;
-    }
-
     onCalculate({
       profitMargin: parseFloat(profitMargin),
       fixedExpenses,
@@ -286,104 +215,65 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       ibsRate: parseFloat(ibsRate),
       defaultSelectiveTaxRate: parseFloat(defaultSelectiveTaxRate),
       selectiveTaxRates,
-      // Parâmetros de Transição
       usePisCofins,
       icmsPercentage: parseFloat(icmsPercentage),
       useSelectiveTaxDebit,
       useCbsDebit,
       ibsDebitPercentage: parseFloat(ibsDebitPercentage),
-      // Novos campos de contexto
       faturamento12Meses: parseFloat(faturamento12Meses) || undefined,
       anexoSimples: anexoSimples || undefined,
       tipoOperacao: tipoOperacao,
     });
-
     toast.success("Cálculos realizados com sucesso!");
   };
 
-  const isLucroPresumido = taxRegime === TaxRegime.LucroPresumido;
-  const isLucroReal = taxRegime === TaxRegime.LucroReal;
-  const isSimplesNacional = taxRegime === TaxRegime.SimplesNacional;
-  const isSimplesHibrido = isSimplesNacional && generateIvaCredit;
-  const showIvaDualRates = isLucroPresumido || isLucroReal || isSimplesHibrido;
-  const showCreditControls = isLucroPresumido || isLucroReal; // Simples não usa crédito
-  const showSelectiveTaxControls = isLucroPresumido || isLucroReal || isSimplesHibrido; // IS é relevante apenas para LP, LR ou Simples Híbrido
-
   return (
     <form onSubmit={handleCalculate} className="space-y-6">
-      
-      {/* SEÇÃO DE PRESETS RÁPIDOS */}
       <div className="space-y-3 rounded-lg border-2 border-primary/20 bg-primary/5 p-4">
         <div className="flex items-center gap-2 mb-2">
             <Zap className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-bold uppercase text-primary">Preenchimento Rápido (Presets)</h3>
+            <h3 className="text-sm font-bold uppercase text-primary">Presets Realistas (Mercado BR)</h3>
         </div>
         <div className="grid grid-cols-2 gap-2">
-            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold" onClick={() => applyPreset('simples')}>
-                SIMPLES PADRÃO
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-accent border-accent/30" onClick={() => applyPreset('hibrido')}>
-                SIMPLES HÍBRIDO
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-blue-500 border-blue-500/30" onClick={() => applyPreset('presumido')}>
-                L. PRESUMIDO
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-success border-success/30" onClick={() => applyPreset('real')}>
-                LUCRO REAL
-            </Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold" onClick={() => applyPreset('simples')}>SIMPLES (ME)</Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-accent border-accent/30" onClick={() => applyPreset('hibrido')}>SIMPLES HÍBRIDO</Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-blue-500 border-blue-500/30" onClick={() => applyPreset('presumido')}>L. PRESUMIDO (EPP)</Button>
+            <Button type="button" variant="outline" size="sm" className="text-[10px] h-8 font-bold text-success border-success/30" onClick={() => applyPreset('real')}>LUCRO REAL</Button>
         </div>
-        <p className="text-[9px] text-muted-foreground italic">Clique em um botão para carregar configurações realistas automaticamente.</p>
+        <p className="text-[9px] text-muted-foreground italic">Configurações baseadas em custos reais de empresas brasileiras.</p>
       </div>
 
-      <Button 
-        type="submit" 
-        className="w-full bg-gradient-primary hover:opacity-90" 
-        disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}
-      >
+      <Button type="submit" className="w-full bg-gradient-primary hover:opacity-90" disabled={disabled || isProfitMarginInvalid || maxProfitMargin <= 0}>
         <Calculator className="h-4 w-4 mr-2" /> Gerar Relatório
       </Button>
 
-      {/* 1. Contexto da Empresa */}
       <div className="space-y-4 border-t border-border pt-4">
         <h3 className="font-bold text-lg">1. Contexto da Empresa</h3>
-        <div className="space-y-2">
-          <Label htmlFor="faturamento12Meses">Receita Bruta (Últimos 12 Meses)</Label>
-          <Input
-            id="faturamento12Meses"
-            type="number"
-            step="0.01"
-            placeholder="R$"
-            value={faturamento12Meses}
-            onChange={(e) => setFaturamento12Meses(e.target.value)}
-            disabled={disabled}
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="tipoOperacao">Tipo de Operação Principal</Label>
-          <Select onValueChange={(value: 'Varejo' | 'Atacado') => setTipoOperacao(value)} value={tipoOperacao} disabled={disabled}>
-            <SelectTrigger id="tipoOperacao">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Varejo">Varejo (Consumidor Final)</SelectItem>
-              <SelectItem value="Atacado">Atacado (Revenda)</SelectItem>
-            </SelectContent>
-          </Select>
+        <div className="grid grid-cols-1 gap-4">
+          <div className="space-y-2">
+            <Label htmlFor="faturamento12Meses">Faturamento 12 Meses (R$)</Label>
+            <Input id="faturamento12Meses" type="number" step="0.01" value={faturamento12Meses} onChange={(e) => setFaturamento12Meses(e.target.value)} disabled={disabled} />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="tipoOperacao">Tipo de Operação</Label>
+            <Select onValueChange={(value: 'Varejo' | 'Atacado') => setTipoOperacao(value)} value={tipoOperacao} disabled={disabled}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Varejo">Varejo (Consumidor Final)</SelectItem>
+                <SelectItem value="Atacado">Atacado (Revenda)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      {/* 2. Regime Tributário */}
       <div className="space-y-2 border-t border-border pt-4">
-        <Label htmlFor="taxRegime" className="font-bold text-lg">2. Regime Tributário</Label>
+        <Label className="font-bold text-lg">2. Regime Tributário</Label>
         <Select onValueChange={(value: TaxRegime) => {
           setTaxRegime(value);
-          if (value !== TaxRegime.SimplesNacional) {
-            setGenerateIvaCredit(false);
-          }
+          if (value !== TaxRegime.SimplesNacional) setGenerateIvaCredit(false);
         }} value={taxRegime} disabled={disabled}>
-          <SelectTrigger id="taxRegime">
-            <SelectValue placeholder="Selecione o regime" />
-          </SelectTrigger>
+          <SelectTrigger><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value={TaxRegime.SimplesNacional}>Simples Nacional</SelectItem>
             <SelectItem value={TaxRegime.LucroPresumido}>Lucro Presumido</SelectItem>
@@ -392,441 +282,91 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         </Select>
       </div>
 
-      {/* 3. Impostos e Transição */}
       <div className="space-y-6 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">3. Impostos e Transição Tributária</h3>
-
-        {/* 3.1. Alíquotas do Regime */}
-        <div className="space-y-3 rounded-md border p-4">
+        <h3 className="font-bold text-lg">3. Impostos e Transição</h3>
+        <div className="space-y-3 rounded-md border p-4 bg-muted/20">
           <Label className="font-semibold">Alíquotas do Regime</Label>
-          
-          {isSimplesNacional && (
+          {taxRegime === TaxRegime.SimplesNacional && (
             <>
               <div className="space-y-2">
-                <Label htmlFor="anexoSimples">Anexo do Simples Nacional</Label>
-                <Select onValueChange={(value) => setAnexoSimples(value)} value={anexoSimples} disabled={disabled}>
-                  <SelectTrigger id="anexoSimples">
-                    <SelectValue placeholder="Selecione o anexo" />
-                  </SelectTrigger>
+                <Label>Anexo</Label>
+                <Select onValueChange={setAnexoSimples} value={anexoSimples} disabled={disabled}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Anexo I">Anexo I - Comércio</SelectItem>
                     <SelectItem value="Anexo II">Anexo II - Indústria</SelectItem>
                     <SelectItem value="Anexo III">Anexo III - Serviços</SelectItem>
-                    <SelectItem value="Anexo IV">Anexo IV - Serviços</SelectItem>
-                    <SelectItem value="Anexo V">Anexo V - Serviços</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="simples">Alíquota Efetiva do Simples Nacional (%)</Label>
-                <Input
-                  id="simples"
-                  type="number"
-                  step="0.01"
-                  value={simplesNacionalRate}
-                  onChange={(e) => setSimplesNacionalRate(e.target.value)}
-                  disabled={disabled}
-                  readOnly={isSimplesNacional}
-                  title={isSimplesNacional ? "Calculado automaticamente com base no faturamento e anexo" : ""}
-                />
-                {isSimplesNacional && <p className="text-xs text-muted-foreground">Calculado automaticamente com base no faturamento e anexo.</p>}
+                <Label>Alíquota Simples (%)</Label>
+                <Input type="number" step="0.01" value={simplesNacionalRate} onChange={(e) => setSimplesNacionalRate(e.target.value)} disabled={disabled} readOnly={true} />
               </div>
-              <div className="flex items-center justify-between space-x-2 border-t border-border pt-3">
-                <Label htmlFor="generateIvaCredit" className="flex flex-col space-y-1">
-                  <span>Gerar Crédito de IVA para Cliente (B2B)</span>
-                  <span className="font-normal leading-snug text-muted-foreground text-xs">
-                    (Simples Híbrido: Empresa pagará IBS/CBS por fora, além do Simples)
-                  </span>
-                </Label>
-                <Switch
-                  id="generateIvaCredit"
-                  checked={generateIvaCredit}
-                  onCheckedChange={setGenerateIvaCredit}
-                  disabled={disabled}
-                />
+              <div className="flex items-center justify-between pt-2">
+                <Label className="text-xs">Gerar Crédito IVA (Simples Híbrido)</Label>
+                <Switch checked={generateIvaCredit} onCheckedChange={setGenerateIvaCredit} disabled={disabled} />
               </div>
             </>
           )}
-
-          {isLucroPresumido && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="irpj">Alíquota IRPJ (Presumido) (%)</Label>
-                <Input
-                  id="irpj"
-                  type="number"
-                  step="0.01"
-                  value={irpjRate}
-                  onChange={(e) => setIrpjRate(e.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="csll">Alíquota CSLL (Presumido) (%)</Label>
-                <Input
-                  id="csll"
-                  type="number"
-                  step="0.01"
-                  value={csllRate}
-                  onChange={(e) => setCsllRate(e.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-            </>
+          {taxRegime === TaxRegime.LucroPresumido && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>IRPJ (%)</Label><Input type="number" step="0.01" value={irpjRate} onChange={(e) => setIrpjRate(e.target.value)} disabled={disabled} /></div>
+              <div className="space-y-2"><Label>CSLL (%)</Label><Input type="number" step="0.01" value={csllRate} onChange={(e) => setCsllRate(e.target.value)} disabled={disabled} /></div>
+            </div>
           )}
-
-          {isLucroReal && (
-            <>
-              <div className="space-y-2">
-                <Label htmlFor="irpjLR">Alíquota IRPJ (Lucro Real) (%)</Label>
-                <Input
-                  id="irpjLR"
-                  type="number"
-                  step="0.01"
-                  value={irpjRateLucroReal}
-                  onChange={(e) => setIrpjRateLucroReal(e.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="csllLR">Alíquota CSLL (Lucro Real) (%)</Label>
-                <Input
-                  id="csllLR"
-                  type="number"
-                  step="0.01"
-                  value={csllRateLucroReal}
-                  onChange={(e) => setCsllRateLucroReal(e.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-            </>
+          {taxRegime === TaxRegime.LucroReal && (
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>IRPJ LR (%)</Label><Input type="number" step="0.01" value={irpjRateLucroReal} onChange={(e) => setIrpjRateLucroReal(e.target.value)} disabled={disabled} /></div>
+              <div className="space-y-2"><Label>CSLL LR (%)</Label><Input type="number" step="0.01" value={csllRateLucroReal} onChange={(e) => setCsllRateLucroReal(e.target.value)} disabled={disabled} /></div>
+            </div>
           )}
         </div>
 
-        {/* 3.2. IVA Dual (CBS/IBS) - Condicional */}
-        {showIvaDualRates && (
+        {(taxRegime !== TaxRegime.SimplesNacional || generateIvaCredit) && (
           <div className="space-y-3 rounded-md border p-4">
-            <Label className="font-semibold">Alíquotas IVA Dual (CBS/IBS)</Label>
-            <div className="space-y-2">
-              <Label htmlFor="cbsRate">Alíquota CBS (%)</Label>
-              <Input
-                id="cbsRate"
-                type="number"
-                step="0.01"
-                value={cbsRate}
-                onChange={(e) => setCbsRate(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">(Substitui PIS/COFINS)</p>
+            <Label className="font-semibold">Reforma (IBS/CBS)</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2"><Label>CBS (%)</Label><Input type="number" value={cbsRate} onChange={(e) => setCbsRate(e.target.value)} disabled={disabled} /></div>
+              <div className="space-y-2"><Label>IBS (%)</Label><Input type="number" value={ibsRate} onChange={(e) => setIbsRate(e.target.value)} disabled={disabled} /></div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="ibsRate">Alíquota IBS (%)</Label>
-              <Input
-                id="ibsRate"
-                type="number"
-                step="0.01"
-                value={ibsRate}
-                onChange={(e) => setIbsRate(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">(Substitui ICMS/ISS)</p>
-            </div>
-          </div>
-        )}
-
-        {/* 3.3. Imposto Seletivo (IS) - Condicional */}
-        {showSelectiveTaxControls && (
-          <div className="space-y-3 rounded-md border p-4">
-            <Label className="font-semibold">Imposto Seletivo (IS)</Label>
-            <div className="space-y-2">
-              <Label htmlFor="defaultSelectiveTaxRate">Alíquota Padrão do Imposto Seletivo (%)</Label>
-              <Input
-                id="defaultSelectiveTaxRate"
-                type="number"
-                step="0.01"
-                value={defaultSelectiveTaxRate}
-                onChange={(e) => setDefaultSelectiveTaxRate(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">(Alíquota de fallback, usada se um NCM específico não for encontrado abaixo)</p>
-            </div>
-            <div className="space-y-3 pt-3 border-t border-border">
-              <div className="flex items-center justify-between">
-                <Label>Alíquotas Específicas por NCM</Label>
-                <Button type="button" size="sm" variant="outline" onClick={addSelectiveTaxRate} disabled={disabled}>
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
-              {selectiveTaxRates.map((rate, index) => (
-                <div key={index} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-center">
-                  <Input
-                    placeholder="NCM (ex: 2203)"
-                    value={rate.ncm}
-                    onChange={(e) => updateSelectiveTaxRate(index, "ncm", e.target.value)}
-                    disabled={disabled}
-                  />
-                  <Input
-                    placeholder="%"
-                    type="number"
-                    step="0.01"
-                    value={rate.rate}
-                    onChange={(e) => updateSelectiveTaxRate(index, "rate", parseFloat(e.target.value) || 0)}
-                    disabled={disabled}
-                  />
-                  <Button type="button" size="icon" variant="ghost" onClick={() => removeSelectiveTaxRate(index)} disabled={disabled}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 3.4. Parâmetros de Transição (Crédito - Entrada) - APENAS LUCRO PRESUMIDO/REAL */}
-        {showCreditControls && (
-          <div className="space-y-3 rounded-md border p-4">
-            <Label className="font-semibold">Controles de Crédito (Entrada)</Label>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="usePisCofins" className="flex flex-col space-y-1">
-                <span>Usar Créditos de PIS/COFINS (Entrada)</span>
-                <span className="font-normal leading-snug text-muted-foreground text-xs">
-                  (Simula a manutenção do crédito PIS/COFINS na transição)
-                </span>
-              </Label>
-              <Switch id="usePisCofins" checked={usePisCofins} onCheckedChange={setUsePisCofins} disabled={disabled} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="icmsPercentage">Percentual de Crédito ICMS a ser considerado (%)</Label>
-              <Input
-                id="icmsPercentage"
-                type="number"
-                step="1"
-                min="0"
-                max="100"
-                value={icmsPercentage}
-                onChange={(e) => setIcmsPercentage(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">
-                (Simula a manutenção do crédito ICMS na transição)
-              </p>
-            </div>
-          </div>
-        )}
-
-        {/* 3.5. Parâmetros de Transição (Débito - Venda) - Condicional */}
-        {(isLucroPresumido || isLucroReal || isSimplesHibrido) && (
-          <div className="space-y-3 rounded-md border p-4">
-            <Label className="font-semibold">Controles de Débito (Venda)</Label>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="useSelectiveTaxDebit" className="flex flex-col space-y-1">
-                <span>Calcular Imposto Seletivo (IPI/IS)</span>
-                <span className="font-normal leading-snug text-muted-foreground text-xs">
-                  (Desative para simular a extinção do IPI/IS na venda)
-                </span>
-              </Label>
-              <Switch id="useSelectiveTaxDebit" checked={useSelectiveTaxDebit} onCheckedChange={setUseSelectiveTaxDebit} disabled={disabled} />
-            </div>
-            <div className="flex items-center justify-between space-x-2">
-              <Label htmlFor="useCbsDebit" className="flex flex-col space-y-1">
-                <span>Calcular CBS (PIS/COFINS)</span>
-                <span className="font-normal leading-snug text-muted-foreground text-xs">
-                  (Desative para simular a extinção do PIS/COFINS/CBS na venda)
-                </span>
-              </Label>
-              <Switch id="useCbsDebit" checked={useCbsDebit} onCheckedChange={setUseCbsDebit} disabled={disabled} />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="ibsDebitPercentage">Percentual de Débito IBS a ser considerado (%)</Label>
-              <Input
-                id="ibsDebitPercentage"
-                type="number"
-                step="1"
-                min="0"
-                max="100"
-                value={ibsDebitPercentage}
-                onChange={(e) => setIbsDebitPercentage(e.target.value)}
-                disabled={disabled}
-              />
-              <p className="text-xs text-muted-foreground">
-                (Simula a redução gradual do ICMS/ISS e o aumento do IBS na venda, começando em 100%)
-              </p>
-            </div>
-          </div>
-        )}
-        
-        {isSimplesNacional && !isSimplesHibrido && (
-          <div className="rounded-md border p-4">
-            <p className="text-sm text-muted-foreground">
-              No Simples Nacional Padrão, o Simples engloba a maioria dos impostos. Apenas o Imposto Seletivo (IS) seria pago por fora, mas para simplificação, assumimos IS = 0% neste cenário.
-            </p>
           </div>
         )}
       </div>
 
-      {/* 4. Margem de Lucro */}
       <div className="space-y-2 border-t border-border pt-4">
-        <Label htmlFor="profit" className="font-bold text-lg">4. Margem de Lucro Líquida Alvo (%)</Label>
-        <Input
-          id="profit"
-          type="number"
-          step="0.01"
-          value={profitMargin}
-          onChange={(e) => setProfitMargin(e.target.value)}
-          disabled={disabled}
-          className={isProfitMarginInvalid ? "border-destructive focus-visible:ring-destructive" : ""}
-        />
-        <MaxProfitIndicator 
-          maxProfit={maxProfitMargin} 
-          currentProfit={currentProfit} 
-          isInvalid={isProfitMarginInvalid} 
-        />
+        <Label className="font-bold text-lg">4. Lucro Líquido Alvo (%)</Label>
+        <Input type="number" value={profitMargin} onChange={(e) => setProfitMargin(e.target.value)} disabled={disabled} />
+        <MaxProfitIndicator maxProfit={maxProfitMargin} currentProfit={currentProfit} isInvalid={isProfitMarginInvalid} />
       </div>
 
-      {/* 5. Custos Fixos e Estoque */}
       <div className="space-y-6 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">5. Custos Fixos e Estoque</h3>
-        
-        <div className="space-y-2">
-          <Label htmlFor="payroll">Folha de Pagamento (R$)</Label>
-          <Input
-            id="payroll"
-            type="number"
-            step="0.01"
-            value={payroll}
-            onChange={(e) => setPayroll(e.target.value)}
-            disabled={disabled}
-          />
+        <h3 className="font-bold text-lg">5. Custos Fixos Detalhados</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2"><Label>Folha Total (R$)</Label><Input type="number" value={payroll} onChange={(e) => setPayroll(e.target.value)} disabled={disabled} /></div>
+          <div className="space-y-2"><Label>Estoque Total (Unid)</Label><Input type="number" value={totalStockUnits} onChange={(e) => setTotalStockUnits(e.target.value)} disabled={disabled} /></div>
         </div>
-
-        {!isSimplesNacional && (
-          <div className="space-y-2">
-            <Label htmlFor="inssPatronalRate">Alíquota INSS Patronal + Terceiros (%)</Label>
-            <Input
-              id="inssPatronalRate"
-              type="number"
-              step="0.01"
-              value={inssPatronalRate}
-              onChange={(e) => setInssPatronalRate(e.target.value)}
-              disabled={disabled}
-            />
-            <p className="text-xs text-muted-foreground">
-              (Contribuição sobre a folha. Ex: 28.8% para Lucro Presumido/Real)
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-2">
-          <Label htmlFor="totalStockUnits">Estoque Total de Unidades (ETU)</Label>
-          <Input
-            id="totalStockUnits"
-            type="number"
-            step="1"
-            value={totalStockUnits}
-            onChange={(e) => setTotalStockUnits(e.target.value)}
-            disabled={disabled}
-          />
-          <p className="text-xs text-muted-foreground">
-            (Usado para ratear custos fixos por unidade interna - CFU)
-          </p>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lossPercentage">Porcentagem de Perdas e Quebras (%)</Label>
-          <Input
-            id="lossPercentage"
-            type="number"
-            step="0.01"
-            value={lossPercentage}
-            onChange={(e) => setLossPercentage(e.target.value)}
-            disabled={disabled}
-          />
-        </div>
-
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Outras Despesas Fixas</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addFixedExpense}
-              disabled={disabled}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          {fixedExpenses.map((expense, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="Nome"
-                value={expense.name}
-                onChange={(e) => updateFixedExpense(index, "name", e.target.value)}
-                disabled={disabled}
-              />
-              <Input
-                placeholder="Valor"
-                type="number"
-                step="0.01"
-                value={expense.value}
-                onChange={(e) => updateFixedExpense(index, "value", parseFloat(e.target.value) || 0)}
-                disabled={disabled}
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => removeFixedExpense(index)}
-                disabled={disabled}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+          <div className="flex items-center justify-between"><Label>Outros Custos Fixos</Label><Button type="button" size="sm" variant="outline" onClick={() => setFixedExpenses([...fixedExpenses, { name: "", value: 0 }])} disabled={disabled}><Plus className="h-4 w-4" /></Button></div>
+          {fixedExpenses.map((exp, idx) => (
+            <div key={idx} className="flex gap-2">
+              <Input placeholder="Despesa" value={exp.name} onChange={(e) => { const n = [...fixedExpenses]; n[idx].name = e.target.value; setFixedExpenses(n); }} disabled={disabled} />
+              <Input type="number" value={exp.value} onChange={(e) => { const n = [...fixedExpenses]; n[idx].value = parseFloat(e.target.value) || 0; setFixedExpenses(n); }} disabled={disabled} />
+              <Button type="button" size="icon" variant="ghost" onClick={() => setFixedExpenses(fixedExpenses.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4" /></Button>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 6. Despesas Variáveis */}
       <div className="space-y-3 border-t border-border pt-4">
-        <h3 className="font-bold text-lg">6. Despesas Variáveis (Venda)</h3>
+        <h3 className="font-bold text-lg">6. Despesas Variáveis</h3>
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <Label>Despesas Variáveis Percentuais</Label>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={addVariableExpense}
-              disabled={disabled}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          {variableExpenses.map((expense, index) => (
-            <div key={index} className="flex gap-2">
-              <Input
-                placeholder="Nome"
-                value={expense.name}
-                onChange={(e) => updateVariableExpense(index, "name", e.target.value)}
-                disabled={disabled}
-              />
-              <Input
-                placeholder="%"
-                type="number"
-                step="0.01"
-                value={expense.percentage}
-                onChange={(e) => updateVariableExpense(index, "percentage", parseFloat(e.target.value) || 0)}
-                disabled={disabled}
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="ghost"
-                onClick={() => removeVariableExpense(index)}
-                disabled={disabled}
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+          <div className="flex items-center justify-between"><Label>Taxas e Comissões (%)</Label><Button type="button" size="sm" variant="outline" onClick={() => setVariableExpenses([...variableExpenses, { name: "", percentage: 0 }])} disabled={disabled}><Plus className="h-4 w-4" /></Button></div>
+          {variableExpenses.map((exp, idx) => (
+            <div key={idx} className="flex gap-2">
+              <Input placeholder="Ex: Taxa Cartão" value={exp.name} onChange={(e) => { const n = [...variableExpenses]; n[idx].name = e.target.value; setVariableExpenses(n); }} disabled={disabled} />
+              <Input type="number" value={exp.percentage} onChange={(e) => { const n = [...variableExpenses]; n[idx].percentage = parseFloat(e.target.value) || 0; setVariableExpenses(n); }} disabled={disabled} />
+              <Button type="button" size="icon" variant="ghost" onClick={() => setVariableExpenses(variableExpenses.filter((_, i) => i !== idx))} disabled={disabled}><Trash2 className="h-4 w-4" /></Button>
             </div>
           ))}
         </div>
