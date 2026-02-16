@@ -8,6 +8,7 @@ import Audit from "./pages/Audit";
 import ImpactAnalysis from "./pages/ImpactAnalysis";
 import ProductList from "./pages/ProductList";
 import Configuracao from "./pages/Configuracao";
+import Viabilidade from "./pages/Viabilidade"; // Importando com novo nome
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
 
@@ -26,6 +27,7 @@ const App = () => (
             <Route path="/impact" element={<ImpactAnalysis />} />
             <Route path="/products" element={<ProductList />} />
             <Route path="/configuracao" element={<Configuracao />} />
+            <Route path="/new-business" element={<Viabilidade />} /> {/* Rota corrigida */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Layout>
