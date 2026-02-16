@@ -104,10 +104,52 @@ const Comparison = () => {
       const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
       const regimes = [
-        { label: "Simples Nacional (Padrão)", params: { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: false } },
-        { label: "Simples Nacional (Híbrido)", params: { ...baseParams, taxRegime: TaxRegime.SimplesNacional, generateIvaCredit: true } },
-        { label: "Lucro Presumido", params: { ...baseParams, taxRegime: TaxRegime.LucroPresumido } },
-        { label: "Lucro Real", params: { ...baseParams, taxRegime: TaxRegime.LucroReal } },
+        { 
+          label: "Simples Nacional (Padrão)", 
+          params: { 
+            ...baseParams, 
+            taxRegime: TaxRegime.SimplesNacional, 
+            generateIvaCredit: false,
+            usePisCofins: false,
+            icmsPercentage: 0,
+            useCbsDebit: false,
+            ibsDebitPercentage: 0,
+          } 
+        },
+        { 
+          label: "Simples Nacional (Híbrido)", 
+          params: { 
+            ...baseParams, 
+            taxRegime: TaxRegime.SimplesNacional, 
+            generateIvaCredit: true,
+            usePisCofins: true,
+            icmsPercentage: 100,
+            useCbsDebit: true,
+            ibsDebitPercentage: 100,
+          } 
+        },
+        { 
+          label: "Lucro Presumido", 
+          params: { 
+            ...baseParams, 
+            taxRegime: TaxRegime.LucroPresumido,
+            usePisCofins: true,
+            icmsPercentage: 100,
+            useCbsDebit: true,
+            ibsDebitPercentage: 100,
+          } 
+        },
+        { 
+          label: "Lucro Real", 
+          params: { 
+            ...baseParams, 
+            taxRegime: TaxRegime.LucroReal,
+            usePisCofins: true,
+            icmsPercentage: 100,
+            useCbsDebit: true,
+            ibsDebitPercentage: 100,
+          } 
+        },
       ];
 
       const results = regimes.map(r => {
