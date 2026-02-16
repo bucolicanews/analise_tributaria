@@ -58,39 +58,18 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
 
     try {
-      const prompt = `
-        **Análise de Viabilidade de Novo Negócio**
-
-        **1. Dados da Empresa:**
-        - **Razão Social (sugestão):** ${razaoSocial || 'Não informado'}
-        - **Natureza Jurídica:** ${naturezaJuridica || 'Não informado / Sugerir'}
-        - **Capital Social:** R$ ${capital || 'Não informado'}
-        - **Quantidade de Sócios:** ${numSocios || 'Não informado'}
-        - **Quantidade de Funcionários:** ${numFuncionarios || 'Não informado'}
-        - **Folha de Pagamento Mensal (Estimada):** R$ ${folhaPagamento || 'Não informado'}
-        - **Localização:** ${municipio}, ${estado}
-
-        **2. Atividades e Operação:**
-        - **Principais Atividades Descritas:** ${atividades}
-        - **Tributação Pretendida:** ${tributacaoSugerida || 'Não informado / Sugerir'}
-
-        **3. Descrição Adicional da Ideia:**
-        ${businessIdea || 'Nenhuma descrição adicional fornecida.'}
-
-        **Instruções para a IA:**
-        Com base nos dados fornecidos, gere um parecer técnico detalhado sobre a viabilidade e os próximos passos para a abertura desta empresa. O parecer deve incluir:
-        - Sugestão de CNAE(s) principal e secundários.
-        - Análise da Natureza Jurídica mais adequada.
-        - Sugestão do Regime Tributário (Simples Nacional, Lucro Presumido, Lucro Real), explicando os prós e contras de cada um para este cenário.
-        - Estimativa de alíquotas iniciais de impostos, considerando a folha de pagamento.
-        - Lista de obrigações acessórias principais.
-        - Orientações sobre alvarás e licenças necessárias para o município e atividades informados.
-        - Recomendações estratégicas e próximos passos.
-      `;
-
       const payload = {
-        analise_simples: true,
-        prompt: prompt
+        razaoSocial: razaoSocial || 'Não informado',
+        naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
+        capital: capital || 'Não informado',
+        numSocios: numSocios || 'Não informado',
+        numFuncionarios: numFuncionarios || 'Não informado',
+        folhaPagamento: folhaPagamento || 'Não informado',
+        municipio: municipio,
+        estado: estado,
+        atividades: atividades,
+        tributacaoSugerida: tributacaoSugerida || 'Não informado / Sugerir',
+        businessIdea: businessIdea || 'Nenhuma descrição adicional fornecida.'
       };
 
       const webhooks = {
