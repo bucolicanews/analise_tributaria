@@ -90,8 +90,8 @@ const Viabilidade = () => {
       };
 
       const webhooks = {
-        test: localStorage.getItem('jota-webhook-test'),
-        production: localStorage.getItem('jota-webhook-prod')
+        test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
+        production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
       };
 
       const webhookUrl = webhooks[environment];
