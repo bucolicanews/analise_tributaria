@@ -175,15 +175,29 @@ const Index = () => {
       
       let extractedReport = "";
       
-      if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
-        extractedReport = data[0].content.parts[0].text;
-      } else if (data.output) {
-        extractedReport = data.output;
-      } else if (data.text) {
-        extractedReport = data.text;
-      } else if (typeof data === 'string') {
-        extractedReport = data;
-      } else {
+      // Lógica de extração robusta para lidar com múltiplas partes (parts) na resposta
+      if (Array.isArray(data)) {
+        // Se for um array (como no exemplo enviado), percorre o primeiro objeto
+        const parts = data[0]?.content?.parts;
+        if (Array.isArray(parts)) {
+          extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
+        }
+      } else if (data.content?.parts) {
+        // Se for um objeto direto com content.parts
+        const parts = data.content.parts;
+        if (Array.isArray(parts)) {
+          extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
+        }
+      }
+      
+      // Fallbacks se a lógica acima não encontrar o texto
+      if (!extractedReport) {
+        if (data.output) extractedReport = data.output;
+        else if (data.text) extractedReport = data.text;
+        else if (typeof data === 'string') extractedReport = data;
+      }
+      
+      if (!extractedReport) {
         throw new Error("Formato de resposta da IA não reconhecido.");
       }
       
