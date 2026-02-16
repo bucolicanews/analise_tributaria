@@ -1,20 +1,20 @@
 `**Análise de Viabilidade de Novo Negócio**
 
 **1. Dados da Empresa:**
-- **Razão Social (sugestão):** ${$('jota_agente').item.json.body.dados_empresa.razao_social}
-- **Natureza Jurídica:** ${$('jota_agente').item.json.body.dados_empresa.natureza_juridica}
-- **Capital Social:** R$ ${$('jota_agente').item.json.body.dados_empresa.capital_social}
-- **Quantidade de Sócios:** ${$('jota_agente').item.json.body.dados_empresa.num_socios}
-- **Quantidade de Funcionários (Estimada):** ${$('jota_agente').item.json.body.dados_empresa.num_funcionarios}
-- **Folha de Pagamento Mensal (Estimada):** R$ ${$('jota_agente').item.json.body.dados_empresa.folha_pagamento_estimada}
-- **Localização:** ${$('jota_agente').item.json.body.dados_empresa.localizacao_municipio}, ${$('jota_agente').item.json.body.dados_empresa.localizacao_uf}
+- **Razão Social (sugestão):** ${$('Webhook').item.json.body.dados_empresa.razao_social}
+- **Natureza Jurídica:** ${$('Webhook').item.json.body.dados_empresa.natureza_juridica}
+- **Capital Social:** R$ ${$('Webhook').item.json.body.dados_empresa.capital_social}
+- **Quantidade de Sócios:** ${$('Webhook').item.json.body.dados_empresa.num_socios}
+- **Quantidade de Funcionários (Estimada):** ${$('Webhook').item.json.body.dados_empresa.num_funcionarios}
+- **Folha de Pagamento Mensal (Estimada):** R$ ${$('Webhook').item.json.body.dados_empresa.folha_pagamento_estimada}
+- **Localização:** ${$('Webhook').item.json.body.dados_empresa.localizacao_municipio}, ${$('Webhook').item.json.body.dados_empresa.localizacao_uf}
 
 **2. Atividades e Operação:**
-- **Principais Atividades Descritas:** ${$('jota_agente').item.json.body.atividades.principais}
-- **Tributação Pretendida:** ${$('jota_agente').item.json.body.atividades.tributacao_pretendida}
+- **Principais Atividades Descritas:** ${$('Webhook').item.json.body.atividades.principais}
+- **Tributação Pretendida:** ${$('Webhook').item.json.body.atividades.tributacao_pretendida}
 
 **3. Descrição Adicional da Ideia:**
-${$('jota_agente').item.json.body.descricao_adicional}
+${$('Webhook').item.json.body.descricao_adicional}
 
 ---
 **Instruções para a IA:**
