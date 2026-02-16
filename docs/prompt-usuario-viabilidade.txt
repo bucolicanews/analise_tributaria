@@ -1,18 +1,15 @@
-**DADOS DO CLIENTE PARA ANÁLISE DE VIABILIDADE**
+Realize a análise de viabilidade para o seguinte cliente, seguindo estritamente a estrutura definida:
 
-**Dados da Empresa:**
-- **Razão Social (sugestão):** {{ $json.body.razaoSocial }}
-- **Natureza Jurídica Pretendida:** {{ $json.body.naturezaJuridica }}
-- **Capital Social (R$):** {{ $json.body.capital }}
-- **Quantidade de Sócios:** {{ $json.body.numSocios }}
-- **Quantidade de Funcionários (Estimada):** {{ $json.body.numFuncionarios }}
-- **Folha de Pagamento Mensal (Estimada em R$):** {{ $json.body.folhaPagamento }}
-- **Localização (Município):** {{ $json.body.municipio }}
-- **Localização (Estado/UF):** {{ $json.body.estado }}
+**DADOS DA EMPRESA**
+- **Razão Social:** {{ $('jota_agente').item.json.body.razaoSocial }}
+- **Natureza Jurídica:** {{ $('jota_agente').item.json.body.naturezaJuridica }}
+- **Capital Social:** R$ {{ $('jota_agente').item.json.body.capital }}
+- **Sócios:** {{ $('jota_agente').item.json.body.numSocios }}
+- **Funcionários:** {{ $('jota_agente').item.json.body.numFuncionarios }}
+- **Folha de Pagamento Estimada:** R$ {{ $('jota_agente').item.json.body.folhaPagamento }}
+- **Localização:** {{ $('jota_agente').item.json.body.municipio }} - {{ $('jota_agente').item.json.body.estado }}
 
-**Atividades e Operação:**
-- **Principais Atividades Descritas:** {{ $json.body.atividades }}
-- **Tributação Pretendida:** {{ $json.body.tributacaoSugerida }}
-
-**Descrição Adicional da Ideia de Negócio:**
-{{ $json.body.businessIdea }}
+**ATIVIDADES E OPERAÇÃO**
+- **Descrição das Atividades:** {{ $('jota_agente').item.json.body.atividades }}
+- **Tributação Pretendida:** {{ $('jota_agente').item.json.body.tributacaoSugerida }}
+- **Ideia do Negócio (Detalhes):** {{ $('jota_agente').item.json.body.businessIdea }}
