@@ -1,0 +1,18 @@
+**DADOS DO CLIENTE PARA ANÁLISE DE VIABILIDADE**
+
+**Dados da Empresa:**
+- **Razão Social (sugestão):** {{ $json.body.razaoSocial }}
+- **Natureza Jurídica Pretendida:** {{ $json.body.naturezaJuridica }}
+- **Capital Social (R$):** {{ $json.body.capital }}
+- **Quantidade de Sócios:** {{ $json.body.numSocios }}
+- **Quantidade de Funcionários (Estimada):** {{ $json.body.numFuncionarios }}
+- **Folha de Pagamento Mensal (Estimada em R$):** {{ $json.body.folhaPagamento }}
+- **Localização (Município):** {{ $json.body.municipio }}
+- **Localização (Estado/UF):** {{ $json.body.estado }}
+
+**Atividades e Operação:**
+- **Principais Atividades Descritas:** {{ $json.body.atividades }}
+- **Tributação Pretendida:** {{ $json.body.tributacaoSugerida }}
+
+**Descrição Adicional da Ideia de Negócio:**
+{{ $json.body.businessIdea }}
