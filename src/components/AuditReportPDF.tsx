@@ -49,6 +49,13 @@ const styles = StyleSheet.create({
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
+const DetailItem = ({ label, value, isBold = false, colorStyle = {} }: { label: string; value: string | number; isBold?: boolean; colorStyle?: object }) => (
+  <View style={styles.detailItem}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    <Text style={[styles.detailValue, isBold ? { fontWeight: 'bold' } : {}, colorStyle]}>{String(value)}</Text>
+  </View>
+);
+
 const AuditItem = ({ item }: { item: any }) => {
   const riskStyles = {
     overpayment: { bg: '#eff6ff', color: '#2563eb', title: 'Ineficiência Fiscal: Bitributação (Pagamento a MAIOR)' },
