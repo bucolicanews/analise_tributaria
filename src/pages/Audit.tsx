@@ -1,26 +1,20 @@
 "use client";
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
-  AlertCircle, 
-  CheckCircle2, 
-  Info, 
-  XCircle, 
-  AlertTriangle, 
-  ShieldCheck, 
-  Package, 
-  Calculator,
-  TrendingUp,
-  TrendingDown,
-  Check,
-  ArrowRightLeft
+  AlertCircle, CheckCircle2, Info, XCircle, AlertTriangle, ShieldCheck, Package, Calculator,
+  TrendingUp, TrendingDown, Check, ArrowRightLeft, Printer, FileDown
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from '@/lib/pricing';
-import { findCClassByNcm, getClassificationDetails } from '@/lib/tax/taxClassificationService';
+import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { AuditReportPDF } from '@/components/AuditReportPDF';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -67,9 +61,14 @@ const MathBlock = ({ label, icon: Icon, values }: { label: string, icon: any, va
 );
 
 const Audit = () => {
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
   const purchaseProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-purchase-products') || '[]');
   const salesProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-sales-products') || '[]');
   const params: CalculationParams | null = JSON.parse(sessionStorage.getItem('jota-calc-params') || 'null');
+
+  const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
+  const accountantName = localStorage.getItem('jota-contador-nome') || '';
+  const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
 
   const auditResults = useMemo(() => {
     if (!params) return [];
@@ -155,7 +154,6 @@ const Audit = () => {
               </div>
             </div>
 
-            {/* ALERTAS DE RISCO */}
             {result.riskType !== 'none' && (
               <div className={cn(
                 "px-4 py-3 border-b text-xs flex items-center gap-3",
@@ -185,7 +183,6 @@ const Audit = () => {
               </div>
             )}
 
-            {/* STATUS OK */}
             {result.status === 'ok' && (
               <div className="px-4 py-2 border-b bg-success/10 text-success text-xs flex items-center gap-2">
                 <Check className="h-4 w-4" />
@@ -203,9 +200,7 @@ const Audit = () => {
               <MetricItem label="Imposto Líq. Com." value={formatCurrency(calculated.taxToPay)} className="text-destructive" />
             </div>
 
-            {/* COMPARAÇÃO DE CÓDIGOS */}
             <div className="p-4 space-y-4">
-              {/* Situação Atual */}
               <div className="space-y-3">
                 <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
                   <XCircle className="h-3 w-3" /> Situação Atual (Extraída da Venda)
@@ -221,7 +216,6 @@ const Audit = () => {
                 </div>
               </div>
 
-              {/* Sugestão */}
               <div className="space-y-3 pt-4 border-t border-border/50">
                 <div className="text-[10px] font-bold text-primary uppercase flex items-center gap-2">
                   <ShieldCheck className="h-3 w-3" /> Sugestão p/ Correção (Baseada na Compra)
@@ -238,7 +232,6 @@ const Audit = () => {
               </div>
             </div>
 
-            {/* Matemática */}
             <div className="px-4 bg-success/5 border-b border-border border-t">
               <MathBlock 
                 label="Cálculo Comercial (UN)"
@@ -280,6 +273,44 @@ const Audit = () => {
           <ShieldCheck className="h-8 w-8 text-primary" />
           Auditoria Fiscal de Vendas
         </h1>
+        <div className="flex gap-2">
+          <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm"><Printer className="h-4 w-4 mr-2" />Visualizar PDF</Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
+              <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
+                <PDFViewer width="100%" height="100%" className="border-none">
+                  <AuditReportPDF 
+                    divergentItems={divergentItems}
+                    okItems={okItems}
+                    unassociatedItems={unassociatedItems}
+                    companyName={companyName}
+                    accountantName={accountantName}
+                    accountantCrc={accountantCrc}
+                  />
+                </PDFViewer>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <PDFDownloadLink
+            document={
+              <AuditReportPDF 
+                divergentItems={divergentItems}
+                okItems={okItems}
+                unassociatedItems={unassociatedItems}
+                companyName={companyName}
+                accountantName={accountantName}
+                accountantCrc={accountantCrc}
+              />
+            }
+            fileName={`relatorio_auditoria_${new Date().toISOString().split('T')[0]}.pdf`}
+          >
+            {({ loading }) => (
+              <Button size="sm" disabled={loading}><FileDown className="h-4 w-4 mr-2" />{loading ? 'Gerando...' : 'Baixar PDF'}</Button>
+            )}
+          </PDFDownloadLink>
+        </div>
       </div>
 
       <Tabs defaultValue="divergent" className="w-full">
