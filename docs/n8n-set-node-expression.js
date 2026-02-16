@@ -1,8 +1,7 @@
-// 1. Acessa o array 'parts' da saída da IA pelo caminho correto.
-//    $input.first().json acessa a saída do nó anterior.
-//    [0] acessa o primeiro (e único) item do array de resposta.
-//    .content.parts finalmente chega à lista de textos.
-const parts = $input.first().json[0].content.parts;
+// 1. Acessa o array 'parts' da saída da IA.
+//    O caminho foi corrigido para acessar o objeto de resposta diretamente,
+//    pois o nó do n8n provavelmente simplifica a saída, removendo o array externo.
+const parts = $input.first().json.content.parts;
 
 // 2. Junta todos os pedaços de texto em uma única string.
 //    Isso resolve o problema da FRAGMENTAÇÃO.
