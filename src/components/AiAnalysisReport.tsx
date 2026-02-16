@@ -13,23 +13,36 @@ interface AiAnalysisReportProps {
   report: string;
   onClose: () => void;
   executionTime?: number;
+  // Novos props para receber dados do formulário
+  clientName: string;
+  clientCity: string;
+  clientState: string;
 }
 
-export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onClose, executionTime }) => {
+export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ 
+  report, 
+  onClose, 
+  executionTime,
+  clientName,
+  clientCity,
+  clientState
+}) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   
-  // Dados vindos da configuração
-  const razaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
+  // Dados DA CONTABILIDADE (Jota) vindos da configuração persistida
+  const jotaRazaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
   const contadorNome = localStorage.getItem('jota-contador-nome') || '';
   const contadorCrc = localStorage.getItem('jota-contador-crc') || '';
-  const uf = localStorage.getItem('jota-uf') || 'PA';
+  // Nota: O estado UF da contabilidade é usado apenas se quiséssemos mostrar onde a Jota fica,
+  // mas para o PDF, usaremos o estado do CLIENTE na capa.
   
-  // Extrair o nome do cliente do relatório se possível, ou usar genérico
-  // (Em uma implementação real, passariamos via props do componente pai)
-  const clientName = "Cliente Jota Empreendimentos"; 
+  // Nome do cliente para exibição (fallback se estiver vazio)
+  const displayClientName = clientName.trim() || "Empreendedor(a) / Interessado(a)";
+  const displayCity = clientCity.trim() || "Não informado";
+  const displayState = clientState.trim() || "";
 
   useEffect(() => {
-    // Gerar QR Code único para validação (simulação de hash)
+    // Gerar QR Code único para validação
     const uniqueId = Math.random().toString(36).substring(7);
     const validationUrl = `https://jotaempresas.com/validar/${uniqueId}`;
     
@@ -55,7 +68,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onCl
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">Análise Estratégica baseada na Lei 214/2025</p>
+            <p className="text-xs text-muted-foreground">Análise para: {displayClientName}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -73,34 +86,34 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onCl
                    <PDFViewer width="100%" height="100%" className="border-none">
                      <ViabilityReportPDF 
                         reportMarkdown={report}
-                        clientName={clientName}
-                        clientCity="Belém" // Idealmente viria do input do usuário
-                        clientState={uf}
-                        companyName={razaoSocial}
-                        accountantName={contadorNome}
-                        accountantCrc={contadorCrc}
+                        clientName={displayClientName}
+                        clientCity={displayCity}
+                        clientState={displayState}
+                        companyName={jotaRazaoSocial} // Dados da Jota (Configuração)
+                        accountantName={contadorNome} // Dados da Jota (Configuração)
+                        accountantCrc={contadorCrc}   // Dados da Jota (Configuração)
                         qrCodeDataUrl={qrCodeUrl}
                      />
                    </PDFViewer>
                  )}
                </div>
                <div className="p-4 bg-white border-t flex justify-between items-center">
-                 <p className="text-xs text-muted-foreground">O PDF é gerado em tempo real no navegador.</p>
+                 <p className="text-xs text-muted-foreground">O PDF é gerado em tempo real com base nos dados do formulário.</p>
                  {qrCodeUrl && (
                    <PDFDownloadLink 
                      document={
                        <ViabilityReportPDF 
                           reportMarkdown={report}
-                          clientName={clientName}
-                          clientCity="Belém"
-                          clientState={uf}
-                          companyName={razaoSocial}
+                          clientName={displayClientName}
+                          clientCity={displayCity}
+                          clientState={displayState}
+                          companyName={jotaRazaoSocial}
                           accountantName={contadorNome}
                           accountantCrc={contadorCrc}
                           qrCodeDataUrl={qrCodeUrl}
                        />
                      } 
-                     fileName="relatorio_viabilidade_jota.pdf"
+                     fileName={`relatorio_viabilidade_${displayClientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`}
                    >
                      {({ loading }) => (
                        <Button disabled={loading}>

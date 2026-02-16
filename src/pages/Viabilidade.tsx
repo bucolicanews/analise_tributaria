@@ -99,8 +99,7 @@ const Viabilidade = () => {
     }
 
     setIsLoading(true);
-    // Não limpa o relatório anterior imediatamente para evitar "piscar" se falhar, 
-    // mas o usuário verá o loader.
+    // Não limpa o relatório anterior imediatamente para evitar "piscar" se falhar
     setExecutionTime(null);
     const startTime = performance.now();
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
@@ -164,7 +163,6 @@ const Viabilidade = () => {
       setAiReport(reportText);
       toast.success(`Diagnóstico concluído em ${duration.toFixed(2)}s!`, { id: toastId });
       
-      // Rolar até o relatório
       setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 500);
 
     } catch (error: any) {
@@ -304,7 +302,14 @@ const Viabilidade = () => {
 
       {aiReport && (
         <div id="ai-report-section">
-          <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} />
+          <AiAnalysisReport 
+            report={aiReport} 
+            onClose={() => setAiReport(null)} 
+            executionTime={executionTime || undefined}
+            clientName={razaoSocial}
+            clientCity={municipio}
+            clientState={estado}
+          />
         </div>
       )}
     </div>
