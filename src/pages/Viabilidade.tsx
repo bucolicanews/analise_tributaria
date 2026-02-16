@@ -59,6 +59,7 @@ const Viabilidade = () => {
 
     try {
       const payload = {
+        analise_simples: true,
         razaoSocial: razaoSocial || 'Não informado',
         naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
         capital: capital || 'Não informado',
