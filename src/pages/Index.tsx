@@ -269,7 +269,7 @@ const Index = () => {
         <div className="lg:col-span-2 space-y-6">
           {aiReport && (
             <div id="ai-report-section">
-              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} />
+              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime} />
             </div>
           )}
 

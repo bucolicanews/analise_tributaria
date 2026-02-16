@@ -22,7 +22,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onCl
           <div>
             <div className="flex items-center gap-2">
               <CardTitle className="text-xl font-bold text-accent">Parecer Técnico de Inteligência Fiscal</CardTitle>
-              {executionTime && (
+              {typeof executionTime === 'number' && (
                 <div className="flex items-center gap-1 text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-mono">
                   <Clock className="h-3 w-3" />
                   {executionTime.toFixed(2)}s
