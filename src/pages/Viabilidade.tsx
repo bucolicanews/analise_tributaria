@@ -3,6 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Bot, Send, Sparkles, ChevronDown } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
@@ -13,15 +15,37 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+const UFs = [
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
+  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
+];
+
+const naturezasJuridicas = [
+    "Empresário Individual (EI)",
+    "Sociedade Limitada (LTDA)",
+    "Sociedade Limitada Unipessoal (SLU)",
+    "Sociedade Simples",
+    "Não sei / Sugerir"
+];
+
 const Viabilidade = () => {
+  const [razaoSocial, setRazaoSocial] = useState('');
+  const [naturezaJuridica, setNaturezaJuridica] = useState('');
+  const [capital, setCapital] = useState('');
+  const [atividades, setAtividades] = useState('');
+  const [numSocios, setNumSocios] = useState('1');
+  const [municipio, setMunicipio] = useState('');
+  const [estado, setEstado] = useState('SP');
+  const [tributacaoSugerida, setTributacaoSugerida] = useState('');
   const [businessIdea, setBusinessIdea] = useState('');
+  
   const [isLoading, setIsLoading] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const handleSendToAI = async (environment: 'test' | 'production') => {
-    if (!businessIdea.trim()) {
-      toast.error("Descreva sua ideia de negócio antes de enviar.");
+    if (!atividades.trim() || !municipio.trim()) {
+      toast.error("Preencha pelo menos as Atividades e o Município antes de enviar.");
       return;
     }
 
@@ -32,9 +56,37 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
 
     try {
+      const prompt = `
+        **Análise de Viabilidade de Novo Negócio**
+
+        **1. Dados da Empresa:**
+        - **Razão Social (sugestão):** ${razaoSocial || 'Não informado'}
+        - **Natureza Jurídica:** ${naturezaJuridica || 'Não informado / Sugerir'}
+        - **Capital Social:** R$ ${capital || 'Não informado'}
+        - **Quantidade de Sócios:** ${numSocios || 'Não informado'}
+        - **Localização:** ${municipio}, ${estado}
+
+        **2. Atividades e Operação:**
+        - **Principais Atividades Descritas:** ${atividades}
+        - **Tributação Pretendida:** ${tributacaoSugerida || 'Não informado / Sugerir'}
+
+        **3. Descrição Adicional da Ideia:**
+        ${businessIdea || 'Nenhuma descrição adicional fornecida.'}
+
+        **Instruções para a IA:**
+        Com base nos dados fornecidos, gere um parecer técnico detalhado sobre a viabilidade e os próximos passos para a abertura desta empresa. O parecer deve incluir:
+        - Sugestão de CNAE(s) principal e secundários.
+        - Análise da Natureza Jurídica mais adequada.
+        - Sugestão do Regime Tributário (Simples Nacional, Lucro Presumido, Lucro Real), explicando os prós e contras de cada um para este cenário.
+        - Estimativa de alíquotas iniciais de impostos.
+        - Lista de obrigações acessórias principais.
+        - Orientações sobre alvarás e licenças necessárias para o município e atividades informados.
+        - Recomendações estratégicas e próximos passos.
+      `;
+
       const payload = {
         analise_simples: true,
-        prompt: businessIdea
+        prompt: prompt
       };
 
       const webhooks = {
@@ -90,19 +142,78 @@ const Viabilidade = () => {
           </p>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <Label htmlFor="business-idea" className="font-bold">Descreva sua ideia de negócio:</Label>
-            <Textarea
-              id="business-idea"
-              value={businessIdea}
-              onChange={(e) => setBusinessIdea(e.target.value)}
-              placeholder="Exemplo: Quero abrir um minimercado em São Paulo, capital. Pretendo vender produtos alimentícios, bebidas e alguns itens de limpeza. Serei eu e mais 2 funcionários. Capital inicial de R$ 50.000."
-              className="min-h-[150px]"
-              disabled={isLoading}
-            />
-            <p className="text-xs text-muted-foreground">
-              Seja o mais detalhado possível: inclua atividades, cidade/estado, número de sócios, se terá funcionários, faturamento estimado, etc.
-            </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="razao-social">Razão Social (Opcional)</Label>
+                <Input id="razao-social" value={razaoSocial} onChange={(e) => setRazaoSocial(e.target.value)} disabled={isLoading} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="natureza-juridica">Natureza Jurídica</Label>
+                <Select value={naturezaJuridica} onValueChange={setNaturezaJuridica} disabled={isLoading}>
+                  <SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger>
+                  <SelectContent>
+                    {naturezasJuridicas.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="capital">Capital Social (R$)</Label>
+                <Input id="capital" type="number" value={capital} onChange={(e) => setCapital(e.target.value)} disabled={isLoading} placeholder="Ex: 50000" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="num-socios">Quantidade de Sócios</Label>
+                <Input id="num-socios" type="number" value={numSocios} onChange={(e) => setNumSocios(e.target.value)} disabled={isLoading} />
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="municipio">Município</Label>
+                  <Input id="municipio" value={municipio} onChange={(e) => setMunicipio(e.target.value)} disabled={isLoading} placeholder="Ex: São Paulo" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="estado">Estado (UF)</Label>
+                  <Select value={estado} onValueChange={setEstado} disabled={isLoading}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {UFs.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tributacao-sugerida">Tributação Pretendida</Label>
+                <Select value={tributacaoSugerida} onValueChange={setTributacaoSugerida} disabled={isLoading}>
+                  <SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                    <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                    <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                    <SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="atividades">Principais Atividades (para sugestão de CNAE)</Label>
+                <Textarea id="atividades" value={atividades} onChange={(e) => setAtividades(e.target.value)} placeholder="Ex: Venda de alimentos, bebidas, produtos de limpeza..." className="min-h-[105px]" disabled={isLoading} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 pt-6 border-t border-border">
+            <div className="space-y-4">
+              <Label htmlFor="business-idea" className="font-bold">Descrição geral da sua ideia (detalhes adicionais)</Label>
+              <Textarea
+                id="business-idea"
+                value={businessIdea}
+                onChange={(e) => setBusinessIdea(e.target.value)}
+                placeholder="Exemplo: Pretendo focar em produtos orgânicos, ter um delivery e talvez um pequeno café no local. O faturamento inicial estimado é de R$ 30.000/mês."
+                className="min-h-[100px]"
+                disabled={isLoading}
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
