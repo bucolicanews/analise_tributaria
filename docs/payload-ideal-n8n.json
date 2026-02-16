@@ -4,14 +4,14 @@
     "natureza_juridica": "Sociedade Limitada (LTDA)",
     "capital_social": "50000",
     "num_socios": "1",
-    "num_funcionarios": "1",
-    "folha_pagamento_estimada": "2000",
+    "num_funcionarios": "5",
+    "folha_pagamento_estimada": "10000",
     "localizacao_municipio": "BELÉM",
     "localizacao_uf": "PA"
   },
   "atividades": {
-    "principais": "LIMPESA E CONSERVAÇÃO , CONTRUÇÃO CIVIL , MÃO DE OBRA PARA PORTARIA E SERVIÇOS GERAIS , ROÇAGEM , INSTALAÇÃO ELETRICA E HIDRAULICA",
+    "principais": "ALIMENTAÇÃO MERCADINHO",
     "tributacao_pretendida": "Simples Nacional"
   },
-  "descricao_adicional": "QUARO ABRIR UMA EMPRESA NAS ATIVIDADES CXESCRITAS E SABER SE PODE OU NÃO ENTRAR NO SIMPLES, QUAIS AS INCIDENCIAS , TRIBUTAÇÃO E OBRIGAÇÕES ACESSÓRIAS. DIAGNOSTICO CMPLETO PARA EU PODER ABRIR MINHA EMPRESA E O CUSTO ESTIMADO COM TAXAS E IMPOSTOS, INCLUSIVE COM PROJEÇÃO DE PROVISÃO DA PARTE TRABALHIUSTA"
+  "descricao_adicional": "MERCADINHO"
 }
