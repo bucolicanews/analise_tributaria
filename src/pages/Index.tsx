@@ -38,6 +38,7 @@ const Index = () => {
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
+  const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   useEffect(() => {
     try {
@@ -61,6 +62,7 @@ const Index = () => {
     setParams(null);
     setSelectedProductCodes(new Set());
     setAiReport(null);
+    setExecutionTime(null);
     sessionStorage.clear();
     toast.success("Nova consulta iniciada.");
   };
@@ -149,6 +151,7 @@ const Index = () => {
       return;
     }
 
+    const startTime = performance.now();
     setIsSending(true);
     const toastId = toast.loading(`Gerando Plano Tributário Estratégico (${environment})...`);
 
@@ -172,25 +175,24 @@ const Index = () => {
       if (!response.ok) throw new Error("Erro na comunicação com a IA.");
       
       const data = await response.json();
+      const endTime = performance.now();
+      const durationInSeconds = (endTime - startTime) / 1000;
+      setExecutionTime(durationInSeconds);
       
       let extractedReport = "";
       
-      // Lógica de extração robusta para lidar com múltiplas partes (parts) na resposta
       if (Array.isArray(data)) {
-        // Se for um array (como no exemplo enviado), percorre o primeiro objeto
         const parts = data[0]?.content?.parts;
         if (Array.isArray(parts)) {
           extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
         }
       } else if (data.content?.parts) {
-        // Se for um objeto direto com content.parts
         const parts = data.content.parts;
         if (Array.isArray(parts)) {
           extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
         }
       }
       
-      // Fallbacks se a lógica acima não encontrar o texto
       if (!extractedReport) {
         if (data.output) extractedReport = data.output;
         else if (data.text) extractedReport = data.text;
@@ -202,7 +204,7 @@ const Index = () => {
       }
       
       setAiReport(extractedReport);
-      toast.success("Análise Estratégica Concluída!", { id: toastId });
+      toast.success(`Análise Estratégica Concluída em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
       
       setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
@@ -267,7 +269,7 @@ const Index = () => {
         <div className="lg:col-span-2 space-y-6">
           {aiReport && (
             <div id="ai-report-section">
-              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} />
+              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} />
             </div>
           )}
 

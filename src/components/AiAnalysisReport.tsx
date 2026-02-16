@@ -1,6 +1,6 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Download, AlertCircle, X } from 'lucide-react';
+import { Bot, Download, AlertCircle, X, Clock } from 'lucide-react';
 import { Button } from './ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -8,9 +8,10 @@ import remarkGfm from 'remark-gfm';
 interface AiAnalysisReportProps {
   report: string;
   onClose: () => void;
+  executionTime?: number;
 }
 
-export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onClose }) => {
+export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onClose, executionTime }) => {
   return (
     <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden print:shadow-none print:border-none print:bg-white">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-accent/20 bg-accent/10 print:hidden">
@@ -19,7 +20,15 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onCl
             <Bot className="h-5 w-5 text-accent-foreground" />
           </div>
           <div>
-            <CardTitle className="text-xl font-bold text-accent">Parecer Técnico de Inteligência Fiscal</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-xl font-bold text-accent">Parecer Técnico de Inteligência Fiscal</CardTitle>
+              {executionTime && (
+                <div className="flex items-center gap-1 text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full font-mono">
+                  <Clock className="h-3 w-3" />
+                  {executionTime.toFixed(2)}s
+                </div>
+              )}
+            </div>
             <p className="text-xs text-muted-foreground">Análise Estratégica baseada na Lei 214/2025</p>
           </div>
         </div>
