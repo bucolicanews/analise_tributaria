@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -24,9 +24,12 @@ import {
   Dialog,
   DialogContent,
   DialogTrigger,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
-import { SalesReport } from "@/components/SalesReport";
 import { Badge } from "@/components/ui/badge";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { SalesReportPDF } from '@/components/SalesReportPDF';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -39,6 +42,11 @@ const Index = () => {
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+  // Dados da empresa para o Relatório
+  const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
+  const accountantName = localStorage.getItem('jota-contador-nome') || '';
+  const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
 
   useEffect(() => {
     try {
@@ -269,7 +277,14 @@ const Index = () => {
         <div className="lg:col-span-2 space-y-6">
           {aiReport && (
             <div id="ai-report-section">
-              <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime} />
+              <AiAnalysisReport 
+                report={aiReport} 
+                onClose={() => setAiReport(null)} 
+                executionTime={executionTime}
+                clientName={companyName}
+                clientCity={params?.companyState || "SP"} // Fallback simples
+                clientState=""
+              />
             </div>
           )}
 
@@ -285,13 +300,47 @@ const Index = () => {
 
                     <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                          <BookOpen className="h-4 w-4 mr-2" />
-                          Relatório Venda
+                        <Button variant="outline" size="sm" className="bg-primary/5 border-primary/20 hover:bg-primary/10">
+                          <BookOpen className="h-4 w-4 mr-2 text-primary" />
+                          Relatório Venda (PDF)
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="sm:max-w-4xl max-h-[90dvh] overflow-y-auto">
-                        <SalesReport products={calculatedProducts} />
+                      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0">
+                        <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+                          <DialogHeader>
+                            <DialogTitle>Relatório Oficial de Precificação</DialogTitle>
+                          </DialogHeader>
+                          <div className="flex gap-2">
+                             <PDFDownloadLink
+                                document={
+                                  <SalesReportPDF 
+                                    products={calculatedProducts}
+                                    companyName={companyName}
+                                    accountantName={accountantName}
+                                    accountantCrc={accountantCrc}
+                                  />
+                                }
+                                fileName={`relatorio_vendas_${new Date().toISOString().split('T')[0]}.pdf`}
+                              >
+                                {({ loading }) => (
+                                  <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                                    <FileDown className="h-4 w-4 mr-2" />
+                                    {loading ? 'Gerando...' : 'Baixar PDF'}
+                                  </Button>
+                                )}
+                              </PDFDownloadLink>
+                          </div>
+                        </div>
+                        <div className="flex-1 w-full bg-slate-100 overflow-hidden">
+                          <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                            <SalesReportPDF 
+                              products={calculatedProducts}
+                              companyName={companyName}
+                              accountantName={accountantName}
+                              accountantCrc={accountantCrc}
+                            />
+                          </PDFViewer>
+                        </div>
                       </DialogContent>
                     </Dialog>
 
