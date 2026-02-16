@@ -97,10 +97,22 @@ const Viabilidade = () => {
       setExecutionTime(duration);
 
       let reportText = "";
-      if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
+
+      // Verifica formato limpo { "report": "..." } ou [{ "report": "..." }] vindo do novo fluxo n8n
+      if (data.report) {
+        reportText = data.report;
+      } else if (Array.isArray(data) && data[0]?.report) {
+        reportText = data[0].report;
+      } 
+      // Verifica formato bruto do Google Gemini/Vertex AI (legado ou direto)
+      else if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
         reportText = data.map((item: any) => item.content.parts.map((part: any) => part.text).join("\n")).join("\n\n---\n\n");
-      } else {
-        throw new Error("Formato de resposta da IA não reconhecido.");
+      } else if (data?.content?.parts?.[0]?.text) {
+         reportText = data.content.parts.map((part: any) => part.text).join("\n");
+      }
+      else {
+        console.error("Formato não reconhecido:", data);
+        throw new Error("Formato de resposta da IA não reconhecido. Verifique o console.");
       }
       
       setAiReport(reportText);
