@@ -128,6 +128,34 @@ const Audit = () => {
   const okItems = auditResults.filter(r => r.status === 'ok');
   const unassociatedItems = auditResults.filter(r => r.status === 'unassociated');
 
+  if (!params || purchaseProducts.length === 0 || salesProducts.length === 0) {
+    let title = "Dados Insuficientes";
+    let message = "Para realizar a auditoria, primeiro importe as notas de compra, as notas de venda e configure os parâmetros na página de Precificação.";
+    let Icon = Calculator;
+
+    if (params && purchaseProducts.length > 0 && salesProducts.length === 0) {
+      title = "Nenhuma Nota de Venda Carregada";
+      message = "Importe as notas fiscais de venda na página de Precificação para que a auditoria possa ser realizada.";
+      Icon = Package;
+    }
+
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card className="shadow-card">
+          <div className="flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
+            <div className="rounded-full bg-muted p-6 mb-4">
+              <Icon className="h-12 w-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2">{title}</h3>
+            <p className="text-muted-foreground max-w-md">
+              {message} <a href="/" className="text-primary underline">Voltar para Precificação</a>.
+            </p>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
   const AuditList = ({ items }: { items: typeof auditResults }) => (
     <div className="space-y-6">
       {items.map((result, idx) => {
@@ -274,8 +302,6 @@ const Audit = () => {
       })}
     </div>
   );
-
-  if (!params) return <div className="p-8 text-center">Configure os parâmetros na página inicial primeiro.</div>;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
