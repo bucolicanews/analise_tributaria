@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -24,6 +26,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { SalesReport } from "@/components/SalesReport";
+import { Badge } from "@/components/ui/badge";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -154,7 +157,7 @@ const Index = () => {
       
       const webhooks = {
         test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
-        production: localStorage.getItem('jota-webhook-prod')
+        production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
       };
 
       const webhookUrl = webhooks[environment];
@@ -170,7 +173,6 @@ const Index = () => {
       
       const data = await response.json();
       
-      // Lógica de extração robusta para o formato JSON recebido
       let extractedReport = "";
       
       if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
@@ -279,9 +281,10 @@ const Index = () => {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="sm" disabled={isSending} className="bg-accent hover:bg-accent/90">
-                          <Bot className="h-4 w-4 mr-2" />
+                        <Button size="sm" disabled={isSending} className="bg-orange-600 hover:bg-orange-700 text-white relative">
+                          <Sparkles className="h-4 w-4 mr-2" />
                           {isSending ? "Analisando..." : "Auditoria IA"}
+                          <Badge className="absolute -top-2 -right-2 bg-white text-orange-600 border-orange-600 h-4 text-[8px]">Novo</Badge>
                           <ChevronDown className="h-4 w-4 ml-2" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -333,10 +336,7 @@ const calculateGlobalSummary = (
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
   const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
-  const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.totalCbsCredit || 0, 0); // Corrected to use calculated credits
-  const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.totalIbsCredit || 0, 0);
-
-  // Manual fallback for summary logic to ensure consistency
+  
   const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
   const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
   const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
