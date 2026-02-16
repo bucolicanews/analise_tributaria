@@ -1,7 +1,7 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
 
-// Registrando fontes para garantir aparência profissional
+// Registrando fontes
 Font.register({
   family: 'Helvetica',
   fonts: [
@@ -13,7 +13,9 @@ Font.register({
 // Estilos corporativos
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
+    paddingTop: 40,
+    paddingHorizontal: 40,
+    paddingBottom: 80, // AUMENTADO: Espaço reservado para o rodapé não sobrepor o texto
     fontFamily: 'Helvetica',
     fontSize: 10,
     color: '#333',
@@ -37,14 +39,14 @@ const styles = StyleSheet.create({
   coverTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1e293b', // Slate 800
+    color: '#1e293b', 
     textAlign: 'center',
     marginBottom: 10,
     textTransform: 'uppercase',
   },
   coverSubtitle: {
     fontSize: 14,
-    color: '#64748b', // Slate 500
+    color: '#64748b', 
     textAlign: 'center',
     marginBottom: 40,
   },
@@ -74,7 +76,7 @@ const styles = StyleSheet.create({
   header: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#f97316', // Primary Orange (Jota Brand)
+    color: '#f97316', 
     marginBottom: 8,
     borderBottom: '1px solid #fed7aa',
     paddingBottom: 4,
@@ -119,6 +121,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    backgroundColor: '#fff', // Garante fundo branco para o rodapé
   },
   footerText: {
     fontSize: 8,
@@ -133,14 +136,28 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
   },
-  signatureBox: {
-    marginTop: 40,
+  // Novo estilo para bloco de assinatura
+  signatureBlock: {
+    marginTop: 50,
+    display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
+    width: '100%',
+    pageBreakInside: 'avoid', // Evita que a assinatura quebre entre páginas
   },
   signatureLine: {
-    width: 200,
-    borderBottom: '1px solid #333',
-    marginBottom: 5,
+    width: 250,
+    borderBottom: '1px solid #94a3b8',
+    marginBottom: 8,
+  },
+  signatureText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#334155',
+  },
+  signatureSubText: {
+    fontSize: 8,
+    color: '#64748b',
   },
   toc: {
     marginTop: 50,
@@ -162,10 +179,9 @@ interface ViabilityReportPDFProps {
   accountantName: string;
   accountantCrc: string;
   qrCodeDataUrl: string;
-  companyName: string; // Empresa Contábil (Jota)
+  companyName: string; 
 }
 
-// Parser simples de Markdown para React-PDF
 const MarkdownRenderer = ({ content }: { content: string }) => {
   if (!content) return null;
 
@@ -176,15 +192,12 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
       {lines.map((line, index) => {
         const trimmed = line.trim();
         
-        // Headers (#)
         if (trimmed.startsWith('# ')) {
           return <Text key={index} style={styles.header}>{trimmed.replace('# ', '')}</Text>;
         }
         if (trimmed.startsWith('## ')) {
           return <Text key={index} style={styles.subHeader}>{trimmed.replace('## ', '')}</Text>;
         }
-
-        // Bullet Points (-)
         if (trimmed.startsWith('- ')) {
           return (
             <View key={index} style={styles.bulletPoint}>
@@ -195,13 +208,9 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
             </View>
           );
         }
-
-        // Empty lines
         if (!trimmed) {
           return <View key={index} style={{ height: 5 }} />;
         }
-
-        // Normal Paragraph
         return (
           <Text key={index} style={styles.text}>
             {parseBoldText(trimmed)}
@@ -212,7 +221,6 @@ const MarkdownRenderer = ({ content }: { content: string }) => {
   );
 };
 
-// Função auxiliar para renderizar negrito (**texto**)
 const parseBoldText = (text: string) => {
   const parts = text.split(/(\*\*.*?\*\*)/g);
   return parts.map((part, i) => {
@@ -235,18 +243,14 @@ export const ViabilityReportPDF = ({
 }: ViabilityReportPDFProps) => {
   const currentDate = new Date().toLocaleDateString('pt-BR');
 
-  // Extrair seções para o sumário (baseado nos Headers #)
   const tocItems = reportMarkdown.split('\n')
     .filter(line => line.trim().startsWith('# '))
     .map(line => line.trim().replace('# ', ''));
 
   return (
     <Document>
-      {/* CAPA */}
       <Page size="A4" style={styles.page}>
         <View style={styles.coverPage}>
-          {/* Logo Placeholder - idealmente seria uma imagem base64 ou URL pública */}
-          {/* <Image src="/logo.png" style={styles.coverLogo} /> */}
           <View style={{ marginBottom: 40, alignItems: 'center' }}>
             <Text style={{ fontSize: 40, color: '#f97316', fontWeight: 'bold' }}>JOTA</Text>
             <Text style={{ fontSize: 10, color: '#64748b', letterSpacing: 2 }}>CONTABILIDADE</Text>
@@ -266,7 +270,6 @@ export const ViabilityReportPDF = ({
             <Text style={styles.clientValue}>{currentDate}</Text>
           </View>
 
-          {/* Sumário Automático na Capa */}
           {tocItems.length > 0 && (
              <View style={styles.toc}>
                 <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 10, color: '#475569' }}>ESTRUTURA DO RELATÓRIO</Text>
@@ -281,27 +284,32 @@ export const ViabilityReportPDF = ({
         <Footer companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} />
       </Page>
 
-      {/* CONTEÚDO TÉCNICO */}
       <Page size="A4" style={styles.page} wrap>
-        {/* Cabeçalho de página */}
         <View style={{ position: 'absolute', top: 30, left: 40, right: 40, borderBottom: '1px solid #e2e8f0', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }} fixed>
-           <Text style={{ fontSize: 8, color: '#94a3b8' }}>Jota Contabilidade - Relatório Técnico</Text>
+           <Text style={{ fontSize: 8, color: '#94a3b8' }}>{companyName} - Relatório Técnico</Text>
            <Text style={{ fontSize: 8, color: '#94a3b8' }}>{currentDate}</Text>
         </View>
         
-        {/* Espaço para o header fixo */}
         <View style={{ marginTop: 20 }}>
            <MarkdownRenderer content={reportMarkdown} />
         </View>
 
-        {/* Rodapé e Assinatura na última página ou fixo? Vamos fazer fixo */}
+        {/* Bloco de Assinatura ao final do conteúdo */}
+        {accountantName && (
+          <View style={styles.signatureBlock}>
+            <View style={styles.signatureLine} />
+            <Text style={styles.signatureText}>{accountantName}</Text>
+            <Text style={styles.signatureSubText}>Contador Responsável - CRC: {accountantCrc}</Text>
+            <Text style={{ fontSize: 8, color: '#94a3b8', marginTop: 4 }}>Assinado digitalmente</Text>
+          </View>
+        )}
+
         <Footer companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} qrCodeDataUrl={qrCodeDataUrl} fixed />
       </Page>
     </Document>
   );
 };
 
-// Componente de Rodapé Reutilizável
 const Footer = ({ companyName, accountantName, accountantCrc, qrCodeDataUrl, fixed = false }: any) => (
   <View style={styles.footer} fixed={fixed}>
     <View>

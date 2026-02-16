@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Bot, Send, Sparkles, ChevronDown } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import {
   DropdownMenu,
@@ -29,21 +29,68 @@ const naturezasJuridicas = [
 ];
 
 const Viabilidade = () => {
-  const [razaoSocial, setRazaoSocial] = useState('');
-  const [naturezaJuridica, setNaturezaJuridica] = useState('');
-  const [capital, setCapital] = useState('');
-  const [atividades, setAtividades] = useState('');
-  const [numSocios, setNumSocios] = useState('1');
-  const [numFuncionarios, setNumFuncionarios] = useState('0');
-  const [folhaPagamento, setFolhaPagamento] = useState('');
-  const [municipio, setMunicipio] = useState('');
-  const [estado, setEstado] = useState('SP');
-  const [tributacaoSugerida, setTributacaoSugerida] = useState('');
-  const [businessIdea, setBusinessIdea] = useState('');
+  // Inicializa o estado lendo do localStorage ou usa valor padrão
+  const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('viab-razaoSocial') || '');
+  const [naturezaJuridica, setNaturezaJuridica] = useState(localStorage.getItem('viab-naturezaJuridica') || '');
+  const [capital, setCapital] = useState(localStorage.getItem('viab-capital') || '');
+  const [atividades, setAtividades] = useState(localStorage.getItem('viab-atividades') || '');
+  const [numSocios, setNumSocios] = useState(localStorage.getItem('viab-numSocios') || '1');
+  const [numFuncionarios, setNumFuncionarios] = useState(localStorage.getItem('viab-numFuncionarios') || '0');
+  const [folhaPagamento, setFolhaPagamento] = useState(localStorage.getItem('viab-folhaPagamento') || '');
+  const [municipio, setMunicipio] = useState(localStorage.getItem('viab-municipio') || '');
+  const [estado, setEstado] = useState(localStorage.getItem('viab-estado') || 'SP');
+  const [tributacaoSugerida, setTributacaoSugerida] = useState(localStorage.getItem('viab-tributacaoSugerida') || '');
+  const [businessIdea, setBusinessIdea] = useState(localStorage.getItem('viab-businessIdea') || '');
+  const [aiReport, setAiReport] = useState<string | null>(localStorage.getItem('viab-aiReport') || null);
   
   const [isLoading, setIsLoading] = useState(false);
-  const [aiReport, setAiReport] = useState<string | null>(null);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+  // Efeito para salvar no localStorage sempre que um estado mudar
+  useEffect(() => { localStorage.setItem('viab-razaoSocial', razaoSocial); }, [razaoSocial]);
+  useEffect(() => { localStorage.setItem('viab-naturezaJuridica', naturezaJuridica); }, [naturezaJuridica]);
+  useEffect(() => { localStorage.setItem('viab-capital', capital); }, [capital]);
+  useEffect(() => { localStorage.setItem('viab-atividades', atividades); }, [atividades]);
+  useEffect(() => { localStorage.setItem('viab-numSocios', numSocios); }, [numSocios]);
+  useEffect(() => { localStorage.setItem('viab-numFuncionarios', numFuncionarios); }, [numFuncionarios]);
+  useEffect(() => { localStorage.setItem('viab-folhaPagamento', folhaPagamento); }, [folhaPagamento]);
+  useEffect(() => { localStorage.setItem('viab-municipio', municipio); }, [municipio]);
+  useEffect(() => { localStorage.setItem('viab-estado', estado); }, [estado]);
+  useEffect(() => { localStorage.setItem('viab-tributacaoSugerida', tributacaoSugerida); }, [tributacaoSugerida]);
+  useEffect(() => { localStorage.setItem('viab-businessIdea', businessIdea); }, [businessIdea]);
+  
+  useEffect(() => { 
+    if (aiReport) localStorage.setItem('viab-aiReport', aiReport); 
+    else localStorage.removeItem('viab-aiReport');
+  }, [aiReport]);
+
+  const handleNewConsultation = () => {
+    if (confirm("Deseja limpar todos os campos e iniciar uma nova consulta?")) {
+      setRazaoSocial('');
+      setNaturezaJuridica('');
+      setCapital('');
+      setAtividades('');
+      setNumSocios('1');
+      setNumFuncionarios('0');
+      setFolhaPagamento('');
+      setMunicipio('');
+      setEstado('SP');
+      setTributacaoSugerida('');
+      setBusinessIdea('');
+      setAiReport(null);
+      setExecutionTime(null);
+      
+      // Limpar chaves específicas do localStorage
+      const keysToRemove = [
+        'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-atividades',
+        'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 'viab-municipio',
+        'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport'
+      ];
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      toast.info("Campos limpos. Inicie uma nova análise.");
+    }
+  };
 
   const handleSendToAI = async (environment: 'test' | 'production') => {
     if (!atividades.trim() || !municipio.trim()) {
@@ -52,7 +99,8 @@ const Viabilidade = () => {
     }
 
     setIsLoading(true);
-    setAiReport(null);
+    // Não limpa o relatório anterior imediatamente para evitar "piscar" se falhar, 
+    // mas o usuário verá o loader.
     setExecutionTime(null);
     const startTime = performance.now();
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
@@ -98,13 +146,11 @@ const Viabilidade = () => {
 
       let reportText = "";
 
-      // Verifica formato limpo { "report": "..." } ou [{ "report": "..." }] vindo do novo fluxo n8n
       if (data.report) {
         reportText = data.report;
       } else if (Array.isArray(data) && data[0]?.report) {
         reportText = data[0].report;
       } 
-      // Verifica formato bruto do Google Gemini/Vertex AI (legado ou direto)
       else if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
         reportText = data.map((item: any) => item.content.parts.map((part: any) => part.text).join("\n")).join("\n\n---\n\n");
       } else if (data?.content?.parts?.[0]?.text) {
@@ -117,6 +163,9 @@ const Viabilidade = () => {
       
       setAiReport(reportText);
       toast.success(`Diagnóstico concluído em ${duration.toFixed(2)}s!`, { id: toastId });
+      
+      // Rolar até o relatório
+      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 500);
 
     } catch (error: any) {
       toast.error("Falha na análise", { id: toastId, description: error.message });
@@ -129,13 +178,21 @@ const Viabilidade = () => {
     <div className="container mx-auto px-4 py-8 space-y-8">
       <Card className="shadow-card">
         <CardHeader>
-          <CardTitle className="flex items-center gap-3 text-primary">
-            <Sparkles className="h-6 w-6" />
-            Análise de Viabilidade de Novo Negócio
-          </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Descreva sua ideia de negócio e a IA irá gerar um diagnóstico tributário e de obrigações para você começar com o pé direito.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-3 text-primary">
+                <Sparkles className="h-6 w-6" />
+                Análise de Viabilidade de Novo Negócio
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Preencha os dados abaixo para gerar um diagnóstico completo com IA. Seus dados são salvos automaticamente.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" onClick={handleNewConsultation}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Nova Consulta
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
