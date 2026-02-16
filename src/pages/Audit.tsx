@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -62,6 +62,8 @@ const MathBlock = ({ label, icon: Icon, values }: { label: string, icon: any, va
 
 const Audit = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [isPdfViewerMounted, setIsPdfViewerMounted] = useState(false);
+  
   const purchaseProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-purchase-products') || '[]');
   const salesProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-sales-products') || '[]');
   const params: CalculationParams | null = JSON.parse(sessionStorage.getItem('jota-calc-params') || 'null');
@@ -69,6 +71,15 @@ const Audit = () => {
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
+
+  useEffect(() => {
+    if (isPdfOpen) {
+      const timer = setTimeout(() => setIsPdfViewerMounted(true), 100);
+      return () => clearTimeout(timer);
+    } else {
+      setIsPdfViewerMounted(false);
+    }
+  }, [isPdfOpen]);
 
   const auditResults = useMemo(() => {
     if (!params) return [];
@@ -279,17 +290,23 @@ const Audit = () => {
               <Button variant="outline" size="sm"><Printer className="h-4 w-4 mr-2" />Visualizar PDF</Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
-              <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
-                <PDFViewer width="100%" height="100%" className="border-none">
-                  <AuditReportPDF 
-                    divergentItems={divergentItems}
-                    okItems={okItems}
-                    unassociatedItems={unassociatedItems}
-                    companyName={companyName}
-                    accountantName={accountantName}
-                    accountantCrc={accountantCrc}
-                  />
-                </PDFViewer>
+              <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden flex items-center justify-center">
+                {isPdfViewerMounted ? (
+                  <PDFViewer width="100%" height="100%" className="border-none">
+                    <AuditReportPDF 
+                      divergentItems={divergentItems}
+                      okItems={okItems}
+                      unassociatedItems={unassociatedItems}
+                      companyName={companyName}
+                      accountantName={accountantName}
+                      accountantCrc={accountantCrc}
+                    />
+                  </PDFViewer>
+                ) : (
+                  <div className="text-center">
+                    <p className="text-muted-foreground">Carregando visualização do relatório...</p>
+                  </div>
+                )}
               </div>
             </DialogContent>
           </Dialog>
