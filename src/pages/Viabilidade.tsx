@@ -1,12 +1,17 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from "sonner";
-import { Bot, Send, Sparkles, FileText } from 'lucide-react';
+import { Bot, Send, Sparkles, ChevronDown } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const Viabilidade = () => {
   const [businessIdea, setBusinessIdea] = useState('');
@@ -14,7 +19,7 @@ const Viabilidade = () => {
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  const handleSendToAI = async () => {
+  const handleSendToAI = async (environment: 'test' | 'production') => {
     if (!businessIdea.trim()) {
       toast.error("Descreva sua ideia de negócio antes de enviar.");
       return;
@@ -24,16 +29,23 @@ const Viabilidade = () => {
     setAiReport(null);
     setExecutionTime(null);
     const startTime = performance.now();
-    const toastId = toast.loading("Aguardando diagnóstico da IA...");
+    const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
 
     try {
-      // Adicionamos a tag para o N8N filtrar
       const payload = {
         analise_simples: true,
         prompt: businessIdea
       };
 
-      const webhookUrl = localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794';
+      const webhooks = {
+        test: localStorage.getItem('jota-webhook-test'),
+        production: localStorage.getItem('jota-webhook-prod')
+      };
+
+      const webhookUrl = webhooks[environment];
+      if (!webhookUrl) {
+        throw new Error(`A URL do webhook de '${environment}' não está configurada.`);
+      }
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -96,10 +108,24 @@ const Viabilidade = () => {
       </Card>
 
       <div className="text-center">
-        <Button onClick={handleSendToAI} disabled={isLoading} size="lg" className="bg-accent hover:bg-accent/90">
-          {isLoading ? "Analisando..." : "Gerar Diagnóstico com IA"}
-          <Send className="h-4 w-4 ml-2" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="lg" disabled={isLoading} className="bg-accent hover:bg-accent/90">
+              {isLoading ? "Analisando..." : "Gerar Diagnóstico com IA"}
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent>
+            <DropdownMenuItem onClick={() => handleSendToAI('test')}>
+              <Send className="h-4 w-4 mr-2" />
+              Usar Ambiente de Teste
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSendToAI('production')}>
+              <Send className="h-4 w-4 mr-2" />
+              Usar Ambiente de Produção
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {aiReport && (
