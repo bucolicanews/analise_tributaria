@@ -1,0 +1,46 @@
+**Análise de Viabilidade de Novo Negócio**
+
+**1. Dados da Empresa:**
+- **Razão Social (sugestão):** {{ $('jota_agente').item.json.body.dados_empresa.razao_social }}
+- **Natureza Jurídica:** {{ $('jota_agente').item.json.body.dados_empresa.natureza_juridica }}
+- **Capital Social:** R$ {{ $('jota_agente').item.json.body.dados_empresa.capital_social }}
+- **Quantidade de Sócios:** {{ $('jota_agente').item.json.body.dados_empresa.num_socios }}
+- **Quantidade de Funcionários (Estimada):** {{ $('jota_agente').item.json.body.dados_empresa.num_funcionarios }}
+- **Folha de Pagamento Mensal (Estimada):** R$ {{ $('jota_agente').item.json.body.dados_empresa.folha_pagamento_estimada }}
+- **Localização:** {{ $('jota_agente').item.json.body.dados_empresa.localizacao_municipio }}, {{ $('jota_agente').item.json.body.dados_empresa.localizacao_uf }}
+
+**2. Atividades e Operação:**
+- **Principais Atividades Descritas:** {{ $('jota_agente').item.json.body.atividades.principais }}
+- **Tributação Pretendida:** {{ $('jota_agente').item.json.body.atividades.tributacao_pretendida }}
+
+**3. Descrição Adicional da Ideia:**
+{{ $('jota_agente').item.json.body.descricao_adicional }}
+
+---
+**Instruções para a IA:**
+Com base nos dados fornecidos, gere um parecer técnico detalhado sobre a viabilidade e os próximos passos para a abertura desta empresa. O parecer deve incluir:
+- Sugestão de CNAE(s) principal e secundários.
+- Análise da Natureza Jurídica mais adequada.
+- Sugestão do Regime Tributário (Simples Nacional, Lucro Presumido, Lucro Real), explicando os prós e contras de cada um para este cenário com uma simulação numérica comparativa.
+- Estimativa de alíquotas iniciais de impostos, considerando a folha de pagamento.
+- Lista de obrigações acessórias principais.
+- Orientações sobre alvarás e licenças necessárias para o município e atividades informados.
+- Recomendações estratégicas e próximos passos.
+- Uma projeção detalhada do custo real de um funcionário.
+- Uma estimativa dos custos de abertura da empresa.
+
+---
+**REGRAS ESTRITAS DE FORMATAÇÃO DE SAÍDA (OBRIGATÓRIO):**
+1.  **INÍCIO EXATO:** A resposta DEVE começar, sem nenhum caractere antes, exatamente com a linha: `# 1) MAPEAMENTO COMPLETO DE CNAEs POSSÍVEIS`.
+2.  **FIM EXATO:** A resposta DEVE terminar, sem nenhum caractere depois, exatamente com o bloco de "Próximas Ações Interativas" abaixo. O texto deve ser idêntico.
+3.  **NENHUM TEXTO CONVERSACIONAL:** Não inclua saudações, introduções ("Com certeza, aqui está..."), despedidas ou qualquer texto fora da estrutura definida. A resposta deve ser o parecer técnico puro.
+4.  **ESTRUTURA RÍGIDA:** Siga exatamente a estrutura de 5 seções principais, separadas por `---`, e use os títulos e subtítulos conforme o modelo de exemplo. A última seção deve ser o bloco de ações interativas.
+
+**Bloco Final Obrigatório:**
+---
+Se você quiser, posso agora montar:
+
+🔥 Versão para apresentar ao cliente (um resumo visual e simplificado)
+🔥 Versão técnica para uso interno (com foco nos riscos e pontos de atenção)
+🔥 Modelo automatizado para seu fluxo no n8n (um JSON estruturado com os dados chave)
+🔥 Simulação com diferentes faturamentos (para análise de ponto de equilíbrio e carga tributária)
