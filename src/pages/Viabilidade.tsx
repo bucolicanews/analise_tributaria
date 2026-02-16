@@ -34,6 +34,8 @@ const Viabilidade = () => {
   const [capital, setCapital] = useState('');
   const [atividades, setAtividades] = useState('');
   const [numSocios, setNumSocios] = useState('1');
+  const [numFuncionarios, setNumFuncionarios] = useState('0');
+  const [folhaPagamento, setFolhaPagamento] = useState('');
   const [municipio, setMunicipio] = useState('');
   const [estado, setEstado] = useState('SP');
   const [tributacaoSugerida, setTributacaoSugerida] = useState('');
@@ -64,6 +66,8 @@ const Viabilidade = () => {
         - **Natureza Jurídica:** ${naturezaJuridica || 'Não informado / Sugerir'}
         - **Capital Social:** R$ ${capital || 'Não informado'}
         - **Quantidade de Sócios:** ${numSocios || 'Não informado'}
+        - **Quantidade de Funcionários:** ${numFuncionarios || 'Não informado'}
+        - **Folha de Pagamento Mensal (Estimada):** R$ ${folhaPagamento || 'Não informado'}
         - **Localização:** ${municipio}, ${estado}
 
         **2. Atividades e Operação:**
@@ -78,7 +82,7 @@ const Viabilidade = () => {
         - Sugestão de CNAE(s) principal e secundários.
         - Análise da Natureza Jurídica mais adequada.
         - Sugestão do Regime Tributário (Simples Nacional, Lucro Presumido, Lucro Real), explicando os prós e contras de cada um para este cenário.
-        - Estimativa de alíquotas iniciais de impostos.
+        - Estimativa de alíquotas iniciais de impostos, considerando a folha de pagamento.
         - Lista de obrigações acessórias principais.
         - Orientações sobre alvarás e licenças necessárias para o município e atividades informados.
         - Recomendações estratégicas e próximos passos.
@@ -161,9 +165,19 @@ const Viabilidade = () => {
                 <Label htmlFor="capital">Capital Social (R$)</Label>
                 <Input id="capital" type="number" value={capital} onChange={(e) => setCapital(e.target.value)} disabled={isLoading} placeholder="Ex: 50000" />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="num-socios">Quantidade de Sócios</Label>
+                  <Input id="num-socios" type="number" value={numSocios} onChange={(e) => setNumSocios(e.target.value)} disabled={isLoading} />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="num-funcionarios">Funcionários</Label>
+                  <Input id="num-funcionarios" type="number" value={numFuncionarios} onChange={(e) => setNumFuncionarios(e.target.value)} disabled={isLoading} />
+                </div>
+              </div>
               <div className="space-y-2">
-                <Label htmlFor="num-socios">Quantidade de Sócios</Label>
-                <Input id="num-socios" type="number" value={numSocios} onChange={(e) => setNumSocios(e.target.value)} disabled={isLoading} />
+                <Label htmlFor="folha-pagamento">Folha de Pagamento Mensal (R$)</Label>
+                <Input id="folha-pagamento" type="number" value={folhaPagamento} onChange={(e) => setFolhaPagamento(e.target.value)} disabled={isLoading} placeholder="Ex: 4500" />
               </div>
             </div>
 
