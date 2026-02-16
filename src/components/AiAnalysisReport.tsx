@@ -1,7 +1,9 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Download, AlertCircle } from 'lucide-react';
+import { Bot, Download, AlertCircle, X } from 'lucide-react';
 import { Button } from './ui/button';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface AiAnalysisReportProps {
   report: string;
@@ -10,32 +12,53 @@ interface AiAnalysisReportProps {
 
 export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({ report, onClose }) => {
   return (
-    <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <div className="flex items-center gap-2">
-          <Bot className="h-6 w-6 text-accent" />
-          <CardTitle className="text-xl font-bold text-accent">Relatório de Inteligência Tributária</CardTitle>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Download className="h-4 w-4 mr-2" /> PDF
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onClose}>Fechar</Button>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="prose prose-invert max-w-none text-foreground/90">
-          {/* Renderização simples do texto da IA. Em um app real, usaríamos react-markdown */}
-          <div className="whitespace-pre-wrap font-sans leading-relaxed">
-            {report}
+    <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden print:shadow-none print:border-none print:bg-white">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-accent/20 bg-accent/10 print:hidden">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-accent rounded-full">
+            <Bot className="h-5 w-5 text-accent-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-xl font-bold text-accent">Parecer Técnico de Inteligência Fiscal</CardTitle>
+            <p className="text-xs text-muted-foreground">Análise Estratégica baseada na Lei 214/2025</p>
           </div>
         </div>
-        <div className="mt-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex gap-3 items-start">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="border-accent/30 hover:bg-accent/20" onClick={() => window.print()}>
+            <Download className="h-4 w-4 mr-2" /> PDF / Imprimir
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onClose} className="hover:bg-destructive/10 hover:text-destructive">
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      
+      <CardContent className="pt-6">
+        <div className="prose prose-invert prose-accent max-w-none 
+          prose-headings:text-accent prose-headings:font-bold prose-headings:border-b prose-headings:border-accent/20 prose-headings:pb-2 prose-headings:mt-8
+          prose-p:text-foreground/90 prose-p:leading-relaxed
+          prose-strong:text-accent prose-strong:font-bold
+          prose-table:border prose-table:border-border/50 prose-table:rounded-lg prose-table:overflow-hidden
+          prose-th:bg-accent/20 prose-th:text-accent prose-th:p-3 prose-th:text-xs prose-th:uppercase
+          prose-td:p-3 prose-td:border-t prose-td:border-border/30 prose-td:text-sm
+          print:prose-invert-none print:text-black">
+          
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {report}
+          </ReactMarkdown>
+          
+        </div>
+
+        <div className="mt-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex gap-3 items-start print:hidden">
           <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-yellow-500/90">
-            Este relatório foi gerado por Inteligência Artificial com base nos parâmetros fornecidos. 
-            Sempre valide as decisões estratégicas com seu contador antes de aplicá-las.
-          </p>
+          <div>
+            <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Aviso de Isenção de Responsabilidade</p>
+            <p className="text-[10px] text-yellow-500/80 leading-tight">
+              Este relatório é gerado por algoritmos de inteligência artificial para fins de simulação estratégica. 
+              As interpretações da Lei Complementar 214/2025 podem variar. 
+              Consulte sempre seu departamento jurídico e contábil antes de qualquer tomada de decisão societária ou fiscal.
+            </p>
+          </div>
         </div>
       </CardContent>
     </Card>

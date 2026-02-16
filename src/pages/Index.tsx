@@ -147,7 +147,7 @@ const Index = () => {
     }
 
     setIsSending(true);
-    const toastId = toast.loading(`Iniciando Análise de Inteligência Fiscal (${environment})...`);
+    const toastId = toast.loading(`Gerando Plano Tributário Estratégico (${environment})...`);
 
     try {
       const payload = createOptimizedAIPayload(params, summary, calculatedProducts);
@@ -158,7 +158,7 @@ const Index = () => {
       };
 
       const webhookUrl = webhooks[environment];
-      if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado nas configurações.`);
+      if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -166,18 +166,32 @@ const Index = () => {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Erro na comunicação com o servidor de IA.");
+      if (!response.ok) throw new Error("Erro na comunicação com a IA.");
       
       const data = await response.json();
-      const reportText = data.output || data.text || data.response || (typeof data === 'string' ? data : "Análise concluída, verifique o sistema de BI.");
       
-      setAiReport(reportText);
-      toast.success("Parecer Tributário gerado!", { id: toastId });
+      // Lógica de extração robusta para o formato JSON recebido
+      let extractedReport = "";
       
-      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 100);
+      if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
+        extractedReport = data[0].content.parts[0].text;
+      } else if (data.output) {
+        extractedReport = data.output;
+      } else if (data.text) {
+        extractedReport = data.text;
+      } else if (typeof data === 'string') {
+        extractedReport = data;
+      } else {
+        throw new Error("Formato de resposta da IA não reconhecido.");
+      }
+      
+      setAiReport(extractedReport);
+      toast.success("Análise Estratégica Concluída!", { id: toastId });
+      
+      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
     } catch (error: any) {
-      toast.error("Falha na Análise Inteligente", { 
+      toast.error("Erro na Auditoria IA", { 
         id: toastId,
         description: error.message
       });
@@ -319,10 +333,10 @@ const calculateGlobalSummary = (
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
   const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
-  const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
-  const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
-  const totalCbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0);
-  const totalIbsDebitSum = productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0);
+  const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.totalCbsCredit || 0, 0); // Corrected to use calculated credits
+  const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.totalIbsCredit || 0, 0);
+
+  // Manual fallback for summary logic to ensure consistency
   const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
   const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
   const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
@@ -354,7 +368,27 @@ const calculateGlobalSummary = (
   const contributionMarginRatio = 1 - totalVariableCostsRatio;
   const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
 
-  return { totalSelling: totalSellingSum, totalTax: totalTaxSum, totalProfit: totalProfitSum, profitMarginPercent, breakEvenPoint, totalVariableExpensesValue: totalVariableExpensesValueSum, totalContributionMargin: totalContributionMarginSum, totalTaxPercent, totalCbsCredit: totalCbsCreditSum, totalIbsCredit: totalIbsCreditSum, totalCbsDebit: totalCbsDebitSum, totalIbsDebit: totalIbsDebitSum, totalCbsTaxToPay: totalCbsTaxToPaySum, totalIbsTaxToPay: totalIbsTaxToPaySum, totalIrpjToPay: totalIrpjToPaySum, totalCsllToPay: totalCsllToPaySum, totalSimplesToPay: totalSimplesToPaySum, totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, totalIvaCreditForClient: totalIvaCreditForClientSum };
+  return { 
+    totalSelling: totalSellingSum, 
+    totalTax: totalTaxSum, 
+    totalProfit: totalProfitSum, 
+    profitMarginPercent, 
+    breakEvenPoint, 
+    totalVariableExpensesValue: totalVariableExpensesValueSum, 
+    totalContributionMargin: totalContributionMarginSum, 
+    totalTaxPercent, 
+    totalCbsCredit: productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0),
+    totalIbsCredit: productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0),
+    totalCbsDebit: productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0),
+    totalIbsDebit: productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0),
+    totalCbsTaxToPay: totalCbsTaxToPaySum, 
+    totalIbsTaxToPay: totalIbsTaxToPaySum, 
+    totalIrpjToPay: totalIrpjToPaySum, 
+    totalCsllToPay: totalCsllToPaySum, 
+    totalSimplesToPay: totalSimplesToPaySum, 
+    totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, 
+    totalIvaCreditForClient: totalIvaCreditForClientSum 
+  };
 };
 
 export default Index;
