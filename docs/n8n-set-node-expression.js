@@ -1,46 +1,27 @@
-`**Análise de Viabilidade de Novo Negócio**
+// 1. Acessa o array 'parts' da saída da IA pelo caminho correto.
+//    $input.first().json acessa a saída do nó anterior.
+//    [0] acessa o primeiro (e único) item do array de resposta.
+//    .content.parts finalmente chega à lista de textos.
+const parts = $input.first().json[0].content.parts;
 
-**1. Dados da Empresa:**
-- **Razão Social (sugestão):** ${$('Webhook').item.json.body.dados_empresa.razao_social}
-- **Natureza Jurídica:** ${$('Webhook').item.json.body.dados_empresa.natureza_juridica}
-- **Capital Social:** R$ ${$('Webhook').item.json.body.dados_empresa.capital_social}
-- **Quantidade de Sócios:** ${$('Webhook').item.json.body.dados_empresa.num_socios}
-- **Quantidade de Funcionários (Estimada):** ${$('Webhook').item.json.body.dados_empresa.num_funcionarios}
-- **Folha de Pagamento Mensal (Estimada):** R$ ${$('Webhook').item.json.body.dados_empresa.folha_pagamento_estimada}
-- **Localização:** ${$('Webhook').item.json.body.dados_empresa.localizacao_municipio}, ${$('Webhook').item.json.body.dados_empresa.localizacao_uf}
+// 2. Junta todos os pedaços de texto em uma única string.
+//    Isso resolve o problema da FRAGMENTAÇÃO.
+const combinedText = parts.map(part => part.text).join('\n\n');
 
-**2. Atividades e Operação:**
-- **Principais Atividades Descritas:** ${$('Webhook').item.json.body.atividades.principais}
-- **Tributação Pretendida:** ${$('Webhook').item.json.body.atividades.tributacao_pretendida}
+// 3. Divide o texto em seções, usando o padrão "# " como separador.
+//    O .filter(Boolean) remove quaisquer itens vazios que possam surgir.
+const sections = combinedText.split(/\n# /).filter(Boolean);
 
-**3. Descrição Adicional da Ideia:**
-${$('Webhook').item.json.body.descricao_adicional}
+// 4. Ordena as seções numericamente com base no número do título.
+//    Isso resolve o problema da ORDEM INCORRETA.
+sections.sort((a, b) => {
+  const numA = parseInt(a.match(/^(\d+)/)?.[1] || '0', 10);
+  const numB = parseInt(b.match(/^(\d+)/)?.[1] || '0', 10);
+  return numA - numB;
+});
 
----
-**Instruções para a IA:**
-Com base nos dados fornecidos, gere um parecer técnico detalhado sobre a viabilidade e os próximos passos para a abertura desta empresa. O parecer deve incluir:
-- Sugestão de CNAE(s) principal e secundários.
-- Análise da Natureza Jurídica mais adequada.
-- Sugestão do Regime Tributário (Simples Nacional, Lucro Presumido, Lucro Real), explicando os prós e contras de cada um para este cenário com uma simulação numérica comparativa.
-- Estimativa de alíquotas iniciais de impostos, considerando a folha de pagamento.
-- Lista de obrigações acessórias principais.
-- Orientações sobre alvarás e licenças necessárias para o município e atividades informados.
-- Recomendações estratégicas e próximos passos.
-- Uma projeção detalhada do custo real de um funcionário.
-- Uma estimativa dos custos de abertura da empresa.
+// 5. Junta as seções ordenadas de volta, adicionando o "# " que foi removido.
+const finalReport = sections.map(section => `# ${section}`).join('\n\n');
 
----
-**REGRAS ESTRITAS DE FORMATAÇÃO DE SAÍDA (OBRIGATÓRIO):**
-1.  **INÍCIO EXATO:** A resposta DEVE começar, sem nenhum caractere antes, exatamente com a linha: \`# 1) MAPEAMENTO COMPLETO DE CNAEs POSSÍVEIS\`.
-2.  **FIM EXATO:** A resposta DEVE terminar, sem nenhum caractere depois, exatamente com o bloco de "Próximas Ações Interativas" abaixo. O texto deve ser idêntico.
-3.  **NENHUM TEXTO CONVERSACIONAL:** Não inclua saudações, introduções ("Com certeza, aqui está..."), despedidas ou qualquer texto fora da estrutura definida. A resposta deve ser o parecer técnico puro.
-4.  **ESTRUTURA RÍGIDA:** Siga exatamente a estrutura de 5 seções principais, separadas por \`---\`, e use os títulos e subtítulos conforme o modelo de exemplo. A última seção deve ser o bloco de ações interativas.
-
-**Bloco Final Obrigatório:**
----
-Se você quiser, posso agora montar:
-
-🔥 Versão para apresentar ao cliente (um resumo visual e simplificado)
-🔥 Versão técnica para uso interno (com foco nos riscos e pontos de atenção)
-🔥 Modelo automatizado para seu fluxo no n8n (um JSON estruturado com os dados chave)
-🔥 Simulação com diferentes faturamentos (para análise de ponto de equilíbrio e carga tributária)`
+// 6. Retorna o relatório final, limpo e organizado.
+return finalReport;
