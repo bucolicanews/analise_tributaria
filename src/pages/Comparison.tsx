@@ -1,12 +1,15 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertTriangle, CheckCircle2, TrendingUp, DollarSign, BarChart3 } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
-import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
+import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
 
 const calculateGlobalSummaryForComparison = (
   productsToSummarize: CalculatedProduct[],
@@ -85,6 +88,12 @@ const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
 const Comparison = () => {
+  const [isPdfOpen, setIsPdfOpen] = useState(false);
+
+  const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
+  const accountantName = localStorage.getItem('jota-contador-nome') || '';
+  const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
+
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
     const storedProducts = sessionStorage.getItem('jota-calc-purchase-products');
@@ -174,7 +183,54 @@ const Comparison = () => {
     <div className="container mx-auto px-4 py-8 space-y-8">
       <Card className="shadow-elegant border-primary/50">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3"><BarChart3 className="h-6 w-6" />Comparativo de Regimes Tributários</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3"><BarChart3 className="h-6 w-6" />Comparativo de Regimes Tributários</CardTitle>
+            
+            <div className="flex gap-2">
+              <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Printer className="h-4 w-4 mr-2" />
+                    Visualizar PDF
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
+                  <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
+                    <PDFViewer width="100%" height="100%" className="border-none">
+                      <ComparisonReportPDF 
+                        results={comparisonData.results}
+                        bestResult={comparisonData.bestResult}
+                        companyName={companyName}
+                        accountantName={accountantName}
+                        accountantCrc={accountantCrc}
+                      />
+                    </PDFViewer>
+                  </div>
+                </DialogContent>
+              </Dialog>
+
+              <PDFDownloadLink
+                document={
+                  <ComparisonReportPDF 
+                    results={comparisonData.results}
+                    bestResult={comparisonData.bestResult}
+                    companyName={companyName}
+                    accountantName={accountantName}
+                    accountantCrc={accountantCrc}
+                  />
+                }
+                fileName={`comparativo_regimes_${new Date().toISOString().split('T')[0]}.pdf`}
+              >
+                {({ loading }) => (
+                  <Button size="sm" disabled={loading}>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    {loading ? 'Gerando...' : 'Baixar PDF'}
+                  </Button>
+                )}
+              </PDFDownloadLink>
+            </div>
+          </div>
+          
           <Alert className="mt-4 bg-success/10 border-success text-success-foreground">
             <CheckCircle2 className="h-4 w-4" /><AlertTitle>Regime Mais Vantajoso</AlertTitle>
             <AlertDescription className="text-lg font-semibold">O melhor regime é: <span className="font-extrabold">{comparisonData.bestResult.label}</span>, com Lucro de <span className="font-extrabold">{formatCurrency(comparisonData.bestResult.summary.totalProfit)}</span>.</AlertDescription>
