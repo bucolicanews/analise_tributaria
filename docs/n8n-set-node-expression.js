@@ -1,6 +1,4 @@
 // 1. Acessa o array 'parts' da saída da IA.
-//    O caminho foi corrigido para acessar o objeto de resposta diretamente,
-//    pois o nó do n8n provavelmente simplifica a saída, removendo o array externo.
 const parts = $input.first().json.content.parts;
 
 // 2. Junta todos os pedaços de texto em uma única string.
@@ -22,5 +20,10 @@ sections.sort((a, b) => {
 // 5. Junta as seções ordenadas de volta, adicionando o "# " que foi removido.
 const finalReport = sections.map(section => `# ${section}`).join('\n\n');
 
-// 6. Retorna o relatório final, limpo e organizado.
-return finalReport;
+// 6. Retorna o relatório final no formato que o n8n espera.
+// O n8n precisa de um array de objetos, onde cada objeto tem uma propriedade 'json'.
+return [{
+  json: {
+    report: finalReport
+  }
+}];
