@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Upload, BarChart3, Settings, Tags, TrendingUp, Search, ShieldCheck } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags, TrendingUp, ShieldCheck, Sparkles } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +10,7 @@ interface LayoutProps {
 
 const navItems = [
   { to: '/', label: 'Precificação', icon: Upload },
+  { to: '/new-business', label: 'Análise de Viabilidade', icon: Sparkles },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
   { to: '/audit', label: 'Auditoria Fiscal', icon: ShieldCheck },
   { to: '/impact', label: 'Análise de Impacto', icon: TrendingUp },
