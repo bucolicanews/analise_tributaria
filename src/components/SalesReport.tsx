@@ -7,7 +7,7 @@ import { ProductTaxDetails } from './ProductTaxDetails';
 import { cn } from '@/lib/utils';
 import { PDFDownloadLink, PDFViewer } from '@react-pdf/renderer';
 import { SalesReportPDF } from './SalesReportPDF';
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 interface SalesReportProps {
   products: CalculatedProduct[];
@@ -53,6 +53,8 @@ export const SalesReport: React.FC<SalesReportProps> = ({ products }) => {
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
+              <DialogTitle className="sr-only">Visualizar Relatório de Vendas</DialogTitle>
+              <DialogDescription className="sr-only">Pré-visualização do relatório gerencial de vendas em formato PDF.</DialogDescription>
               <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
                 <PDFViewer width="100%" height="100%" className="border-none">
                   <SalesReportPDF 

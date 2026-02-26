@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import {
   DropdownMenu,
@@ -16,20 +16,34 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const UFs = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
+  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
   "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
 ];
 
 const naturezasJuridicas = [
-    "Empresário Individual (EI)",
-    "Sociedade Limitada (LTDA)",
-    "Sociedade Limitada Unipessoal (SLU)",
-    "Sociedade Simples",
-    "Não sei / Sugerir"
+  "Empresário Individual (EI)",
+  "Sociedade Limitada (LTDA)",
+  "Sociedade Limitada Unipessoal (SLU)",
+  "Sociedade Simples",
+  "Não sei / Sugerir"
 ];
 
+const simNao = ["Sim", "Não"];
+const simNaoNaoSei = ["Sim", "Não", "Não sei"];
+
+const SectionTitle = ({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) => (
+  <div className="flex items-center gap-3 pb-3 border-b border-border mb-4">
+    <div className="p-2 bg-accent/10 rounded-lg">
+      <Icon className="h-4 w-4 text-accent" />
+    </div>
+    <div>
+      <h3 className="font-semibold text-sm text-foreground">{title}</h3>
+      {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
+    </div>
+  </div>
+);
+
 const Viabilidade = () => {
-  // Inicializa o estado lendo do localStorage ou usa valor padrão
   const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('viab-razaoSocial') || '');
   const [naturezaJuridica, setNaturezaJuridica] = useState(localStorage.getItem('viab-naturezaJuridica') || '');
   const [capital, setCapital] = useState(localStorage.getItem('viab-capital') || '');
@@ -41,12 +55,28 @@ const Viabilidade = () => {
   const [estado, setEstado] = useState(localStorage.getItem('viab-estado') || 'SP');
   const [tributacaoSugerida, setTributacaoSugerida] = useState(localStorage.getItem('viab-tributacaoSugerida') || '');
   const [businessIdea, setBusinessIdea] = useState(localStorage.getItem('viab-businessIdea') || '');
+
+  // Novos campos — Financeiro / Custos de Abertura
+  const [faturamentoAnual, setFaturamentoAnual] = useState(localStorage.getItem('viab-faturamentoAnual') || '');
+  const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(localStorage.getItem('viab-honorariosLegalizacao') || '');
+  const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(localStorage.getItem('viab-honorariosAssessoriaMensal') || '');
+  const [valorJuntaCartorio, setValorJuntaCartorio] = useState(localStorage.getItem('viab-valorJuntaCartorio') || '');
+  const [valorDpa, setValorDpa] = useState(localStorage.getItem('viab-valorDpa') || '');
+  const [valorBombeiro, setValorBombeiro] = useState(localStorage.getItem('viab-valorBombeiro') || '');
+  const [valorLicencasMunicipais, setValorLicencasMunicipais] = useState(localStorage.getItem('viab-valorLicencasMunicipais') || '');
+
+  // Novos campos — Comportamento Financeiro dos Sócios
+  const [sociosRetiramValores, setSociosRetiramValores] = useState(localStorage.getItem('viab-sociosRetiramValores') || '');
+  const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(localStorage.getItem('viab-sociosDeclaramProlabore') || '');
+  const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(localStorage.getItem('viab-sociosRecolhemInssIr') || '');
+  const [recebeContaPF, setRecebeContaPF] = useState(localStorage.getItem('viab-recebeContaPF') || '');
+  const [mesmaContaSocios, setMesmaContaSocios] = useState(localStorage.getItem('viab-mesmaContaSocios') || '');
+
   const [aiReport, setAiReport] = useState<string | null>(localStorage.getItem('viab-aiReport') || null);
-  
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  // Efeito para salvar no localStorage sempre que um estado mudar
+  // Persistência no localStorage — campos originais
   useEffect(() => { localStorage.setItem('viab-razaoSocial', razaoSocial); }, [razaoSocial]);
   useEffect(() => { localStorage.setItem('viab-naturezaJuridica', naturezaJuridica); }, [naturezaJuridica]);
   useEffect(() => { localStorage.setItem('viab-capital', capital); }, [capital]);
@@ -58,36 +88,47 @@ const Viabilidade = () => {
   useEffect(() => { localStorage.setItem('viab-estado', estado); }, [estado]);
   useEffect(() => { localStorage.setItem('viab-tributacaoSugerida', tributacaoSugerida); }, [tributacaoSugerida]);
   useEffect(() => { localStorage.setItem('viab-businessIdea', businessIdea); }, [businessIdea]);
-  
-  useEffect(() => { 
-    if (aiReport) localStorage.setItem('viab-aiReport', aiReport); 
+
+  // Persistência no localStorage — novos campos
+  useEffect(() => { localStorage.setItem('viab-faturamentoAnual', faturamentoAnual); }, [faturamentoAnual]);
+  useEffect(() => { localStorage.setItem('viab-honorariosLegalizacao', honorariosLegalizacao); }, [honorariosLegalizacao]);
+  useEffect(() => { localStorage.setItem('viab-honorariosAssessoriaMensal', honorariosAssessoriaMensal); }, [honorariosAssessoriaMensal]);
+  useEffect(() => { localStorage.setItem('viab-valorJuntaCartorio', valorJuntaCartorio); }, [valorJuntaCartorio]);
+  useEffect(() => { localStorage.setItem('viab-valorDpa', valorDpa); }, [valorDpa]);
+  useEffect(() => { localStorage.setItem('viab-valorBombeiro', valorBombeiro); }, [valorBombeiro]);
+  useEffect(() => { localStorage.setItem('viab-valorLicencasMunicipais', valorLicencasMunicipais); }, [valorLicencasMunicipais]);
+  useEffect(() => { localStorage.setItem('viab-sociosRetiramValores', sociosRetiramValores); }, [sociosRetiramValores]);
+  useEffect(() => { localStorage.setItem('viab-sociosDeclaramProlabore', sociosDeclaramProlabore); }, [sociosDeclaramProlabore]);
+  useEffect(() => { localStorage.setItem('viab-sociosRecolhemInssIr', sociosRecolhemInssIr); }, [sociosRecolhemInssIr]);
+  useEffect(() => { localStorage.setItem('viab-recebeContaPF', recebeContaPF); }, [recebeContaPF]);
+  useEffect(() => { localStorage.setItem('viab-mesmaContaSocios', mesmaContaSocios); }, [mesmaContaSocios]);
+
+  useEffect(() => {
+    if (aiReport) localStorage.setItem('viab-aiReport', aiReport);
     else localStorage.removeItem('viab-aiReport');
   }, [aiReport]);
 
   const handleNewConsultation = () => {
     if (confirm("Deseja limpar todos os campos e iniciar uma nova consulta?")) {
-      setRazaoSocial('');
-      setNaturezaJuridica('');
-      setCapital('');
-      setAtividades('');
-      setNumSocios('1');
-      setNumFuncionarios('0');
-      setFolhaPagamento('');
-      setMunicipio('');
-      setEstado('SP');
-      setTributacaoSugerida('');
-      setBusinessIdea('');
-      setAiReport(null);
-      setExecutionTime(null);
-      
-      // Limpar chaves específicas do localStorage
+      setRazaoSocial(''); setNaturezaJuridica(''); setCapital(''); setAtividades('');
+      setNumSocios('1'); setNumFuncionarios('0'); setFolhaPagamento(''); setMunicipio('');
+      setEstado('SP'); setTributacaoSugerida(''); setBusinessIdea('');
+      setFaturamentoAnual(''); setHonorariosLegalizacao(''); setHonorariosAssessoriaMensal('');
+      setValorJuntaCartorio(''); setValorDpa(''); setValorBombeiro(''); setValorLicencasMunicipais('');
+      setSociosRetiramValores(''); setSociosDeclaramProlabore(''); setSociosRecolhemInssIr('');
+      setRecebeContaPF(''); setMesmaContaSocios('');
+      setAiReport(null); setExecutionTime(null);
+
       const keysToRemove = [
         'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-atividades',
         'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 'viab-municipio',
-        'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport'
+        'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport',
+        'viab-faturamentoAnual', 'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal',
+        'viab-valorJuntaCartorio', 'viab-valorDpa', 'viab-valorBombeiro', 'viab-valorLicencasMunicipais',
+        'viab-sociosRetiramValores', 'viab-sociosDeclaramProlabore', 'viab-sociosRecolhemInssIr',
+        'viab-recebeContaPF', 'viab-mesmaContaSocios',
       ];
       keysToRemove.forEach(key => localStorage.removeItem(key));
-      
       toast.info("Campos limpos. Inicie uma nova análise.");
     }
   };
@@ -99,7 +140,6 @@ const Viabilidade = () => {
     }
 
     setIsLoading(true);
-    // Não limpa o relatório anterior imediatamente para evitar "piscar" se falhar
     setExecutionTime(null);
     const startTime = performance.now();
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
@@ -107,17 +147,33 @@ const Viabilidade = () => {
     try {
       const payload = {
         analise_simples: true,
+        // Dados da empresa
         razaoSocial: razaoSocial || 'Não informado',
         naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
         capital: capital || 'Não informado',
         numSocios: numSocios || 'Não informado',
         numFuncionarios: numFuncionarios || 'Não informado',
         folhaPagamento: folhaPagamento || 'Não informado',
-        municipio: municipio,
-        estado: estado,
-        atividades: atividades,
+        municipio,
+        estado,
+        atividades,
         tributacaoSugerida: tributacaoSugerida || 'Não informado / Sugerir',
-        businessIdea: businessIdea || 'Nenhuma descrição adicional fornecida.'
+        businessIdea: businessIdea || 'Nenhuma descrição adicional fornecida.',
+        // Projeção financeira
+        faturamentoAnual: faturamentoAnual || 'Não informado',
+        // Custos de abertura e manutenção
+        honorariosLegalizacao: honorariosLegalizacao || 'Não informado',
+        honorariosAssessoriaMensal: honorariosAssessoriaMensal || 'Não informado',
+        valorJuntaCartorio: valorJuntaCartorio || 'Não informado',
+        valorDpa: valorDpa || 'Não informado',
+        valorBombeiro: valorBombeiro || 'Não informado',
+        valorLicencasMunicipais: valorLicencasMunicipais || 'Não informado',
+        // Comportamento financeiro dos sócios
+        sociosRetiramValores: sociosRetiramValores || 'Não informado',
+        sociosDeclaramProlabore: sociosDeclaramProlabore || 'Não informado',
+        sociosRecolhemInssIr: sociosRecolhemInssIr || 'Não informado',
+        recebeContaPF: recebeContaPF || 'Não informado',
+        mesmaContaSocios: mesmaContaSocios || 'Não informado',
       };
 
       const webhooks = {
@@ -126,9 +182,7 @@ const Viabilidade = () => {
       };
 
       const webhookUrl = webhooks[environment];
-      if (!webhookUrl) {
-        throw new Error(`A URL do webhook de '${environment}' não está configurada.`);
-      }
+      if (!webhookUrl) throw new Error(`A URL do webhook de '${environment}' não está configurada.`);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -137,32 +191,28 @@ const Viabilidade = () => {
       });
 
       if (!response.ok) throw new Error("Erro na comunicação com o servidor de IA.");
-      
+
       const data = await response.json();
       const endTime = performance.now();
       const duration = (endTime - startTime) / 1000;
       setExecutionTime(duration);
 
       let reportText = "";
-
       if (data.report) {
         reportText = data.report;
       } else if (Array.isArray(data) && data[0]?.report) {
         reportText = data[0].report;
-      } 
-      else if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
+      } else if (Array.isArray(data) && data[0]?.content?.parts?.[0]?.text) {
         reportText = data.map((item: any) => item.content.parts.map((part: any) => part.text).join("\n")).join("\n\n---\n\n");
       } else if (data?.content?.parts?.[0]?.text) {
-         reportText = data.content.parts.map((part: any) => part.text).join("\n");
-      }
-      else {
+        reportText = data.content.parts.map((part: any) => part.text).join("\n");
+      } else {
         console.error("Formato não reconhecido:", data);
         throw new Error("Formato de resposta da IA não reconhecido. Verifique o console.");
       }
-      
+
       setAiReport(reportText);
       toast.success(`Diagnóstico concluído em ${duration.toFixed(2)}s!`, { id: toastId });
-      
       setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 500);
 
     } catch (error: any) {
@@ -172,8 +222,23 @@ const Viabilidade = () => {
     }
   };
 
+  const SelectSimNao = ({
+    id, value, onChange, options = simNao, placeholder = "Selecione..."
+  }: {
+    id: string; value: string; onChange: (v: string) => void; options?: string[]; placeholder?: string;
+  }) => (
+    <Select value={value} onValueChange={onChange} disabled={isLoading}>
+      <SelectTrigger id={id}><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectContent>
+        {options.map(opt => <SelectItem key={opt} value={opt}>{opt}</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+
   return (
-    <div className="container mx-auto px-4 py-8 space-y-8">
+    <div className="container mx-auto px-4 py-8 space-y-6">
+
+      {/* Cabeçalho */}
       <Card className="shadow-card">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -192,7 +257,12 @@ const Viabilidade = () => {
             </Button>
           </div>
         </CardHeader>
-        <CardContent>
+      </Card>
+
+      {/* Seção 1 — Dados da Empresa */}
+      <Card className="shadow-card">
+        <CardContent className="pt-6">
+          <SectionTitle icon={Building2} title="Dados da Empresa" subtitle="Informações cadastrais e operacionais" />
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
               <div className="space-y-2">
@@ -214,7 +284,7 @@ const Viabilidade = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="num-socios">Quantidade de Sócios</Label>
+                  <Label htmlFor="num-socios">Qtd. de Sócios</Label>
                   <Input id="num-socios" type="number" value={numSocios} onChange={(e) => setNumSocios(e.target.value)} disabled={isLoading} />
                 </div>
                 <div className="space-y-2">
@@ -258,27 +328,157 @@ const Viabilidade = () => {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="atividades">Principais Atividades (para sugestão de CNAE)</Label>
-                <Textarea id="atividades" value={atividades} onChange={(e) => setAtividades(e.target.value)} placeholder="Ex: Venda de alimentos, bebidas, produtos de limpeza..." className="min-h-[105px]" disabled={isLoading} />
+                <Textarea id="atividades" value={atividades} onChange={(e) => setAtividades(e.target.value)} placeholder="Ex: Venda de alimentos, bebidas, produtos de limpeza..." className="min-h-[108px]" disabled={isLoading} />
               </div>
             </div>
           </div>
 
-          <div className="mt-6 pt-6 border-t border-border">
-            <div className="space-y-4">
-              <Label htmlFor="business-idea" className="font-bold">Descrição geral da sua ideia (detalhes adicionais)</Label>
-              <Textarea
-                id="business-idea"
-                value={businessIdea}
-                onChange={(e) => setBusinessIdea(e.target.value)}
-                placeholder="Exemplo: Pretendo focar em produtos orgânicos, ter um delivery e talvez um pequeno café no local. O faturamento inicial estimado é de R$ 30.000/mês."
-                className="min-h-[100px]"
+          <div className="mt-6 pt-6 border-t border-border space-y-2">
+            <Label htmlFor="business-idea" className="font-semibold">Descrição geral da ideia (detalhes adicionais)</Label>
+            <Textarea
+              id="business-idea"
+              value={businessIdea}
+              onChange={(e) => setBusinessIdea(e.target.value)}
+              placeholder="Exemplo: Pretendo focar em produtos orgânicos, ter um delivery e talvez um pequeno café no local. O faturamento inicial estimado é de R$ 30.000/mês."
+              className="min-h-[100px]"
+              disabled={isLoading}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Seção 2 — Projeção Financeira e Custos */}
+      <Card className="shadow-card">
+        <CardContent className="pt-6">
+          <SectionTitle
+            icon={DollarSign}
+            title="Projeção Financeira e Custos de Abertura"
+            subtitle="Estimativas de faturamento e investimentos iniciais"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            <div className="space-y-2">
+              <Label htmlFor="faturamento-anual">Faturamento Anual Estimado (12 meses) R$</Label>
+              <Input
+                id="faturamento-anual"
+                type="number"
+                value={faturamentoAnual}
+                onChange={(e) => setFaturamentoAnual(e.target.value)}
                 disabled={isLoading}
+                placeholder="Ex: 360000"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="honorarios-legalizacao">Honorários Contábeis de Legalização R$</Label>
+              <Input
+                id="honorarios-legalizacao"
+                type="number"
+                value={honorariosLegalizacao}
+                onChange={(e) => setHonorariosLegalizacao(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 1500"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="honorarios-assessoria-mensal">Honorários de Assessoria Mensal R$</Label>
+              <Input
+                id="honorarios-assessoria-mensal"
+                type="number"
+                value={honorariosAssessoriaMensal}
+                onChange={(e) => setHonorariosAssessoriaMensal(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 600"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="valor-junta-cartorio">Junta Comercial / Cartório R$</Label>
+              <Input
+                id="valor-junta-cartorio"
+                type="number"
+                value={valorJuntaCartorio}
+                onChange={(e) => setValorJuntaCartorio(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 300"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="valor-dpa">DPA (Documento de Arrecadação) R$</Label>
+              <Input
+                id="valor-dpa"
+                type="number"
+                value={valorDpa}
+                onChange={(e) => setValorDpa(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 150"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="valor-bombeiro">Bombeiro (AVCB / Auto de Vistoria) R$</Label>
+              <Input
+                id="valor-bombeiro"
+                type="number"
+                value={valorBombeiro}
+                onChange={(e) => setValorBombeiro(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 500"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+              <Label htmlFor="valor-licencas-municipais">Valor Médio das Licenças Municipais R$</Label>
+              <Input
+                id="valor-licencas-municipais"
+                type="number"
+                value={valorLicencasMunicipais}
+                onChange={(e) => setValorLicencasMunicipais(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 400"
               />
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Seção 3 — Comportamento Financeiro dos Sócios */}
+      <Card className="shadow-card">
+        <CardContent className="pt-6">
+          <SectionTitle
+            icon={ShieldQuestion}
+            title="Comportamento Financeiro dos Sócios"
+            subtitle="Informações para análise de conformidade fiscal e exposição a risco"
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="space-y-2">
+              <Label htmlFor="socios-retiram-valores">Os sócio(s) retiram valores para sua conta bancária pessoa física?</Label>
+              <SelectSimNao id="socios-retiram-valores" value={sociosRetiramValores} onChange={setSociosRetiramValores} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="socios-declaram-prolabore">Os sócio(s) declaram pró-labore?</Label>
+              <SelectSimNao id="socios-declaram-prolabore" value={sociosDeclaramProlabore} onChange={setSociosDeclaramProlabore} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="socios-recolhem-inss-ir">Os sócios recolhem INSS ou IR sobre o pró-labore?</Label>
+              <SelectSimNao id="socios-recolhem-inss-ir" value={sociosRecolhemInssIr} onChange={setSociosRecolhemInssIr} options={simNaoNaoSei} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="recebe-conta-pf">Sua empresa recebe em conta corrente de Pessoa Física ou Jurídica?</Label>
+              <Select value={recebeContaPF} onValueChange={setRecebeContaPF} disabled={isLoading}>
+                <SelectTrigger id="recebe-conta-pf"><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pessoa Física">Pessoa Física</SelectItem>
+                  <SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem>
+                  <SelectItem value="Ambos">Ambos</SelectItem>
+                  <SelectItem value="Não sei">Não sei</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="mesma-conta-socios">Sua empresa usa a mesma conta bancária para pagar as contas dos sócios?</Label>
+              <SelectSimNao id="mesma-conta-socios" value={mesmaContaSocios} onChange={setMesmaContaSocios} options={simNaoNaoSei} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Botão de envio */}
       <div className="text-center">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -302,9 +502,9 @@ const Viabilidade = () => {
 
       {aiReport && (
         <div id="ai-report-section">
-          <AiAnalysisReport 
-            report={aiReport} 
-            onClose={() => setAiReport(null)} 
+          <AiAnalysisReport
+            report={aiReport}
+            onClose={() => setAiReport(null)}
             executionTime={executionTime || undefined}
             clientName={razaoSocial}
             clientCity={municipio}

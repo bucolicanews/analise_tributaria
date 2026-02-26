@@ -12,7 +12,7 @@ import { calculatePricing } from '@/lib/pricing';
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { AuditReportPDF } from '@/components/AuditReportPDF';
 
@@ -316,6 +316,8 @@ const Audit = () => {
               <Button variant="outline" size="sm"><Printer className="h-4 w-4 mr-2" />Visualizar PDF</Button>
             </DialogTrigger>
             <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
+              <DialogTitle className="sr-only">Visualizar Relatório de Auditoria</DialogTitle>
+              <DialogDescription className="sr-only">Pré-visualização do relatório de auditoria fiscal em formato PDF.</DialogDescription>
               <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden flex items-center justify-center">
                 {isPdfViewerMounted ? (
                   <PDFViewer width="100%" height="100%" className="border-none">

@@ -1,0 +1,37 @@
+Realize a análise de viabilidade para o seguinte cliente, seguindo estritamente a estrutura definida:
+
+**DADOS DA EMPRESA**
+- **Razão Social:** {{ $('jota_agente').item.json.body.razaoSocial }}
+- **Natureza Jurídica:** {{ $('jota_agente').item.json.body.naturezaJuridica }}
+- **Capital Social:** R$ {{ $('jota_agente').item.json.body.capital }}
+- **Sócios:** {{ $('jota_agente').item.json.body.numSocios }}
+- **Funcionários:** {{ $('jota_agente').item.json.body.numFuncionarios }}
+- **Folha de Pagamento Estimada:** R$ {{ $('jota_agente').item.json.body.folhaPagamento }}
+- **Localização:** {{ $('jota_agente').item.json.body.municipio }} - {{ $('jota_agente').item.json.body.estado }}
+
+**ATIVIDADES E OPERAÇÃO**
+- **Descrição das Atividades:** {{ $('jota_agente').item.json.body.atividades }}
+- **Tributação Pretendida:** {{ $('jota_agente').item.json.body.tributacaoSugerida }}
+- **Ideia do Negócio (Detalhes):** {{ $('jota_agente').item.json.body.businessIdea }}
+
+**Projeção Financeira e Custos de Abertura**
+Faturamento Anual Estimado (12 meses) {{ $('jota_agente').item.json.body.faturamentoAnual }}
+Honorários Contábeis de Legalização{{ $('jota_agente').item.json.body.honorariosLegalizacao }}
+Honorários de Assessoria Mensal {{ $('jota_agente').item.json.body.honorariosAssessoriaMensal }}
+Junta Comercial / Cartório {{ $('jota_agente').item.json.body.valorJuntaCartorio }}
+DPA (Documento de Arrecadação) {{ $('jota_agente').item.json.body.valorDpa }}
+Bombeiro (AVCB / Auto de Vistoria) {{ $('jota_agente').item.json.body.valorBombeiro }}
+Valor Médio das Licenças Municipais {{ $('jota_agente').item.json.body.valorLicencasMunicipais }}
+
+**Comportamento Financeiro dos Sócios**
+Informações para análise de conformidade fiscal e exposição a risco
+
+Os sócio(s) retiram valores para sua conta bancária pessoa física? {{ $('jota_agente').item.json.body.sociosRetiramValores }}
+
+Os sócio(s) declaram pró-labore? {{ $('jota_agente').item.json.body.sociosDeclaramProlabore }}
+
+Os sócios recolhem INSS ou IR sobre o pró-labore?{{ $('jota_agente').item.json.body.sociosRecolhemInssIr }}
+
+Sua empresa recebe em conta corrente de Pessoa Física ou Jurídica? {{ $('jota_agente').item.json.body.sociosRecolhemInssIr }}
+
+Sua empresa usa a mesma conta bancária para pagar as contas dos sócios? {{ $('jota_agente').item.json.body.recebeContaPF }}

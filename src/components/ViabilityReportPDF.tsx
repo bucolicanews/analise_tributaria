@@ -1,28 +1,16 @@
 import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
+import { Page, Text, View, Document, StyleSheet, Image } from '@react-pdf/renderer';
 
-// Registrando fontes
-Font.register({
-  family: 'Helvetica',
-  fonts: [
-    { src: 'https://fonts.gstatic.com/s/helveticaneue/v70/1Ptsg8zYS_SKggPNyC0IT4ttDfA.ttf' }, // Regular
-    { src: 'https://fonts.gstatic.com/s/helveticaneue/v70/1Ptsg8zYS_SKggPNyC0IT4ttDfA.ttf', fontWeight: 'bold' }, // Bold simulation
-  ]
-});
-
-// Estilos corporativos
 const styles = StyleSheet.create({
   page: {
     paddingTop: 40,
     paddingHorizontal: 40,
-    paddingBottom: 80, // AUMENTADO: Espaço reservado para o rodapé não sobrepor o texto
+    paddingBottom: 80,
     fontFamily: 'Helvetica',
     fontSize: 10,
     color: '#333',
-    lineHeight: 1.5,
   },
   coverPage: {
-    display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
@@ -34,24 +22,24 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     marginBottom: 30,
-    objectFit: 'contain',
   },
   coverTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1e293b', 
+    fontFamily: 'Helvetica-Bold',
+    color: '#1e293b',
     textAlign: 'center',
     marginBottom: 10,
     textTransform: 'uppercase',
   },
   coverSubtitle: {
     fontSize: 14,
-    color: '#64748b', 
+    color: '#64748b',
     textAlign: 'center',
     marginBottom: 40,
   },
   coverClientBox: {
-    border: '1px solid #e2e8f0',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
     padding: 20,
     width: '80%',
     borderRadius: 4,
@@ -66,7 +54,7 @@ const styles = StyleSheet.create({
   },
   clientValue: {
     fontSize: 12,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     color: '#0f172a',
     marginBottom: 10,
   },
@@ -75,17 +63,18 @@ const styles = StyleSheet.create({
   },
   header: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f97316', 
+    fontFamily: 'Helvetica-Bold',
+    color: '#f97316',
     marginBottom: 8,
-    borderBottom: '1px solid #fed7aa',
+    borderBottomWidth: 1,
+    borderBottomColor: '#fed7aa',
     paddingBottom: 4,
     marginTop: 10,
     textTransform: 'uppercase',
   },
   subHeader: {
     fontSize: 11,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     color: '#334155',
     marginTop: 6,
     marginBottom: 4,
@@ -108,7 +97,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   bold: {
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     color: '#000',
   },
   footer: {
@@ -116,12 +105,13 @@ const styles = StyleSheet.create({
     bottom: 30,
     left: 40,
     right: 40,
-    borderTop: '1px solid #e2e8f0',
+    borderTopWidth: 1,
+    borderTopColor: '#e2e8f0',
     paddingTop: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff', // Garante fundo branco para o rodapé
+    backgroundColor: '#fff',
   },
   footerText: {
     fontSize: 8,
@@ -130,29 +120,27 @@ const styles = StyleSheet.create({
   qrCodeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
   },
   qrCode: {
     width: 40,
     height: 40,
+    marginLeft: 8,
   },
-  // Novo estilo para bloco de assinatura
   signatureBlock: {
     marginTop: 50,
-    display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     width: '100%',
-    pageBreakInside: 'avoid', // Evita que a assinatura quebre entre páginas
   },
   signatureLine: {
     width: 250,
-    borderBottom: '1px solid #94a3b8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#94a3b8',
     marginBottom: 8,
   },
   signatureText: {
     fontSize: 10,
-    fontWeight: 'bold',
+    fontFamily: 'Helvetica-Bold',
     color: '#334155',
   },
   signatureSubText: {
@@ -166,8 +154,10 @@ const styles = StyleSheet.create({
   tocItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderBottom: '1px solid #f1f5f9',
-    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    paddingTop: 5,
+    paddingBottom: 5,
   }
 });
 
@@ -179,19 +169,19 @@ interface ViabilityReportPDFProps {
   accountantName: string;
   accountantCrc: string;
   qrCodeDataUrl: string;
-  companyName: string; 
+  companyName: string;
 }
 
 const MarkdownRenderer = ({ content }: { content: string }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
-  
+
   return (
     <View>
       {lines.map((line, index) => {
         const trimmed = line.trim();
-        
+
         if (trimmed.startsWith('# ')) {
           return <Text key={index} style={styles.header}>{trimmed.replace('# ', '')}</Text>;
         }
@@ -252,8 +242,8 @@ export const ViabilityReportPDF = ({
       <Page size="A4" style={styles.page}>
         <View style={styles.coverPage}>
           <View style={{ marginBottom: 40, alignItems: 'center' }}>
-            <Text style={{ fontSize: 40, color: '#f97316', fontWeight: 'bold' }}>JOTA</Text>
-            <Text style={{ fontSize: 10, color: '#64748b', letterSpacing: 2 }}>CONTABILIDADE</Text>
+            <Text style={{ fontSize: 40, color: '#f97316', fontFamily: 'Helvetica-Bold' }}>JOTA</Text>
+            <Text style={{ fontSize: 10, color: '#64748b' }}>CONTABILIDADE</Text>
           </View>
 
           <Text style={styles.coverTitle}>Relatório Técnico de Viabilidade</Text>
@@ -262,39 +252,38 @@ export const ViabilityReportPDF = ({
           <View style={styles.coverClientBox}>
             <Text style={styles.clientLabel}>CLIENTE / INTERESSADO</Text>
             <Text style={styles.clientValue}>{clientName || "Não informado"}</Text>
-            
+
             <Text style={styles.clientLabel}>LOCALIZAÇÃO</Text>
             <Text style={styles.clientValue}>{clientCity} - {clientState}</Text>
-            
+
             <Text style={styles.clientLabel}>DATA DE EMISSÃO</Text>
             <Text style={styles.clientValue}>{currentDate}</Text>
           </View>
 
           {tocItems.length > 0 && (
-             <View style={styles.toc}>
-                <Text style={{ fontSize: 12, fontWeight: 'bold', marginBottom: 10, color: '#475569' }}>ESTRUTURA DO RELATÓRIO</Text>
-                {tocItems.map((item, idx) => (
-                  <View key={idx} style={styles.tocItem}>
-                    <Text style={{ color: '#64748b' }}>{idx + 1}. {item}</Text>
-                  </View>
-                ))}
-             </View>
+            <View style={styles.toc}>
+              <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', marginBottom: 10, color: '#475569' }}>ESTRUTURA DO RELATÓRIO</Text>
+              {tocItems.map((item, idx) => (
+                <View key={idx} style={styles.tocItem}>
+                  <Text style={{ color: '#64748b' }}>{idx + 1}. {item}</Text>
+                </View>
+              ))}
+            </View>
           )}
         </View>
         <Footer companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} />
       </Page>
 
       <Page size="A4" style={styles.page} wrap>
-        <View style={{ position: 'absolute', top: 30, left: 40, right: 40, borderBottom: '1px solid #e2e8f0', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }} fixed>
-           <Text style={{ fontSize: 8, color: '#94a3b8' }}>{companyName} - Relatório Técnico</Text>
-           <Text style={{ fontSize: 8, color: '#94a3b8' }}>{currentDate}</Text>
-        </View>
-        
-        <View style={{ marginTop: 20 }}>
-           <MarkdownRenderer content={reportMarkdown} />
+        <View style={{ position: 'absolute', top: 30, left: 40, right: 40, borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between' }} fixed>
+          <Text style={{ fontSize: 8, color: '#94a3b8' }}>{companyName} - Relatório Técnico</Text>
+          <Text style={{ fontSize: 8, color: '#94a3b8' }}>{currentDate}</Text>
         </View>
 
-        {/* Bloco de Assinatura ao final do conteúdo */}
+        <View style={{ marginTop: 20 }}>
+          <MarkdownRenderer content={reportMarkdown} />
+        </View>
+
         {accountantName && (
           <View style={styles.signatureBlock}>
             <View style={styles.signatureLine} />
@@ -316,7 +305,7 @@ const Footer = ({ companyName, accountantName, accountantCrc, qrCodeDataUrl, fix
       <Text style={styles.footerText}>{companyName}</Text>
       <Text style={styles.footerText}>Documento gerado eletronicamente - Jota Contabilidade</Text>
       {accountantName && (
-        <Text style={{ fontSize: 8, color: '#334155', fontWeight: 'bold', marginTop: 2 }}>
+        <Text style={{ fontSize: 8, color: '#334155', fontFamily: 'Helvetica-Bold', marginTop: 2 }}>
           Resp. Técnico: {accountantName} | CRC: {accountantCrc}
         </Text>
       )}

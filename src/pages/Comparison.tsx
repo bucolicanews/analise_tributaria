@@ -7,7 +7,7 @@ import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
 
@@ -195,6 +195,8 @@ const Comparison = () => {
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
+                  <DialogTitle className="sr-only">Visualizar Comparativo de Regimes</DialogTitle>
+                  <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
                   <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
                     <PDFViewer width="100%" height="100%" className="border-none">
                       <ComparisonReportPDF 

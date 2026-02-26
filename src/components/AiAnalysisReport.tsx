@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, Download, AlertCircle, X, Clock, FileCheck } from 'lucide-react';
+import { Bot, AlertCircle, X, Clock, FileCheck, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from './ViabilityReportPDF';
 import QRCode from 'qrcode';
@@ -28,6 +28,8 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
   clientState
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
+  const [isPdfViewerMounted, setIsPdfViewerMounted] = useState(false);
+  const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   
   // Dados DA CONTABILIDADE (Jota) vindos da configuração persistida
   const jotaRazaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
@@ -42,14 +44,22 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
   const displayState = clientState.trim() || "";
 
   useEffect(() => {
-    // Gerar QR Code único para validação
     const uniqueId = Math.random().toString(36).substring(7);
     const validationUrl = `https://jotaempresas.com/validar/${uniqueId}`;
     
     QRCode.toDataURL(validationUrl, { width: 100, margin: 1, color: { dark: '#334155' } })
       .then(url => setQrCodeUrl(url))
-      .catch(err => console.error(err));
+      .catch(() => setQrCodeUrl('fallback'));
   }, []);
+
+  useEffect(() => {
+    if (isPdfDialogOpen) {
+      const timer = setTimeout(() => setIsPdfViewerMounted(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setIsPdfViewerMounted(false);
+    }
+  }, [isPdfDialogOpen]);
 
   return (
     <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
@@ -73,7 +83,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
         </div>
         <div className="flex gap-2">
           
-          <Dialog>
+          <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="default" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
                 <FileCheck className="h-4 w-4 mr-2" />
@@ -81,25 +91,32 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
               </Button>
             </DialogTrigger>
             <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
-               <div className="flex-1 w-full h-full bg-slate-100 rounded-md overflow-hidden">
-                 {qrCodeUrl && (
+              <DialogTitle className="sr-only">Relatório Oficial de Viabilidade</DialogTitle>
+              <DialogDescription className="sr-only">Pré-visualização do relatório técnico de viabilidade em formato PDF.</DialogDescription>
+               <div className="flex-1 w-full h-full bg-slate-100 rounded-md overflow-hidden flex items-center justify-center">
+                 {isPdfViewerMounted && (qrCodeUrl || qrCodeUrl === 'fallback') ? (
                    <PDFViewer width="100%" height="100%" className="border-none">
                      <ViabilityReportPDF 
                         reportMarkdown={report}
                         clientName={displayClientName}
                         clientCity={displayCity}
                         clientState={displayState}
-                        companyName={jotaRazaoSocial} // Dados da Jota (Configuração)
-                        accountantName={contadorNome} // Dados da Jota (Configuração)
-                        accountantCrc={contadorCrc}   // Dados da Jota (Configuração)
-                        qrCodeDataUrl={qrCodeUrl}
+                        companyName={jotaRazaoSocial}
+                        accountantName={contadorNome}
+                        accountantCrc={contadorCrc}
+                        qrCodeDataUrl={qrCodeUrl !== 'fallback' ? qrCodeUrl : ''}
                      />
                    </PDFViewer>
+                 ) : (
+                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                     <Loader2 className="h-8 w-8 animate-spin text-accent" />
+                     <p className="text-sm">Carregando visualização...</p>
+                   </div>
                  )}
                </div>
                <div className="p-4 bg-white border-t flex justify-between items-center">
                  <p className="text-xs text-muted-foreground">O PDF é gerado em tempo real com base nos dados do formulário.</p>
-                 {qrCodeUrl && (
+                 {(qrCodeUrl || qrCodeUrl === 'fallback') && (
                    <PDFDownloadLink 
                      document={
                        <ViabilityReportPDF 
@@ -110,7 +127,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
                           companyName={jotaRazaoSocial}
                           accountantName={contadorNome}
                           accountantCrc={contadorCrc}
-                          qrCodeDataUrl={qrCodeUrl}
+                          qrCodeDataUrl={qrCodeUrl !== 'fallback' ? qrCodeUrl : ''}
                        />
                      } 
                      fileName={`relatorio_viabilidade_${displayClientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`}
