@@ -35,6 +35,7 @@ const Configuracao = () => {
   const [editNome, setEditNome] = useState('');
   const [editPrompt, setEditPrompt] = useState('');
   const [editWebhookUrl, setEditWebhookUrl] = useState('');
+  const [editOrder, setEditOrder] = useState<number>(1);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,11 +53,12 @@ const Configuracao = () => {
     toast.success("Configurações salvas com sucesso!");
   };
 
-  const startEditing = (agent: AgentConfig) => {
+  const startEditing = (agent: AgentConfig, index?: number) => {
     setEditingId(agent.id);
     setEditNome(agent.nome);
     setEditPrompt(agent.systemPrompt);
     setEditWebhookUrl(agent.webhookUrl || '');
+    setEditOrder(agent.order ?? (index !== undefined ? index + 1 : 1));
   };
 
   const cancelEditing = () => {
@@ -64,6 +66,7 @@ const Configuracao = () => {
     setEditNome('');
     setEditPrompt('');
     setEditWebhookUrl('');
+    setEditOrder(1);
   };
 
   const saveAgent = (id: string) => {
@@ -71,7 +74,7 @@ const Configuracao = () => {
       toast.error("Nome e Prompt são obrigatórios.");
       return;
     }
-    const updated = agents.map(a => a.id === id ? { ...a, nome: editNome.trim(), systemPrompt: editPrompt.trim(), webhookUrl: editWebhookUrl.trim() || undefined } : a);
+    const updated = agents.map(a => a.id === id ? { ...a, nome: editNome.trim(), systemPrompt: editPrompt.trim(), webhookUrl: editWebhookUrl.trim() || undefined, order: editOrder } : a);
     setAgents(updated);
     saveAgentsToStorage(updated);
     setEditingId(null);
@@ -90,11 +93,12 @@ const Configuracao = () => {
       id: `agente-${Date.now()}`,
       nome: 'Novo Agente',
       systemPrompt: 'Você é um especialista em...',
+      order: agents.length + 1,
     };
     const updated = [...agents, newAgent];
     setAgents(updated);
     saveAgentsToStorage(updated);
-    startEditing(newAgent);
+    startEditing(newAgent, agents.length);
   };
 
   const resetToDefaults = () => {
@@ -238,17 +242,28 @@ const Configuracao = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-sm text-muted-foreground">
-            Cadastre e edite os agentes que serão disparados em paralelo na aba de Precificação. Cada agente tem um nome e um prompt do sistema.
+            Cadastre e edite os agentes que serão executados em sequência. A ordem define qual agente executa primeiro — cada agente recebe os relatórios dos anteriores.
           </p>
 
           <div className="space-y-4">
-            {agents.map((agent) => (
+            {agents.map((agent, index) => (
               <div key={agent.id} className="rounded-lg border border-border p-4 space-y-3">
                 {editingId === agent.id ? (
                   <>
-                    <div className="space-y-2">
-                      <Label>Nome do Agente</Label>
-                      <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} placeholder="Ex: Análise Tributária" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Nome do Agente</Label>
+                        <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} placeholder="Ex: Análise Tributária" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Ordem de Execução</Label>
+                        <Input
+                          type="number"
+                          min={1}
+                          value={editOrder}
+                          onChange={(e) => setEditOrder(Number(e.target.value))}
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label>Prompt do Sistema</Label>
@@ -268,7 +283,7 @@ const Configuracao = () => {
                         type="url"
                         placeholder="https://seu-n8n.host/webhook/..."
                       />
-                      <p className="text-xs text-muted-foreground">Se preenchido, o botão "Agentes IA" enviará um POST para este webhook ao invés de chamar o Gemini direto.</p>
+                      <p className="text-xs text-muted-foreground">Se preenchido, enviará um POST para este webhook. Caso contrário, chama o Gemini direto.</p>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => saveAgent(agent.id)}>
@@ -280,15 +295,20 @@ const Configuracao = () => {
                   </>
                 ) : (
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm">{agent.nome}</p>
-                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{agent.systemPrompt}</p>
-                      {agent.webhookUrl && (
-                        <p className="text-xs text-indigo-500 mt-1 truncate">{agent.webhookUrl}</p>
-                      )}
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                      <div className="flex items-center justify-center w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold shrink-0 mt-0.5">
+                        {agent.order ?? index + 1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-sm">{agent.nome}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{agent.systemPrompt}</p>
+                        {agent.webhookUrl && (
+                          <p className="text-xs text-indigo-500 mt-1 truncate">{agent.webhookUrl}</p>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" variant="outline" onClick={() => startEditing(agent)}>Editar</Button>
+                      <Button size="sm" variant="outline" onClick={() => startEditing(agent, index)}>Editar</Button>
                       <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteAgent(agent.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>

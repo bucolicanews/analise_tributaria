@@ -155,22 +155,39 @@ const Index = () => {
     const viabilidadePayload = buildViabilidadePayload();
     const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
 
-    const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
+    const sorted = [...agentConfigs].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+
+    const initialStatuses: AgentStatus[] = sorted.map(a => ({
       id: a.id,
       nome: a.nome,
       systemPrompt: a.systemPrompt,
-      status: 'loading',
+      status: 'idle',
       report: null,
     }));
     setAgentStatuses(initialStatuses);
     setIsAgentsRunning(true);
     setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
-    const promises = agentConfigs.map(async (agent) => {
+    const previousReports: Record<string, string> = {};
+
+    for (const agent of sorted) {
+      setAgentStatuses(prev =>
+        prev.map(s => s.id === agent.id ? { ...s, status: 'loading' } : s)
+      );
+
       try {
         const report = agent.webhookUrl?.trim()
-          ? await callAgentWebhook(agent, userContent)
-          : await callGeminiAgent(agent.systemPrompt, userContent, apiKey);
+          ? await callAgentWebhook(agent, userContent, previousReports)
+          : await callGeminiAgent(
+              agent.systemPrompt,
+              Object.keys(previousReports).length > 0
+                ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
+                : userContent,
+              apiKey
+            );
+
+        previousReports[agent.nome] = report;
+
         setAgentStatuses(prev =>
           prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
         );
@@ -179,12 +196,10 @@ const Index = () => {
           prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
         );
       }
-    });
+    }
 
-    await Promise.allSettled(promises);
     setIsAgentsRunning(false);
     toast.success("Todos os agentes concluíram a execução.");
-    setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
   };
 
   const handleRunSingleAgent = async (agent: AgentStatus) => {
@@ -202,14 +217,12 @@ const Index = () => {
 
     const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
     const viabilidadePayload = buildViabilidadePayload();
+    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
 
-    const reportAgente1 = agentStatuses.find(s => s.id === 'agente-tributario' && s.status === 'done')?.report || null;
-
-    const userContent = JSON.stringify({
-      ...precificacaoPayload,
-      viabilidade: viabilidadePayload,
-      ...(reportAgente1 && agent.id === 'agente-planejamento' ? { analise_viabilidade_tributaria: reportAgente1 } : {}),
-    }, null, 2);
+    const previousReports: Record<string, string> = {};
+    agentStatuses
+      .filter(s => s.status === 'done' && s.report && s.id !== agent.id)
+      .forEach(s => { previousReports[s.nome] = s.report!; });
 
     setAgentStatuses(prev =>
       prev.map(s => s.id === agent.id ? { ...s, status: 'loading', report: null, errorMessage: undefined } : s)
@@ -218,8 +231,14 @@ const Index = () => {
     const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
     try {
       const report = agentConfig.webhookUrl?.trim()
-        ? await callAgentWebhook(agentConfig, userContent)
-        : await callGeminiAgent(agentConfig.systemPrompt, userContent, apiKey);
+        ? await callAgentWebhook(agentConfig, userContent, previousReports)
+        : await callGeminiAgent(
+            agentConfig.systemPrompt,
+            Object.keys(previousReports).length > 0
+              ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
+              : userContent,
+            apiKey
+          );
       setAgentStatuses(prev =>
         prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
       );

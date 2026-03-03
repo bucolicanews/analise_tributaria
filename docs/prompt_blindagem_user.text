@@ -36,3 +36,12 @@ Sua empresa recebe em conta corrente de Pessoa Física ou Jurídica? {{ $('jota_
 
 Sua empresa usa a mesma conta bancária para pagar as contas dos sócios? {{ $('jota_agente').item.json.body.recebeContaPF }}
 
+---------------
+Análise da Ai para Correção 
+{{ $json.content.parts[1].text }}
+
+Dados:
+{{ $json.content.parts[0].text }}
+
+
+

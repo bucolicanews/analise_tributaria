@@ -12,12 +12,14 @@ export interface AgentConfig {
   nome: string;
   systemPrompt: string;
   webhookUrl?: string;
+  order?: number;
 }
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   {
     id: 'agente-tributario',
     nome: 'Análise de Viabilidade Tributária',
+    order: 1,
     systemPrompt: `Você é um especialista sênior em direito tributário e contabilidade fiscal brasileira.
 Sua função é realizar uma análise técnica completa de viabilidade tributária para abertura ou regularização de empresas.
 
@@ -37,6 +39,7 @@ Responda sempre em português brasileiro, com tom técnico e profissional.`,
   {
     id: 'agente-planejamento',
     nome: 'Sênior em Planejamento Tributário',
+    order: 2,
     systemPrompt: `Você é um especialista sênior em planejamento tributário comparativo e estratégico.
 Sua função é realizar simulação tributária comparativa entre os regimes disponíveis e indicar o mais vantajoso.
 
@@ -57,6 +60,7 @@ Responda sempre em português brasileiro, com tom técnico e profissional.`,
   {
     id: 'agente-trabalhista',
     nome: 'Blindagem Trabalhista e Contratual',
+    order: 3,
     systemPrompt: `Você é um especialista sênior em direito trabalhista, previdenciário e societário brasileiro.
 Sua função é analisar os riscos trabalhistas, societários e contratuais e propor blindagem jurídica preventiva.
 
@@ -130,7 +134,8 @@ export async function callGeminiAgent(
 
 export async function callAgentWebhook(
   agent: AgentConfig,
-  userContent: string
+  userContent: string,
+  previousReports?: Record<string, string>
 ): Promise<string> {
   if (!agent.webhookUrl || agent.webhookUrl.trim() === '') {
     throw new Error(`Agente "${agent.nome}" não possui URL de webhook configurada.`);
@@ -143,7 +148,10 @@ export async function callAgentWebhook(
     response = await fetch(agent.webhookUrl.trim(), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userContent }),
+      body: JSON.stringify({
+        userContent,
+        ...(previousReports && Object.keys(previousReports).length > 0 ? { previousReports } : {}),
+      }),
     });
     console.log(`[callAgentWebhook] ${agent.nome} status:`, response.status);
   } catch (fetchErr: any) {
