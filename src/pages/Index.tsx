@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles, FileDown } from "lucide-react";
+import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles, FileDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { XmlUploader } from "@/components/XmlUploader";
@@ -26,10 +26,14 @@ import {
   DialogTrigger,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { SalesReportPDF } from '@/components/SalesReportPDF';
+import { AgentsTimeline } from '@/components/AgentsTimeline';
+import { AgentReportPDF } from '@/components/AgentReportPDF';
+import { AgentStatus, callGeminiAgent, callAgentWebhook, loadAgentsFromStorage } from '@/lib/geminiService';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -42,6 +46,12 @@ const Index = () => {
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+  const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
+  const [isAgentsRunning, setIsAgentsRunning] = useState(false);
+  const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
+  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
+  const [isPdfAgentMounted, setIsPdfAgentMounted] = useState(false);
 
   // Dados da empresa para o Relatório
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
@@ -71,8 +81,155 @@ const Index = () => {
     setSelectedProductCodes(new Set());
     setAiReport(null);
     setExecutionTime(null);
+    setAgentStatuses([]);
     sessionStorage.clear();
     toast.success("Nova consulta iniciada.");
+  };
+
+  useEffect(() => {
+    if (isPdfAgentOpen) {
+      const timer = setTimeout(() => setIsPdfAgentMounted(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setIsPdfAgentMounted(false);
+    }
+  }, [isPdfAgentOpen]);
+
+  const buildViabilidadePayload = () => ({
+    razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
+    naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado / Sugerir',
+    capital: localStorage.getItem('viab-capital') || 'Não informado',
+    numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
+    numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
+    folhaPagamento: localStorage.getItem('viab-folhaPagamento') || 'Não informado',
+    municipio: localStorage.getItem('viab-municipio') || 'Não informado',
+    estado: localStorage.getItem('viab-estado') || 'Não informado',
+    atividades: localStorage.getItem('viab-atividades') || 'Não informado',
+    tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
+    businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
+    faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
+    honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
+    honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
+    valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
+    valorDpa: localStorage.getItem('viab-valorDpa') || 'Não informado',
+    valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
+    valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
+    sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
+    sociosDeclaramProlabore: localStorage.getItem('viab-sociosDeclaramProlabore') || 'Não informado',
+    sociosRecolhemInssIr: localStorage.getItem('viab-sociosRecolhemInssIr') || 'Não informado',
+    recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
+    mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
+  });
+
+  const handleRunAgents = async () => {
+    if (!params || !summary || calculatedProducts.length === 0) {
+      toast.error("Realize a precificação antes de executar os agentes.");
+      return;
+    }
+
+    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
+    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
+    if (!viabAtividades || !viabMunicipio) {
+      toast.error("Preencha a Análise de Viabilidade antes de usar os agentes.", {
+        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
+      });
+      return;
+    }
+
+    const agentConfigs = loadAgentsFromStorage();
+    if (agentConfigs.length === 0) {
+      toast.error("Nenhum agente cadastrado. Acesse Configurações para cadastrar agentes.");
+      return;
+    }
+
+    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
+    const needsGemini = agentConfigs.some(a => !a.webhookUrl?.trim());
+    if (needsGemini && !apiKey) {
+      toast.error("Chave API Gemini não configurada.", {
+        description: "Configure o webhook de cada agente em Configurações, ou informe a chave Gemini para os agentes sem webhook."
+      });
+      return;
+    }
+
+    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
+    const viabilidadePayload = buildViabilidadePayload();
+    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
+
+    const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
+      id: a.id,
+      nome: a.nome,
+      systemPrompt: a.systemPrompt,
+      status: 'loading',
+      report: null,
+    }));
+    setAgentStatuses(initialStatuses);
+    setIsAgentsRunning(true);
+    setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+
+    const promises = agentConfigs.map(async (agent) => {
+      try {
+        const report = agent.webhookUrl?.trim()
+          ? await callAgentWebhook(agent, userContent)
+          : await callGeminiAgent(agent.systemPrompt, userContent, apiKey);
+        setAgentStatuses(prev =>
+          prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
+        );
+      } catch (err: any) {
+        setAgentStatuses(prev =>
+          prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
+        );
+      }
+    });
+
+    await Promise.allSettled(promises);
+    setIsAgentsRunning(false);
+    toast.success("Todos os agentes concluíram a execução.");
+    setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+  };
+
+  const handleRunSingleAgent = async (agent: AgentStatus) => {
+    if (!params || !summary || calculatedProducts.length === 0) {
+      toast.error("Realize a precificação antes de executar os agentes.");
+      return;
+    }
+
+    const agentConfigs = loadAgentsFromStorage();
+    const agentConfig = agentConfigs.find(a => a.id === agent.id);
+    if (!agentConfig) {
+      toast.error("Configuração do agente não encontrada.");
+      return;
+    }
+
+    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
+    const viabilidadePayload = buildViabilidadePayload();
+
+    const reportAgente1 = agentStatuses.find(s => s.id === 'agente-tributario' && s.status === 'done')?.report || null;
+
+    const userContent = JSON.stringify({
+      ...precificacaoPayload,
+      viabilidade: viabilidadePayload,
+      ...(reportAgente1 && agent.id === 'agente-planejamento' ? { analise_viabilidade_tributaria: reportAgente1 } : {}),
+    }, null, 2);
+
+    setAgentStatuses(prev =>
+      prev.map(s => s.id === agent.id ? { ...s, status: 'loading', report: null, errorMessage: undefined } : s)
+    );
+
+    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
+    try {
+      const report = agentConfig.webhookUrl?.trim()
+        ? await callAgentWebhook(agentConfig, userContent)
+        : await callGeminiAgent(agentConfig.systemPrompt, userContent, apiKey);
+      setAgentStatuses(prev =>
+        prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
+      );
+      toast.success(`Agente "${agent.nome}" concluído.`);
+    } catch (err: any) {
+      setAgentStatuses(prev =>
+        prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
+      );
+      toast.error(`Erro no agente "${agent.nome}"`, { description: err.message });
+    }
   };
 
   const handlePurchaseXmlParsed = (parsedProducts: Product[]) => {
@@ -159,13 +316,37 @@ const Index = () => {
       return;
     }
 
+    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
+    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
+    if (!viabAtividades || !viabMunicipio) {
+      toast.error("Preencha a Análise de Viabilidade antes de usar a Auditoria IA.", {
+        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
+      });
+      return;
+    }
+
+    const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
+    const agentConfigs = loadAgentsFromStorage();
+    const useRelay = agentConfigs.length > 0;
+
     const startTime = performance.now();
     setIsSending(true);
-    const toastId = toast.loading(`Gerando Plano Tributário Estratégico (${environment})...`);
+    const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
+
+    // Gera sessionId único para esta execução
+    const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
-      const payload = createOptimizedAIPayload(params, summary, calculatedProducts);
-      
+      const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
+      const agentes = agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt }));
+      const payload = {
+        ...precificacaoPayload,
+        viabilidade: buildViabilidadePayload(),
+        agentes,
+        sessionId,
+        relayUrl: `${relayUrl}/agent-result`,
+      };
+
       const webhooks = {
         test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
         production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
@@ -174,6 +355,91 @@ const Index = () => {
       const webhookUrl = webhooks[environment];
       if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
 
+      // Inicializa linha do tempo com agentes em loading
+      if (useRelay) {
+        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
+          id: a.id,
+          nome: a.nome,
+          systemPrompt: a.systemPrompt,
+          status: 'loading' as const,
+          report: null,
+        }));
+        setAgentStatuses(initialStatuses);
+        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      }
+
+      // Dispara o n8n sem aguardar resposta (fire and forget via relay)
+      // ou aguarda resposta direta se relay não estiver disponível
+      let usedRelay = false;
+
+      if (useRelay) {
+        try {
+          await fetch(`${relayUrl}/health`, { signal: AbortSignal.timeout(2000) });
+          usedRelay = true;
+        } catch {
+          usedRelay = false;
+        }
+      }
+
+      if (usedRelay) {
+        // Envia para o n8n sem bloquear — o relay receberá as respostas
+        fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }).catch(() => {});
+
+        toast.loading(`Aguardando agentes responderem...`, { id: toastId });
+
+        // Polling: consulta o relay a cada 2s
+        const seenNames = new Set<string>();
+        const maxWait = 5 * 60 * 1000; // 5 minutos timeout
+        const pollStart = Date.now();
+
+        const poll = async (): Promise<void> => {
+          if (Date.now() - pollStart > maxWait) {
+            toast.error("Tempo limite atingido. Verifique o n8n.", { id: toastId });
+            setIsSending(false);
+            setAgentStatuses(prev => prev.map(s => s.status === 'loading' ? { ...s, status: 'error', errorMessage: 'Timeout' } : s));
+            return;
+          }
+
+          try {
+            const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
+            const json = await res.json();
+            const arrived: Array<{ nome: string; report: string }> = json.agents || [];
+
+            for (const agent of arrived) {
+              if (!seenNames.has(agent.nome)) {
+                seenNames.add(agent.nome);
+                setAgentStatuses(prev =>
+                  prev.map(s => s.nome === agent.nome
+                    ? { ...s, status: 'done' as const, report: agent.report }
+                    : s
+                  )
+                );
+              }
+            }
+
+            if (seenNames.size >= agentConfigs.length) {
+              const durationInSeconds = (Date.now() - pollStart) / 1000;
+              toast.success(`${seenNames.size} agentes concluídos em ${durationInSeconds.toFixed(0)}s!`, { id: toastId });
+              fetch(`${relayUrl}/agent-results/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+              setIsSending(false);
+              return;
+            }
+          } catch {
+            // relay indisponível momentaneamente, continua tentando
+          }
+
+          setTimeout(poll, 2000);
+        };
+
+        setTimeout(poll, 2000);
+        return;
+      }
+
+      // Fallback: sem relay — aguarda resposta direta do n8n (comportamento legado)
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,43 +447,51 @@ const Index = () => {
       });
 
       if (!response.ok) throw new Error("Erro na comunicação com a IA.");
-      
+
       const data = await response.json();
       const endTime = performance.now();
       const durationInSeconds = (endTime - startTime) / 1000;
       setExecutionTime(durationInSeconds);
-      
+
+      const isAgentsArray = (d: any): boolean =>
+        Array.isArray(d) && d.length > 0 && typeof d[0].nome === 'string' && typeof d[0].report === 'string';
+      const unwrapped = Array.isArray(data) && data[0]?.json ? data[0].json : data;
+
+      if (isAgentsArray(unwrapped)) {
+        const statuses: AgentStatus[] = unwrapped.map((item: any) => ({
+          id: item.nome,
+          nome: item.nome,
+          systemPrompt: '',
+          status: 'done' as const,
+          report: item.report,
+        }));
+        setAgentStatuses(statuses);
+        toast.success(`${statuses.length} agentes concluídos em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
+        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+        return;
+      }
+
       let extractedReport = "";
-      
-      if (Array.isArray(data)) {
-        const parts = data[0]?.content?.parts;
-        if (Array.isArray(parts)) {
-          extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-        }
-      } else if (data.content?.parts) {
-        const parts = data.content.parts;
-        if (Array.isArray(parts)) {
-          extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-        }
+      if (Array.isArray(unwrapped)) {
+        const parts = unwrapped[0]?.content?.parts;
+        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
+      } else if (unwrapped.content?.parts) {
+        const parts = unwrapped.content.parts;
+        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
       }
-      
       if (!extractedReport) {
-        if (data.output) extractedReport = data.output;
-        else if (data.text) extractedReport = data.text;
-        else if (typeof data === 'string') extractedReport = data;
+        if (unwrapped.output) extractedReport = unwrapped.output;
+        else if (unwrapped.text) extractedReport = unwrapped.text;
+        else if (typeof unwrapped === 'string') extractedReport = unwrapped;
       }
-      
-      if (!extractedReport) {
-        throw new Error("Formato de resposta da IA não reconhecido.");
-      }
-      
+      if (!extractedReport) throw new Error("Formato de resposta da IA não reconhecido.");
+
       setAiReport(extractedReport);
-      toast.success(`Análise Estratégica Concluída em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
-      
+      toast.success(`Análise Concluída em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
       setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
     } catch (error: any) {
-      toast.error("Erro na Auditoria IA", { 
+      toast.error("Erro na Auditoria IA", {
         id: toastId,
         description: error.message
       });
@@ -282,11 +556,77 @@ const Index = () => {
                 onClose={() => setAiReport(null)} 
                 executionTime={executionTime}
                 clientName={companyName}
-                clientCity={params?.companyState || "SP"} // Fallback simples
+                clientCity={params?.companyState || "SP"}
                 clientState=""
               />
             </div>
           )}
+
+          {agentStatuses.length > 0 && (
+            <div id="agents-timeline-section">
+              <AgentsTimeline
+                agents={agentStatuses}
+                onViewReport={(agent) => {
+                  setSelectedAgentReport(agent);
+                  setIsPdfAgentOpen(true);
+                }}
+                onPrintReport={(agent) => {
+                  setSelectedAgentReport(agent);
+                  setIsPdfAgentOpen(true);
+                }}
+                onRunSingle={handleRunSingleAgent}
+              />
+            </div>
+          )}
+
+          <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
+            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
+              <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+                <DialogHeader>
+                  <DialogTitle className="text-sm">{selectedAgentReport?.nome || 'Relatório do Agente'}</DialogTitle>
+                  <DialogDescription className="sr-only">Visualização do relatório gerado pelo agente IA.</DialogDescription>
+                </DialogHeader>
+                {selectedAgentReport?.report && (
+                  <PDFDownloadLink
+                    document={
+                      <AgentReportPDF
+                        agentName={selectedAgentReport.nome}
+                        reportMarkdown={selectedAgentReport.report}
+                        companyName={companyName}
+                        accountantName={accountantName}
+                        accountantCrc={accountantCrc}
+                      />
+                    }
+                    fileName={`${selectedAgentReport.nome.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
+                  >
+                    {({ loading }) => (
+                      <Button size="sm" disabled={loading}>
+                        {loading ? 'Gerando...' : 'Baixar PDF'}
+                      </Button>
+                    )}
+                  </PDFDownloadLink>
+                )}
+              </div>
+              <div className="flex-1 w-full bg-slate-100 overflow-hidden">
+                {isPdfAgentMounted && selectedAgentReport?.report ? (
+                  <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                    <AgentReportPDF
+                      agentName={selectedAgentReport.nome}
+                      reportMarkdown={selectedAgentReport.report}
+                      companyName={companyName}
+                      accountantName={accountantName}
+                      accountantCrc={accountantCrc}
+                    />
+                  </PDFViewer>
+                ) : (
+                  <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <p className="text-sm">Carregando visualização...</p>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {purchaseProducts.length > 0 && params ? (
             <>
@@ -346,7 +686,16 @@ const Index = () => {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button size="sm" disabled={isSending} className="bg-orange-600 hover:bg-orange-700 text-white relative">
+                        <Button
+                          size="sm"
+                          disabled={isSending}
+                          className="bg-orange-600 hover:bg-orange-700 text-white relative"
+                          title={
+                            !localStorage.getItem('viab-atividades')?.trim() || !localStorage.getItem('viab-municipio')?.trim()
+                              ? "Preencha a Análise de Viabilidade antes de usar"
+                              : "Auditoria IA"
+                          }
+                        >
                           <Sparkles className="h-4 w-4 mr-2" />
                           {isSending ? "Analisando..." : "Auditoria IA"}
                           <Badge className="absolute -top-2 -right-2 bg-white text-orange-600 border-orange-600 h-4 text-[8px]">Novo</Badge>
@@ -358,6 +707,21 @@ const Index = () => {
                         <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Live (Produção)</DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
+
+                    <Button
+                      size="sm"
+                      disabled={isAgentsRunning}
+                      onClick={handleRunAgents}
+                      className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
+                      title={
+                        !localStorage.getItem('jota-gemini-key')?.trim()
+                          ? "Configure a chave Gemini em Configurações"
+                          : "Executar os agentes IA diretos"
+                      }
+                    >
+                      <Bot className="h-4 w-4 mr-2" />
+                      {isAgentsRunning ? "Executando..." : "Agentes IA"}
+                    </Button>
                   </div>
                 </div>
                 <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />

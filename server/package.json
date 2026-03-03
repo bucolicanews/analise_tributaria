@@ -1,0 +1,13 @@
+{
+  "name": "precificacao-relay",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node relay.js",
+    "dev": "node --watch relay.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

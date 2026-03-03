@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AgentConfig, DEFAULT_AGENTS, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
@@ -23,9 +24,17 @@ const Configuracao = () => {
   const [cnaes, setCnaes] = useState(localStorage.getItem('jota-cnaes') || '');
   const [uf, setUf] = useState(localStorage.getItem('jota-uf') || 'SP');
   
-  // Novos campos para o Relatório
   const [contadorNome, setContadorNome] = useState(localStorage.getItem('jota-contador-nome') || '');
   const [contadorCrc, setContadorCrc] = useState(localStorage.getItem('jota-contador-crc') || '');
+
+  const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
+  const [relayUrl, setRelayUrl] = useState(localStorage.getItem('jota-relay-url') || 'http://localhost:3001');
+
+  const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editNome, setEditNome] = useState('');
+  const [editPrompt, setEditPrompt] = useState('');
+  const [editWebhookUrl, setEditWebhookUrl] = useState('');
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,11 +45,62 @@ const Configuracao = () => {
     localStorage.setItem('jota-uf', uf);
     localStorage.setItem('jota-webhook-test', webhookTestUrl);
     localStorage.setItem('jota-webhook-prod', webhookProdUrl);
-    
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
-    
+    localStorage.setItem('jota-gemini-key', geminiKey);
+    localStorage.setItem('jota-relay-url', relayUrl);
     toast.success("Configurações salvas com sucesso!");
+  };
+
+  const startEditing = (agent: AgentConfig) => {
+    setEditingId(agent.id);
+    setEditNome(agent.nome);
+    setEditPrompt(agent.systemPrompt);
+    setEditWebhookUrl(agent.webhookUrl || '');
+  };
+
+  const cancelEditing = () => {
+    setEditingId(null);
+    setEditNome('');
+    setEditPrompt('');
+    setEditWebhookUrl('');
+  };
+
+  const saveAgent = (id: string) => {
+    if (!editNome.trim() || !editPrompt.trim()) {
+      toast.error("Nome e Prompt são obrigatórios.");
+      return;
+    }
+    const updated = agents.map(a => a.id === id ? { ...a, nome: editNome.trim(), systemPrompt: editPrompt.trim(), webhookUrl: editWebhookUrl.trim() || undefined } : a);
+    setAgents(updated);
+    saveAgentsToStorage(updated);
+    setEditingId(null);
+    toast.success("Agente salvo.");
+  };
+
+  const deleteAgent = (id: string) => {
+    const updated = agents.filter(a => a.id !== id);
+    setAgents(updated);
+    saveAgentsToStorage(updated);
+    toast.success("Agente removido.");
+  };
+
+  const addAgent = () => {
+    const newAgent: AgentConfig = {
+      id: `agente-${Date.now()}`,
+      nome: 'Novo Agente',
+      systemPrompt: 'Você é um especialista em...',
+    };
+    const updated = [...agents, newAgent];
+    setAgents(updated);
+    saveAgentsToStorage(updated);
+    startEditing(newAgent);
+  };
+
+  const resetToDefaults = () => {
+    setAgents(DEFAULT_AGENTS);
+    saveAgentsToStorage(DEFAULT_AGENTS);
+    toast.success("Agentes padrão restaurados.");
   };
 
   return (
@@ -82,7 +142,7 @@ const Configuracao = () => {
                </div>
             </div>
 
-            {/* DADOS DO CONTADOR RESPONSÁVEL */}
+            {/* DADOS DO CONTADOR */}
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-muted-foreground" />
@@ -101,7 +161,53 @@ const Configuracao = () => {
                <p className="text-xs text-muted-foreground">Estes dados aparecerão no rodapé e na folha de rosto dos relatórios gerados.</p>
             </div>
 
-            {/* INTEGRAÇÕES */}
+            {/* CHAVE API GEMINI */}
+            <div className="space-y-4 rounded-lg border border-border p-4">
+               <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <KeyRound className="h-5 w-5 text-muted-foreground" />
+                  Chave API Gemini (Agentes IA Diretos)
+               </h3>
+               <div className="space-y-2">
+                  <Label htmlFor="gemini-key">Chave API Gemini (Google AI Studio)</Label>
+                  <Input
+                    id="gemini-key"
+                    type="password"
+                    value={geminiKey}
+                    onChange={(e) => setGeminiKey(e.target.value)}
+                    placeholder="AIza..."
+                    autoComplete="off"
+                  />
+               </div>
+               <p className="text-xs text-muted-foreground">
+                  Usada pelos agentes IA diretos (sem n8n). Obtenha sua chave em{' '}
+                  <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline text-primary">
+                    aistudio.google.com
+                  </a>
+               </p>
+            </div>
+
+            {/* RELAY URL */}
+            <div className="space-y-4 rounded-lg border border-border p-4">
+               <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Webhook className="h-5 w-5 text-muted-foreground" />
+                  URL do Servidor Relay
+               </h3>
+               <div className="space-y-2">
+                  <Label htmlFor="relay-url">URL do Relay (recebe respostas do n8n)</Label>
+                  <Input
+                    id="relay-url"
+                    type="url"
+                    value={relayUrl}
+                    onChange={(e) => setRelayUrl(e.target.value)}
+                    placeholder="http://localhost:3001"
+                  />
+               </div>
+               <p className="text-xs text-muted-foreground">
+                  Em desenvolvimento: <code className="bg-muted px-1 rounded">http://localhost:3001</code>. Em produção: URL pública do servidor relay no EasyPanel.
+               </p>
+            </div>
+
+            {/* INTEGRAÇÕES N8N */}
             <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/10">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Webhook className="h-5 w-5 text-muted-foreground" />
@@ -121,6 +227,89 @@ const Configuracao = () => {
           </CardContent>
         </Card>
       </form>
+
+      {/* GERENCIADOR DE AGENTES — fora do form pois tem sua própria lógica de save */}
+      <Card className="shadow-card mt-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Bot className="h-6 w-6 text-primary" />
+            Gerenciador de Agentes IA
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Cadastre e edite os agentes que serão disparados em paralelo na aba de Precificação. Cada agente tem um nome e um prompt do sistema.
+          </p>
+
+          <div className="space-y-4">
+            {agents.map((agent) => (
+              <div key={agent.id} className="rounded-lg border border-border p-4 space-y-3">
+                {editingId === agent.id ? (
+                  <>
+                    <div className="space-y-2">
+                      <Label>Nome do Agente</Label>
+                      <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} placeholder="Ex: Análise Tributária" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Prompt do Sistema</Label>
+                      <Textarea
+                        value={editPrompt}
+                        onChange={(e) => setEditPrompt(e.target.value)}
+                        rows={8}
+                        placeholder="Você é um especialista em..."
+                        className="font-mono text-xs"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>URL do Webhook n8n</Label>
+                      <Input
+                        value={editWebhookUrl}
+                        onChange={(e) => setEditWebhookUrl(e.target.value)}
+                        type="url"
+                        placeholder="https://seu-n8n.host/webhook/..."
+                      />
+                      <p className="text-xs text-muted-foreground">Se preenchido, o botão "Agentes IA" enviará um POST para este webhook ao invés de chamar o Gemini direto.</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => saveAgent(agent.id)}>
+                        <Save className="h-4 w-4 mr-2" />
+                        Salvar
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={cancelEditing}>Cancelar</Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{agent.nome}</p>
+                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{agent.systemPrompt}</p>
+                      {agent.webhookUrl && (
+                        <p className="text-xs text-indigo-500 mt-1 truncate">{agent.webhookUrl}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button size="sm" variant="outline" onClick={() => startEditing(agent)}>Editar</Button>
+                      <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => deleteAgent(agent.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={addAgent}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Agente
+            </Button>
+            <Button type="button" variant="ghost" className="text-muted-foreground" onClick={resetToDefaults}>
+              Restaurar Padrões
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
