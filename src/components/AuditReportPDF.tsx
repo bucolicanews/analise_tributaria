@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
+import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontFamily: 'Helvetica', fontSize: 9, color: '#333333', backgroundColor: '#ffffff' },
@@ -48,6 +49,10 @@ const AuditItem = ({ item }: { item: any }) => {
   };
   const risk = riskStyles[item.riskType] || riskStyles.generic;
 
+  const classification = item.calculated.cClassTrib ? getClassificationDetails(item.calculated.cClassTrib) : null;
+  const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
+  const classFormat = item.calculated.cClassTrib?.toString().padStart(6, '0') || '000001';
+
   return (
     <View style={styles.itemBlock} wrap={false}>
       <View style={styles.itemHeader}>
@@ -79,7 +84,7 @@ const AuditItem = ({ item }: { item: any }) => {
           <DetailItem label="CSOSN/CST" value={item.calculated.suggestedCodes.icmsCstOrCsosn} />
           <DetailItem label="CST PIS/COFINS" value={item.calculated.suggestedCodes.pisCofinsCst} />
           <DetailItem label="NCM" value={item.calculated.ncm || '---'} />
-          <DetailItem label="cClassTrib" value={item.calculated.cClassTrib || '1'} />
+          <DetailItem label="CST/cClassTrib (Ref.)" value={`${cstFormat} / ${classFormat}`} />
         </View>
       </View>
     </View>

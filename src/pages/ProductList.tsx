@@ -132,7 +132,9 @@ const ProductList = () => {
           <div className="space-y-6">
             {filteredProducts.map(product => {
               const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
-              
+              const cstFormat = classificationDetails?.cst?.code?.toString().padStart(2, '0') || '00';
+              const classFormat = product.cClassTrib?.toString().padStart(6, '0') || '000001';
+
               // Cálculos Comerciais
               const comFixedCost = (product.valueForFixedCost / product.quantity) || 0;
               const comTotalBaseCost = product.cost + comFixedCost;
@@ -199,13 +201,11 @@ const ProductList = () => {
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CEST</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cest || '---'}</div>
                     </div>
-                    <div className="space-y-1">
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase">cClassTrib (IBS/CBS)</div>
-                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cClassTrib || '1'}</div>
-                    </div>
-                    <div className="space-y-1">
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Origem</div>
-                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">0</div>
+                    <div className="space-y-1 col-span-2 md:col-span-2">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CST / cClassTrib (Reforma)</div>
+                      <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center tracking-widest">
+                        <span className="opacity-60">{cstFormat}</span> / {classFormat}
+                      </div>
                     </div>
                   </div>
 

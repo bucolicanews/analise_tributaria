@@ -35,13 +35,17 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
   });
 
   const head = [[
-    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CEST', 'CSOSN', 'CST PIS/COFINS', 'cClassTrib',
+    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CEST', 'CSOSN', 'CST PIS/COFINS', 'CST / cClassTrib',
     'Custo Base Total', 'Custo Unid. Int.', 'Venda Mín. Unid. Int.', 'Venda Sug. Unid. Int.',
     'Venda Mín. Com.', 'Venda Sug. Com.'
   ]];
 
   const body: any[] = [];
   products.forEach(p => {
+    const classificationDetails = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
+    const cstFormat = classificationDetails?.cst?.code?.toString().padStart(2, '0') || '00';
+    const classFormat = p.cClassTrib?.toString().padStart(6, '0') || '000001';
+
     // Product row
     body.push([
       p.name,
@@ -51,7 +55,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
       p.cest || '-',
       p.suggestedCodes.icmsCstOrCsosn,
       p.suggestedCodes.pisCofinsCst,
-      p.cClassTrib || '1',
+      `${cstFormat} / ${classFormat}`,
       formatCurrency(p.cost + (p.valueForFixedCost / p.quantity)),
       formatCurrency(p.costPerInnerUnit),
       formatCurrency(p.minSellingPricePerInnerUnit),
@@ -61,9 +65,8 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     ]);
 
     // Classification row
-    const classificationDetails = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
     if (classificationDetails) {
-      const classificationText = `Classificação IBS/CBS: cClassTrib: ${classificationDetails.cClass.code} | Nome: ${classificationDetails.cClass.name} | CST: ${classificationDetails.cst?.code} - ${classificationDetails.cst?.description} | Última Atualização: ${classificationDetails.cClass.lastUpdate}`;
+      const classificationText = `Classificação IBS/CBS (Ref.): cClassTrib: ${classificationDetails.cClass.code} | Nome: ${classificationDetails.cClass.name} | CST: ${classificationDetails.cst?.code} - ${classificationDetails.cst?.description}`;
       
       body.push([{
         content: classificationText,
@@ -103,8 +106,6 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
   doc.output('pdfobjectnewwindow');
 };
 
-
-// Gera o PDF do Relatório de Vendas (detalhado por produto)
 export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
   const doc = new jsPDF();
   let finalY = 0;
@@ -129,6 +130,10 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
     
     const currentY = startY + (splitTitle.length * 5);
 
+    const classification = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
+    const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
+    const classFormat = product.cClassTrib?.toString().padStart(6, '0') || '000001';
+
     const body = [
       ['Custo Aquisição (Com.)', formatCurrency(product.cost)],
       ['Custo Fixo Rateado (Com.)', formatCurrency(product.valueForFixedCost / product.quantity)],
@@ -137,6 +142,7 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
       ['Venda Sugerida (Com.)', formatCurrency(product.sellingPrice)],
       ['Imposto Líquido (Com.)', formatCurrency(product.taxToPay)],
       ['Crédito p/ Cliente (Com.)', formatCurrency(product.ivaCreditForClient)],
+      ['CST / cClassTrib (Reforma)', `${cstFormat} / ${classFormat}`],
       ['---', '---'],
       ['Custo (Unid. Int.)', formatCurrency(product.costPerInnerUnit)],
       ['Venda Mínima (Unid. Int.)', formatCurrency(product.minSellingPricePerInnerUnit)],
@@ -149,7 +155,7 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 70 },
+        0: { fontStyle: 'bold', cellWidth: 80 },
         1: { halign: 'right' },
       },
       didDrawPage: (data) => {

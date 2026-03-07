@@ -25,7 +25,7 @@ const MetricItem = ({ label, value, className }: { label: string; value: string;
   </div>
 );
 
-const TaxBox = ({ label, value, variant = 'suggested' }: { label: string; value: string | number, variant?: 'current' | 'suggested' }) => (
+const TaxBox = ({ label, value, variant = 'suggested' }: { label: string; value: string | React.ReactNode, variant?: 'current' | 'suggested' }) => (
   <div className="space-y-1 flex-1 min-w-[120px]">
     <div className="text-[9px] font-bold text-muted-foreground uppercase truncate text-center">{label}</div>
     <div className={cn(
@@ -159,7 +159,11 @@ const Audit = () => {
   const AuditList = ({ items }: { items: typeof auditResults }) => (
     <div className="space-y-6">
       {items.map((result, idx) => {
-        const { calculated, cfu } = result;
+        const { calculated, cfu, classification } = result;
+        
+        const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
+        const classFormat = calculated.cClassTrib?.toString().padStart(6, '0') || '000001';
+
         const comFixedCost = cfu * (calculated.innerQuantity || 1);
         const comTotalBaseCost = calculated.cost + comFixedCost;
         const comGrossProfit = calculated.sellingPrice - comTotalBaseCost;
@@ -250,8 +254,7 @@ const Audit = () => {
                   <TaxBox variant="current" label="CFOP Venda" value={result.sale.cfop || '---'} />
                   <TaxBox variant="current" label="NCM" value={result.sale.ncm || '---'} />
                   <TaxBox variant="current" label="CEST" value={result.sale.cest || '---'} />
-                  <TaxBox variant="current" label="Classe IBS/CBS" value="---" />
-                  <TaxBox variant="current" label="Origem" value="---" />
+                  <TaxBox variant="current" label="CST / cClassTrib" value="--- / ---" />
                 </div>
               </div>
 
@@ -265,8 +268,7 @@ const Audit = () => {
                   <TaxBox label="CFOP Venda" value={calculated.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'} />
                   <TaxBox label="NCM" value={calculated.ncm || '---'} />
                   <TaxBox label="CEST" value={calculated.cest || '---'} />
-                  <TaxBox label="cClassTrib (IBS/CBS)" value={calculated.cClassTrib || '1'} />
-                  <TaxBox label="Origem" value="0" />
+                  <TaxBox label="CST / cClassTrib (Ref.)" value={<span><span className="opacity-50">{cstFormat}</span> / {classFormat}</span>} />
                 </div>
               </div>
             </div>

@@ -28,6 +28,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ProductTaxDetails } from './ProductTaxDetails';
 import { ProductStrategicDetails } from './ProductStrategicDetails';
+import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 
 interface ProductsTableProps {
   products: Product[];
@@ -301,7 +302,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               <TableHead>Código</TableHead>
               <TableHead className="min-w-[300px]">Produto</TableHead>
               <TableHead>Ações</TableHead>
-              <TableHead>cClassTrib</TableHead>
+              <TableHead>CST / cClassTrib</TableHead>
               <TableHead>Unid. Com.</TableHead>
               <TableHead className="text-right">Qtd. Estoque</TableHead>
               <TableHead className="text-right">Custo Aquisição (Unit)</TableHead>
@@ -325,6 +326,11 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               const fixedCostPerCommercialUnit = cfu * product.innerQuantity;
               const productProfit = product.sellingPrice - product.cost - product.taxToPay - (product.sellingPrice * (totalVariableExpensesPercent / 100)) - fixedCostPerCommercialUnit;
               const productProfitMargin = product.sellingPrice > 0 ? (productProfit / product.sellingPrice) * 100 : 0;
+              
+              const classification = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
+              const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
+              const classFormat = product.cClassTrib?.toString().padStart(6, '0') || '000001';
+
               return (
                 <TableRow key={index} className={cn(!isSelected && "opacity-50 hover:opacity-100 transition-opacity")}>
                   <TableCell><Checkbox checked={isSelected} onCheckedChange={(checked) => handleToggleProduct(product.code, !!checked)} /></TableCell>
@@ -343,7 +349,9 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       </Dialog>
                     </div>
                   </TableCell>
-                  <TableCell className="font-mono text-xs">{product.cClassTrib}</TableCell>
+                  <TableCell className="font-mono text-[10px] whitespace-nowrap bg-primary/5 font-semibold border-x border-primary/10">
+                    <span className="text-muted-foreground">{cstFormat}</span> / <span className="text-primary">{classFormat}</span>
+                  </TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                   <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatCurrency(product.cost)}</TableCell>
