@@ -4,7 +4,8 @@ import { findCClassByNcm, checkIfNcmHasSelectiveTax } from "./tax/taxClassificat
 export const calculatePricing = (
   product: Product,
   params: CalculationParams,
-  cfu: number // Custo Fixo por Unidade
+  cfu: number, // Custo Fixo por Unidade
+  fixedSellingPrice?: number // Parâmetro opcional para simulações de mercado fixo
 ): CalculatedProduct => {
   
   // 1. Definição de Regime para Créditos
@@ -71,11 +72,8 @@ export const calculatePricing = (
     totalPercentageForMarkup = (totalVariableExpensesPercentage / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective + profitComponent;
   } else { // Simples Nacional
     if (params.generateIvaCredit) {
-      // HÍBRIDO: Paga Simples + (IBS/CBS - Créditos)
-      // O Markup precisa considerar o custo do Simples E o custo do IVA por fora
       totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
     } else {
-      // PADRÃO: Paga apenas Simples (IBS/CBS embutidos)
       totalPercentageForMarkup = (totalVariableExpensesPercentage + params.simplesNacionalRate + params.profitMargin) / 100 + selectiveTaxRateEffective;
     }
   }
@@ -90,14 +88,11 @@ export const calculatePricing = (
   let markupPercentage = 0;
   let status: "OK" | "PREÇO CORRIGIDO" = "OK";
 
-  if (markupDivisor <= 0.05 || baseCostForMarkup === Infinity) {
-    sellingPrice = 0;
-    minSellingPrice = 0;
-    status = "PREÇO CORRIGIDO";
-  } else {
-    sellingPrice = baseCostForMarkup / markupDivisor;
+  // Se um preço fixo foi fornecido (Simulação de Mercado), forçamos o valor
+  if (fixedSellingPrice !== undefined) {
+    sellingPrice = fixedSellingPrice;
     
-    // Preço Mínimo (Zero Lucro)
+    // Calcula o preço mínimo normal para referência
     let minSellingTaxRate = 0;
     if (params.taxRegime === TaxRegime.LucroPresumido) {
       minSellingTaxRate = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
@@ -109,6 +104,30 @@ export const calculatePricing = (
     const minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + minSellingTaxRate);
     minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
 
+  } else {
+    // Lógica padrão de Markup (Precificação Bottom-Up)
+    if (markupDivisor <= 0.05 || baseCostForMarkup === Infinity) {
+      sellingPrice = 0;
+      minSellingPrice = 0;
+      status = "PREÇO CORRIGIDO";
+    } else {
+      sellingPrice = baseCostForMarkup / markupDivisor;
+      
+      let minSellingTaxRate = 0;
+      if (params.taxRegime === TaxRegime.LucroPresumido) {
+        minSellingTaxRate = cbsRateEffective + ibsRateEffective + (params.irpjRate / 100) + (params.csllRate / 100) + selectiveTaxRateEffective;
+      } else if (params.taxRegime === TaxRegime.LucroReal) {
+        minSellingTaxRate = cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
+      } else {
+        minSellingTaxRate = params.generateIvaCredit ? (params.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective : (params.simplesNacionalRate / 100) + selectiveTaxRateEffective;
+      }
+      const minSellingDivisor = 1 - (totalVariableExpensesPercentage / 100 + minSellingTaxRate);
+      minSellingPrice = minSellingDivisor > 0 ? baseCostForMarkup / minSellingDivisor : baseCostForMarkup;
+    }
+  }
+
+  // Com o sellingPrice definido (seja calculado ou fixado), apuramos os impostos
+  if (sellingPrice > 0) {
     selectiveTaxToPay = sellingPrice * selectiveTaxRateEffective;
     
     if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
@@ -119,8 +138,11 @@ export const calculatePricing = (
         csllToPay = sellingPrice * (params.csllRate / 100);
       } else {
         const irpjCsllRate = (params.irpjRateLucroReal / 100) + (params.csllRateLucroReal / 100);
-        const netProfit = sellingPrice * (params.profitMargin / 100);
-        const pbt = (irpjCsllRate < 1) ? netProfit / (1 - irpjCsllRate) : 0;
+        // O lucro presumido na base real usa a margem atual. Como o preço está travado, a margem de lucro muda.
+        // A rigor, o IRPJ/CSLL no Lucro Real incide sobre o lucro efetivo.
+        // Para simplificação da estimativa, usamos a margem alvo fornecida ou o lucro apurado.
+        const assumedProfit = sellingPrice * (params.profitMargin / 100); 
+        const pbt = (irpjCsllRate < 1) ? assumedProfit / (1 - irpjCsllRate) : 0;
         irpjToPay = pbt * (params.irpjRateLucroReal / 100);
         csllToPay = pbt * (params.csllRateLucroReal / 100);
       }
@@ -137,18 +159,25 @@ export const calculatePricing = (
     cbsTaxToPay = cbsDebit - cbsCredit;
     ibsTaxToPay = ibsDebit - ibsCredit;
     
-    // Soma total dos impostos
     if (params.taxRegime === TaxRegime.LucroPresumido || params.taxRegime === TaxRegime.LucroReal) {
       taxToPay = cbsTaxToPay + ibsTaxToPay + irpjToPay + csllToPay + selectiveTaxToPay;
     } else {
-      // No Híbrido, o IVA a pagar é adicional ao Simples
       taxToPay = simplesToPay + selectiveTaxToPay + (params.generateIvaCredit ? (cbsTaxToPay + ibsTaxToPay) : 0);
     }
 
     markupPercentage = product.cost > 0 ? ((sellingPrice - product.cost) / product.cost) * 100 : 0;
   }
 
-  const contributionMargin = sellingPrice - (product.cost + (sellingPrice * (totalVariableExpensesPercentage / 100)));
+  const valueForVariableExpenses = Math.max(0, sellingPrice * (totalVariableExpensesPercentage / 100));
+  
+  // Lucro Real Efetivo da Operação Unitária
+  const actualProfit = sellingPrice - product.cost - taxToPay - valueForVariableExpenses - fixedCostPerCommercialUnit;
+  
+  const valueForProfit = fixedSellingPrice !== undefined 
+    ? actualProfit 
+    : sellingPrice * (params.profitMargin / 100);
+
+  const contributionMargin = sellingPrice - (product.cost + valueForVariableExpenses);
 
   return {
     ...product,
@@ -171,9 +200,9 @@ export const calculatePricing = (
     cst: product.cst || "101",
     status,
     valueForTaxes: Math.max(0, taxToPay),
-    valueForVariableExpenses: Math.max(0, sellingPrice * (totalVariableExpensesPercentage / 100)),
+    valueForVariableExpenses,
     valueForFixedCost: fixedCostPerCommercialUnit,
-    valueForProfit: sellingPrice * (params.profitMargin / 100),
+    valueForProfit,
     contributionMargin: contributionMargin,
     ivaCreditForClient: Math.max(0, ivaCreditForClient),
     costPerInnerUnit: product.cost / innerQty,

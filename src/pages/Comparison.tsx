@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info, Lock } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { Button } from '@/components/ui/button';
@@ -12,7 +12,7 @@ import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
 
 interface GlobalSummaryDataExt {
   totalSelling: number;
-  totalAcquisitionCost: number; // Novo campo para demonstrar o CMV
+  totalAcquisitionCost: number; 
   totalTax: number;
   totalProfit: number;
   profitMarginPercent: number;
@@ -40,15 +40,19 @@ const calculateGlobalSummaryForComparison = (
   globalFixedExpenses: number,
   totalVariableExpensesPercent: number,
   cfu: number,
-  totalInnerUnitsInXML: number,
-  profitMarginOverride: number
+  totalInnerUnitsInXML: number
 ): GlobalSummaryDataExt => {
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalAcquisitionCostSum = productsToSummarize.reduce((sum, p) => sum + p.cost * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
   const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
+
+  const totalFixedCostRateado = cfu * totalInnerUnitsInXML;
+  
+  // O LUCRO LÍQUIDO REAL AGORA É CALCULADO POR CIMA, GARANTINDO PRECISÃO NA SIMULAÇÃO DE MERCADO
+  const totalProfitSum = totalSellingSum - totalAcquisitionCostSum - totalTaxSum - totalVariableExpensesValueSum - totalFixedCostRateado;
+  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
 
   const totalCbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0);
   const totalIbsCreditSum = productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0);
@@ -63,7 +67,6 @@ const calculateGlobalSummaryForComparison = (
   const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
 
   const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
-  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
 
   let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
   const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
@@ -139,19 +142,24 @@ const Comparison = () => {
       const baseOperationalFixed = baseParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + baseParams.payroll;
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
 
+      // 1. CALCULA O CENÁRIO BASE (SIMPLES NACIONAL) PARA ANCORAR O PREÇO DE VENDA DE MERCADO
+      const baseRegimeParams: CalculationParams = { 
+        ...baseParams, 
+        taxRegime: TaxRegime.SimplesNacional, 
+        generateIvaCredit: false,
+        usePisCofins: false,
+        icmsPercentage: 0,
+        useCbsDebit: false,
+        ibsDebitPercentage: 0,
+      };
+      const baseCfu = baseParams.totalStockUnits > 0 ? baseOperationalFixed / baseParams.totalStockUnits : 0;
+      const baseCalculatedProducts = productsToProcess.map(p => calculatePricing(p, baseRegimeParams, baseCfu));
+
       const regimes = [
         { 
           label: "Simples Nacional (Padrão)", 
           hasInssPatronal: false,
-          params: { 
-            ...baseParams, 
-            taxRegime: TaxRegime.SimplesNacional, 
-            generateIvaCredit: false,
-            usePisCofins: false,
-            icmsPercentage: 0,
-            useCbsDebit: false,
-            ibsDebitPercentage: 0,
-          } 
+          params: baseRegimeParams
         },
         { 
           label: "Simples Nacional (Híbrido)", 
@@ -193,6 +201,7 @@ const Comparison = () => {
         },
       ];
 
+      // 2. APLICA OS OUTROS REGIMES TRAVANDO O PREÇO DE VENDA DO CENÁRIO BASE
       const results = regimes.map(r => {
         const inssPatronalMensal = r.hasInssPatronal ? baseParams.payroll * (baseParams.inssPatronalRate / 100) : 0;
         const totalFixedCosts = baseOperationalFixed + inssPatronalMensal;
@@ -200,9 +209,12 @@ const Comparison = () => {
         const cfu = baseParams.totalStockUnits > 0 ? totalFixedCosts / baseParams.totalStockUnits : 0;
         const inssPatronalRateado = baseParams.totalStockUnits > 0 ? (inssPatronalMensal / baseParams.totalStockUnits) * totalInners : 0;
 
-        const calculated = productsToProcess.map(p => calculatePricing(p, r.params, cfu));
-        const summary = calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin);
+        const calculated = productsToProcess.map((p, idx) => 
+          // O quarto parâmetro "trava" o preço de venda para simular o mercado real
+          calculatePricing(p, r.params, cfu, baseCalculatedProducts[idx].sellingPrice)
+        );
         
+        const summary = calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners);
         summary.totalInssPatronalRateado = inssPatronalRateado;
 
         return {
@@ -285,13 +297,12 @@ const Comparison = () => {
           </Alert>
           
           <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3 items-start">
-            <Info className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
             <div>
-              <p className="text-sm font-bold text-blue-800">Entendendo a Matemática da Reforma (Não Cumulatividade)</p>
+              <p className="text-sm font-bold text-blue-800">Simulação de Mercado Real (Preços Ancorados)</p>
               <p className="text-xs text-blue-700 mt-1">
-                No Lucro Presumido e Real (e Simples Híbrido), o imposto <strong>não é calculado sobre o faturamento cheio</strong>. 
-                A empresa paga o Débito gerado na Venda, mas <strong>abate os Créditos de ICMS e PIS/COFINS</strong> embutidos na Compra das mercadorias.
-                É por isso que empresas com alto Custo de Aquisição (CMV) pagam menos imposto nesses regimes.
+                Para refletir a realidade comercial, o sistema <strong>travou o Preço de Venda da empresa</strong> (com base no Simples Nacional) em todos os regimes.
+                Desta forma, os preços não são inflacionados artificialmente. O comparativo demonstra qual regime tributário consome menos do seu lucro mantendo sua competitividade no mercado.
               </p>
             </div>
           </div>
