@@ -1,8 +1,8 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Loader2 } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Loader2, Package } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
@@ -166,14 +166,15 @@ const Comparison = () => {
         const calculated = productsToProcess.map(p => calculatePricing(p, r.params, cfu));
         return {
           label: r.label,
-          summary: calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin)
+          summary: calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin),
+          products: calculated
         };
       });
 
       let bestResult = results[0];
       results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
 
-      return { results, bestResult };
+      return { results, bestResult, originalProducts: productsToProcess };
     } catch (error) { return null; }
   }, []);
 
@@ -254,6 +255,59 @@ const Comparison = () => {
                 <TableRow><TableCell className="font-semibold">Impostos Líquidos</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-destructive">{formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})</TableCell>)}</TableRow>
                 <TableRow className="bg-success/10"><TableCell className="font-extrabold">LUCRO LÍQUIDO</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}</TableRow>
                 <TableRow><TableCell className="font-semibold">Ponto de Equilíbrio</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}</TableRow>
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-card">
+        <CardHeader>
+          <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
+            <Package className="h-5 w-5" />
+            Análise de Preços por Produto (B2C vs B2B)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="min-w-[250px]">Produto / Custo</TableHead>
+                  {comparisonData.results.map(res => <TableHead key={res.label} className="text-center">{res.label}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {comparisonData.originalProducts.map((originalProduct, index) => {
+                  return (
+                    <TableRow key={originalProduct.code}>
+                      <TableCell>
+                        <div className="font-bold text-sm">{originalProduct.name}</div>
+                        <div className="text-xs text-muted-foreground font-mono mt-1">Cód: {originalProduct.code} | Custo Aq.: {formatCurrency(originalProduct.cost)}</div>
+                      </TableCell>
+                      {comparisonData.results.map(res => {
+                        const prod = res.products[index];
+                        const precoB2C = prod.sellingPrice;
+                        // Para empresas (B2B), o custo efetivo do produto descontará o IVA que ela vai receber de crédito
+                        const precoB2B = prod.sellingPrice - prod.ivaCreditForClient;
+                        return (
+                          <TableCell key={res.label} className="text-center align-top">
+                            <div className="flex flex-col gap-1.5 items-center justify-center">
+                              <div className="text-xs bg-primary/10 text-primary px-2 py-1.5 rounded border border-primary/20 w-full max-w-[130px]">
+                                <span className="text-[9px] uppercase font-semibold block mb-0.5 opacity-80">Consumidor (B2C)</span>
+                                <span className="font-extrabold text-sm">{formatCurrency(precoB2C)}</span>
+                              </div>
+                              <div className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1.5 rounded border border-blue-500/20 w-full max-w-[130px]">
+                                <span className="text-[9px] uppercase font-semibold block mb-0.5 opacity-80">Empresa (B2B)</span>
+                                <span className="font-extrabold text-sm">{formatCurrency(precoB2B)}</span>
+                              </div>
+                            </div>
+                          </TableCell>
+                        )
+                      })}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </div>

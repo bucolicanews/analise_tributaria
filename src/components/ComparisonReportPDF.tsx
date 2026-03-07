@@ -1,5 +1,6 @@
 import React from 'react';
 import { Page, Text, View, Document, StyleSheet } from '@react-pdf/renderer';
+import { CalculatedProduct } from '@/types/pricing';
 
 const styles = StyleSheet.create({
   page: { padding: 30, fontFamily: 'Helvetica', fontSize: 9, color: '#333333', backgroundColor: '#ffffff' },
@@ -13,6 +14,7 @@ const styles = StyleSheet.create({
   bestResultCard: { padding: 15, backgroundColor: '#f0fdf4', borderRadius: 4, borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 20 },
   bestResultTitle: { fontSize: 10, color: '#15803d', marginBottom: 6, textTransform: 'uppercase', fontFamily: 'Helvetica-Bold' },
   bestResultText: { fontSize: 14, color: '#166534', fontFamily: 'Helvetica-Bold' },
+  sectionTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#334155', marginBottom: 10, marginTop: 15, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 4 },
   tableHeaderRow: { flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 2, borderBottomColor: '#e2e8f0' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   tableRowHighlight: { flexDirection: 'row', backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
@@ -38,6 +40,7 @@ interface ComparisonData {
     totalProfit: number;
     breakEvenPoint: number;
   };
+  products: CalculatedProduct[];
 }
 
 interface ComparisonReportPDFProps {
@@ -75,6 +78,7 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           </Text>
         </View>
 
+        <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Resumo Global</Text>
         <View style={styles.tableWrapper}>
           <View style={styles.tableHeaderRow} fixed>
             <View style={[styles.colHeader, { width: colPct }]}><Text>Metrica</Text></View>
@@ -124,6 +128,47 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
               </View>
             ))}
           </View>
+        </View>
+
+        <Text style={styles.sectionTitle}>Analise de Precos por Produto (B2C vs B2B)</Text>
+        <View style={styles.tableWrapper}>
+          <View style={styles.tableHeaderRow} fixed>
+            <View style={[styles.colHeader, { width: colPct }]}><Text>Produto / Custo</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.colHeader, { width: colPct, textAlign: 'center' }]}>
+                <Text>{res.label}</Text>
+              </View>
+            ))}
+          </View>
+          
+          {results[0].products.map((_, index) => {
+            return (
+              <View key={index} style={styles.tableRow} wrap={false}>
+                <View style={[styles.col, { width: colPct }]}>
+                  <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8 }}>{results[0].products[index].name}</Text>
+                  <Text style={{ fontSize: 7, color: '#64748b', marginTop: 2 }}>Cod: {results[0].products[index].code}</Text>
+                  <Text style={{ fontSize: 7, color: '#64748b', marginTop: 1 }}>Custo Aq.: {formatCurrency(results[0].products[index].cost)}</Text>
+                </View>
+                {results.map(res => {
+                  const prod = res.products[index];
+                  const precoB2C = prod.sellingPrice;
+                  const precoB2B = prod.sellingPrice - prod.ivaCreditForClient;
+                  return (
+                    <View key={res.label} style={[styles.col, { width: colPct, alignItems: 'center' }]}>
+                      <View style={{ marginBottom: 4, alignItems: 'center', backgroundColor: '#fff7ed', padding: 4, borderRadius: 2, width: '90%' }}>
+                        <Text style={{ fontSize: 5, color: '#ea580c', textTransform: 'uppercase' }}>Consumidor (B2C)</Text>
+                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#c2410c', marginTop: 2 }}>{formatCurrency(precoB2C)}</Text>
+                      </View>
+                      <View style={{ alignItems: 'center', backgroundColor: '#eff6ff', padding: 4, borderRadius: 2, width: '90%' }}>
+                        <Text style={{ fontSize: 5, color: '#2563eb', textTransform: 'uppercase' }}>Empresa (B2B)</Text>
+                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', marginTop: 2 }}>{formatCurrency(precoB2B)}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.footer} fixed>
