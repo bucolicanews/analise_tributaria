@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Package } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
 
 interface GlobalSummaryDataExt {
   totalSelling: number;
+  totalAcquisitionCost: number; // Novo campo para demonstrar o CMV
   totalTax: number;
   totalProfit: number;
   profitMarginPercent: number;
@@ -30,7 +31,7 @@ interface GlobalSummaryDataExt {
   totalSimplesToPay: number;
   totalSelectiveTaxToPay: number;
   totalIvaCreditForClient: number;
-  totalInssPatronalRateado: number; // Novo campo
+  totalInssPatronalRateado: number;
 }
 
 const calculateGlobalSummaryForComparison = (
@@ -43,6 +44,7 @@ const calculateGlobalSummaryForComparison = (
   profitMarginOverride: number
 ): GlobalSummaryDataExt => {
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
+  const totalAcquisitionCostSum = productsToSummarize.reduce((sum, p) => sum + p.cost * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
   const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
@@ -85,6 +87,7 @@ const calculateGlobalSummaryForComparison = (
 
   return {
     totalSelling: totalSellingSum,
+    totalAcquisitionCost: totalAcquisitionCostSum,
     totalTax: totalTaxSum,
     totalProfit: totalProfitSum,
     profitMarginPercent: profitMarginPercent,
@@ -103,7 +106,7 @@ const calculateGlobalSummaryForComparison = (
     totalSimplesToPay: totalSimplesToPaySum,
     totalSelectiveTaxToPay: totalSelectiveTaxToPaySum,
     totalIvaCreditForClient: totalIvaCreditForClientSum,
-    totalInssPatronalRateado: 0, // Será preenchido no componente
+    totalInssPatronalRateado: 0,
   };
 };
 
@@ -133,10 +136,7 @@ const Comparison = () => {
 
       const totalVarPct = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
       const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-
-      // O INSS Patronal muda dependendo do regime tributário (Para o Simples = 0, LP/LR = valor real)
       const baseOperationalFixed = baseParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + baseParams.payroll;
-
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
 
       const regimes = [
@@ -194,7 +194,6 @@ const Comparison = () => {
       ];
 
       const results = regimes.map(r => {
-        // Cálculo do Custo Fixo Específico do Regime (com ou sem INSS Patronal)
         const inssPatronalMensal = r.hasInssPatronal ? baseParams.payroll * (baseParams.inssPatronalRate / 100) : 0;
         const totalFixedCosts = baseOperationalFixed + inssPatronalMensal;
         
@@ -284,62 +283,92 @@ const Comparison = () => {
             <CheckCircle2 className="h-4 w-4" /><AlertTitle>Regime Mais Vantajoso</AlertTitle>
             <AlertDescription className="text-lg font-semibold">O melhor regime é: <span className="font-extrabold">{comparisonData.bestResult.label}</span>, com Lucro de <span className="font-extrabold">{formatCurrency(comparisonData.bestResult.summary.totalProfit)}</span>.</AlertDescription>
           </Alert>
+          
+          <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3 items-start">
+            <Info className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            <div>
+              <p className="text-sm font-bold text-blue-800">Entendendo a Matemática da Reforma (Não Cumulatividade)</p>
+              <p className="text-xs text-blue-700 mt-1">
+                No Lucro Presumido e Real (e Simples Híbrido), o imposto <strong>não é calculado sobre o faturamento cheio</strong>. 
+                A empresa paga o Débito gerado na Venda, mas <strong>abate os Créditos de ICMS e PIS/COFINS</strong> embutidos na Compra das mercadorias.
+                É por isso que empresas com alto Custo de Aquisição (CMV) pagam menos imposto nesses regimes.
+              </p>
+            </div>
+          </div>
         </CardHeader>
+        
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="min-w-[200px]">Métrica Financeira</TableHead>
+                  <TableHead className="min-w-[280px]">DRE Tributário (Como chegamos no imposto?)</TableHead>
                   {comparisonData.results.map(res => <TableHead key={res.label} className="text-right w-[150px]">{res.label}</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow><TableCell className="font-semibold text-primary text-base">Venda Sugerida Total</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-primary font-bold">{formatCurrency(res.summary.totalSelling)}</TableCell>)}</TableRow>
-                
-                {/* Memória de Cálculo: IBS/CBS */}
-                <TableRow className="bg-muted/30">
-                  <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">1. Apuração IBS / CBS (Reforma)</TableCell>
-                </TableRow>
-                <TableRow className="bg-muted/10">
-                  <TableCell className="text-xs pl-6">(+) Débito CBS (Gerado na Venda)</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalCbsDebit)}</TableCell>)}
-                </TableRow>
+                {/* Bases de Cálculo */}
                 <TableRow className="bg-muted/10 border-b-0">
-                  <TableCell className="text-xs pl-6 text-success font-medium">(-) Crédito CBS (PIS/COFINS da Compra)</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-medium">{formatCurrency(res.summary.totalCbsCredit)}</TableCell>)}
+                  <TableCell className="font-semibold text-xs text-muted-foreground pt-4 pb-1">Base de Crédito (Custo Aquisição c/ Impostos)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground pt-4 pb-1">{formatCurrency(res.summary.totalAcquisitionCost)}</TableCell>)}
                 </TableRow>
                 <TableRow className="bg-muted/10">
+                  <TableCell className="font-semibold text-primary text-base">Receita Bruta (Base do Débito)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-primary font-bold text-base">{formatCurrency(res.summary.totalSelling)}</TableCell>)}
+                </TableRow>
+                
+                {/* 1. Apuração IBS / CBS */}
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">1. Apuração do IVA (IBS / CBS)</TableCell>
+                </TableRow>
+                
+                {/* IBS (ICMS) */}
+                <TableRow className="bg-muted/5 border-b-0">
                   <TableCell className="text-xs pl-6">(+) Débito IBS (Gerado na Venda)</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalIbsDebit)}</TableCell>)}
                 </TableRow>
-                <TableRow className="bg-muted/10">
-                  <TableCell className="text-xs pl-6 text-success font-medium">(-) Crédito IBS (ICMS da Compra)</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-medium">{formatCurrency(res.summary.totalIbsCredit)}</TableCell>)}
+                <TableRow className="bg-muted/5">
+                  <TableCell className="text-xs pl-6 text-success font-semibold border-l-2 border-success">
+                    (-) Crédito IBS <span className="font-normal text-[10px] text-success/80">(Aproveitamento de ICMS da Compra)</span>
+                  </TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-semibold">{formatCurrency(res.summary.totalIbsCredit)}</TableCell>)}
                 </TableRow>
+
+                {/* CBS (PIS/COFINS) */}
+                <TableRow className="bg-muted/5 border-b-0">
+                  <TableCell className="text-xs pl-6">(+) Débito CBS (Gerado na Venda)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalCbsDebit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/5">
+                  <TableCell className="text-xs pl-6 text-success font-semibold border-l-2 border-success">
+                    (-) Crédito CBS <span className="font-normal text-[10px] text-success/80">(Aproveitamento de PIS/COFINS da Compra)</span>
+                  </TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-semibold">{formatCurrency(res.summary.totalCbsCredit)}</TableCell>)}
+                </TableRow>
+
                 <TableRow className="bg-muted/20 border-b-border">
-                  <TableCell className="text-xs font-bold pl-6 text-destructive">(=) IBS + CBS a Pagar (Líquido)</TableCell>
+                  <TableCell className="text-xs font-bold pl-6 text-destructive">(=) Saldo Líquido IBS + CBS a Pagar</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs font-bold text-destructive">{formatCurrency(res.summary.totalCbsTaxToPay + res.summary.totalIbsTaxToPay)}</TableCell>)}
                 </TableRow>
 
-                {/* Memória de Cálculo: Outros Impostos */}
+                {/* 2. Demais Tributos */}
                 <TableRow className="bg-muted/30">
                   <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">2. Demais Tributos da Operação</TableCell>
                 </TableRow>
-                <TableRow className="bg-muted/10">
+                <TableRow className="bg-muted/5">
                   <TableCell className="text-xs pl-6">(+) IRPJ e CSLL</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalIrpjToPay + res.summary.totalCsllToPay)}</TableCell>)}
                 </TableRow>
-                <TableRow className="bg-muted/10">
+                <TableRow className="bg-muted/5">
                   <TableCell className="text-xs pl-6">(+) Simples Nacional (DAS)</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalSimplesToPay)}</TableCell>)}
                 </TableRow>
-                <TableRow className="bg-muted/10">
+                <TableRow className="bg-muted/5 border-b-border">
                   <TableCell className="text-xs pl-6">(+) Imposto Seletivo (IS)</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalSelectiveTaxToPay)}</TableCell>)}
                 </TableRow>
 
-                {/* Memória de Cálculo: Encargos sobre Folha */}
+                {/* 3. Encargos sobre Folha */}
                 <TableRow className="bg-muted/30">
                   <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">3. Encargos sobre a Folha (Custo Fixo)</TableCell>
                 </TableRow>
@@ -367,10 +396,11 @@ const Comparison = () => {
                   })}
                 </TableRow>
                 
-                <TableRow className="bg-success/10">
+                <TableRow className="bg-success/10 border-b-success/20 border-b-2">
                   <TableCell className="font-extrabold text-lg text-success">LUCRO LÍQUIDO FINAL</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}
                 </TableRow>
+                
                 <TableRow>
                   <TableCell className="font-semibold text-muted-foreground">Ponto de Equilíbrio Operacional</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-muted-foreground">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}

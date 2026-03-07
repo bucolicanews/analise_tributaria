@@ -11,10 +11,12 @@ const styles = StyleSheet.create({
   reportInfo: { alignItems: 'flex-end' },
   reportTitle: { fontSize: 16, fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', color: '#1e293b' },
   reportDate: { fontSize: 9, color: '#94a3b8', marginTop: 4 },
-  bestResultCard: { padding: 15, backgroundColor: '#f0fdf4', borderRadius: 4, borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 20 },
+  bestResultCard: { padding: 15, backgroundColor: '#f0fdf4', borderRadius: 4, borderWidth: 1, borderColor: '#bbf7d0', marginBottom: 10 },
   bestResultTitle: { fontSize: 10, color: '#15803d', marginBottom: 6, textTransform: 'uppercase', fontFamily: 'Helvetica-Bold' },
   bestResultText: { fontSize: 14, color: '#166534', fontFamily: 'Helvetica-Bold' },
-  sectionTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#334155', marginBottom: 10, marginTop: 15, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 4 },
+  disclaimerBox: { padding: 10, backgroundColor: '#eff6ff', borderRadius: 4, borderWidth: 1, borderColor: '#bfdbfe', marginBottom: 20 },
+  disclaimerText: { fontSize: 8, color: '#1d4ed8' },
+  sectionTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#334155', marginBottom: 10, marginTop: 10, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 4 },
   tableHeaderRow: { flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 2, borderBottomColor: '#e2e8f0' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   tableRowGroupHeader: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
@@ -38,6 +40,7 @@ interface ComparisonData {
   label: string;
   summary: {
     totalSelling: number;
+    totalAcquisitionCost: number;
     totalTax: number;
     totalTaxPercent: number;
     totalProfit: number;
@@ -79,7 +82,7 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             <Text style={styles.brandSubtitle}>CONTABILIDADE E INTELIGENCIA</Text>
           </View>
           <View style={styles.reportInfo}>
-            <Text style={styles.reportTitle}>Comparativo de Regimes</Text>
+            <Text style={styles.reportTitle}>Comparativo Estrategico de Regimes</Text>
             <Text style={styles.reportDate}>{companyName}</Text>
             <Text style={styles.reportDate}>{'Emissao: ' + currentDate}</Text>
           </View>
@@ -92,7 +95,13 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           </Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Resumo Global - Demonstracao de Resultado</Text>
+        <View style={styles.disclaimerBox}>
+          <Text style={styles.disclaimerText}>
+            * Entendendo o Calculo: No Lucro Presumido e Real, o imposto nao incide sobre todo o faturamento. A empresa deduz os creditos de ICMS e PIS/COFINS pagos na compra. E por isso que empresas com alto Custo de Aquisicao (CMV) geralmente tem vantagem saindo do Simples Nacional.
+          </Text>
+        </View>
+
+        <Text style={[styles.sectionTitle, { marginTop: 0 }]}>DRE Tributario - Como chegamos no imposto?</Text>
         <View style={styles.tableWrapper}>
           <View style={styles.tableHeaderRow} fixed>
             <View style={[styles.colHeader, { width: colPct }]}><Text>Metrica Financeira</Text></View>
@@ -103,8 +112,17 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             ))}
           </View>
 
+          {/* BASES */}
+          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b' }}>Base de Credito (Custo de Aquisicao)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b' }]}>{formatCurrency(res.summary.totalAcquisitionCost)}</Text>
+              </View>
+            ))}
+          </View>
           <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorPrimary, { fontFamily: 'Helvetica-Bold' }]}>Venda Sugerida Total</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorPrimary, { fontFamily: 'Helvetica-Bold' }]}>Receita Bruta (Base de Debito)</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorPrimary]}>{formatCurrency(res.summary.totalSelling)}</Text>
@@ -115,26 +133,10 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           {/* GRUPO 1: IBS / CBS */}
           <View style={styles.tableRowGroupHeader}>
             <View style={{ padding: 8, width: '100%' }}>
-              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>1. Apuracao IBS / CBS (Reforma)</Text>
+              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>1. Apuracao do IVA (IBS/CBS)</Text>
             </View>
           </View>
 
-          <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Debito CBS (Venda)</Text></View>
-            {results.map(res => (
-              <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsDebit)}</Text>
-              </View>
-            ))}
-          </View>
-          <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito CBS (PIS/COFINS Compra)</Text></View>
-            {results.map(res => (
-              <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsCredit)}</Text>
-              </View>
-            ))}
-          </View>
           <View style={styles.tableRow}>
             <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Debito IBS (Venda)</Text></View>
             {results.map(res => (
@@ -144,15 +146,31 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             ))}
           </View>
           <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito IBS (ICMS da Compra)</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito IBS (Aproveita ICMS da Compra)</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>{formatCurrency(res.summary.totalIbsCredit)}</Text>
               </View>
             ))}
           </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Debito CBS (Venda)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsDebit)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito CBS (Aproveita PIS/COFINS)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsCredit)}</Text>
+              </View>
+            ))}
+          </View>
           <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#ef4444', paddingLeft: 10 }}>(=) IBS + CBS a Pagar (Liquido)</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#ef4444', paddingLeft: 10 }}>(=) Saldo Liquido IBS + CBS a Pagar</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorDestructive, { fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsTaxToPay + res.summary.totalIbsTaxToPay)}</Text>
@@ -259,47 +277,6 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
               </View>
             ))}
           </View>
-        </View>
-
-        <Text style={styles.sectionTitle}>Analise de Precos por Produto (B2C vs B2B)</Text>
-        <View style={styles.tableWrapper}>
-          <View style={styles.tableHeaderRow} fixed>
-            <View style={[styles.colHeader, { width: colPct }]}><Text>Produto / Custo</Text></View>
-            {results.map(res => (
-              <View key={res.label} style={[styles.colHeader, { width: colPct, textAlign: 'center' }]}>
-                <Text>{res.label}</Text>
-              </View>
-            ))}
-          </View>
-          
-          {results[0].products.map((_, index) => {
-            return (
-              <View key={index} style={styles.tableRow} wrap={false}>
-                <View style={[styles.col, { width: colPct }]}>
-                  <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8 }}>{results[0].products[index].name}</Text>
-                  <Text style={{ fontSize: 7, color: '#64748b', marginTop: 2 }}>Cod: {results[0].products[index].code}</Text>
-                  <Text style={{ fontSize: 7, color: '#64748b', marginTop: 1 }}>Custo Aq.: {formatCurrency(results[0].products[index].cost)}</Text>
-                </View>
-                {results.map(res => {
-                  const prod = res.products[index];
-                  const precoB2C = prod.sellingPrice;
-                  const precoB2B = prod.sellingPrice - prod.ivaCreditForClient;
-                  return (
-                    <View key={res.label} style={[styles.col, { width: colPct, alignItems: 'center' }]}>
-                      <View style={{ marginBottom: 4, alignItems: 'center', backgroundColor: '#fff7ed', padding: 4, borderRadius: 2, width: '90%' }}>
-                        <Text style={{ fontSize: 5, color: '#ea580c', textTransform: 'uppercase' }}>Consumidor (B2C)</Text>
-                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#c2410c', marginTop: 2 }}>{formatCurrency(precoB2C)}</Text>
-                      </View>
-                      <View style={{ alignItems: 'center', backgroundColor: '#eff6ff', padding: 4, borderRadius: 2, width: '90%' }}>
-                        <Text style={{ fontSize: 5, color: '#2563eb', textTransform: 'uppercase' }}>Empresa (B2B)</Text>
-                        <Text style={{ fontSize: 8, fontFamily: 'Helvetica-Bold', color: '#1d4ed8', marginTop: 2 }}>{formatCurrency(precoB2B)}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </View>
-            );
-          })}
         </View>
 
         <View style={styles.footer} fixed>
