@@ -1,13 +1,13 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Loader2, Package } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Package } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader as UIHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
 
@@ -197,8 +197,10 @@ const Comparison = () => {
                 </DialogTrigger>
                 <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col gap-0">
                   <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-                    <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
-                    <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
+                    <UIHeader>
+                      <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
+                      <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
+                    </UIHeader>
                   </div>
                   <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                     <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
@@ -246,25 +248,69 @@ const Comparison = () => {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Métrica</TableHead>
-                  {comparisonData.results.map(res => <TableHead key={res.label} className="text-right">{res.label}</TableHead>)}
+                  <TableHead className="min-w-[200px]">Métrica Financeira</TableHead>
+                  {comparisonData.results.map(res => <TableHead key={res.label} className="text-right w-[150px]">{res.label}</TableHead>)}
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow><TableCell className="font-semibold">Venda Sugerida</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.totalSelling)}</TableCell>)}</TableRow>
+                <TableRow><TableCell className="font-semibold text-primary text-base">Venda Sugerida Total</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-primary font-bold">{formatCurrency(res.summary.totalSelling)}</TableCell>)}</TableRow>
                 
-                <TableRow className="bg-muted/10">
-                  <TableCell className="font-medium text-muted-foreground text-xs pl-6">↳ Débitos IBS/CBS Gerados</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalCbsDebit + res.summary.totalIbsDebit)}</TableCell>)}
+                {/* Memória de Cálculo: IBS/CBS */}
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">1. Apuração IBS / CBS (Reforma)</TableCell>
                 </TableRow>
                 <TableRow className="bg-muted/10">
-                  <TableCell className="font-medium text-success text-xs pl-6">↳ Créditos IBS/CBS Abatidos</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-bold">{formatCurrency(res.summary.totalCbsCredit + res.summary.totalIbsCredit)}</TableCell>)}
+                  <TableCell className="text-xs pl-6">(+) Débito CBS (Gerado na Venda)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalCbsDebit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10 border-b-0">
+                  <TableCell className="text-xs pl-6 text-success font-medium">(-) Crédito CBS (PIS/COFINS da Compra)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-medium">{formatCurrency(res.summary.totalCbsCredit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="text-xs pl-6">(+) Débito IBS (Gerado na Venda)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalIbsDebit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="text-xs pl-6 text-success font-medium">(-) Crédito IBS (ICMS da Compra)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-medium">{formatCurrency(res.summary.totalIbsCredit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/20 border-b-border">
+                  <TableCell className="text-xs font-bold pl-6 text-destructive">(=) IBS + CBS a Pagar (Líquido)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs font-bold text-destructive">{formatCurrency(res.summary.totalCbsTaxToPay + res.summary.totalIbsTaxToPay)}</TableCell>)}
                 </TableRow>
 
-                <TableRow><TableCell className="font-semibold">Impostos Líquidos</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-destructive">{formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})</TableCell>)}</TableRow>
-                <TableRow className="bg-success/10"><TableCell className="font-extrabold">LUCRO LÍQUIDO</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}</TableRow>
-                <TableRow><TableCell className="font-semibold">Ponto de Equilíbrio</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}</TableRow>
+                {/* Memória de Cálculo: Outros Impostos */}
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">2. Demais Tributos da Operação</TableCell>
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="text-xs pl-6">(+) IRPJ e CSLL</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalIrpjToPay + res.summary.totalCsllToPay)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="text-xs pl-6">(+) Simples Nacional (DAS)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalSimplesToPay)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="text-xs pl-6">(+) Imposto Seletivo (IS)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalSelectiveTaxToPay)}</TableCell>)}
+                </TableRow>
+
+                {/* TOTAIS */}
+                <TableRow>
+                  <TableCell className="font-bold pt-4 text-destructive uppercase">(=) Impostos Líquidos Totais</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right pt-4 font-bold text-destructive">{formatCurrency(res.summary.totalTax)} <span className="text-[10px] block opacity-70">({formatPercent(res.summary.totalTaxPercent)})</span></TableCell>)}
+                </TableRow>
+                
+                <TableRow className="bg-success/10">
+                  <TableCell className="font-extrabold text-lg text-success">LUCRO LÍQUIDO FINAL</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}
+                </TableRow>
+                <TableRow>
+                  <TableCell className="font-semibold text-muted-foreground">Ponto de Equilíbrio Operacional</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-muted-foreground">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}
+                </TableRow>
               </TableBody>
             </Table>
           </div>

@@ -17,6 +17,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 12, fontFamily: 'Helvetica-Bold', color: '#334155', marginBottom: 10, marginTop: 15, textTransform: 'uppercase', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingBottom: 4 },
   tableHeaderRow: { flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 2, borderBottomColor: '#e2e8f0' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  tableRowGroupHeader: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
   tableRowHighlight: { flexDirection: 'row', backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   tableWrapper: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4, marginBottom: 20 },
   colHeader: { padding: 8, fontFamily: 'Helvetica-Bold', fontSize: 8, textTransform: 'uppercase', color: '#475569' },
@@ -26,6 +27,8 @@ const styles = StyleSheet.create({
   footer: { position: 'absolute', bottom: 30, left: 30, right: 30, borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: '#94a3b8' },
   colorDestructive: { color: '#ef4444' },
   colorSuccess: { color: '#16a34a' },
+  colorPrimary: { color: '#f97316' },
+  textMuted: { color: '#64748b' }
 });
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -43,6 +46,12 @@ interface ComparisonData {
     totalIbsDebit: number;
     totalCbsCredit: number;
     totalIbsCredit: number;
+    totalCbsTaxToPay: number;
+    totalIbsTaxToPay: number;
+    totalIrpjToPay: number;
+    totalCsllToPay: number;
+    totalSimplesToPay: number;
+    totalSelectiveTaxToPay: number;
   };
   products: CalculatedProduct[];
 }
@@ -82,10 +91,10 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           </Text>
         </View>
 
-        <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Resumo Global</Text>
+        <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Resumo Global - Demonstracao de Resultado</Text>
         <View style={styles.tableWrapper}>
           <View style={styles.tableHeaderRow} fixed>
-            <View style={[styles.colHeader, { width: colPct }]}><Text>Metrica</Text></View>
+            <View style={[styles.colHeader, { width: colPct }]}><Text>Metrica Financeira</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.colHeader, { width: colPct, textAlign: 'right' }]}>
                 <Text>{res.label}</Text>
@@ -94,45 +103,111 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           </View>
 
           <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold' }}>Venda Sugerida</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorPrimary, { fontFamily: 'Helvetica-Bold' }]}>Venda Sugerida Total</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={styles.cellRight}>{formatCurrency(res.summary.totalSelling)}</Text>
+                <Text style={[styles.cellRightBold, styles.colorPrimary]}>{formatCurrency(res.summary.totalSelling)}</Text>
               </View>
             ))}
           </View>
 
-          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b' }}>└ Debitos IBS/CBS Gerados</Text></View>
-            {results.map(res => (
-              <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsDebit + res.summary.totalIbsDebit)}</Text>
-              </View>
-            ))}
-          </View>
-
-          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a' }}>└ Creditos IBS/CBS Abatidos</Text></View>
-            {results.map(res => (
-              <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={[styles.cellRight, styles.colorSuccess, { fontSize: 8, fontFamily: 'Helvetica-Bold' }]}>{formatCurrency(res.summary.totalCbsCredit + res.summary.totalIbsCredit)}</Text>
-              </View>
-            ))}
+          {/* GRUPO 1: IBS / CBS */}
+          <View style={styles.tableRowGroupHeader}>
+            <View style={{ padding: 8, width: '100%' }}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>1. Apuracao IBS / CBS (Reforma)</Text>
+            </View>
           </View>
 
           <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold' }}>Impostos Liquidos</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Debito CBS (Venda)</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={[styles.cellRight, styles.colorDestructive]}>
-                  {formatCurrency(res.summary.totalTax) + ' (' + formatPercent(res.summary.totalTaxPercent) + ')'}
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsDebit)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito CBS (PIS/COFINS Compra)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsCredit)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Debito IBS (Venda)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalIbsDebit)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>(-) Credito IBS (ICMS da Compra)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>{formatCurrency(res.summary.totalIbsCredit)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#ef4444', paddingLeft: 10 }}>(=) IBS + CBS a Pagar (Liquido)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorDestructive, { fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsTaxToPay + res.summary.totalIbsTaxToPay)}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* GRUPO 2: OUTROS IMPOSTOS */}
+          <View style={styles.tableRowGroupHeader}>
+            <View style={{ padding: 8, width: '100%' }}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>2. Demais Tributos da Operacao</Text>
+            </View>
+          </View>
+
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) IRPJ e CSLL</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalIrpjToPay + res.summary.totalCsllToPay)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Simples Nacional (DAS)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalSimplesToPay)}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) Imposto Seletivo (IS)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalSelectiveTaxToPay)}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* TOTALIZADOR */}
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold' }]}>(=) Impostos Liquidos Totais</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorDestructive]}>
+                  {formatCurrency(res.summary.totalTax)}
+                </Text>
+                <Text style={{ fontSize: 6, color: '#ef4444', textAlign: 'right', marginTop: 1 }}>
+                  ({formatPercent(res.summary.totalTaxPercent)})
                 </Text>
               </View>
             ))}
           </View>
 
           <View style={styles.tableRowHighlight}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold' }}>LUCRO LIQUIDO</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#16a34a' }}>LUCRO LIQUIDO FINAL</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 11 }]}>
@@ -143,10 +218,10 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
           </View>
 
           <View style={styles.tableRow}>
-            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold' }}>Ponto de Equilibrio</Text></View>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', color: '#64748b' }}>Ponto de Equilibrio</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
-                <Text style={styles.cellRight}>{formatCurrency(res.summary.breakEvenPoint)}</Text>
+                <Text style={[styles.cellRight, { color: '#64748b' }]}>{formatCurrency(res.summary.breakEvenPoint)}</Text>
               </View>
             ))}
           </View>
