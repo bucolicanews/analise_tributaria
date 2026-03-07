@@ -173,25 +173,26 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     let totalOptionCost = 0;
 
     if (params.taxRegime === TaxRegime.SimplesNacional) {
+      const reducedSimplesRate = params.simplesNacionalRate * 0.5;
       const standard = productsToCalculate.map(p => calculatePricing(p, { ...params, generateIvaCredit: false }, cfu));
-      const hybrid = productsToCalculate.map(p => calculatePricing(p, { ...params, generateIvaCredit: true }, cfu));
+      const hybrid = productsToCalculate.map(p => calculatePricing(p, { ...params, generateIvaCredit: true, simplesNacionalRate: reducedSimplesRate }, cfu));
       calculatedProductsForBestSale = params.generateIvaCredit ? hybrid : standard;
       
       const paramsForMinSale = { ...params, profitMargin: 0 };
       calculatedProductsForMinSale = params.generateIvaCredit
-        ? productsToCalculate.map(p => calculatePricing(p, { ...paramsForMinSale, generateIvaCredit: true }, cfu))
+        ? productsToCalculate.map(p => calculatePricing(p, { ...paramsForMinSale, generateIvaCredit: true, simplesNacionalRate: reducedSimplesRate }, cfu))
         : productsToCalculate.map(p => calculatePricing(p, { ...paramsForMinSale, generateIvaCredit: false }, cfu));
 
       const summaryStandard = calculateGlobalSummary(standard, { ...params, generateIvaCredit: false }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
-      const summaryHybrid = calculateGlobalSummary(hybrid, { ...params, generateIvaCredit: true }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+      const summaryHybrid = calculateGlobalSummary(hybrid, { ...params, generateIvaCredit: true, simplesNacionalRate: reducedSimplesRate }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
       totalOptionCost = summaryHybrid.totalTax - summaryStandard.totalTax;
     } else {
       calculatedProductsForBestSale = productsToCalculate.map(p => calculatePricing(p, params, cfu));
       calculatedProductsForMinSale = productsToCalculate.map(p => calculatePricing(p, { ...params, profitMargin: 0 }, cfu));
     }
 
-    const summaryDataBestSale = calculateGlobalSummary(calculatedProductsForBestSale, params, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
-    const summaryDataMinSale = calculateGlobalSummary(calculatedProductsForMinSale, { ...params, profitMargin: 0 }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+    const summaryDataBestSale = calculateGlobalSummary(calculatedProductsForBestSale, params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit ? {...params, simplesNacionalRate: params.simplesNacionalRate * 0.5} : params, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
+    const summaryDataMinSale = calculateGlobalSummary(calculatedProductsForMinSale, params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit ? {...params, profitMargin: 0, simplesNacionalRate: params.simplesNacionalRate * 0.5} : { ...params, profitMargin: 0 }, totalFixedExpenses, totalVariableExpensesPercent, cfu, totalInnerUnitsInXML);
 
     let cumpData = null;
     if (totalInnerUnitsInXML > 0) {
@@ -204,7 +205,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
     }
     
     const allCalculatedProducts = products.map(p => {
-      const calculated = calculatePricing(p, params, cfu);
+      const calculated = calculatePricing(p, params.taxRegime === TaxRegime.SimplesNacional && params.generateIvaCredit ? {...params, simplesNacionalRate: params.simplesNacionalRate * 0.5} : params, cfu);
       return { ...calculated, strategicData: strategicDataMap.get(p.code) };
     });
 

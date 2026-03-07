@@ -112,6 +112,11 @@ const Comparison = () => {
       const totalVarPct = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
       const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
+      // A grande correção do Simples Híbrido:
+      // Se a empresa opta pelo Híbrido, a fatia do DAS que corresponde ao ICMS/PIS/COFINS é excluída.
+      // Em média (Anexo I e II), isso representa cerca de 50% da alíquota do DAS.
+      const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
+
       const regimes = [
         { 
           label: "Simples Nacional (Padrão)", 
@@ -130,6 +135,7 @@ const Comparison = () => {
           params: { 
             ...baseParams, 
             taxRegime: TaxRegime.SimplesNacional, 
+            simplesNacionalRate: reducedSimplesRate, // Correção aplicada aqui!
             generateIvaCredit: true,
             usePisCofins: true,
             icmsPercentage: 100,
