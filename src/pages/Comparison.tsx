@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader as UIHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
+import { Slider } from "@/components/ui/slider";
+import { Input } from "@/components/ui/input";
 
 interface GlobalSummaryDataExt {
   totalSelling: number;
@@ -118,10 +120,23 @@ const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
 const Comparison = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [localPassThrough, setLocalPassThrough] = useState<number>(0);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
+
+  // Inicializa o estado local com o valor salvo
+  useEffect(() => {
+    const saved = localStorage.getItem('jota-taxPassThrough');
+    if (saved) setLocalPassThrough(parseFloat(saved));
+  }, []);
+
+  const handlePassThroughChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(100, val));
+    setLocalPassThrough(clamped);
+    localStorage.setItem('jota-taxPassThrough', clamped.toString());
+  };
 
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -142,7 +157,7 @@ const Comparison = () => {
       const baseOperationalFixed = baseParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + baseParams.payroll;
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
       
-      const passThroughRatio = (baseParams.taxPassThroughPercentage ?? 0) / 100;
+      const passThroughRatio = localPassThrough / 100;
 
       // 1. CALCULA O CENÁRIO BASE (SIMPLES NACIONAL) PARA ANCORAR O PREÇO
       const baseRegimeParams: CalculationParams = { 
@@ -215,15 +230,12 @@ const Comparison = () => {
           const basePrice = baseCalculatedProducts[idx].sellingPrice;
           
           if (passThroughRatio === 0) {
-            // Repasse 0% = Trava o preço no mercado
             return calculatePricing(p, r.params, cfu, basePrice);
           }
           
-          // Calcula o preço IDEAL para aquele regime (100% de repasse)
           const idealProduct = calculatePricing(p, r.params, cfu);
           const idealPrice = idealProduct.sellingPrice;
           
-          // Calcula o preço final interpolado com base no slider de elasticidade
           const finalPrice = basePrice + (idealPrice - basePrice) * passThroughRatio;
           
           return calculatePricing(p, r.params, cfu, finalPrice);
@@ -242,9 +254,9 @@ const Comparison = () => {
       let bestResult = results[0];
       results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
 
-      return { results, bestResult, originalProducts: productsToProcess, passThroughRatio };
+      return { results, bestResult, originalProducts: productsToProcess };
     } catch (error) { return null; }
-  }, []);
+  }, [localPassThrough]);
 
   if (!comparisonData) return <div className="p-8 text-center">Dados insuficientes para comparação. Realize uma precificação primeiro.</div>;
 
@@ -311,23 +323,44 @@ const Comparison = () => {
             <AlertDescription className="text-lg font-semibold">O melhor regime é: <span className="font-extrabold">{comparisonData.bestResult.label}</span>, com Lucro de <span className="font-extrabold">{formatCurrency(comparisonData.bestResult.summary.totalProfit)}</span>.</AlertDescription>
           </Alert>
           
-          <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3 items-start">
-            {comparisonData.passThroughRatio === 0 ? (
-              <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-            ) : (
-              <Zap className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-            )}
-            <div>
-              <p className="text-sm font-bold text-blue-800">
-                {comparisonData.passThroughRatio === 0 
-                  ? "Simulação de Mercado (Preços Travados no 0%)" 
-                  : `Simulação Híbrida (${(comparisonData.passThroughRatio * 100).toFixed(0)}% de Repasse)`}
-              </p>
-              <p className="text-xs text-blue-700 mt-1">
-                {comparisonData.passThroughRatio === 0 
-                  ? "O sistema travou o Preço de Venda em todos os regimes. Desta forma, o comparativo demonstra qual tributação corrói menos a sua margem de lucro mantendo a exata mesma competitividade atual."
-                  : `O sistema está repassando ${(comparisonData.passThroughRatio * 100).toFixed(0)}% das variações tributárias para o preço final. O restante do impacto de aumento ou diminuição de impostos recairá diretamente sobre a margem de lucro da empresa.`}
-              </p>
+          <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex flex-col gap-4">
+            <div className="flex gap-3 items-start">
+              {localPassThrough === 0 ? (
+                <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+              ) : (
+                <Zap className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+              )}
+              <div className="flex-1">
+                <p className="text-sm font-bold text-blue-800">
+                  {localPassThrough === 0 
+                    ? "Simulação de Mercado (Preços Travados no 0%)" 
+                    : `Simulação Híbrida (${localPassThrough}% de Repasse)`}
+                </p>
+                <p className="text-xs text-blue-700 mt-1">
+                  {localPassThrough === 0 
+                    ? "O sistema travou o Preço de Venda em todos os regimes. O comparativo demonstra qual tributação corrói menos a sua margem de lucro."
+                    : `O sistema está repassando ${localPassThrough}% das variações tributárias para o preço final. O restante recairá diretamente sobre a margem de lucro da empresa.`}
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-center gap-4 px-2 pt-2 border-t border-blue-500/20">
+              <Slider 
+                value={[localPassThrough]} 
+                onValueChange={(v) => handlePassThroughChange(v[0])} 
+                max={100} 
+                step={1} 
+                className="flex-1 cursor-pointer"
+              />
+              <div className="w-[80px] flex items-center gap-1">
+                <Input 
+                  type="number" 
+                  value={localPassThrough} 
+                  onChange={(e) => handlePassThroughChange(Number(e.target.value))} 
+                  className="text-right h-8 text-sm bg-white/50 border-blue-500/30"
+                />
+                <span className="text-sm font-bold text-blue-800">%</span>
+              </div>
             </div>
           </div>
         </CardHeader>
