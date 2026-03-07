@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -252,6 +252,16 @@ const Comparison = () => {
               </TableHeader>
               <TableBody>
                 <TableRow><TableCell className="font-semibold">Venda Sugerida</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.totalSelling)}</TableCell>)}</TableRow>
+                
+                <TableRow className="bg-muted/10">
+                  <TableCell className="font-medium text-muted-foreground text-xs pl-6">↳ Débitos IBS/CBS Gerados</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalCbsDebit + res.summary.totalIbsDebit)}</TableCell>)}
+                </TableRow>
+                <TableRow className="bg-muted/10">
+                  <TableCell className="font-medium text-success text-xs pl-6">↳ Créditos IBS/CBS Abatidos</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-success font-bold">{formatCurrency(res.summary.totalCbsCredit + res.summary.totalIbsCredit)}</TableCell>)}
+                </TableRow>
+
                 <TableRow><TableCell className="font-semibold">Impostos Líquidos</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-destructive">{formatCurrency(res.summary.totalTax)} ({formatPercent(res.summary.totalTaxPercent)})</TableCell>)}</TableRow>
                 <TableRow className="bg-success/10"><TableCell className="font-extrabold">LUCRO LÍQUIDO</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}</TableRow>
                 <TableRow><TableCell className="font-semibold">Ponto de Equilíbrio</TableCell>{comparisonData.results.map(res => <TableCell key={res.label} className="text-right">{formatCurrency(res.summary.breakEvenPoint)}</TableCell>)}</TableRow>

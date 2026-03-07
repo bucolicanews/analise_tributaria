@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   cellRightBold: { textAlign: 'right', fontSize: 9, fontFamily: 'Helvetica-Bold' },
   footer: { position: 'absolute', bottom: 30, left: 30, right: 30, borderTopWidth: 1, borderTopColor: '#e2e8f0', paddingTop: 10, flexDirection: 'row', justifyContent: 'space-between', fontSize: 7, color: '#94a3b8' },
   colorDestructive: { color: '#ef4444' },
-  colorSuccess: { color: '#22c55e' },
+  colorSuccess: { color: '#16a34a' },
 });
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -39,6 +39,10 @@ interface ComparisonData {
     totalTaxPercent: number;
     totalProfit: number;
     breakEvenPoint: number;
+    totalCbsDebit: number;
+    totalIbsDebit: number;
+    totalCbsCredit: number;
+    totalIbsCredit: number;
   };
   products: CalculatedProduct[];
 }
@@ -94,6 +98,24 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={styles.cellRight}>{formatCurrency(res.summary.totalSelling)}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b' }}>└ Debitos IBS/CBS Gerados</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalCbsDebit + res.summary.totalIbsDebit)}</Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#f8fafc' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a' }}>└ Creditos IBS/CBS Abatidos</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, styles.colorSuccess, { fontSize: 8, fontFamily: 'Helvetica-Bold' }]}>{formatCurrency(res.summary.totalCbsCredit + res.summary.totalIbsCredit)}</Text>
               </View>
             ))}
           </View>
