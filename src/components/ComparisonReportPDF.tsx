@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
   tableHeaderRow: { flexDirection: 'row', backgroundColor: '#f8fafc', borderBottomWidth: 2, borderBottomColor: '#e2e8f0' },
   tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
   tableRowGroupHeader: { flexDirection: 'row', backgroundColor: '#f1f5f9', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  tableRowHighlight: { flexDirection: 'row', backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#f1f5f9' },
+  tableRowHighlight: { flexDirection: 'row', backgroundColor: '#f0fdf4', borderBottomWidth: 1, borderBottomColor: '#f1f5f9', paddingTop: 4 },
   tableWrapper: { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 4, marginBottom: 20 },
   colHeader: { padding: 8, fontFamily: 'Helvetica-Bold', fontSize: 8, textTransform: 'uppercase', color: '#475569' },
   col: { padding: 8 },
@@ -30,6 +30,7 @@ const styles = StyleSheet.create({
   colorDestructive: { color: '#ef4444' },
   colorSuccess: { color: '#16a34a' },
   colorPrimary: { color: '#f97316' },
+  colorBlue: { color: '#1d4ed8' },
   textMuted: { color: '#64748b' }
 });
 
@@ -44,6 +45,7 @@ interface ComparisonData {
     totalTax: number;
     totalTaxPercent: number;
     totalProfit: number;
+    profitMarginPercent: number;
     breakEvenPoint: number;
     totalCbsDebit: number;
     totalIbsDebit: number;
@@ -63,12 +65,13 @@ interface ComparisonData {
 interface ComparisonReportPDFProps {
   results: ComparisonData[];
   bestResult: ComparisonData;
+  worstProfit: number;
   companyName: string;
   accountantName: string;
   accountantCrc: string;
 }
 
-export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ results, bestResult, companyName, accountantName, accountantCrc }) => {
+export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ results, bestResult, worstProfit, companyName, accountantName, accountantCrc }) => {
   const currentDate = new Date().toLocaleDateString('pt-BR');
   const totalCols = results.length + 1;
   const colPct = (100 / totalCols).toFixed(1) + '%';
@@ -226,16 +229,13 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             ))}
           </View>
 
-          {/* TOTAIS */}
+          {/* TOTAIS E CARGAS */}
           <View style={styles.tableRow}>
             <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold' }]}>(=) Impostos Liquidos Totais</Text></View>
             {results.map(res => (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorDestructive]}>
                   {formatCurrency(res.summary.totalTax)}
-                </Text>
-                <Text style={{ fontSize: 6, color: '#ef4444', textAlign: 'right', marginTop: 1 }}>
-                  ({formatPercent(res.summary.totalTaxPercent)})
                 </Text>
               </View>
             ))}
@@ -245,19 +245,30 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold' }]}>CARGA TOTAL (Impostos + INSS)</Text></View>
             {results.map(res => {
               const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
-              const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
               return (
               <View key={res.label} style={[styles.col, { width: colPct }]}>
                 <Text style={[styles.cellRightBold, styles.colorDestructive]}>
                   {formatCurrency(cargaTotal)}
                 </Text>
-                <Text style={{ fontSize: 6, color: '#ef4444', textAlign: 'right', marginTop: 1 }}>
-                  ({formatPercent(cargaPct)})
+              </View>
+            )})}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#fef2f2' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold', fontSize: 8, paddingLeft: 10 }]}>Carga Tributaria Efetiva (%)</Text></View>
+            {results.map(res => {
+              const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
+              const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
+              return (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorDestructive, { fontSize: 8 }]}>
+                  {formatPercent(cargaPct)}
                 </Text>
               </View>
             )})}
           </View>
 
+          {/* LUCRO E ECONOMIA */}
           <View style={styles.tableRowHighlight}>
             <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 10, color: '#16a34a' }}>LUCRO LIQUIDO FINAL</Text></View>
             {results.map(res => (
@@ -267,6 +278,30 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
                 </Text>
               </View>
             ))}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#f0fdf4' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#16a34a', paddingLeft: 10 }}>Margem Liquida Operacional (%)</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorSuccess, { fontSize: 8 }]}>
+                  {formatPercent(res.summary.profitMarginPercent)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#eff6ff', borderBottomWidth: 2, borderBottomColor: '#bfdbfe' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 9, color: '#1d4ed8' }}>ECONOMIA VS PIOR REGIME</Text></View>
+            {results.map(res => {
+              const economia = res.summary.totalProfit - worstProfit;
+              return (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorBlue, { fontSize: 9 }]}>
+                  {economia > 0 ? `+ ${formatCurrency(economia)}` : 'PIOR CENARIO'}
+                </Text>
+              </View>
+            )})}
           </View>
 
           <View style={styles.tableRow}>

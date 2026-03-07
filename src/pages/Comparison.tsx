@@ -243,7 +243,6 @@ const Comparison = () => {
         productsToProcess.forEach((p, idx) => {
           const basePrice = baseCalculatedProducts[idx].sellingPrice;
           
-          // Taxa de crédito que o cliente recupera se comprar neste regime
           let clientCreditRate = 0;
           if (r.params.taxRegime === TaxRegime.LucroPresumido || r.params.taxRegime === TaxRegime.LucroReal || (r.params.taxRegime === TaxRegime.SimplesNacional && r.params.generateIvaCredit)) {
               const cbsRateEff = r.params.useCbsDebit ? r.params.cbsRate / 100 : 0;
@@ -252,22 +251,18 @@ const Comparison = () => {
           }
           clientCreditRate = Math.min(0.99, clientCreditRate);
           
-          // O preço COMPETITIVO B2B é o preço que dá ao cliente o MESMO custo líquido que ele teria comprando do Simples
           const competitivePriceB2C = basePrice;
           const competitivePriceB2B = basePrice / (1 - clientCreditRate);
 
-          // Calcula o preço IDEAL para manter a margem neste regime
           const idealProduct = calculatePricing(p, r.params, cfu);
           const idealPrice = idealProduct.sellingPrice;
           
-          // Aplica o repasse (elasticidade) sobre o preço competitivo
           const finalPriceB2C = competitivePriceB2C + (idealPrice - competitivePriceB2C) * passThroughRatio;
           const finalPriceB2B = competitivePriceB2B + (idealPrice - competitivePriceB2B) * passThroughRatio;
           
           const qtyB2C = p.quantity * mixB2C;
           const qtyB2B = p.quantity * mixB2B;
           
-          // Divide a nota em dois mundos para montar o DRE exato
           if (qtyB2C > 0) {
               dreProducts.push(calculatePricing({ ...p, quantity: qtyB2C }, r.params, cfu, finalPriceB2C));
           }
@@ -295,7 +290,9 @@ const Comparison = () => {
       let bestResult = results[0];
       results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
 
-      return { results, bestResult, originalProducts: productsToProcess, passThroughRatio, b2bMix };
+      const worstProfit = Math.min(...results.map(r => r.summary.totalProfit));
+
+      return { results, bestResult, worstProfit, originalProducts: productsToProcess };
     } catch (error) { return null; }
   }, [localPassThrough, b2bMix]);
 
@@ -328,6 +325,7 @@ const Comparison = () => {
                       <ComparisonReportPDF 
                         results={comparisonData.results}
                         bestResult={comparisonData.bestResult}
+                        worstProfit={comparisonData.worstProfit}
                         companyName={companyName}
                         accountantName={accountantName}
                         accountantCrc={accountantCrc}
@@ -342,6 +340,7 @@ const Comparison = () => {
                   <ComparisonReportPDF 
                     results={comparisonData.results}
                     bestResult={comparisonData.bestResult}
+                    worstProfit={comparisonData.worstProfit}
                     companyName={companyName}
                     accountantName={accountantName}
                     accountantCrc={accountantCrc}
@@ -390,11 +389,11 @@ const Comparison = () => {
                   onValueChange={(v) => handlePassThroughChange(v[0])} 
                   max={100} step={1} className="flex-1 cursor-pointer"
                 />
-                <div className="flex items-center gap-1">
+                <div className="w-[70px] flex items-center gap-1">
                   <Input 
                     type="number" value={localPassThrough} 
                     onChange={(e) => handlePassThroughChange(Number(e.target.value))} 
-                    className="w-20 text-right h-8 text-sm bg-white/50 border-blue-500/30"
+                    className="text-right h-8 text-sm bg-white/50 border-blue-500/30"
                   />
                   <span className="text-xs font-bold text-blue-800">%</span>
                 </div>
@@ -427,11 +426,11 @@ const Comparison = () => {
                   max={100} step={5} className="flex-1 cursor-pointer"
                 />
                 <span className="text-[10px] font-bold text-emerald-800 w-[20px] text-right">B2B</span>
-                <div className="flex items-center gap-1 ml-2">
+                <div className="w-[70px] flex items-center gap-1 ml-2">
                   <Input 
                     type="number" value={b2bMix} 
                     onChange={(e) => handleB2bMixChange(Number(e.target.value))} 
-                    className="w-20 text-right h-8 text-sm bg-white/50 border-emerald-500/30"
+                    className="text-right h-8 text-sm bg-white/50 border-emerald-500/30"
                   />
                   <span className="text-xs font-bold text-emerald-800">%</span>
                 </div>
@@ -523,25 +522,57 @@ const Comparison = () => {
                 {/* TOTAIS */}
                 <TableRow>
                   <TableCell className="font-bold pt-4 text-destructive uppercase">(=) Impostos Líquidos Totais</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right pt-4 font-bold text-destructive">{formatCurrency(res.summary.totalTax)} <span className="text-[10px] block opacity-70">({formatPercent(res.summary.totalTaxPercent)})</span></TableCell>)}
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right pt-4 font-bold text-destructive">{formatCurrency(res.summary.totalTax)}</TableCell>)}
                 </TableRow>
 
                 <TableRow className="bg-destructive/10">
                   <TableCell className="font-bold text-destructive uppercase">Carga Total (Impostos + INSS)</TableCell>
                   {comparisonData.results.map(res => {
                     const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
-                    const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
                     return (
                       <TableCell key={res.label} className="text-right font-bold text-destructive">
-                        {formatCurrency(cargaTotal)} <span className="text-[10px] block opacity-70">({formatPercent(cargaPct)})</span>
+                        {formatCurrency(cargaTotal)}
                       </TableCell>
                     );
                   })}
                 </TableRow>
                 
-                <TableRow className="bg-success/10 border-b-success/20 border-b-2">
-                  <TableCell className="font-extrabold text-lg text-success">LUCRO LÍQUIDO FINAL</TableCell>
-                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success">{formatCurrency(res.summary.totalProfit)}</TableCell>)}
+                {/* NEW ROW: CARGA EFETIVA % */}
+                <TableRow className="bg-destructive/5">
+                  <TableCell className="font-semibold text-destructive text-xs pl-6">Carga Tributária Efetiva (%)</TableCell>
+                  {comparisonData.results.map(res => {
+                    const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
+                    const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
+                    return (
+                      <TableCell key={res.label} className="text-right font-semibold text-destructive text-xs">
+                        {formatPercent(cargaPct)}
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+                
+                <TableRow className="bg-success/10 border-b-0">
+                  <TableCell className="font-extrabold text-lg text-success pt-4">LUCRO LÍQUIDO FINAL</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xl font-extrabold text-success pt-4">{formatCurrency(res.summary.totalProfit)}</TableCell>)}
+                </TableRow>
+
+                {/* NEW ROW: MARGEM LÍQUIDA % */}
+                <TableRow className="bg-success/5 border-b-success/20 border-b-2">
+                  <TableCell className="font-semibold text-success text-xs pl-6">Margem Líquida Operacional (%)</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right font-semibold text-success text-xs">{formatPercent(res.summary.profitMarginPercent)}</TableCell>)}
+                </TableRow>
+
+                {/* NEW ROW: ECONOMIA VS PIOR REGIME */}
+                <TableRow className="bg-blue-500/10 border-b-blue-500/20 border-b-2">
+                  <TableCell className="font-bold text-blue-700 uppercase">Economia vs Pior Regime</TableCell>
+                  {comparisonData.results.map(res => {
+                    const economia = res.summary.totalProfit - comparisonData.worstProfit;
+                    return (
+                      <TableCell key={res.label} className="text-right font-bold text-blue-700">
+                        {economia > 0 ? `+ ${formatCurrency(economia)}` : <span className="text-muted-foreground text-[10px] uppercase">Pior Cenário</span>}
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
                 
                 <TableRow>
