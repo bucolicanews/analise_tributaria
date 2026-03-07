@@ -27,7 +27,6 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
   clientState
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [isPdfViewerMounted, setIsPdfViewerMounted] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   
   const jotaRazaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
@@ -46,16 +45,6 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
       .then(url => setQrCodeUrl(url))
       .catch(() => setQrCodeUrl('fallback'));
   }, []);
-
-  const handlePdfOpenChange = (open: boolean) => {
-    if (open) {
-      setIsPdfDialogOpen(true);
-      setTimeout(() => setIsPdfViewerMounted(true), 100);
-    } else {
-      setIsPdfViewerMounted(false);
-      setTimeout(() => setIsPdfDialogOpen(false), 300);
-    }
-  };
 
   return (
     <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
@@ -79,7 +68,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
         </div>
         <div className="flex gap-2">
           
-          <Dialog open={isPdfDialogOpen} onOpenChange={handlePdfOpenChange}>
+          <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="default" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
                 <FileCheck className="h-4 w-4 mr-2" />
@@ -116,11 +105,11 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
                        )}
                      </PDFDownloadLink>
                    )}
-                   <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
+                   <Button variant="outline" size="sm" onClick={() => setIsPdfDialogOpen(false)}>Fechar</Button>
                  </div>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                 {isPdfViewerMounted && (qrCodeUrl || qrCodeUrl === 'fallback') ? (
+                 {qrCodeUrl || qrCodeUrl === 'fallback' ? (
                    <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
                      <ViabilityReportPDF 
                         reportMarkdown={report}

@@ -47,13 +47,11 @@ const Index = () => {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
-  const [isSalesReportMounted, setIsSalesReportMounted] = useState(false);
+  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
 
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
   const [isAgentsRunning, setIsAgentsRunning] = useState(false);
   const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
-  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
-  const [isPdfAgentMounted, setIsPdfAgentMounted] = useState(false);
 
   // Dados da empresa para o Relatório
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
@@ -86,27 +84,6 @@ const Index = () => {
     setAgentStatuses([]);
     sessionStorage.clear();
     toast.success("Nova consulta iniciada.");
-  };
-
-  // Funções para fechamento suave dos modais com PDF pesado
-  const handleAgentPdfOpenChange = (open: boolean) => {
-    if (open) {
-      setIsPdfAgentOpen(true);
-      setTimeout(() => setIsPdfAgentMounted(true), 100);
-    } else {
-      setIsPdfAgentMounted(false);
-      setTimeout(() => setIsPdfAgentOpen(false), 300);
-    }
-  };
-
-  const handleSalesReportOpenChange = (open: boolean) => {
-    if (open) {
-      setIsSalesReportOpen(true);
-      setTimeout(() => setIsSalesReportMounted(true), 100);
-    } else {
-      setIsSalesReportMounted(false);
-      setTimeout(() => setIsSalesReportOpen(false), 300);
-    }
   };
 
   const buildViabilidadePayload = () => ({
@@ -366,6 +343,7 @@ const Index = () => {
     setIsSending(true);
     const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
 
+    // Gera sessionId único para esta execução
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
@@ -387,6 +365,7 @@ const Index = () => {
       const webhookUrl = webhooks[environment];
       if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
 
+      // Inicializa linha do tempo com agentes em loading
       if (useRelay) {
         const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
           id: a.id,
@@ -399,6 +378,8 @@ const Index = () => {
         setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
       }
 
+      // Dispara o n8n sem aguardar resposta (fire and forget via relay)
+      // ou aguarda resposta direta se relay não estiver disponível
       let usedRelay = false;
 
       if (useRelay) {
@@ -411,6 +392,7 @@ const Index = () => {
       }
 
       if (usedRelay) {
+        // Envia para o n8n sem bloquear — o relay receberá as respostas
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -419,8 +401,9 @@ const Index = () => {
 
         toast.loading(`Aguardando agentes responderem...`, { id: toastId });
 
+        // Polling: consulta o relay a cada 2s
         const seenNames = new Set<string>();
-        const maxWait = 5 * 60 * 1000;
+        const maxWait = 5 * 60 * 1000; // 5 minutos timeout
         const pollStart = Date.now();
 
         const poll = async (): Promise<void> => {
@@ -456,6 +439,7 @@ const Index = () => {
               return;
             }
           } catch {
+            // relay indisponível momentaneamente, continua tentando
           }
 
           setTimeout(poll, 2000);
@@ -465,6 +449,7 @@ const Index = () => {
         return;
       }
 
+      // Fallback: sem relay — aguarda resposta direta do n8n (comportamento legado)
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -593,18 +578,18 @@ const Index = () => {
                 agents={agentStatuses}
                 onViewReport={(agent) => {
                   setSelectedAgentReport(agent);
-                  handleAgentPdfOpenChange(true);
+                  setIsPdfAgentOpen(true);
                 }}
                 onPrintReport={(agent) => {
                   setSelectedAgentReport(agent);
-                  handleAgentPdfOpenChange(true);
+                  setIsPdfAgentOpen(true);
                 }}
                 onRunSingle={handleRunSingleAgent}
               />
             </div>
           )}
 
-          <Dialog open={isPdfAgentOpen} onOpenChange={handleAgentPdfOpenChange}>
+          <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
             <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
               <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                 <DialogHeader>
@@ -632,26 +617,19 @@ const Index = () => {
                       )}
                     </PDFDownloadLink>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => handleAgentPdfOpenChange(false)}>Fechar</Button>
+                  <Button variant="outline" size="sm" onClick={() => setIsPdfAgentOpen(false)}>Fechar</Button>
                 </div>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                {isPdfAgentMounted && selectedAgentReport?.report ? (
-                  <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                    <AgentReportPDF
-                      agentName={selectedAgentReport.nome}
-                      reportMarkdown={selectedAgentReport.report}
-                      companyName={companyName}
-                      accountantName={accountantName}
-                      accountantCrc={accountantCrc}
-                    />
-                  </PDFViewer>
-                ) : (
-                  <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <p className="text-sm">Carregando visualização...</p>
-                  </div>
-                )}
+                <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                  <AgentReportPDF
+                    agentName={selectedAgentReport?.nome || ''}
+                    reportMarkdown={selectedAgentReport?.report || ''}
+                    companyName={companyName}
+                    accountantName={accountantName}
+                    accountantCrc={accountantCrc}
+                  />
+                </PDFViewer>
               </div>
             </DialogContent>
           </Dialog>
@@ -666,7 +644,7 @@ const Index = () => {
                       {showMemory ? "Ocultar" : "Exibir"} Memória
                     </Button>
 
-                    <Dialog open={isSalesReportOpen} onOpenChange={handleSalesReportOpenChange}>
+                    <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="bg-primary/5 border-primary/20 hover:bg-primary/10">
                           <BookOpen className="h-4 w-4 mr-2 text-primary" />
@@ -698,25 +676,18 @@ const Index = () => {
                                   </Button>
                                 )}
                               </PDFDownloadLink>
-                              <Button variant="outline" size="sm" onClick={() => handleSalesReportOpenChange(false)}>Fechar</Button>
+                              <Button variant="outline" size="sm" onClick={() => setIsSalesReportOpen(false)}>Fechar</Button>
                           </div>
                         </div>
                         <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                          {isSalesReportMounted ? (
-                            <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                              <SalesReportPDF 
-                                products={calculatedProducts}
-                                companyName={companyName}
-                                accountantName={accountantName}
-                                accountantCrc={accountantCrc}
-                              />
-                            </PDFViewer>
-                          ) : (
-                            <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              <p className="text-sm">Carregando visualização...</p>
-                            </div>
-                          )}
+                          <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                            <SalesReportPDF 
+                              products={calculatedProducts}
+                              companyName={companyName}
+                              accountantName={accountantName}
+                              accountantCrc={accountantCrc}
+                            />
+                          </PDFViewer>
                         </div>
                       </DialogContent>
                     </Dialog>

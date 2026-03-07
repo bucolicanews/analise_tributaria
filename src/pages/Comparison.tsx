@@ -89,21 +89,10 @@ const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
 const Comparison = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const [isPdfMounted, setIsPdfMounted] = useState(false);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
-
-  const handlePdfOpenChange = (open: boolean) => {
-    if (open) {
-      setIsPdfOpen(true);
-      setTimeout(() => setIsPdfMounted(true), 100);
-    } else {
-      setIsPdfMounted(false);
-      setTimeout(() => setIsPdfOpen(false), 300);
-    }
-  };
 
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -198,7 +187,7 @@ const Comparison = () => {
             <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3"><BarChart3 className="h-6 w-6" />Comparativo de Regimes Tributários</CardTitle>
             
             <div className="flex gap-2">
-              <Dialog open={isPdfOpen} onOpenChange={handlePdfOpenChange}>
+              <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Printer className="h-4 w-4 mr-2" />
@@ -209,25 +198,18 @@ const Comparison = () => {
                   <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                     <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
                     <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
-                    <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
+                    <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
                   </div>
                   <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                    {isPdfMounted ? (
-                      <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                        <ComparisonReportPDF 
-                          results={comparisonData.results}
-                          bestResult={comparisonData.bestResult}
-                          companyName={companyName}
-                          accountantName={accountantName}
-                          accountantCrc={accountantCrc}
-                        />
-                      </PDFViewer>
-                    ) : (
-                      <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <p className="text-sm">Carregando visualização...</p>
-                      </div>
-                    )}
+                    <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                      <ComparisonReportPDF 
+                        results={comparisonData.results}
+                        bestResult={comparisonData.bestResult}
+                        companyName={companyName}
+                        accountantName={accountantName}
+                        accountantCrc={accountantCrc}
+                      />
+                    </PDFViewer>
                   </div>
                 </DialogContent>
               </Dialog>

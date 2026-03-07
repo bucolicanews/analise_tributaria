@@ -62,7 +62,6 @@ const MathBlock = ({ label, icon: Icon, values }: { label: string, icon: any, va
 
 const Audit = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
-  const [isPdfViewerMounted, setIsPdfViewerMounted] = useState(false);
   
   const purchaseProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-purchase-products') || '[]');
   const salesProducts: Product[] = JSON.parse(sessionStorage.getItem('jota-calc-sales-products') || '[]');
@@ -71,16 +70,6 @@ const Audit = () => {
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
-
-  const handlePdfOpenChange = (open: boolean) => {
-    if (open) {
-      setIsPdfOpen(true);
-      setTimeout(() => setIsPdfViewerMounted(true), 100);
-    } else {
-      setIsPdfViewerMounted(false);
-      setTimeout(() => setIsPdfOpen(false), 300);
-    }
-  };
 
   const auditResults = useMemo(() => {
     if (!params) return [];
@@ -314,7 +303,7 @@ const Audit = () => {
           Auditoria Fiscal de Vendas
         </h1>
         <div className="flex gap-2">
-          <Dialog open={isPdfOpen} onOpenChange={handlePdfOpenChange}>
+          <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm"><Printer className="h-4 w-4 mr-2" />Visualizar PDF</Button>
             </DialogTrigger>
@@ -324,26 +313,19 @@ const Audit = () => {
                   <DialogTitle>Visualizar Relatório de Auditoria</DialogTitle>
                   <DialogDescription className="sr-only">Pré-visualização do relatório de auditoria fiscal em formato PDF.</DialogDescription>
                 </DialogHeader>
-                <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
+                <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                {isPdfViewerMounted ? (
-                  <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                    <AuditReportPDF 
-                      divergentItems={divergentItems}
-                      okItems={okItems}
-                      unassociatedItems={unassociatedItems}
-                      companyName={companyName}
-                      accountantName={accountantName}
-                      accountantCrc={accountantCrc}
-                    />
-                  </PDFViewer>
-                ) : (
-                  <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    <p className="text-sm">Carregando visualização...</p>
-                  </div>
-                )}
+                <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                  <AuditReportPDF 
+                    divergentItems={divergentItems}
+                    okItems={okItems}
+                    unassociatedItems={unassociatedItems}
+                    companyName={companyName}
+                    accountantName={accountantName}
+                    accountantCrc={accountantCrc}
+                  />
+                </PDFViewer>
               </div>
             </DialogContent>
           </Dialog>
