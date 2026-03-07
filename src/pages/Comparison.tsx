@@ -198,7 +198,6 @@ const Comparison = () => {
                   <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                     <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
                     <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
-                    <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
                   </div>
                   <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                     <PDFViewer width="100%" height="100%" className="border-none w-full h-full">

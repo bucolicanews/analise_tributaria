@@ -313,7 +313,6 @@ const Audit = () => {
                   <DialogTitle>Visualizar Relatório de Auditoria</DialogTitle>
                   <DialogDescription className="sr-only">Pré-visualização do relatório de auditoria fiscal em formato PDF.</DialogDescription>
                 </DialogHeader>
-                <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                 <PDFViewer width="100%" height="100%" className="border-none w-full h-full">

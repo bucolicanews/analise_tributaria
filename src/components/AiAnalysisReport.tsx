@@ -105,7 +105,6 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
                        )}
                      </PDFDownloadLink>
                    )}
-                   <Button variant="outline" size="sm" onClick={() => setIsPdfDialogOpen(false)}>Fechar</Button>
                  </div>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
