@@ -95,14 +95,15 @@ const Comparison = () => {
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
 
-  useEffect(() => {
-    if (isPdfOpen) {
-      const timer = setTimeout(() => setIsPdfMounted(true), 150);
-      return () => clearTimeout(timer);
+  const handlePdfOpenChange = (open: boolean) => {
+    if (open) {
+      setIsPdfOpen(true);
+      setTimeout(() => setIsPdfMounted(true), 100);
     } else {
       setIsPdfMounted(false);
+      setTimeout(() => setIsPdfOpen(false), 300);
     }
-  }, [isPdfOpen]);
+  };
 
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -197,7 +198,7 @@ const Comparison = () => {
             <CardTitle className="text-2xl font-bold text-primary flex items-center gap-3"><BarChart3 className="h-6 w-6" />Comparativo de Regimes Tributários</CardTitle>
             
             <div className="flex gap-2">
-              <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
+              <Dialog open={isPdfOpen} onOpenChange={handlePdfOpenChange}>
                 <DialogTrigger asChild>
                   <Button variant="outline" size="sm">
                     <Printer className="h-4 w-4 mr-2" />
@@ -208,7 +209,7 @@ const Comparison = () => {
                   <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                     <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
                     <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
-                    <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
+                    <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
                   </div>
                   <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                     {isPdfMounted ? (

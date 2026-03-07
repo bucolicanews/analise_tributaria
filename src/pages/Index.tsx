@@ -88,23 +88,26 @@ const Index = () => {
     toast.success("Nova consulta iniciada.");
   };
 
-  useEffect(() => {
-    if (isPdfAgentOpen) {
-      const timer = setTimeout(() => setIsPdfAgentMounted(true), 150);
-      return () => clearTimeout(timer);
+  // Funções para fechamento suave dos modais com PDF pesado
+  const handleAgentPdfOpenChange = (open: boolean) => {
+    if (open) {
+      setIsPdfAgentOpen(true);
+      setTimeout(() => setIsPdfAgentMounted(true), 100);
     } else {
       setIsPdfAgentMounted(false);
+      setTimeout(() => setIsPdfAgentOpen(false), 300);
     }
-  }, [isPdfAgentOpen]);
+  };
 
-  useEffect(() => {
-    if (isSalesReportOpen) {
-      const timer = setTimeout(() => setIsSalesReportMounted(true), 150);
-      return () => clearTimeout(timer);
+  const handleSalesReportOpenChange = (open: boolean) => {
+    if (open) {
+      setIsSalesReportOpen(true);
+      setTimeout(() => setIsSalesReportMounted(true), 100);
     } else {
       setIsSalesReportMounted(false);
+      setTimeout(() => setIsSalesReportOpen(false), 300);
     }
-  }, [isSalesReportOpen]);
+  };
 
   const buildViabilidadePayload = () => ({
     razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
@@ -363,7 +366,6 @@ const Index = () => {
     setIsSending(true);
     const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
 
-    // Gera sessionId único para esta execução
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
@@ -385,7 +387,6 @@ const Index = () => {
       const webhookUrl = webhooks[environment];
       if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
 
-      // Inicializa linha do tempo com agentes em loading
       if (useRelay) {
         const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
           id: a.id,
@@ -398,8 +399,6 @@ const Index = () => {
         setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
       }
 
-      // Dispara o n8n sem aguardar resposta (fire and forget via relay)
-      // ou aguarda resposta direta se relay não estiver disponível
       let usedRelay = false;
 
       if (useRelay) {
@@ -412,7 +411,6 @@ const Index = () => {
       }
 
       if (usedRelay) {
-        // Envia para o n8n sem bloquear — o relay receberá as respostas
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -421,9 +419,8 @@ const Index = () => {
 
         toast.loading(`Aguardando agentes responderem...`, { id: toastId });
 
-        // Polling: consulta o relay a cada 2s
         const seenNames = new Set<string>();
-        const maxWait = 5 * 60 * 1000; // 5 minutos timeout
+        const maxWait = 5 * 60 * 1000;
         const pollStart = Date.now();
 
         const poll = async (): Promise<void> => {
@@ -459,7 +456,6 @@ const Index = () => {
               return;
             }
           } catch {
-            // relay indisponível momentaneamente, continua tentando
           }
 
           setTimeout(poll, 2000);
@@ -469,7 +465,6 @@ const Index = () => {
         return;
       }
 
-      // Fallback: sem relay — aguarda resposta direta do n8n (comportamento legado)
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -598,18 +593,18 @@ const Index = () => {
                 agents={agentStatuses}
                 onViewReport={(agent) => {
                   setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
+                  handleAgentPdfOpenChange(true);
                 }}
                 onPrintReport={(agent) => {
                   setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
+                  handleAgentPdfOpenChange(true);
                 }}
                 onRunSingle={handleRunSingleAgent}
               />
             </div>
           )}
 
-          <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
+          <Dialog open={isPdfAgentOpen} onOpenChange={handleAgentPdfOpenChange}>
             <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
               <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                 <DialogHeader>
@@ -637,7 +632,7 @@ const Index = () => {
                       )}
                     </PDFDownloadLink>
                   )}
-                  <Button variant="outline" size="sm" onClick={() => setIsPdfAgentOpen(false)}>Fechar</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleAgentPdfOpenChange(false)}>Fechar</Button>
                 </div>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
@@ -671,7 +666,7 @@ const Index = () => {
                       {showMemory ? "Ocultar" : "Exibir"} Memória
                     </Button>
 
-                    <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
+                    <Dialog open={isSalesReportOpen} onOpenChange={handleSalesReportOpenChange}>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="bg-primary/5 border-primary/20 hover:bg-primary/10">
                           <BookOpen className="h-4 w-4 mr-2 text-primary" />
@@ -703,7 +698,7 @@ const Index = () => {
                                   </Button>
                                 )}
                               </PDFDownloadLink>
-                              <Button variant="outline" size="sm" onClick={() => setIsSalesReportOpen(false)}>Fechar</Button>
+                              <Button variant="outline" size="sm" onClick={() => handleSalesReportOpenChange(false)}>Fechar</Button>
                           </div>
                         </div>
                         <div className="flex-1 w-full bg-slate-100 overflow-hidden">

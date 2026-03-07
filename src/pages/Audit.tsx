@@ -5,14 +5,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   AlertCircle, CheckCircle2, Info, XCircle, AlertTriangle, ShieldCheck, Package, Calculator,
-  TrendingUp, TrendingDown, Check, ArrowRightLeft, Printer, FileDown
+  TrendingUp, TrendingDown, Check, ArrowRightLeft, Printer, FileDown, Loader2
 } from 'lucide-react';
 import { Product, CalculationParams, TaxRegime } from "@/types/pricing";
 import { calculatePricing } from '@/lib/pricing';
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { AuditReportPDF } from '@/components/AuditReportPDF';
 
@@ -72,14 +72,15 @@ const Audit = () => {
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
 
-  useEffect(() => {
-    if (isPdfOpen) {
-      const timer = setTimeout(() => setIsPdfViewerMounted(true), 100);
-      return () => clearTimeout(timer);
+  const handlePdfOpenChange = (open: boolean) => {
+    if (open) {
+      setIsPdfOpen(true);
+      setTimeout(() => setIsPdfViewerMounted(true), 100);
     } else {
       setIsPdfViewerMounted(false);
+      setTimeout(() => setIsPdfOpen(false), 300);
     }
-  }, [isPdfOpen]);
+  };
 
   const auditResults = useMemo(() => {
     if (!params) return [];
@@ -313,16 +314,21 @@ const Audit = () => {
           Auditoria Fiscal de Vendas
         </h1>
         <div className="flex gap-2">
-          <Dialog open={isPdfOpen} onOpenChange={setIsPdfOpen}>
+          <Dialog open={isPdfOpen} onOpenChange={handlePdfOpenChange}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm"><Printer className="h-4 w-4 mr-2" />Visualizar PDF</Button>
             </DialogTrigger>
-            <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
-              <DialogTitle className="sr-only">Visualizar Relatório de Auditoria</DialogTitle>
-              <DialogDescription className="sr-only">Pré-visualização do relatório de auditoria fiscal em formato PDF.</DialogDescription>
-              <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden flex items-center justify-center">
+            <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col gap-0">
+              <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+                <DialogHeader>
+                  <DialogTitle>Visualizar Relatório de Auditoria</DialogTitle>
+                  <DialogDescription className="sr-only">Pré-visualização do relatório de auditoria fiscal em formato PDF.</DialogDescription>
+                </DialogHeader>
+                <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
+              </div>
+              <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                 {isPdfViewerMounted ? (
-                  <PDFViewer width="100%" height="100%" className="border-none">
+                  <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
                     <AuditReportPDF 
                       divergentItems={divergentItems}
                       okItems={okItems}
@@ -333,8 +339,9 @@ const Audit = () => {
                     />
                   </PDFViewer>
                 ) : (
-                  <div className="text-center">
-                    <p className="text-muted-foreground">Carregando visualização do relatório...</p>
+                  <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <p className="text-sm">Carregando visualização...</p>
                   </div>
                 )}
               </div>

@@ -4,7 +4,7 @@ import { Bot, AlertCircle, X, Clock, FileCheck, Loader2 } from 'lucide-react';
 import { Button } from './ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from './ViabilityReportPDF';
 import QRCode from 'qrcode';
@@ -13,7 +13,6 @@ interface AiAnalysisReportProps {
   report: string;
   onClose: () => void;
   executionTime?: number;
-  // Novos props para receber dados do formulário
   clientName: string;
   clientCity: string;
   clientState: string;
@@ -31,14 +30,10 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
   const [isPdfViewerMounted, setIsPdfViewerMounted] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   
-  // Dados DA CONTABILIDADE (Jota) vindos da configuração persistida
   const jotaRazaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
   const contadorNome = localStorage.getItem('jota-contador-nome') || '';
   const contadorCrc = localStorage.getItem('jota-contador-crc') || '';
-  // Nota: O estado UF da contabilidade é usado apenas se quiséssemos mostrar onde a Jota fica,
-  // mas para o PDF, usaremos o estado do CLIENTE na capa.
   
-  // Nome do cliente para exibição (fallback se estiver vazio)
   const displayClientName = clientName.trim() || "Empreendedor(a) / Interessado(a)";
   const displayCity = clientCity.trim() || "Não informado";
   const displayState = clientState.trim() || "";
@@ -52,14 +47,15 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
       .catch(() => setQrCodeUrl('fallback'));
   }, []);
 
-  useEffect(() => {
-    if (isPdfDialogOpen) {
-      const timer = setTimeout(() => setIsPdfViewerMounted(true), 150);
-      return () => clearTimeout(timer);
+  const handlePdfOpenChange = (open: boolean) => {
+    if (open) {
+      setIsPdfDialogOpen(true);
+      setTimeout(() => setIsPdfViewerMounted(true), 100);
     } else {
       setIsPdfViewerMounted(false);
+      setTimeout(() => setIsPdfDialogOpen(false), 300);
     }
-  }, [isPdfDialogOpen]);
+  };
 
   return (
     <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
@@ -83,19 +79,49 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
         </div>
         <div className="flex gap-2">
           
-          <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
+          <Dialog open={isPdfDialogOpen} onOpenChange={handlePdfOpenChange}>
             <DialogTrigger asChild>
               <Button variant="default" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
                 <FileCheck className="h-4 w-4 mr-2" />
                 Gerar PDF Oficial
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
-              <DialogTitle className="sr-only">Relatório Oficial de Viabilidade</DialogTitle>
-              <DialogDescription className="sr-only">Pré-visualização do relatório técnico de viabilidade em formato PDF.</DialogDescription>
-               <div className="flex-1 w-full h-full bg-slate-100 rounded-md overflow-hidden flex items-center justify-center">
+            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
+              <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+                 <DialogHeader>
+                   <DialogTitle>Relatório Oficial de Viabilidade</DialogTitle>
+                   <DialogDescription className="sr-only">Pré-visualização do relatório técnico de viabilidade em formato PDF.</DialogDescription>
+                 </DialogHeader>
+                 <div className="flex gap-2">
+                   {(qrCodeUrl || qrCodeUrl === 'fallback') && (
+                     <PDFDownloadLink 
+                       document={
+                         <ViabilityReportPDF 
+                            reportMarkdown={report}
+                            clientName={displayClientName}
+                            clientCity={displayCity}
+                            clientState={displayState}
+                            companyName={jotaRazaoSocial}
+                            accountantName={contadorNome}
+                            accountantCrc={contadorCrc}
+                            qrCodeDataUrl={qrCodeUrl !== 'fallback' ? qrCodeUrl : ''}
+                         />
+                       } 
+                       fileName={`relatorio_viabilidade_${displayClientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`}
+                     >
+                       {({ loading }) => (
+                         <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                           {loading ? 'Gerando...' : 'Baixar PDF'}
+                         </Button>
+                       )}
+                     </PDFDownloadLink>
+                   )}
+                   <Button variant="outline" size="sm" onClick={() => handlePdfOpenChange(false)}>Fechar</Button>
+                 </div>
+              </div>
+              <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                  {isPdfViewerMounted && (qrCodeUrl || qrCodeUrl === 'fallback') ? (
-                   <PDFViewer width="100%" height="100%" className="border-none">
+                   <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
                      <ViabilityReportPDF 
                         reportMarkdown={report}
                         clientName={displayClientName}
@@ -108,38 +134,12 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
                      />
                    </PDFViewer>
                  ) : (
-                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
-                     <Loader2 className="h-8 w-8 animate-spin text-accent" />
+                   <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                     <Loader2 className="h-5 w-5 animate-spin text-accent" />
                      <p className="text-sm">Carregando visualização...</p>
                    </div>
                  )}
-               </div>
-               <div className="p-4 bg-white border-t flex justify-between items-center">
-                 <p className="text-xs text-muted-foreground">O PDF é gerado em tempo real com base nos dados do formulário.</p>
-                 {(qrCodeUrl || qrCodeUrl === 'fallback') && (
-                   <PDFDownloadLink 
-                     document={
-                       <ViabilityReportPDF 
-                          reportMarkdown={report}
-                          clientName={displayClientName}
-                          clientCity={displayCity}
-                          clientState={displayState}
-                          companyName={jotaRazaoSocial}
-                          accountantName={contadorNome}
-                          accountantCrc={contadorCrc}
-                          qrCodeDataUrl={qrCodeUrl !== 'fallback' ? qrCodeUrl : ''}
-                       />
-                     } 
-                     fileName={`relatorio_viabilidade_${displayClientName.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.pdf`}
-                   >
-                     {({ loading }) => (
-                       <Button disabled={loading}>
-                         {loading ? 'Preparando...' : 'Baixar Arquivo PDF'}
-                       </Button>
-                     )}
-                   </PDFDownloadLink>
-                 )}
-               </div>
+              </div>
             </DialogContent>
           </Dialog>
 
