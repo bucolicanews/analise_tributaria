@@ -88,6 +88,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     head,
     body,
     startY: 40,
+    margin: { top: 30 }, // Define a margem superior para páginas subsequentes para não sobrepor o cabeçalho
     theme: 'grid',
     headStyles: { fillColor: [34, 139, 34] }, // Verde escuro
     styles: { fontSize: 7, cellPadding: 1.5 },
@@ -111,15 +112,15 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
   let finalY = 0;
 
   doc.setFontSize(18);
-  doc.text('Relatório Detalhado para Venda', 14, 22);
+  doc.text('Relatório Detalhado para Venda', 14, 30); // Deslocado para baixo para alinhar com a outra tabela
 
   products.forEach((product, index) => {
-    let startY = index === 0 ? 35 : finalY + 15;
+    let startY = index === 0 ? 40 : finalY + 15;
 
     if (startY > 250) {
       doc.addPage();
       finalY = 0;
-      startY = 22;
+      startY = 30; // Garante que na nova página o conteúdo comece abaixo da linha do cabeçalho
     }
 
     doc.setFontSize(12);
@@ -152,6 +153,7 @@ export const generateSalesReportPdf = (products: CalculatedProduct[]) => {
     autoTable(doc, {
       body,
       startY: currentY,
+      margin: { top: 30 }, // Adiciona segurança para tabelas que quebram de página
       theme: 'plain',
       styles: { fontSize: 9, cellPadding: 1.5 },
       columnStyles: {
