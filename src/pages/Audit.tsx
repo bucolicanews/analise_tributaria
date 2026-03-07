@@ -265,7 +265,7 @@ const Audit = () => {
                   <TaxBox label="CFOP Venda" value={calculated.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'} />
                   <TaxBox label="NCM" value={calculated.ncm || '---'} />
                   <TaxBox label="CEST" value={calculated.cest || '---'} />
-                  <TaxBox label="Classe IBS/CBS" value={calculated.cClassTrib || '1'} />
+                  <TaxBox label="cClassTrib (IBS/CBS)" value={calculated.cClassTrib || '1'} />
                   <TaxBox label="Origem" value="0" />
                 </div>
               </div>

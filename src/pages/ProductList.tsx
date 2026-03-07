@@ -200,7 +200,7 @@ const ProductList = () => {
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cest || '---'}</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase">Classe IBS/CBS</div>
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">cClassTrib (IBS/CBS)</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.cClassTrib || '1'}</div>
                     </div>
                     <div className="space-y-1">

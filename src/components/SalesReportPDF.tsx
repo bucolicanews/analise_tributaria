@@ -130,6 +130,7 @@ export const SalesReportPDF: React.FC<SalesReportPDFProps> = ({ products, compan
                   <DetailItem label="Custo Aquisicao" value={formatCurrency(p.cost)} />
                   <DetailItem label="Custo Fixo Rateado" value={formatCurrency(fixedCostPerUnit)} />
                   <DetailItem label="Custo Total Base" value={formatCurrency(totalBaseCost)} />
+                  <DetailItem label="cClassTrib (Reforma)" value={p.cClassTrib || '1'} />
                   <DetailItem label="Venda Minima" value={formatCurrency(p.minSellingPrice)} colorStyle={styles.colorYellow} />
                   <DetailItem label="Venda Sugerida" value={formatCurrency(p.sellingPrice)} colorStyle={styles.colorPrimary} />
                 </View>

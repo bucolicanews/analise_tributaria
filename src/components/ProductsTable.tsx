@@ -301,6 +301,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
               <TableHead>Código</TableHead>
               <TableHead className="min-w-[300px]">Produto</TableHead>
               <TableHead>Ações</TableHead>
+              <TableHead>cClassTrib</TableHead>
               <TableHead>Unid. Com.</TableHead>
               <TableHead className="text-right">Qtd. Estoque</TableHead>
               <TableHead className="text-right">Custo Aquisição (Unit)</TableHead>
@@ -342,6 +343,7 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({ products, params, 
                       </Dialog>
                     </div>
                   </TableCell>
+                  <TableCell className="font-mono text-xs">{product.cClassTrib}</TableCell>
                   <TableCell className="font-mono text-xs">{product.unit}</TableCell>
                   <TableCell className="text-right font-mono text-xs">{product.quantity}</TableCell>
                   <TableCell className="text-right font-mono text-sm">{formatCurrency(product.cost)}</TableCell>

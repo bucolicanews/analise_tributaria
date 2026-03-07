@@ -79,6 +79,7 @@ const AuditItem = ({ item }: { item: any }) => {
           <DetailItem label="CSOSN/CST" value={item.calculated.suggestedCodes.icmsCstOrCsosn} />
           <DetailItem label="CST PIS/COFINS" value={item.calculated.suggestedCodes.pisCofinsCst} />
           <DetailItem label="NCM" value={item.calculated.ncm || '---'} />
+          <DetailItem label="cClassTrib" value={item.calculated.cClassTrib || '1'} />
         </View>
       </View>
     </View>

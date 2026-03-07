@@ -35,7 +35,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
   });
 
   const head = [[
-    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CEST', 'CSOSN', 'CST PIS/COFINS', 
+    'Produto', 'Código', 'Cód. Barras', 'NCM', 'CEST', 'CSOSN', 'CST PIS/COFINS', 'cClassTrib',
     'Custo Base Total', 'Custo Unid. Int.', 'Venda Mín. Unid. Int.', 'Venda Sug. Unid. Int.',
     'Venda Mín. Com.', 'Venda Sug. Com.'
   ]];
@@ -51,6 +51,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
       p.cest || '-',
       p.suggestedCodes.icmsCstOrCsosn,
       p.suggestedCodes.pisCofinsCst,
+      p.cClassTrib || '1',
       formatCurrency(p.cost + (p.valueForFixedCost / p.quantity)),
       formatCurrency(p.costPerInnerUnit),
       formatCurrency(p.minSellingPricePerInnerUnit),
@@ -66,7 +67,7 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
       
       body.push([{
         content: classificationText,
-        colSpan: 13,
+        colSpan: 14,
         styles: {
           fillColor: [244, 244, 245], // muted
           textColor: [100, 116, 139], // muted-foreground
@@ -89,12 +90,12 @@ export const generateProductListPdf = (products: CalculatedProduct[]) => {
     styles: { fontSize: 7, cellPadding: 1.5 },
     columnStyles: {
       0: { cellWidth: 'auto' },
-      7: { halign: 'right' },
       8: { halign: 'right' },
       9: { halign: 'right' },
       10: { halign: 'right' },
       11: { halign: 'right' },
       12: { halign: 'right' },
+      13: { halign: 'right' },
     }
   });
 
