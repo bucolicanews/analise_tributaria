@@ -7,6 +7,7 @@ import { CalculationParams, FixedExpense, VariableExpense, TaxRegime, SelectiveT
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Slider } from "@/components/ui/slider";
 import { calculateSimplesNacionalEffectiveRate } from "@/lib/simplesNacional";
 
 interface ParametersFormProps {
@@ -44,6 +45,8 @@ const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
   const [profitMargin, setProfitMargin] = useState<string>("12");
+  const [taxPassThrough, setTaxPassThrough] = useState<number>(0); // 0% repasse por padrão
+  
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido);
   const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("0");
   const [generateIvaCredit, setGenerateIvaCredit] = useState<boolean>(false);
@@ -87,13 +90,18 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     { name: "Embalagens", percentage: 1 },
   ]);
 
+  // Carrega estado inicial do repasse
+  useEffect(() => {
+    const saved = localStorage.getItem('jota-taxPassThrough');
+    if (saved) setTaxPassThrough(parseFloat(saved));
+  }, []);
+
   const applyPreset = (type: 'simples' | 'hibrido' | 'presumido' | 'real') => {
-    // Parâmetros de Mercado ME/EPP
     setLossPercentage("2");
     setTotalStockUnits("4000");
     setProfitMargin("15");
+    setTaxPassThrough(0); // Restaura para 0 ao trocar o preset para segurança
     
-    // Lista de despesas realistas para ME
     const realisticFixed = [
         { name: "Aluguel", value: 3500 },
         { name: "Luz/Água/Internet", value: 950 },
@@ -112,9 +120,9 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     setVariableExpenses(realisticVariable);
 
     if (type === 'simples' || type === 'hibrido') {
-        setFaturamento12Meses("540000"); // 45k/mês
+        setFaturamento12Meses("540000");
         setAnexoSimples("Anexo I");
-        setPayroll("6500"); // 2 funcionários salário mínimo + encargos simples
+        setPayroll("6500");
         setTaxRegime(TaxRegime.SimplesNacional);
         setGenerateIvaCredit(type === 'hibrido');
         setUsePisCofins(type === 'hibrido');
@@ -123,7 +131,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setUseCbsDebit(type === 'hibrido');
         setIbsDebitPercentage(type === 'hibrido' ? "100" : "0");
     } else if (type === 'presumido') {
-        setFaturamento12Meses("1800000"); // 150k/mês
+        setFaturamento12Meses("1800000");
         setPayroll("18000");
         setTaxRegime(TaxRegime.LucroPresumido);
         setIrpjRate("1.2");
@@ -135,7 +143,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setUseCbsDebit(true);
         setIbsDebitPercentage("100");
     } else if (type === 'real') {
-        setFaturamento12Meses("4800000"); // 400k/mês
+        setFaturamento12Meses("4800000");
         setPayroll("45000");
         setTaxRegime(TaxRegime.LucroReal);
         setIrpjRateLucroReal("15");
@@ -147,7 +155,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setUseCbsDebit(true);
         setIbsDebitPercentage("100");
     }
-    toast.info(`Preset "${type.toUpperCase()}" aplicado com dados realistas de mercado.`);
+    toast.info(`Preset "${type.toUpperCase()}" aplicado.`);
   };
 
   useEffect(() => {
@@ -196,8 +204,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       toast.error("Cálculo inviável com as alíquotas e margem atuais.");
       return;
     }
+    
+    localStorage.setItem('jota-taxPassThrough', taxPassThrough.toString());
+
     onCalculate({
       profitMargin: parseFloat(profitMargin),
+      taxPassThroughPercentage: taxPassThrough,
       fixedExpenses,
       variableExpenses,
       payroll: parseFloat(payroll),
@@ -334,10 +346,44 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         )}
       </div>
 
-      <div className="space-y-2 border-t border-border pt-4">
-        <Label className="font-bold text-lg">4. Lucro Líquido Alvo (%)</Label>
-        <Input type="number" value={profitMargin} onChange={(e) => setProfitMargin(e.target.value)} disabled={disabled} />
-        <MaxProfitIndicator maxProfit={maxProfitMargin} currentProfit={currentProfit} isInvalid={isProfitMarginInvalid} />
+      <div className="space-y-6 border-t border-border pt-4">
+        <div className="space-y-2">
+          <Label className="font-bold text-lg">4. Lucro Líquido Alvo (%)</Label>
+          <Input type="number" value={profitMargin} onChange={(e) => setProfitMargin(e.target.value)} disabled={disabled} />
+          <MaxProfitIndicator maxProfit={maxProfitMargin} currentProfit={currentProfit} isInvalid={isProfitMarginInvalid} />
+        </div>
+
+        <div className="space-y-4 p-4 border border-primary/20 bg-primary/5 rounded-lg">
+          <div>
+            <Label className="font-bold text-sm text-primary flex items-center gap-2">
+              Poder de Repasse ao Cliente (0 a 100%)
+            </Label>
+            <p className="text-xs text-muted-foreground mt-1 mb-4">
+              Controla o quanto do aumento/redução do imposto no Comparativo será jogado no Preço de Venda.
+              <br/><strong>0%:</strong> Preço travado pelo mercado. <strong>100%:</strong> Cliente absorve 100% dos impostos.
+            </p>
+          </div>
+          <div className="flex gap-4 items-center">
+            <Slider 
+              value={[taxPassThrough]} 
+              onValueChange={(v) => setTaxPassThrough(v[0])} 
+              max={100} 
+              step={5} 
+              disabled={disabled}
+              className="flex-1"
+            />
+            <div className="w-[60px]">
+              <Input 
+                type="number" 
+                value={taxPassThrough} 
+                onChange={(e) => setTaxPassThrough(Number(e.target.value))} 
+                disabled={disabled}
+                className="text-right"
+              />
+            </div>
+            <span className="text-sm font-bold">%</span>
+          </div>
+        </div>
       </div>
 
       <div className="space-y-6 border-t border-border pt-4">

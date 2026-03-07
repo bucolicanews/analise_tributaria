@@ -78,6 +78,8 @@ export interface CalculationParams {
   companyLegalNature?: string; 
   
   profitMargin: number;
+  taxPassThroughPercentage?: number; // NOVO: 0 a 100% de repasse
+  
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
   payroll: number;

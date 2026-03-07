@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info, Lock } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info, Lock, Zap } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { Button } from '@/components/ui/button';
@@ -141,8 +141,10 @@ const Comparison = () => {
       const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
       const baseOperationalFixed = baseParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + baseParams.payroll;
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
+      
+      const passThroughRatio = (baseParams.taxPassThroughPercentage ?? 0) / 100;
 
-      // 1. CALCULA O CENÁRIO BASE (SIMPLES NACIONAL) PARA ANCORAR O PREÇO DE VENDA DE MERCADO
+      // 1. CALCULA O CENÁRIO BASE (SIMPLES NACIONAL) PARA ANCORAR O PREÇO
       const baseRegimeParams: CalculationParams = { 
         ...baseParams, 
         taxRegime: TaxRegime.SimplesNacional, 
@@ -201,7 +203,7 @@ const Comparison = () => {
         },
       ];
 
-      // 2. APLICA OS OUTROS REGIMES TRAVANDO O PREÇO DE VENDA DO CENÁRIO BASE
+      // 2. APLICA OS OUTROS REGIMES USANDO A LÓGICA DE ELASTICIDADE (REPASSE)
       const results = regimes.map(r => {
         const inssPatronalMensal = r.hasInssPatronal ? baseParams.payroll * (baseParams.inssPatronalRate / 100) : 0;
         const totalFixedCosts = baseOperationalFixed + inssPatronalMensal;
@@ -209,10 +211,23 @@ const Comparison = () => {
         const cfu = baseParams.totalStockUnits > 0 ? totalFixedCosts / baseParams.totalStockUnits : 0;
         const inssPatronalRateado = baseParams.totalStockUnits > 0 ? (inssPatronalMensal / baseParams.totalStockUnits) * totalInners : 0;
 
-        const calculated = productsToProcess.map((p, idx) => 
-          // O quarto parâmetro "trava" o preço de venda para simular o mercado real
-          calculatePricing(p, r.params, cfu, baseCalculatedProducts[idx].sellingPrice)
-        );
+        const calculated = productsToProcess.map((p, idx) => {
+          const basePrice = baseCalculatedProducts[idx].sellingPrice;
+          
+          if (passThroughRatio === 0) {
+            // Repasse 0% = Trava o preço no mercado
+            return calculatePricing(p, r.params, cfu, basePrice);
+          }
+          
+          // Calcula o preço IDEAL para aquele regime (100% de repasse)
+          const idealProduct = calculatePricing(p, r.params, cfu);
+          const idealPrice = idealProduct.sellingPrice;
+          
+          // Calcula o preço final interpolado com base no slider de elasticidade
+          const finalPrice = basePrice + (idealPrice - basePrice) * passThroughRatio;
+          
+          return calculatePricing(p, r.params, cfu, finalPrice);
+        });
         
         const summary = calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners);
         summary.totalInssPatronalRateado = inssPatronalRateado;
@@ -227,7 +242,7 @@ const Comparison = () => {
       let bestResult = results[0];
       results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
 
-      return { results, bestResult, originalProducts: productsToProcess };
+      return { results, bestResult, originalProducts: productsToProcess, passThroughRatio };
     } catch (error) { return null; }
   }, []);
 
@@ -297,12 +312,21 @@ const Comparison = () => {
           </Alert>
           
           <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex gap-3 items-start">
-            <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            {comparisonData.passThroughRatio === 0 ? (
+              <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            ) : (
+              <Zap className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+            )}
             <div>
-              <p className="text-sm font-bold text-blue-800">Simulação de Mercado Real (Preços Ancorados)</p>
+              <p className="text-sm font-bold text-blue-800">
+                {comparisonData.passThroughRatio === 0 
+                  ? "Simulação de Mercado (Preços Travados no 0%)" 
+                  : `Simulação Híbrida (${(comparisonData.passThroughRatio * 100).toFixed(0)}% de Repasse)`}
+              </p>
               <p className="text-xs text-blue-700 mt-1">
-                Para refletir a realidade comercial, o sistema <strong>travou o Preço de Venda da empresa</strong> (com base no Simples Nacional) em todos os regimes.
-                Desta forma, os preços não são inflacionados artificialmente. O comparativo demonstra qual regime tributário consome menos do seu lucro mantendo sua competitividade no mercado.
+                {comparisonData.passThroughRatio === 0 
+                  ? "O sistema travou o Preço de Venda em todos os regimes. Desta forma, o comparativo demonstra qual tributação corrói menos a sua margem de lucro mantendo a exata mesma competitividade atual."
+                  : `O sistema está repassando ${(comparisonData.passThroughRatio * 100).toFixed(0)}% das variações tributárias para o preço final. O restante do impacto de aumento ou diminuição de impostos recairá diretamente sobre a margem de lucro da empresa.`}
               </p>
             </div>
           </div>
