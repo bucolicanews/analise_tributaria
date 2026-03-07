@@ -37,6 +37,14 @@ const styles = StyleSheet.create({
   colorPrimary: { color: '#f97316' },
   colorDestructive: { color: '#ef4444' },
   colorSuccess: { color: '#22c55e' },
+  
+  registrationBlock: { backgroundColor: '#fff7ed', padding: 8, borderTopWidth: 1, borderTopColor: '#ffedd5', flexDirection: 'column' },
+  registrationTitle: { fontSize: 7, fontFamily: 'Helvetica-Bold', color: '#ea580c', textTransform: 'uppercase', marginBottom: 6 },
+  registrationGrid: { flexDirection: 'row', justifyContent: 'space-between' },
+  registrationBox: { flex: 1, borderWidth: 1, borderColor: '#fdba74', backgroundColor: '#ffffff', padding: 4, marginRight: 4, borderRadius: 2, alignItems: 'center' },
+  registrationBoxLast: { flex: 1, borderWidth: 1, borderColor: '#fdba74', backgroundColor: '#ffffff', padding: 4, borderRadius: 2, alignItems: 'center' },
+  registrationBoxLabel: { fontSize: 6, color: '#9a3412', textTransform: 'uppercase', marginBottom: 2 },
+  registrationBoxValue: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#c2410c' }
 });
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -46,6 +54,13 @@ const DetailItem = ({ label, value, colorStyle = {} }: { label: string; value: s
   <View style={styles.detailItem}>
     <Text style={styles.detailLabel}>{label}</Text>
     <Text style={[styles.detailValue, colorStyle]}>{String(value)}</Text>
+  </View>
+);
+
+const RegistrationBox = ({ label, value, isLast = false }: { label: string, value: string, isLast?: boolean }) => (
+  <View style={isLast ? styles.registrationBoxLast : styles.registrationBox}>
+    <Text style={styles.registrationBoxLabel}>{label}</Text>
+    <Text style={styles.registrationBoxValue}>{value}</Text>
   </View>
 );
 
@@ -113,6 +128,7 @@ export const SalesReportPDF: React.FC<SalesReportPDFProps> = ({ products, compan
           const classification = p.cClassTrib ? getClassificationDetails(p.cClassTrib) : null;
           const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
           const classFormat = p.cClassTrib?.toString().padStart(6, '0') || '000001';
+          const cfopVenda = p.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102';
 
           return (
             <View key={i} style={styles.productBlock} wrap={false}>
@@ -154,6 +170,19 @@ export const SalesReportPDF: React.FC<SalesReportPDFProps> = ({ products, compan
                   <DetailItem label="Credito p/ Cliente" value={formatCurrency(p.ivaCreditForClient)} colorStyle={styles.colorSuccess} />
                   <DetailItem label="Markup Aplicado" value={formatPercent(p.markupPercentage)} />
                   <DetailItem label="Margem de Lucro" value={formatPercent(productProfitMargin)} colorStyle={styles.colorSuccess} />
+                </View>
+              </View>
+
+              {/* Nova Sessão de Dados para Cadastro */}
+              <View style={styles.registrationBlock}>
+                <Text style={styles.registrationTitle}>Codigos Sugeridos para Cadastro de Venda</Text>
+                <View style={styles.registrationGrid}>
+                  <RegistrationBox label="CSOSN / CST ICMS" value={p.suggestedCodes.icmsCstOrCsosn} />
+                  <RegistrationBox label="CST PIS/COFINS" value={p.suggestedCodes.pisCofinsCst} />
+                  <RegistrationBox label="CFOP VENDA" value={cfopVenda} />
+                  <RegistrationBox label="NCM" value={p.ncm || '---'} />
+                  <RegistrationBox label="CEST" value={p.cest || '---'} />
+                  <RegistrationBox label="CST/cClassTrib" value={`${cstFormat} / ${classFormat}`} isLast={true} />
                 </View>
               </View>
             </View>

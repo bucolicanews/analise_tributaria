@@ -605,26 +605,29 @@ const Index = () => {
                   <DialogTitle className="text-sm">{selectedAgentReport?.nome || 'Relatório do Agente'}</DialogTitle>
                   <DialogDescription className="sr-only">Visualização do relatório gerado pelo agente IA.</DialogDescription>
                 </DialogHeader>
-                {selectedAgentReport?.report && (
-                  <PDFDownloadLink
-                    document={
-                      <AgentReportPDF
-                        agentName={selectedAgentReport.nome}
-                        reportMarkdown={selectedAgentReport.report}
-                        companyName={companyName}
-                        accountantName={accountantName}
-                        accountantCrc={accountantCrc}
-                      />
-                    }
-                    fileName={`${selectedAgentReport.nome.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
-                  >
-                    {({ loading }) => (
-                      <Button size="sm" disabled={loading}>
-                        {loading ? 'Gerando...' : 'Baixar PDF'}
-                      </Button>
-                    )}
-                  </PDFDownloadLink>
-                )}
+                <div className="flex gap-2">
+                  {selectedAgentReport?.report && (
+                    <PDFDownloadLink
+                      document={
+                        <AgentReportPDF
+                          agentName={selectedAgentReport.nome}
+                          reportMarkdown={selectedAgentReport.report}
+                          companyName={companyName}
+                          accountantName={accountantName}
+                          accountantCrc={accountantCrc}
+                        />
+                      }
+                      fileName={`${selectedAgentReport.nome.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
+                    >
+                      {({ loading }) => (
+                        <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
+                          {loading ? 'Gerando...' : 'Baixar PDF'}
+                        </Button>
+                      )}
+                    </PDFDownloadLink>
+                  )}
+                  <Button variant="outline" size="sm" onClick={() => setIsPdfAgentOpen(false)}>Fechar</Button>
+                </div>
               </div>
               <div className="flex-1 w-full bg-slate-100 overflow-hidden">
                 {isPdfAgentMounted && selectedAgentReport?.report ? (
@@ -688,6 +691,7 @@ const Index = () => {
                                   </Button>
                                 )}
                               </PDFDownloadLink>
+                              <Button variant="outline" size="sm" onClick={() => setIsSalesReportOpen(false)}>Fechar</Button>
                           </div>
                         </div>
                         <div className="flex-1 w-full bg-slate-100 overflow-hidden">
