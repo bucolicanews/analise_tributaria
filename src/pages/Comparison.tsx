@@ -389,11 +389,11 @@ const Comparison = () => {
                   onValueChange={(v) => handlePassThroughChange(v[0])} 
                   max={100} step={1} className="flex-1 cursor-pointer"
                 />
-                <div className="w-[70px] flex items-center gap-1">
+                <div className="flex items-center gap-1 shrink-0">
                   <Input 
                     type="number" value={localPassThrough} 
                     onChange={(e) => handlePassThroughChange(Number(e.target.value))} 
-                    className="text-right h-8 text-sm bg-white/50 border-blue-500/30"
+                    className="w-[80px] text-center h-8 text-sm bg-white/50 border-blue-500/30"
                   />
                   <span className="text-xs font-bold text-blue-800">%</span>
                 </div>
@@ -426,11 +426,11 @@ const Comparison = () => {
                   max={100} step={5} className="flex-1 cursor-pointer"
                 />
                 <span className="text-[10px] font-bold text-emerald-800 w-[20px] text-right">B2B</span>
-                <div className="w-[70px] flex items-center gap-1 ml-2">
+                <div className="flex items-center gap-1 ml-2 shrink-0">
                   <Input 
                     type="number" value={b2bMix} 
                     onChange={(e) => handleB2bMixChange(Number(e.target.value))} 
-                    className="text-right h-8 text-sm bg-white/50 border-emerald-500/30"
+                    className="w-[80px] text-center h-8 text-sm bg-white/50 border-emerald-500/30"
                   />
                   <span className="text-xs font-bold text-emerald-800">%</span>
                 </div>
