@@ -372,16 +372,16 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
               disabled={disabled}
               className="flex-1"
             />
-            <div className="w-[60px]">
+            <div className="flex items-center gap-1 shrink-0">
               <Input 
                 type="number" 
                 value={taxPassThrough} 
                 onChange={(e) => setTaxPassThrough(Number(e.target.value))} 
                 disabled={disabled}
-                className="text-right"
+                className="w-[80px] text-center"
               />
+              <span className="text-sm font-bold">%</span>
             </div>
-            <span className="text-sm font-bold">%</span>
           </div>
         </div>
       </div>
