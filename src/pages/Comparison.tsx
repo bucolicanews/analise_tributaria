@@ -2,7 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown, Package, Info, Lock, Zap } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Package, Lock, Zap, Building2, User } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { Button } from '@/components/ui/button';
@@ -121,21 +121,30 @@ const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 const Comparison = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
   const [localPassThrough, setLocalPassThrough] = useState<number>(0);
+  const [b2bMix, setB2bMix] = useState<number>(0);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
 
-  // Inicializa o estado local com o valor salvo
   useEffect(() => {
-    const saved = localStorage.getItem('jota-taxPassThrough');
-    if (saved) setLocalPassThrough(parseFloat(saved));
+    const savedPass = localStorage.getItem('jota-taxPassThrough');
+    if (savedPass) setLocalPassThrough(parseFloat(savedPass));
+    
+    const savedMix = localStorage.getItem('jota-b2bMix');
+    if (savedMix) setB2bMix(parseFloat(savedMix));
   }, []);
 
   const handlePassThroughChange = (val: number) => {
     const clamped = Math.max(0, Math.min(100, val));
     setLocalPassThrough(clamped);
     localStorage.setItem('jota-taxPassThrough', clamped.toString());
+  };
+
+  const handleB2bMixChange = (val: number) => {
+    const clamped = Math.max(0, Math.min(100, val));
+    setB2bMix(clamped);
+    localStorage.setItem('jota-b2bMix', clamped.toString());
   };
 
   const comparisonData = useMemo(() => {
@@ -158,6 +167,8 @@ const Comparison = () => {
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
       
       const passThroughRatio = localPassThrough / 100;
+      const mixB2B = b2bMix / 100;
+      const mixB2C = 1 - mixB2B;
 
       // 1. CALCULA O CENÁRIO BASE (SIMPLES NACIONAL) PARA ANCORAR O PREÇO
       const baseRegimeParams: CalculationParams = { 
@@ -218,7 +229,7 @@ const Comparison = () => {
         },
       ];
 
-      // 2. APLICA OS OUTROS REGIMES USANDO A LÓGICA DE ELASTICIDADE (REPASSE)
+      // 2. APLICA OS OUTROS REGIMES (ELASTICIDADE + EFEITO B2B)
       const results = regimes.map(r => {
         const inssPatronalMensal = r.hasInssPatronal ? baseParams.payroll * (baseParams.inssPatronalRate / 100) : 0;
         const totalFixedCosts = baseOperationalFixed + inssPatronalMensal;
@@ -226,37 +237,67 @@ const Comparison = () => {
         const cfu = baseParams.totalStockUnits > 0 ? totalFixedCosts / baseParams.totalStockUnits : 0;
         const inssPatronalRateado = baseParams.totalStockUnits > 0 ? (inssPatronalMensal / baseParams.totalStockUnits) * totalInners : 0;
 
-        const calculated = productsToProcess.map((p, idx) => {
+        const dreProducts: CalculatedProduct[] = [];
+        const displayPrices: any[] = [];
+
+        productsToProcess.forEach((p, idx) => {
           const basePrice = baseCalculatedProducts[idx].sellingPrice;
           
-          if (passThroughRatio === 0) {
-            return calculatePricing(p, r.params, cfu, basePrice);
+          // Taxa de crédito que o cliente recupera se comprar neste regime
+          let clientCreditRate = 0;
+          if (r.params.taxRegime === TaxRegime.LucroPresumido || r.params.taxRegime === TaxRegime.LucroReal || (r.params.taxRegime === TaxRegime.SimplesNacional && r.params.generateIvaCredit)) {
+              const cbsRateEff = r.params.useCbsDebit ? r.params.cbsRate / 100 : 0;
+              const ibsRateEff = (r.params.ibsRate / 100) * (r.params.ibsDebitPercentage / 100);
+              clientCreditRate = cbsRateEff + ibsRateEff;
           }
+          clientCreditRate = Math.min(0.99, clientCreditRate);
           
+          // O preço COMPETITIVO B2B é o preço que dá ao cliente o MESMO custo líquido que ele teria comprando do Simples
+          const competitivePriceB2C = basePrice;
+          const competitivePriceB2B = basePrice / (1 - clientCreditRate);
+
+          // Calcula o preço IDEAL para manter a margem neste regime
           const idealProduct = calculatePricing(p, r.params, cfu);
           const idealPrice = idealProduct.sellingPrice;
           
-          const finalPrice = basePrice + (idealPrice - basePrice) * passThroughRatio;
+          // Aplica o repasse (elasticidade) sobre o preço competitivo
+          const finalPriceB2C = competitivePriceB2C + (idealPrice - competitivePriceB2C) * passThroughRatio;
+          const finalPriceB2B = competitivePriceB2B + (idealPrice - competitivePriceB2B) * passThroughRatio;
           
-          return calculatePricing(p, r.params, cfu, finalPrice);
+          const qtyB2C = p.quantity * mixB2C;
+          const qtyB2B = p.quantity * mixB2B;
+          
+          // Divide a nota em dois mundos para montar o DRE exato
+          if (qtyB2C > 0) {
+              dreProducts.push(calculatePricing({ ...p, quantity: qtyB2C }, r.params, cfu, finalPriceB2C));
+          }
+          if (qtyB2B > 0) {
+              dreProducts.push(calculatePricing({ ...p, quantity: qtyB2B }, r.params, cfu, finalPriceB2B));
+          }
+          
+          displayPrices.push({
+              priceB2C: finalPriceB2C,
+              priceB2B: finalPriceB2B,
+              netB2B: finalPriceB2B * (1 - clientCreditRate)
+          });
         });
         
-        const summary = calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners);
+        const summary = calculateGlobalSummaryForComparison(dreProducts, r.params, totalFixedCosts, totalVarPct, cfu, totalInners);
         summary.totalInssPatronalRateado = inssPatronalRateado;
 
         return {
           label: r.label,
           summary,
-          products: calculated
+          displayPrices
         };
       });
 
       let bestResult = results[0];
       results.forEach(res => { if (res.summary.totalProfit > bestResult.summary.totalProfit) bestResult = res; });
 
-      return { results, bestResult, originalProducts: productsToProcess };
+      return { results, bestResult, originalProducts: productsToProcess, passThroughRatio, b2bMix };
     } catch (error) { return null; }
-  }, [localPassThrough]);
+  }, [localPassThrough, b2bMix]);
 
   if (!comparisonData) return <div className="p-8 text-center">Dados insuficientes para comparação. Realize uma precificação primeiro.</div>;
 
@@ -323,43 +364,77 @@ const Comparison = () => {
             <AlertDescription className="text-lg font-semibold">O melhor regime é: <span className="font-extrabold">{comparisonData.bestResult.label}</span>, com Lucro de <span className="font-extrabold">{formatCurrency(comparisonData.bestResult.summary.totalProfit)}</span>.</AlertDescription>
           </Alert>
           
-          <div className="mt-4 p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex flex-col gap-4">
-            <div className="flex gap-3 items-start">
-              {localPassThrough === 0 ? (
-                <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-              ) : (
-                <Zap className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
-              )}
-              <div className="flex-1">
-                <p className="text-sm font-bold text-blue-800">
-                  {localPassThrough === 0 
-                    ? "Simulação de Mercado (Preços Travados no 0%)" 
-                    : `Simulação Híbrida (${localPassThrough}% de Repasse)`}
-                </p>
-                <p className="text-xs text-blue-700 mt-1">
-                  {localPassThrough === 0 
-                    ? "O sistema travou o Preço de Venda em todos os regimes. O comparativo demonstra qual tributação corrói menos a sua margem de lucro."
-                    : `O sistema está repassando ${localPassThrough}% das variações tributárias para o preço final. O restante recairá diretamente sobre a margem de lucro da empresa.`}
-                </p>
+          <div className="grid md:grid-cols-2 gap-4 mt-6">
+            {/* SLIDER 1: ELASTICIDADE */}
+            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30 flex flex-col gap-4">
+              <div className="flex gap-3 items-start">
+                {localPassThrough === 0 ? (
+                  <Lock className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+                ) : (
+                  <Zap className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-blue-800">
+                    {localPassThrough === 0 
+                      ? "Mercado Travado (0% Repasse)" 
+                      : `Simulação (${localPassThrough}% de Repasse)`}
+                  </p>
+                  <p className="text-[10px] text-blue-700 mt-1">
+                    Controla o quanto da variação do imposto a sua empresa consegue empurrar para o preço de venda sem perder vendas.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 px-2 pt-2 border-t border-blue-500/20">
+                <Slider 
+                  value={[localPassThrough]} 
+                  onValueChange={(v) => handlePassThroughChange(v[0])} 
+                  max={100} step={1} className="flex-1 cursor-pointer"
+                />
+                <div className="w-[70px] flex items-center gap-1">
+                  <Input 
+                    type="number" value={localPassThrough} 
+                    onChange={(e) => handlePassThroughChange(Number(e.target.value))} 
+                    className="text-right h-8 text-sm bg-white/50 border-blue-500/30"
+                  />
+                  <span className="text-xs font-bold text-blue-800">%</span>
+                </div>
               </div>
             </div>
-            
-            <div className="flex items-center gap-4 px-2 pt-2 border-t border-blue-500/20">
-              <Slider 
-                value={[localPassThrough]} 
-                onValueChange={(v) => handlePassThroughChange(v[0])} 
-                max={100} 
-                step={1} 
-                className="flex-1 cursor-pointer"
-              />
-              <div className="w-[80px] flex items-center gap-1">
-                <Input 
-                  type="number" 
-                  value={localPassThrough} 
-                  onChange={(e) => handlePassThroughChange(Number(e.target.value))} 
-                  className="text-right h-8 text-sm bg-white/50 border-blue-500/30"
+
+            {/* SLIDER 2: MIX DE VENDAS B2B vs B2C */}
+            <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex flex-col gap-4">
+              <div className="flex gap-3 items-start">
+                {b2bMix === 0 ? (
+                  <User className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+                ) : (
+                  <Building2 className="h-5 w-5 text-emerald-600 mt-0.5 shrink-0" />
+                )}
+                <div className="flex-1">
+                  <p className="text-sm font-bold text-emerald-800">
+                    Mix de Vendas: {b2bMix}% PJ (Empresas)
+                  </p>
+                  <p className="text-[10px] text-emerald-700 mt-1">
+                    Na venda para CNPJ (B2B), você pode cobrar mais caro, pois o seu cliente desconta o IBS/CBS como crédito. 
+                    Mova para a direita para ver o Lucro Real/Presumido ganharem vantagem.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-4 px-2 pt-2 border-t border-emerald-500/20">
+                <span className="text-[10px] font-bold text-emerald-800 w-[20px]">B2C</span>
+                <Slider 
+                  value={[b2bMix]} 
+                  onValueChange={(v) => handleB2bMixChange(v[0])} 
+                  max={100} step={5} className="flex-1 cursor-pointer"
                 />
-                <span className="text-sm font-bold text-blue-800">%</span>
+                <span className="text-[10px] font-bold text-emerald-800 w-[20px] text-right">B2B</span>
+                <div className="w-[70px] flex items-center gap-1 ml-2">
+                  <Input 
+                    type="number" value={b2bMix} 
+                    onChange={(e) => handleB2bMixChange(Number(e.target.value))} 
+                    className="text-right h-8 text-sm bg-white/50 border-emerald-500/30"
+                  />
+                  <span className="text-xs font-bold text-emerald-800">%</span>
+                </div>
               </div>
             </div>
           </div>
@@ -483,7 +558,7 @@ const Comparison = () => {
         <CardHeader>
           <CardTitle className="text-xl font-bold text-primary flex items-center gap-2">
             <Package className="h-5 w-5" />
-            Análise de Preços por Produto (B2C vs B2B)
+            Análise de Preços por Produto (Varejo vs Atacado)
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -504,20 +579,20 @@ const Comparison = () => {
                         <div className="text-xs text-muted-foreground font-mono mt-1">Cód: {originalProduct.code} | Custo Aq.: {formatCurrency(originalProduct.cost)}</div>
                       </TableCell>
                       {comparisonData.results.map(res => {
-                        const prod = res.products[index];
-                        const precoB2C = prod.sellingPrice;
-                        // Para empresas (B2B), o custo efetivo do produto descontará o IVA que ela vai receber de crédito
-                        const precoB2B = prod.sellingPrice - prod.ivaCreditForClient;
+                        const prices = res.displayPrices[index];
                         return (
                           <TableCell key={res.label} className="text-center align-top">
                             <div className="flex flex-col gap-1.5 items-center justify-center">
                               <div className="text-xs bg-primary/10 text-primary px-2 py-1.5 rounded border border-primary/20 w-full max-w-[130px]">
                                 <span className="text-[9px] uppercase font-semibold block mb-0.5 opacity-80">Consumidor (B2C)</span>
-                                <span className="font-extrabold text-sm">{formatCurrency(precoB2C)}</span>
+                                <span className="font-extrabold text-sm">{formatCurrency(prices.priceB2C)}</span>
                               </div>
-                              <div className="text-xs bg-blue-500/10 text-blue-600 px-2 py-1.5 rounded border border-blue-500/20 w-full max-w-[130px]">
+                              <div className="text-xs bg-emerald-500/10 text-emerald-700 px-2 py-1.5 rounded border border-emerald-500/30 w-full max-w-[130px] relative">
                                 <span className="text-[9px] uppercase font-semibold block mb-0.5 opacity-80">Empresa (B2B)</span>
-                                <span className="font-extrabold text-sm">{formatCurrency(precoB2B)}</span>
+                                <span className="font-extrabold text-sm">{formatCurrency(prices.priceB2B)}</span>
+                                {prices.priceB2B > prices.priceB2C && (
+                                  <div className="text-[8px] mt-0.5 opacity-80">Custo Líq. Cli: {formatCurrency(prices.netB2B)}</div>
+                                )}
                               </div>
                             </div>
                           </TableCell>
