@@ -52,6 +52,7 @@ interface ComparisonData {
     totalCsllToPay: number;
     totalSimplesToPay: number;
     totalSelectiveTaxToPay: number;
+    totalInssPatronalRateado: number;
   };
   products: CalculatedProduct[];
 }
@@ -191,7 +192,23 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
             ))}
           </View>
 
-          {/* TOTALIZADOR */}
+          {/* GRUPO 3: ENCARGOS SOBRE FOLHA */}
+          <View style={styles.tableRowGroupHeader}>
+            <View style={{ padding: 8, width: '100%' }}>
+              <Text style={{ fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#475569', textTransform: 'uppercase' }}>3. Encargos sobre a Folha (Custo Fixo)</Text>
+            </View>
+          </View>
+          
+          <View style={styles.tableRow}>
+            <View style={[styles.col, { width: colPct }]}><Text style={{ fontFamily: 'Helvetica', fontSize: 8, color: '#64748b', paddingLeft: 10 }}>(+) INSS Patronal Rateado</Text></View>
+            {results.map(res => (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRight, { color: '#64748b', fontSize: 8 }]}>{formatCurrency(res.summary.totalInssPatronalRateado)}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* TOTAIS */}
           <View style={styles.tableRow}>
             <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold' }]}>(=) Impostos Liquidos Totais</Text></View>
             {results.map(res => (
@@ -204,6 +221,23 @@ export const ComparisonReportPDF: React.FC<ComparisonReportPDFProps> = ({ result
                 </Text>
               </View>
             ))}
+          </View>
+
+          <View style={[styles.tableRow, { backgroundColor: '#fee2e2' }]}>
+            <View style={[styles.col, { width: colPct }]}><Text style={[styles.colorDestructive, { fontFamily: 'Helvetica-Bold' }]}>CARGA TOTAL (Impostos + INSS)</Text></View>
+            {results.map(res => {
+              const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
+              const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
+              return (
+              <View key={res.label} style={[styles.col, { width: colPct }]}>
+                <Text style={[styles.cellRightBold, styles.colorDestructive]}>
+                  {formatCurrency(cargaTotal)}
+                </Text>
+                <Text style={{ fontSize: 6, color: '#ef4444', textAlign: 'right', marginTop: 1 }}>
+                  ({formatPercent(cargaPct)})
+                </Text>
+              </View>
+            )})}
           </View>
 
           <View style={styles.tableRowHighlight}>

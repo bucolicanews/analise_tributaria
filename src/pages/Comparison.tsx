@@ -5,11 +5,33 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { CheckCircle2, BarChart3, Printer, FileDown, Package } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
-import { GlobalSummaryData } from '@/components/ProductsTable';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader as UIHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ComparisonReportPDF } from '@/components/ComparisonReportPDF';
+
+interface GlobalSummaryDataExt {
+  totalSelling: number;
+  totalTax: number;
+  totalProfit: number;
+  profitMarginPercent: number;
+  breakEvenPoint: number;
+  totalVariableExpensesValue: number;
+  totalContributionMargin: number;
+  totalTaxPercent: number;
+  totalCbsCredit: number;
+  totalIbsCredit: number;
+  totalCbsDebit: number;
+  totalIbsDebit: number;
+  totalCbsTaxToPay: number;
+  totalIbsTaxToPay: number;
+  totalIrpjToPay: number;
+  totalCsllToPay: number;
+  totalSimplesToPay: number;
+  totalSelectiveTaxToPay: number;
+  totalIvaCreditForClient: number;
+  totalInssPatronalRateado: number; // Novo campo
+}
 
 const calculateGlobalSummaryForComparison = (
   productsToSummarize: CalculatedProduct[],
@@ -19,7 +41,7 @@ const calculateGlobalSummaryForComparison = (
   cfu: number,
   totalInnerUnitsInXML: number,
   profitMarginOverride: number
-): GlobalSummaryData => {
+): GlobalSummaryDataExt => {
   const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
   const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
   const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0); 
@@ -81,6 +103,7 @@ const calculateGlobalSummaryForComparison = (
     totalSimplesToPay: totalSimplesToPaySum,
     totalSelectiveTaxToPay: totalSelectiveTaxToPaySum,
     totalIvaCreditForClient: totalIvaCreditForClientSum,
+    totalInssPatronalRateado: 0, // Será preenchido no componente
   };
 };
 
@@ -108,18 +131,18 @@ const Comparison = () => {
       const productsToProcess = products.filter(p => selectedProductCodes.has(p.code));
       if (productsToProcess.length === 0) return null;
 
-      const totalFixedCosts = (baseParams.fixedCostsTotal || 0);
       const totalVarPct = baseParams.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
       const totalInners = productsToProcess.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
 
-      // A grande correção do Simples Híbrido:
-      // Se a empresa opta pelo Híbrido, a fatia do DAS que corresponde ao ICMS/PIS/COFINS é excluída.
-      // Em média (Anexo I e II), isso representa cerca de 50% da alíquota do DAS.
+      // O INSS Patronal muda dependendo do regime tributário (Para o Simples = 0, LP/LR = valor real)
+      const baseOperationalFixed = baseParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + baseParams.payroll;
+
       const reducedSimplesRate = baseParams.simplesNacionalRate * 0.5;
 
       const regimes = [
         { 
           label: "Simples Nacional (Padrão)", 
+          hasInssPatronal: false,
           params: { 
             ...baseParams, 
             taxRegime: TaxRegime.SimplesNacional, 
@@ -132,10 +155,11 @@ const Comparison = () => {
         },
         { 
           label: "Simples Nacional (Híbrido)", 
+          hasInssPatronal: false,
           params: { 
             ...baseParams, 
             taxRegime: TaxRegime.SimplesNacional, 
-            simplesNacionalRate: reducedSimplesRate, // Correção aplicada aqui!
+            simplesNacionalRate: reducedSimplesRate,
             generateIvaCredit: true,
             usePisCofins: true,
             icmsPercentage: 100,
@@ -145,6 +169,7 @@ const Comparison = () => {
         },
         { 
           label: "Lucro Presumido", 
+          hasInssPatronal: true,
           params: { 
             ...baseParams, 
             taxRegime: TaxRegime.LucroPresumido,
@@ -156,6 +181,7 @@ const Comparison = () => {
         },
         { 
           label: "Lucro Real", 
+          hasInssPatronal: true,
           params: { 
             ...baseParams, 
             taxRegime: TaxRegime.LucroReal,
@@ -168,11 +194,21 @@ const Comparison = () => {
       ];
 
       const results = regimes.map(r => {
-        const cfu = r.params.totalStockUnits > 0 ? totalFixedCosts / r.params.totalStockUnits : 0;
+        // Cálculo do Custo Fixo Específico do Regime (com ou sem INSS Patronal)
+        const inssPatronalMensal = r.hasInssPatronal ? baseParams.payroll * (baseParams.inssPatronalRate / 100) : 0;
+        const totalFixedCosts = baseOperationalFixed + inssPatronalMensal;
+        
+        const cfu = baseParams.totalStockUnits > 0 ? totalFixedCosts / baseParams.totalStockUnits : 0;
+        const inssPatronalRateado = baseParams.totalStockUnits > 0 ? (inssPatronalMensal / baseParams.totalStockUnits) * totalInners : 0;
+
         const calculated = productsToProcess.map(p => calculatePricing(p, r.params, cfu));
+        const summary = calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin);
+        
+        summary.totalInssPatronalRateado = inssPatronalRateado;
+
         return {
           label: r.label,
-          summary: calculateGlobalSummaryForComparison(calculated, r.params, totalFixedCosts, totalVarPct, cfu, totalInners, r.params.profitMargin),
+          summary,
           products: calculated
         };
       });
@@ -303,10 +339,32 @@ const Comparison = () => {
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalSelectiveTaxToPay)}</TableCell>)}
                 </TableRow>
 
+                {/* Memória de Cálculo: Encargos sobre Folha */}
+                <TableRow className="bg-muted/30">
+                  <TableCell colSpan={5} className="font-bold text-xs uppercase text-muted-foreground pt-4 pb-2">3. Encargos sobre a Folha (Custo Fixo)</TableCell>
+                </TableRow>
+                <TableRow className="bg-muted/10 border-b-border">
+                  <TableCell className="text-xs pl-6">(+) INSS Patronal Rateado</TableCell>
+                  {comparisonData.results.map(res => <TableCell key={res.label} className="text-right text-xs text-muted-foreground">{formatCurrency(res.summary.totalInssPatronalRateado)}</TableCell>)}
+                </TableRow>
+
                 {/* TOTAIS */}
                 <TableRow>
                   <TableCell className="font-bold pt-4 text-destructive uppercase">(=) Impostos Líquidos Totais</TableCell>
                   {comparisonData.results.map(res => <TableCell key={res.label} className="text-right pt-4 font-bold text-destructive">{formatCurrency(res.summary.totalTax)} <span className="text-[10px] block opacity-70">({formatPercent(res.summary.totalTaxPercent)})</span></TableCell>)}
+                </TableRow>
+
+                <TableRow className="bg-destructive/10">
+                  <TableCell className="font-bold text-destructive uppercase">Carga Total (Impostos + INSS)</TableCell>
+                  {comparisonData.results.map(res => {
+                    const cargaTotal = res.summary.totalTax + res.summary.totalInssPatronalRateado;
+                    const cargaPct = res.summary.totalSelling > 0 ? (cargaTotal / res.summary.totalSelling) * 100 : 0;
+                    return (
+                      <TableCell key={res.label} className="text-right font-bold text-destructive">
+                        {formatCurrency(cargaTotal)} <span className="text-[10px] block opacity-70">({formatPercent(cargaPct)})</span>
+                      </TableCell>
+                    );
+                  })}
                 </TableRow>
                 
                 <TableRow className="bg-success/10">
