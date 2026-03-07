@@ -1,8 +1,8 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { CheckCircle2, BarChart3, Printer, FileDown } from 'lucide-react';
+import { CheckCircle2, BarChart3, Printer, FileDown, Loader2 } from 'lucide-react';
 import { calculatePricing } from '@/lib/pricing';
 import { Product, CalculatedProduct, TaxRegime, CalculationParams } from '@/types/pricing';
 import { GlobalSummaryData } from '@/components/ProductsTable';
@@ -89,10 +89,20 @@ const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
 const Comparison = () => {
   const [isPdfOpen, setIsPdfOpen] = useState(false);
+  const [isPdfMounted, setIsPdfMounted] = useState(false);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
+
+  useEffect(() => {
+    if (isPdfOpen) {
+      const timer = setTimeout(() => setIsPdfMounted(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setIsPdfMounted(false);
+    }
+  }, [isPdfOpen]);
 
   const comparisonData = useMemo(() => {
     const storedParams = sessionStorage.getItem('jota-calc-params');
@@ -194,19 +204,29 @@ const Comparison = () => {
                     Visualizar PDF
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col">
-                  <DialogTitle className="sr-only">Visualizar Comparativo de Regimes</DialogTitle>
-                  <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
-                  <div className="flex-1 w-full bg-slate-100 rounded-md overflow-hidden">
-                    <PDFViewer width="100%" height="100%" className="border-none">
-                      <ComparisonReportPDF 
-                        results={comparisonData.results}
-                        bestResult={comparisonData.bestResult}
-                        companyName={companyName}
-                        accountantName={accountantName}
-                        accountantCrc={accountantCrc}
-                      />
-                    </PDFViewer>
+                <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col gap-0">
+                  <div className="p-4 border-b flex items-center justify-between bg-muted/20">
+                    <DialogTitle>Visualizar Comparativo de Regimes</DialogTitle>
+                    <DialogDescription className="sr-only">Pré-visualização do comparativo de regimes tributários em formato PDF.</DialogDescription>
+                    <Button variant="outline" size="sm" onClick={() => setIsPdfOpen(false)}>Fechar</Button>
+                  </div>
+                  <div className="flex-1 w-full bg-slate-100 overflow-hidden">
+                    {isPdfMounted ? (
+                      <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                        <ComparisonReportPDF 
+                          results={comparisonData.results}
+                          bestResult={comparisonData.bestResult}
+                          companyName={companyName}
+                          accountantName={accountantName}
+                          accountantCrc={accountantCrc}
+                        />
+                      </PDFViewer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <p className="text-sm">Carregando visualização...</p>
+                      </div>
+                    )}
                   </div>
                 </DialogContent>
               </Dialog>

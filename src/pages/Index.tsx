@@ -44,8 +44,10 @@ const Index = () => {
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
-  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
+
+  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
+  const [isSalesReportMounted, setIsSalesReportMounted] = useState(false);
 
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
   const [isAgentsRunning, setIsAgentsRunning] = useState(false);
@@ -94,6 +96,15 @@ const Index = () => {
       setIsPdfAgentMounted(false);
     }
   }, [isPdfAgentOpen]);
+
+  useEffect(() => {
+    if (isSalesReportOpen) {
+      const timer = setTimeout(() => setIsSalesReportMounted(true), 150);
+      return () => clearTimeout(timer);
+    } else {
+      setIsSalesReportMounted(false);
+    }
+  }, [isSalesReportOpen]);
 
   const buildViabilidadePayload = () => ({
     razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
@@ -671,6 +682,7 @@ const Index = () => {
                         <div className="p-4 border-b flex items-center justify-between bg-muted/20">
                           <DialogHeader>
                             <DialogTitle>Relatório Oficial de Precificação</DialogTitle>
+                            <DialogDescription className="sr-only">Visualização do relatório de vendas.</DialogDescription>
                           </DialogHeader>
                           <div className="flex gap-2">
                              <PDFDownloadLink
@@ -695,14 +707,21 @@ const Index = () => {
                           </div>
                         </div>
                         <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                          <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                            <SalesReportPDF 
-                              products={calculatedProducts}
-                              companyName={companyName}
-                              accountantName={accountantName}
-                              accountantCrc={accountantCrc}
-                            />
-                          </PDFViewer>
+                          {isSalesReportMounted ? (
+                            <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
+                              <SalesReportPDF 
+                                products={calculatedProducts}
+                                companyName={companyName}
+                                accountantName={accountantName}
+                                accountantCrc={accountantCrc}
+                              />
+                            </PDFViewer>
+                          ) : (
+                            <div className="flex h-full items-center justify-center gap-3 text-muted-foreground">
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              <p className="text-sm">Carregando visualização...</p>
+                            </div>
+                          )}
                         </div>
                       </DialogContent>
                     </Dialog>
