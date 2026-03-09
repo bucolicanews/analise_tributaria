@@ -25,6 +25,7 @@ export interface Product {
   pisCst?: string;
   cofinsCst?: string;
   ipiCst?: string;
+  cClassTrib?: number;
 }
 
 export interface FixedExpense {

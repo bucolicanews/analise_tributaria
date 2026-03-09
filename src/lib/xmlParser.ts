@@ -86,6 +86,11 @@ export const parseXml = (
           const cofinsCst = getText(getElement(cofinsElement, "COFINSAliq") || getElement(cofinsElement, "COFINSNT"), "CST") || "";
           const icmsCst = getText(icmsElement, "CST") || getText(icmsElement, "CSOSN") || "";
 
+          const impostoElement = getElement(det, "imposto");
+          const ibscbsElement = getElement(impostoElement, "IBSCBS");
+          const cClassTribRaw = getText(ibscbsElement, "cClassTrib");
+          const cClassTrib = cClassTribRaw ? parseInt(cClassTribRaw, 10) : undefined;
+
           // No cálculo da Reforma, IPI e ST também geram crédito integral (IBS/CBS)
           return {
             code, name, ean, cost, unit, quantity,
@@ -95,6 +100,7 @@ export const parseXml = (
             icmsCredit: quantity > 0 ? (icmsVal + icmsSTVal + icmsSNVal + ipiVal) / quantity : 0,
             cfop, cst: icmsCst, ncm, cest, pisCst, cofinsCst,
             ipiCst: getText(ipiElement, "CST") || "",
+            cClassTrib,
           };
         });
       }

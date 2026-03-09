@@ -230,6 +230,6 @@ export const calculatePricing = (
       icmsCstOrCsosn: ['10', '30', '60', '70', '90', '201', '202', '203', '500'].includes(product.cst || "") ? '500' : '102',
       pisCofinsCst: ["04", "05", "06", "07", "08", "09"].includes(product.pisCst || "") ? '04' : '01',
     },
-    cClassTrib: findCClassByNcm(product.ncm) || 1,
+    cClassTrib: product.cClassTrib ?? findCClassByNcm(product.ncm) ?? 1,
   };
 };

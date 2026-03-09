@@ -82,9 +82,17 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
         {/* GERAL */}
         <div>
           <h3 className="font-semibold mb-2">Geral</h3>
-          <DetailRow label="CFOP (Entrada)" value={product.cfop} isBadge />
           <DetailRow label="NCM" value={product.ncm} />
           <DetailRow label="CEST" value={product.cest} />
+          <DetailRow label="CFOP (Entrada)" value={product.cfop} isBadge />
+          <DetailRow label="CSOSN / CST ICMS" value={product.cst} isBadge />
+          <DetailRow label="CST PIS" value={product.pisCst} isBadge />
+          <DetailRow label="CST COFINS" value={product.cofinsCst} isBadge />
+          <DetailRow
+            label="cClassTrib (Reforma)"
+            value={product.cClassTrib !== undefined ? product.cClassTrib.toString().padStart(6, '0') : '000001'}
+            isBadge
+          />
         </div>
 
         {/* ANÁLISE DA OPERAÇÃO */}
