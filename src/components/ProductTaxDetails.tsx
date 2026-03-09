@@ -13,6 +13,8 @@ interface ProductTaxDetailsProps {
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 const formatPercent = (value: number) => `${value.toFixed(2)}%`;
 
+const formatCClassTrib = (code: number): string => code.toString().padStart(6, '0');
+
 const DetailRow = ({ label, value, isBadge = false, isSuggestion = false }: { label: string; value?: string | number; isBadge?: boolean; isSuggestion?: boolean }) => {
   if (value === undefined || value === null || value === '') return null;
   
@@ -141,7 +143,7 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
             )}
 
             <div className="p-3 rounded-md bg-muted/50 border border-border/50 space-y-1">
-              <DetailRow label="cClassTrib" value={classificationDetails.cClass.code} isBadge />
+              <DetailRow label="cClassTrib" value={formatCClassTrib(classificationDetails.cClass.code)} isBadge />
               <DetailRow label="Nome" value={classificationDetails.cClass.name} />
               <DetailRow label="Descrição" value={classificationDetails.cClass.description} />
               

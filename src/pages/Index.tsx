@@ -34,9 +34,11 @@ import { SalesReportPDF } from '@/components/SalesReportPDF';
 import { AgentsTimeline } from '@/components/AgentsTimeline';
 import { AgentReportPDF } from '@/components/AgentReportPDF';
 import { AgentStatus, callGeminiAgent, callAgentWebhook, loadAgentsFromStorage } from '@/lib/geminiService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Index = () => {
   const navigate = useNavigate();
+  const { autenticado } = useAuth();
   const [purchaseProducts, setPurchaseProducts] = useState<Product[]>([]);
   const [salesProducts, setSalesProducts] = useState<Product[]>([]);
   const [params, setParams] = useState<CalculationParams | null>(null);
@@ -690,44 +692,48 @@ const Index = () => {
                       </DialogContent>
                     </Dialog>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          size="sm"
-                          disabled={isSending}
-                          className="bg-orange-600 hover:bg-orange-700 text-white relative"
-                          title={
-                            !localStorage.getItem('viab-atividades')?.trim() || !localStorage.getItem('viab-municipio')?.trim()
-                              ? "Preencha a Análise de Viabilidade antes de usar"
-                              : "Auditoria IA"
-                          }
-                        >
-                          <Sparkles className="h-4 w-4 mr-2" />
-                          {isSending ? "Analisando..." : "Auditoria IA"}
-                          <Badge className="absolute -top-2 -right-2 bg-white text-orange-600 border-orange-600 h-4 text-[8px]">Novo</Badge>
-                          <ChevronDown className="h-4 w-4 ml-2" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Sandbox (Teste)</DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Live (Produção)</DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                    {autenticado && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            size="sm"
+                            disabled={isSending}
+                            className="bg-orange-600 hover:bg-orange-700 text-white relative"
+                            title={
+                              !localStorage.getItem('viab-atividades')?.trim() || !localStorage.getItem('viab-municipio')?.trim()
+                                ? "Preencha a Análise de Viabilidade antes de usar"
+                                : "Auditoria IA"
+                            }
+                          >
+                            <Sparkles className="h-4 w-4 mr-2" />
+                            {isSending ? "Analisando..." : "Auditoria IA"}
+                            <Badge className="absolute -top-2 -right-2 bg-white text-orange-600 border-orange-600 h-4 text-[8px]">Novo</Badge>
+                            <ChevronDown className="h-4 w-4 ml-2" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Sandbox (Teste)</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Live (Produção)</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
 
-                    <Button
-                      size="sm"
-                      disabled={isAgentsRunning}
-                      onClick={handleRunAgents}
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
-                      title={
-                        !localStorage.getItem('jota-gemini-key')?.trim()
-                          ? "Configure a chave Gemini em Configurações"
-                          : "Executar os agentes IA diretos"
-                      }
-                    >
-                      <Bot className="h-4 w-4 mr-2" />
-                      {isAgentsRunning ? "Executando..." : "Agentes IA"}
-                    </Button>
+                    {autenticado && (
+                      <Button
+                        size="sm"
+                        disabled={isAgentsRunning}
+                        onClick={handleRunAgents}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
+                        title={
+                          !localStorage.getItem('jota-gemini-key')?.trim()
+                            ? "Configure a chave Gemini em Configurações"
+                            : "Executar os agentes IA diretos"
+                        }
+                      >
+                        <Bot className="h-4 w-4 mr-2" />
+                        {isAgentsRunning ? "Executando..." : "Agentes IA"}
+                      </Button>
+                    )}
                   </div>
                 </div>
                 <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />

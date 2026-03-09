@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, Lock } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AgentConfig, DEFAULT_AGENTS, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
+import { useAuth } from '@/contexts/AuthContext';
 
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
@@ -15,6 +16,7 @@ const UFs = [
 ];
 
 const Configuracao = () => {
+  const { autenticado } = useAuth();
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794');
 
@@ -147,6 +149,7 @@ const Configuracao = () => {
             </div>
 
             {/* DADOS DO CONTADOR */}
+            {autenticado && (
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <UserCheck className="h-5 w-5 text-muted-foreground" />
@@ -164,8 +167,10 @@ const Configuracao = () => {
                </div>
                <p className="text-xs text-muted-foreground">Estes dados aparecerão no rodapé e na folha de rosto dos relatórios gerados.</p>
             </div>
+            )}
 
             {/* CHAVE API GEMINI */}
+            {autenticado && (
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <KeyRound className="h-5 w-5 text-muted-foreground" />
@@ -189,8 +194,10 @@ const Configuracao = () => {
                   </a>
                </p>
             </div>
+            )}
 
             {/* RELAY URL */}
+            {autenticado && (
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Webhook className="h-5 w-5 text-muted-foreground" />
@@ -210,8 +217,10 @@ const Configuracao = () => {
                   Em desenvolvimento: <code className="bg-muted px-1 rounded">http://localhost:3001</code>. Em produção: URL pública do servidor relay no EasyPanel.
                </p>
             </div>
+            )}
 
             {/* INTEGRAÇÕES N8N */}
+            {autenticado && (
             <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/10">
                <h3 className="text-lg font-semibold flex items-center gap-2">
                   <Webhook className="h-5 w-5 text-muted-foreground" />
@@ -226,6 +235,14 @@ const Configuracao = () => {
                   <Input id="webhook-prod" type="url" value={webhookProdUrl} onChange={(e) => setWebhookProdUrl(e.target.value)} />
                </div>
             </div>
+            )}
+
+            {!autenticado && (
+              <div className="flex items-center gap-2 rounded-lg border border-border p-4 text-sm text-muted-foreground bg-muted/20">
+                <Lock className="h-4 w-4 shrink-0" />
+                <span>Faça login com a senha de acesso para editar as demais configurações do sistema.</span>
+              </div>
+            )}
 
             <Button type="submit" size="lg" className="w-full sm:w-auto">Salvar Todas as Configurações</Button>
           </CardContent>
@@ -233,6 +250,7 @@ const Configuracao = () => {
       </form>
 
       {/* GERENCIADOR DE AGENTES — fora do form pois tem sua própria lógica de save */}
+      {autenticado && (
       <Card className="shadow-card mt-8">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -330,6 +348,7 @@ const Configuracao = () => {
           </div>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 };
