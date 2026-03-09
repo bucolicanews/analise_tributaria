@@ -30,7 +30,6 @@ const Configuracao = () => {
   const [contadorCrc, setContadorCrc] = useState(localStorage.getItem('jota-contador-crc') || '');
 
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
-  const [relayUrl, setRelayUrl] = useState(localStorage.getItem('jota-relay-url') || 'http://localhost:3001');
 
   const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -51,7 +50,6 @@ const Configuracao = () => {
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
     localStorage.setItem('jota-gemini-key', geminiKey);
-    localStorage.setItem('jota-relay-url', relayUrl);
     toast.success("Configurações salvas com sucesso!");
   };
 
@@ -192,29 +190,6 @@ const Configuracao = () => {
                   <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="underline text-primary">
                     aistudio.google.com
                   </a>
-               </p>
-            </div>
-            )}
-
-            {/* RELAY URL */}
-            {autenticado && (
-            <div className="space-y-4 rounded-lg border border-border p-4">
-               <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Webhook className="h-5 w-5 text-muted-foreground" />
-                  URL do Servidor Relay
-               </h3>
-               <div className="space-y-2">
-                  <Label htmlFor="relay-url">URL do Relay (recebe respostas do n8n)</Label>
-                  <Input
-                    id="relay-url"
-                    type="url"
-                    value={relayUrl}
-                    onChange={(e) => setRelayUrl(e.target.value)}
-                    placeholder="http://localhost:3001"
-                  />
-               </div>
-               <p className="text-xs text-muted-foreground">
-                  Em desenvolvimento: <code className="bg-muted px-1 rounded">http://localhost:3001</code>. Em produção: URL pública do servidor relay no EasyPanel.
                </p>
             </div>
             )}

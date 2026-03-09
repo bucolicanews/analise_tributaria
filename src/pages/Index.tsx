@@ -135,15 +135,6 @@ const Index = () => {
       return;
     }
 
-    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
-    const needsGemini = agentConfigs.some(a => !a.webhookUrl?.trim());
-    if (needsGemini && !apiKey) {
-      toast.error("Chave API Gemini não configurada.", {
-        description: "Configure o webhook de cada agente em Configurações, ou informe a chave Gemini para os agentes sem webhook."
-      });
-      return;
-    }
-
     const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
     const viabilidadePayload = buildViabilidadePayload();
     const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
@@ -695,42 +686,12 @@ const Index = () => {
                     </Dialog>
 
                     {autenticado && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            size="sm"
-                            disabled={isSending}
-                            className="bg-orange-600 hover:bg-orange-700 text-white relative"
-                            title={
-                              !localStorage.getItem('viab-atividades')?.trim() || !localStorage.getItem('viab-municipio')?.trim()
-                                ? "Preencha a Análise de Viabilidade antes de usar"
-                                : "Auditoria IA"
-                            }
-                          >
-                            <Sparkles className="h-4 w-4 mr-2" />
-                            {isSending ? "Analisando..." : "Auditoria IA"}
-                            <Badge className="absolute -top-2 -right-2 bg-white text-orange-600 border-orange-600 h-4 text-[8px]">Novo</Badge>
-                            <ChevronDown className="h-4 w-4 ml-2" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Sandbox (Teste)</DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Live (Produção)</DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-
-                    {autenticado && (
                       <Button
                         size="sm"
                         disabled={isAgentsRunning}
                         onClick={handleRunAgents}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
-                        title={
-                          !localStorage.getItem('jota-gemini-key')?.trim()
-                            ? "Configure a chave Gemini em Configurações"
-                            : "Executar os agentes IA diretos"
-                        }
+                        title="Executar os agentes IA"
                       >
                         <Bot className="h-4 w-4 mr-2" />
                         {isAgentsRunning ? "Executando..." : "Agentes IA"}
