@@ -14,12 +14,12 @@ interface LayoutProps {
 const publicNavItems = [
   { to: '/', label: 'Precificação', icon: Upload },
   { to: '/products', label: 'Lista de Produtos', icon: Tags },
+  { to: '/audit', label: 'Auditoria Fiscal', icon: ShieldCheck },
 ];
 
 const privateNavItems = [
   { to: '/new-business', label: 'Análise de Viabilidade', icon: Sparkles },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
-  { to: '/audit', label: 'Auditoria Fiscal', icon: ShieldCheck },
   { to: '/impact', label: 'Análise de Impacto', icon: TrendingUp },
 ];
 

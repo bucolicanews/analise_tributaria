@@ -28,7 +28,7 @@ const AppRoutes = () => (
       <Route path="/products" element={<ProductList />} />
       <Route path="/configuracao" element={<Configuracao />} />
       <Route path="/comparison" element={<RotaProtegida><Comparison /></RotaProtegida>} />
-      <Route path="/audit" element={<RotaProtegida><Audit /></RotaProtegida>} />
+      <Route path="/audit" element={<Audit />} />
       <Route path="/impact" element={<RotaProtegida><ImpactAnalysis /></RotaProtegida>} />
       <Route path="/new-business" element={<RotaProtegida><Viabilidade /></RotaProtegida>} />
       <Route path="*" element={<NotFound />} />

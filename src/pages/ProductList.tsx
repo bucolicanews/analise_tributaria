@@ -8,6 +8,7 @@ import { CalculatedProduct, CalculationParams, Product } from '@/types/pricing';
 import { calculatePricing } from '@/lib/pricing';
 import { generateProductListPdf } from '@/lib/pdfGenerator';
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
+import { getPisCofinsEntradaCST } from '@/lib/tax/cstMappings';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -134,6 +135,7 @@ const ProductList = () => {
               const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
               const cstFormat = classificationDetails?.cst?.code?.toString().padStart(2, '0') || '00';
               const classFormat = product.cClassTrib?.toString().padStart(6, '0') || '000001';
+              const pisCofinsEntradaCst = getPisCofinsEntradaCST(product.suggestedCodes.pisCofinsCst);
 
               // Cálculos Comerciais
               const comFixedCost = (product.valueForFixedCost / product.quantity) || 0;
@@ -180,7 +182,7 @@ const ProductList = () => {
                   </div>
 
                   {/* Detalhes de Cadastro */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 p-4 bg-card border-b border-border">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4 p-4 bg-card border-b border-border">
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CSOSN / CST ICMS</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.suggestedCodes.icmsCstOrCsosn}</div>
@@ -188,6 +190,10 @@ const ProductList = () => {
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CST PIS/COFINS</div>
                       <div className="text-lg font-mono font-bold text-primary bg-primary/5 p-2 rounded border border-primary/20 text-center">{product.suggestedCodes.pisCofinsCst}</div>
+                    </div>
+                    <div className="space-y-1">
+                      <div className="text-[10px] font-bold text-muted-foreground uppercase">CST PIS/COFINS Entrada</div>
+                      <div className="text-lg font-mono font-bold text-secondary-foreground bg-secondary/20 p-2 rounded border border-secondary/30 text-center">{pisCofinsEntradaCst}</div>
                     </div>
                     <div className="space-y-1">
                       <div className="text-[10px] font-bold text-muted-foreground uppercase">CFOP Venda</div>

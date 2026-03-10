@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { AuditReportPDF } from '@/components/AuditReportPDF';
+import { getPisCofinsEntradaCST } from '@/lib/tax/cstMappings';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
@@ -120,7 +121,7 @@ const Audit = () => {
 
   if (!params || purchaseProducts.length === 0 || salesProducts.length === 0) {
     let title = "Dados Insuficientes";
-    let message = "Para realizar a auditoria, primeiro importe as notas de compra, as notas de venda e configure os parâmetros na página de Precificação.";
+    let message = "Para realizar la auditoría, primero importe las notas de compra, las notas de venda e configure os parâmetros na página de Precificação.";
     let Icon = Calculator;
 
     if (params && purchaseProducts.length > 0 && salesProducts.length === 0) {
@@ -153,6 +154,8 @@ const Audit = () => {
         
         const cstFormat = classification?.cst?.code?.toString().padStart(2, '0') || '00';
         const classFormat = calculated.cClassTrib?.toString().padStart(6, '0') || '000001';
+        const pisCofinsEntradaAtual = getPisCofinsEntradaCST(result.sale.pisCst || '');
+        const pisCofinsEntradaSugerido = getPisCofinsEntradaCST(calculated.suggestedCodes.pisCofinsCst);
 
         const comFixedCost = cfu * (calculated.innerQuantity || 1);
         const comTotalBaseCost = calculated.cost + comFixedCost;
@@ -241,6 +244,7 @@ const Audit = () => {
                 <div className="flex flex-wrap gap-4 opacity-70">
                   <TaxBox variant="current" label="CSOSN / CST ICMS" value={result.sale.cst || '---'} />
                   <TaxBox variant="current" label="CST PIS/COFINS" value={result.sale.pisCst || '---'} />
+                  <TaxBox variant="current" label="CST PIS/COFINS Entrada" value={pisCofinsEntradaAtual} />
                   <TaxBox variant="current" label="CFOP Venda" value={result.sale.cfop || '---'} />
                   <TaxBox variant="current" label="NCM" value={result.sale.ncm || '---'} />
                   <TaxBox variant="current" label="CEST" value={result.sale.cest || '---'} />
@@ -255,6 +259,7 @@ const Audit = () => {
                 <div className="flex flex-wrap gap-4">
                   <TaxBox label="CSOSN / CST ICMS" value={calculated.suggestedCodes.icmsCstOrCsosn} />
                   <TaxBox label="CST PIS/COFINS" value={calculated.suggestedCodes.pisCofinsCst} />
+                  <TaxBox label="CST PIS/COFINS Entrada" value={pisCofinsEntradaSugerido} />
                   <TaxBox label="CFOP Venda" value={calculated.suggestedCodes.icmsCstOrCsosn === '500' ? '5405' : '5102'} />
                   <TaxBox label="NCM" value={calculated.ncm || '---'} />
                   <TaxBox label="CEST" value={calculated.cest || '---'} />

@@ -5,6 +5,7 @@ import { CalculatedProduct } from "@/types/pricing";
 import { FileText, Building, ShoppingCart, Info, Globe, AlertTriangle, CheckCircle, Zap } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getClassificationDetails } from '@/lib/tax/taxClassificationService';
+import { getPisCofinsEntradaCST } from '@/lib/tax/cstMappings';
 
 interface ProductTaxDetailsProps {
   product: CalculatedProduct;
@@ -67,6 +68,8 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
 
   const cfopInfo = cfopExplanations[product.cfop || ''] || cfopExplanations.default;
   const classificationDetails = product.cClassTrib ? getClassificationDetails(product.cClassTrib) : null;
+  const pisCofinsEntradaCst = getPisCofinsEntradaCST(product.suggestedCodes.pisCofinsCst);
+
 
   return (
     <Card className="shadow-none border-none">
@@ -205,7 +208,8 @@ export const ProductTaxDetails = ({ product }: ProductTaxDetailsProps) => {
           <div className="p-3 rounded-md bg-primary/10 border border-primary/50">
             <h4 className="text-xs font-bold text-primary mb-2 flex items-center gap-1"><ShoppingCart className="h-3 w-3" /> Dados de Saída (Sua Empresa - Simples Nacional)</h4>
             <DetailRow label="Classificação" value={product.taxAnalysis.pisCofins} />
-            <DetailRow label="CST Sugerido" value={product.suggestedCodes.pisCofinsCst} isBadge isSuggestion />
+            <DetailRow label="CST Saída Sugerido" value={product.suggestedCodes.pisCofinsCst} isBadge isSuggestion />
+            <DetailRow label="CST Entrada (Correspondente)" value={pisCofinsEntradaCst} isBadge />
           </div>
         </div>
 
