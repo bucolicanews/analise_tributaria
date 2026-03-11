@@ -36,7 +36,7 @@ import { AgentReportPDF } from '@/components/AgentReportPDF';
 import { AgentStatus, callGeminiAgent, callAgentWebhook, loadAgentsFromStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 
-const Index = () => {
+const Pricing = () => {
   const navigate = useNavigate();
   const { autenticado } = useAuth();
   const [purchaseProducts, setPurchaseProducts] = useState<Product[]>([]);
@@ -532,7 +532,6 @@ const Index = () => {
             <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
           </Card>
           
-          {autenticado && (
           <Card className="shadow-card p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
@@ -542,7 +541,6 @@ const Index = () => {
             </div>
             <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
           </Card>
-          )}
 
           <Card className="shadow-card p-6">
             <div className="mb-4 flex items-center justify-between gap-2">
@@ -685,7 +683,6 @@ const Index = () => {
                       </DialogContent>
                     </Dialog>
 
-                    {autenticado && (
                       <Button
                         size="sm"
                         disabled={isAgentsRunning}
@@ -696,7 +693,6 @@ const Index = () => {
                         <Bot className="h-4 w-4 mr-2" />
                         {isAgentsRunning ? "Executando..." : "Agentes IA"}
                       </Button>
-                    )}
                   </div>
                 </div>
                 <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />
@@ -795,4 +791,4 @@ const calculateGlobalSummary = (
   };
 };
 
-export default Index;
+export default Pricing;
