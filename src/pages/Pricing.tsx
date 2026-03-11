@@ -682,7 +682,8 @@ const Pricing = () => {
                         </div>
                       </DialogContent>
                     </Dialog>
-
+                     {autenticado && (
+                                
                       <Button
                         size="sm"
                         disabled={isAgentsRunning}
@@ -692,7 +693,7 @@ const Pricing = () => {
                       >
                         <Bot className="h-4 w-4 mr-2" />
                         {isAgentsRunning ? "Executando..." : "Agentes IA"}
-                      </Button>
+  </Button> )}
                   </div>
                 </div>
                 <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />
