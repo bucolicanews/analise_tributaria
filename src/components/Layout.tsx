@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, BarChart3, Settings, Tags, TrendingUp, ShieldCheck, Sparkles, Lock, Unlock, LogOut } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags, TrendingUp, ShieldCheck, Sparkles, Lock, Unlock, LogOut, Home } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -12,7 +12,8 @@ interface LayoutProps {
 }
 
 const publicNavItems = [
-  { to: '/', label: 'Precificação', icon: Upload },
+  { to: '/', label: 'Início', icon: Home },
+  { to: '/precificacao', label: 'Precificação', icon: Upload },
   { to: '/products', label: 'Lista de Produtos', icon: Tags },
   { to: '/audit', label: 'Auditoria Fiscal', icon: ShieldCheck },
 ];

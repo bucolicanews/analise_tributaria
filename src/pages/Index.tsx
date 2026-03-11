@@ -1,798 +1,496 @@
-"use client";
-
-import React, { useState, useMemo, useEffect } from "react";
-import { Upload, FileText, Calculator, Bot, ChevronDown, RefreshCw, BookOpen, AlertTriangle, ArrowRight, Sparkles, FileDown, Loader2 } from "lucide-react";
+import React from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { XmlUploader } from "@/components/XmlUploader";
-import { ParametersForm } from "@/components/ParametersForm";
-import { ProductsTable, GlobalSummaryData } from "@/components/ProductsTable";
-import { CalculationMemory } from "@/components/CalculationMemory";
-import { Product, CalculationParams, CalculatedProduct, TaxRegime } from "@/types/pricing";
-import { calculatePricing } from "@/lib/pricing";
-import { createOptimizedAIPayload } from "@/lib/aiPromptFormatter";
-import { toast } from "sonner";
-import { AiAnalysisReport } from "@/components/AiAnalysisReport";
-import { useNavigate } from "react-router-dom";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogTrigger,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
-import { SalesReportPDF } from '@/components/SalesReportPDF';
-import { AgentsTimeline } from '@/components/AgentsTimeline';
-import { AgentReportPDF } from '@/components/AgentReportPDF';
-import { AgentStatus, callGeminiAgent, callAgentWebhook, loadAgentsFromStorage } from '@/lib/geminiService';
-import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const Index = () => {
-  const navigate = useNavigate();
-  const { autenticado } = useAuth();
-  const [purchaseProducts, setPurchaseProducts] = useState<Product[]>([]);
-  const [salesProducts, setSalesProducts] = useState<Product[]>([]);
-  const [params, setParams] = useState<CalculationParams | null>(null);
-  const [showMemory, setShowMemory] = useState(false);
-  const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
-  const [isSending, setIsSending] = useState(false);
-  const [aiReport, setAiReport] = useState<string | null>(null);
-  const [executionTime, setExecutionTime] = useState<number | null>(null);
-
-  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
-  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
-
-  const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
-  const [isAgentsRunning, setIsAgentsRunning] = useState(false);
-  const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
-
-  // Dados da empresa para o Relatório
-  const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
-  const accountantName = localStorage.getItem('jota-contador-nome') || '';
-  const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
-
-  useEffect(() => {
-    try {
-      const storedPurchaseProducts = sessionStorage.getItem('jota-calc-purchase-products');
-      const storedSalesProducts = sessionStorage.getItem('jota-calc-sales-products');
-      const storedParams = sessionStorage.getItem('jota-calc-params');
-      const storedSelection = sessionStorage.getItem('jota-calc-selection');
-
-      if (storedPurchaseProducts) setPurchaseProducts(JSON.parse(storedPurchaseProducts));
-      if (storedSalesProducts) setSalesProducts(JSON.parse(storedSalesProducts));
-      if (storedParams) setParams(JSON.parse(storedParams));
-      if (storedSelection) setSelectedProductCodes(new Set(JSON.parse(storedSelection)));
-    } catch (error) {
-      console.error("Erro ao carregar sessão:", error);
-    }
-  }, []);
-
-  const handleNewConsultation = () => {
-    setPurchaseProducts([]);
-    setSalesProducts([]);
-    setParams(null);
-    setSelectedProductCodes(new Set());
-    setAiReport(null);
-    setExecutionTime(null);
-    setAgentStatuses([]);
-    sessionStorage.clear();
-    toast.success("Nova consulta iniciada.");
-  };
-
-  const buildViabilidadePayload = () => ({
-    razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
-    naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado / Sugerir',
-    capital: localStorage.getItem('viab-capital') || 'Não informado',
-    numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
-    numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
-    folhaPagamento: localStorage.getItem('viab-folhaPagamento') || 'Não informado',
-    municipio: localStorage.getItem('viab-municipio') || 'Não informado',
-    estado: localStorage.getItem('viab-estado') || 'Não informado',
-    atividades: localStorage.getItem('viab-atividades') || 'Não informado',
-    tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
-    businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
-    faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
-    honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
-    honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
-    valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
-    valorDpa: localStorage.getItem('viab-valorDpa') || 'Não informado',
-    valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
-    valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
-    sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
-    sociosDeclaramProlabore: localStorage.getItem('viab-sociosDeclaramProlabore') || 'Não informado',
-    sociosRecolhemInssIr: localStorage.getItem('viab-sociosRecolhemInssIr') || 'Não informado',
-    recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
-    mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
-  });
-
-  const handleRunAgents = async () => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de executar os agentes.");
-      return;
-    }
-
-    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
-    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
-    if (!viabAtividades || !viabMunicipio) {
-      toast.error("Preencha a Análise de Viabilidade antes de usar os agentes.", {
-        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
-      });
-      return;
-    }
-
-    const agentConfigs = loadAgentsFromStorage();
-    if (agentConfigs.length === 0) {
-      toast.error("Nenhum agente cadastrado. Acesse Configurações para cadastrar agentes.");
-      return;
-    }
-
-    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-    const viabilidadePayload = buildViabilidadePayload();
-    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
-
-    const sorted = [...agentConfigs].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-
-    const initialStatuses: AgentStatus[] = sorted.map(a => ({
-      id: a.id,
-      nome: a.nome,
-      systemPrompt: a.systemPrompt,
-      status: 'idle',
-      report: null,
-    }));
-    setAgentStatuses(initialStatuses);
-    setIsAgentsRunning(true);
-    setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-
-    const previousReports: Record<string, string> = {};
-
-    for (const agent of sorted) {
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'loading' } : s)
-      );
-
-      try {
-        const report = agent.webhookUrl?.trim()
-          ? await callAgentWebhook(agent, userContent, previousReports)
-          : await callGeminiAgent(
-              agent.systemPrompt,
-              Object.keys(previousReports).length > 0
-                ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
-                : userContent,
-              apiKey
-            );
-
-        previousReports[agent.nome] = report;
-
-        setAgentStatuses(prev =>
-          prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
-        );
-      } catch (err: any) {
-        setAgentStatuses(prev =>
-          prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
-        );
-      }
-    }
-
-    setIsAgentsRunning(false);
-    toast.success("Todos os agentes concluíram a execução.");
-  };
-
-  const handleRunSingleAgent = async (agent: AgentStatus) => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de executar os agentes.");
-      return;
-    }
-
-    const agentConfigs = loadAgentsFromStorage();
-    const agentConfig = agentConfigs.find(a => a.id === agent.id);
-    if (!agentConfig) {
-      toast.error("Configuração do agente não encontrada.");
-      return;
-    }
-
-    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-    const viabilidadePayload = buildViabilidadePayload();
-    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
-
-    const previousReports: Record<string, string> = {};
-    agentStatuses
-      .filter(s => s.status === 'done' && s.report && s.id !== agent.id)
-      .forEach(s => { previousReports[s.nome] = s.report!; });
-
-    setAgentStatuses(prev =>
-      prev.map(s => s.id === agent.id ? { ...s, status: 'loading', report: null, errorMessage: undefined } : s)
-    );
-
-    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
-    try {
-      const report = agentConfig.webhookUrl?.trim()
-        ? await callAgentWebhook(agentConfig, userContent, previousReports)
-        : await callGeminiAgent(
-            agentConfig.systemPrompt,
-            Object.keys(previousReports).length > 0
-              ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
-              : userContent,
-            apiKey
-          );
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
-      );
-      toast.success(`Agente "${agent.nome}" concluído.`);
-    } catch (err: any) {
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
-      );
-      toast.error(`Erro no agente "${agent.nome}"`, { description: err.message });
-    }
-  };
-
-  const handlePurchaseXmlParsed = (parsedProducts: Product[]) => {
-    setPurchaseProducts(parsedProducts);
-    const initialSelection = new Set(parsedProducts.map(p => p.code));
-    setSelectedProductCodes(initialSelection);
-    sessionStorage.setItem('jota-calc-purchase-products', JSON.stringify(parsedProducts));
-    sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(initialSelection)));
-  };
-
-  const handleSalesXmlParsed = (parsedProducts: Product[]) => {
-    setSalesProducts(parsedProducts);
-    sessionStorage.setItem('jota-calc-sales-products', JSON.stringify(parsedProducts));
-    toast.info(`${parsedProducts.length} notas de venda importadas para auditoria.`);
-  };
-
-  const handleCalculate = (calculationParams: CalculationParams) => {
-    const companyName = localStorage.getItem('jota-razaoSocial') || "";
-    const companyCnpj = localStorage.getItem('jota-cnpj') || "";
-    const companyCnaes = localStorage.getItem('jota-cnaes') || "";
-    const companyState = localStorage.getItem('jota-uf') || "SP";
-
-    const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
-      ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
-      : 0;
-    
-    const totalFixed = calculationParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + calculationParams.payroll + inss;
-    
-    const paramsWithProfile = { 
-      ...calculationParams, 
-      fixedCostsTotal: totalFixed,
-      companyName,
-      companyCnpj,
-      companyCnaes,
-      companyState
-    };
-
-    setParams(paramsWithProfile);
-    sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsWithProfile));
-  };
-
-  const handleSelectionChange = (newSelection: Set<string>) => {
-    setSelectedProductCodes(newSelection);
-    sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(newSelection)));
-  };
-
-  const calculationResults = useMemo(() => {
-    if (!params || purchaseProducts.length === 0) {
-      return { summary: null, calculatedProducts: [], productsToDisplay: [], totalFixedExpenses: 0, firstCalculatedProduct: null };
-    }
-
-    const totalFixedExpenses = params.fixedCostsTotal || 0;
-    const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
-    
-    const productsToDisplay = purchaseProducts.filter(p => selectedProductCodes.has(p.code));
-    const calculatedProducts = productsToDisplay.map(p => calculatePricing(p, params, cfu));
-    
-    const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
-    const totalInnerUnitsInXML = productsToDisplay.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-
-    const summary = calculateGlobalSummary(
-      calculatedProducts,
-      params,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML
-    );
-
-    return {
-      summary,
-      calculatedProducts,
-      productsToDisplay,
-      totalFixedExpenses,
-      firstCalculatedProduct: calculatedProducts.length > 0 ? calculatedProducts[0] : null,
-    };
-  }, [params, purchaseProducts, selectedProductCodes]);
-
-  const { summary, calculatedProducts, productsToDisplay, firstCalculatedProduct } = calculationResults;
-
-  const handleSendToWebhook = async (environment: 'test' | 'production') => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de enviar.");
-      return;
-    }
-
-    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
-    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
-    if (!viabAtividades || !viabMunicipio) {
-      toast.error("Preencha a Análise de Viabilidade antes de usar a Auditoria IA.", {
-        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
-      });
-      return;
-    }
-
-    const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
-    const agentConfigs = loadAgentsFromStorage();
-    const useRelay = agentConfigs.length > 0;
-
-    const startTime = performance.now();
-    setIsSending(true);
-    const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
-
-    // Gera sessionId único para esta execução
-    const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
-    try {
-      const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-      const agentes = agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt }));
-      const payload = {
-        ...precificacaoPayload,
-        viabilidade: buildViabilidadePayload(),
-        agentes,
-        sessionId,
-        relayUrl: `${relayUrl}/agent-result`,
-      };
-
-      const webhooks = {
-        test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
-        production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
-      };
-
-      const webhookUrl = webhooks[environment];
-      if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
-
-      // Inicializa linha do tempo com agentes em loading
-      if (useRelay) {
-        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
-          id: a.id,
-          nome: a.nome,
-          systemPrompt: a.systemPrompt,
-          status: 'loading' as const,
-          report: null,
-        }));
-        setAgentStatuses(initialStatuses);
-        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-      }
-
-      // Dispara o n8n sem aguardar resposta (fire and forget via relay)
-      // ou aguarda resposta direta se relay não estiver disponível
-      let usedRelay = false;
-
-      if (useRelay) {
-        try {
-          await fetch(`${relayUrl}/health`, { signal: AbortSignal.timeout(2000) });
-          usedRelay = true;
-        } catch {
-          usedRelay = false;
-        }
-      }
-
-      if (usedRelay) {
-        // Envia para o n8n sem bloquear — o relay receberá as respostas
-        fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-
-        toast.loading(`Aguardando agentes responderem...`, { id: toastId });
-
-        // Polling: consulta o relay a cada 2s
-        const seenNames = new Set<string>();
-        const maxWait = 5 * 60 * 1000; // 5 minutos timeout
-        const pollStart = Date.now();
-
-        const poll = async (): Promise<void> => {
-          if (Date.now() - pollStart > maxWait) {
-            toast.error("Tempo limite atingido. Verifique o n8n.", { id: toastId });
-            setIsSending(false);
-            setAgentStatuses(prev => prev.map(s => s.status === 'loading' ? { ...s, status: 'error', errorMessage: 'Timeout' } : s));
-            return;
-          }
-
-          try {
-            const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
-            const json = await res.json();
-            const arrived: Array<{ nome: string; report: string }> = json.agents || [];
-
-            for (const agent of arrived) {
-              if (!seenNames.has(agent.nome)) {
-                seenNames.add(agent.nome);
-                setAgentStatuses(prev =>
-                  prev.map(s => s.nome === agent.nome
-                    ? { ...s, status: 'done' as const, report: agent.report }
-                    : s
-                  )
-                );
-              }
-            }
-
-            if (seenNames.size >= agentConfigs.length) {
-              const durationInSeconds = (Date.now() - pollStart) / 1000;
-              toast.success(`${seenNames.size} agentes concluídos em ${durationInSeconds.toFixed(0)}s!`, { id: toastId });
-              fetch(`${relayUrl}/agent-results/${sessionId}`, { method: 'DELETE' }).catch(() => {});
-              setIsSending(false);
-              return;
-            }
-          } catch {
-            // relay indisponível momentaneamente, continua tentando
-          }
-
-          setTimeout(poll, 2000);
-        };
-
-        setTimeout(poll, 2000);
-        return;
-      }
-
-      // Fallback: sem relay — aguarda resposta direta do n8n (comportamento legado)
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error("Erro na comunicação com a IA.");
-
-      const data = await response.json();
-      const endTime = performance.now();
-      const durationInSeconds = (endTime - startTime) / 1000;
-      setExecutionTime(durationInSeconds);
-
-      const isAgentsArray = (d: any): boolean =>
-        Array.isArray(d) && d.length > 0 && typeof d[0].nome === 'string' && typeof d[0].report === 'string';
-      const unwrapped = Array.isArray(data) && data[0]?.json ? data[0].json : data;
-
-      if (isAgentsArray(unwrapped)) {
-        const statuses: AgentStatus[] = unwrapped.map((item: any) => ({
-          id: item.nome,
-          nome: item.nome,
-          systemPrompt: '',
-          status: 'done' as const,
-          report: item.report,
-        }));
-        setAgentStatuses(statuses);
-        toast.success(`${statuses.length} agentes concluídos em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
-        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-        return;
-      }
-
-      let extractedReport = "";
-      if (Array.isArray(unwrapped)) {
-        const parts = unwrapped[0]?.content?.parts;
-        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-      } else if (unwrapped.content?.parts) {
-        const parts = unwrapped.content.parts;
-        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-      }
-      if (!extractedReport) {
-        if (unwrapped.output) extractedReport = unwrapped.output;
-        else if (unwrapped.text) extractedReport = unwrapped.text;
-        else if (typeof unwrapped === 'string') extractedReport = unwrapped;
-      }
-      if (!extractedReport) throw new Error("Formato de resposta da IA não reconhecido.");
-
-      setAiReport(extractedReport);
-      toast.success(`Análise Concluída em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
-      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-
-    } catch (error: any) {
-      toast.error("Erro na Auditoria IA", {
-        id: toastId,
-        description: error.message
-      });
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
-
   return (
     <div className="container mx-auto px-4 py-8">
-      {summary && summary.breakEvenPoint > 0 && (
-        <div className="text-center mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <h1 className="text-lg text-muted-foreground">
-            <span className="font-semibold">Ponto de Equilíbrio Operacional (Venda Mínima Mensal):</span>{" "}
-            <span className="text-xl text-yellow-500 font-extrabold">{formatCurrency(summary.breakEvenPoint)}</span>
-          </h1>
-        </div>
-      )}
-      
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">1. Notas de Compra</h2>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleNewConsultation}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Novo
-              </Button>
-            </div>
-            <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
-          </Card>
-          
-          {autenticado && (
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold">2. Notas de Venda</h2>
-              </div>
-            </div>
-            <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
-          </Card>
-          )}
-
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
-            </div>
-            <ParametersForm onCalculate={handleCalculate} disabled={purchaseProducts.length === 0} />
-          </Card>
-        </div>
-
-        <div className="lg:col-span-2 space-y-6">
-          {aiReport && (
-            <div id="ai-report-section">
-              <AiAnalysisReport 
-                report={aiReport} 
-                onClose={() => setAiReport(null)} 
-                executionTime={executionTime}
-                clientName={companyName}
-                clientCity={params?.companyState || "SP"}
-                clientState=""
-              />
-            </div>
-          )}
-
-          {agentStatuses.length > 0 && (
-            <div id="agents-timeline-section">
-              <AgentsTimeline
-                agents={agentStatuses}
-                onViewReport={(agent) => {
-                  setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
-                }}
-                onPrintReport={(agent) => {
-                  setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
-                }}
-                onRunSingle={handleRunSingleAgent}
-              />
-            </div>
-          )}
-
-          <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
-            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
-              <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-                <DialogHeader>
-                  <DialogTitle className="text-sm">{selectedAgentReport?.nome || 'Relatório do Agente'}</DialogTitle>
-                  <DialogDescription className="sr-only">Visualização do relatório gerado pelo agente IA.</DialogDescription>
-                </DialogHeader>
-                <div className="flex gap-2">
-                  {selectedAgentReport?.report && (
-                    <PDFDownloadLink
-                      document={
-                        <AgentReportPDF
-                          agentName={selectedAgentReport.nome}
-                          reportMarkdown={selectedAgentReport.report}
-                          companyName={companyName}
-                          accountantName={accountantName}
-                          accountantCrc={accountantCrc}
-                        />
-                      }
-                      fileName={`${selectedAgentReport.nome.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
-                    >
-                      {({ loading }) => (
-                        <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                          {loading ? 'Gerando...' : 'Baixar PDF'}
-                        </Button>
-                      )}
-                    </PDFDownloadLink>
-                  )}
-                </div>
-              </div>
-              <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                  <AgentReportPDF
-                    agentName={selectedAgentReport?.nome || ''}
-                    reportMarkdown={selectedAgentReport?.report || ''}
-                    companyName={companyName}
-                    accountantName={accountantName}
-                    accountantCrc={accountantCrc}
-                  />
-                </PDFViewer>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {purchaseProducts.length > 0 && params ? (
-            <>
-              <Card className="shadow-elegant p-6">
-                <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-xl font-semibold">Relatório de Precificação</h2>
-                  <div className="flex gap-2">
-                    <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
-                      {showMemory ? "Ocultar" : "Exibir"} Memória
-                    </Button>
-
-                    <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="bg-primary/5 border-primary/20 hover:bg-primary/10">
-                          <BookOpen className="h-4 w-4 mr-2 text-primary" />
-                          Relatório Venda (PDF)
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0">
-                        <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-                          <DialogHeader>
-                            <DialogTitle>Relatório Oficial de Precificação</DialogTitle>
-                            <DialogDescription className="sr-only">Visualização do relatório de vendas.</DialogDescription>
-                          </DialogHeader>
-                          <div className="flex gap-2">
-                             <PDFDownloadLink
-                                document={
-                                  <SalesReportPDF 
-                                    products={calculatedProducts}
-                                    companyName={companyName}
-                                    accountantName={accountantName}
-                                    accountantCrc={accountantCrc}
-                                  />
-                                }
-                                fileName={`relatorio_vendas_${new Date().toISOString().split('T')[0]}.pdf`}
-                              >
-                                {({ loading }) => (
-                                  <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                    <FileDown className="h-4 w-4 mr-2" />
-                                    {loading ? 'Gerando...' : 'Baixar PDF'}
-                                  </Button>
-                                )}
-                              </PDFDownloadLink>
-                          </div>
-                        </div>
-                        <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                          <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                            <SalesReportPDF 
-                              products={calculatedProducts}
-                              companyName={companyName}
-                              accountantName={accountantName}
-                              accountantCrc={accountantCrc}
-                            />
-                          </PDFViewer>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-
-                    {autenticado && (
-                      <Button
-                        size="sm"
-                        disabled={isAgentsRunning}
-                        onClick={handleRunAgents}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
-                        title="Executar os agentes IA"
-                      >
-                        <Bot className="h-4 w-4 mr-2" />
-                        {isAgentsRunning ? "Executando..." : "Agentes IA"}
+      <Tabs defaultValue="empresa" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="empresa">Empresa</TabsTrigger>
+          <TabsTrigger value="contador">Contador</TabsTrigger>
+          <TabsTrigger value="fisco">Fisco</TabsTrigger>
+        </TabsList>
+        <TabsContent value="empresa">
+          <div className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">1️⃣ Obrigações da Empresa com a Própria Empresa</CardTitle>
+                <CardDescription>Rotina interna obrigatória para manter a empresa regular e organizada. Essas obrigações decorrem principalmente de normas do Código Civil, Código Tributário Nacional, Lei das S.A., Legislação Trabalhista (CLT) e Legislação Fiscal.</CardDescription>
+              <Button asChild variant="outline">
+                        <a href="https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=" target="_blank" rel="noopener noreferrer">
+                          Consultra NF-e (DONWLOADS)
+                        </a>
                       </Button>
-                    )}
-                  </div>
-                </div>
-                <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />
-              </Card>
-
-              {showMemory && firstCalculatedProduct && (
-                <Card className="shadow-card p-6">
-                  <CalculationMemory products={[firstCalculatedProduct]} params={params} />
-                </Card>
-              )}
-            </>
-          ) : (
-            <Card className="shadow-card flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
-              <div className="rounded-full bg-muted p-6 mb-4">
-                <Calculator className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Aguardando Importação</h3>
-              <p className="text-muted-foreground max-w-md">Importe suas notas fiscais de entrada para iniciar a análise estratégica de preços.</p>
+              </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger>📂 1.1 Guarda e organização de documentos fiscais</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="mb-2 text-sm text-muted-foreground">Obrigatório conforme Art. 195 do CTN.</p>
+                      <p className="font-semibold">A empresa deve:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Guardar XML das NF-e de compras por no mínimo 5 anos</li>
+                        <li>Guardar XML das NF-e de vendas por 5 anos</li>
+                        <li>Guardar XML de CT-e (fretes)</li>
+                        <li>Guardar XML de NFS-e (serviços)</li>
+                        <li>Também deve guardar: contratos, recibos, comprovantes bancários, extratos, guias de impostos, folha de pagamento.</li>
+                      </ul>
+                      <p className="mt-2 text-red-500">⚠️ Prazo mínimo: 5 anos + ano corrente</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger>📊 1.2 Controle correto das operações fiscais</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa deve:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Importar todas as notas de compra no sistema</li>
+                        <li>Emitir nota fiscal para todas as vendas</li>
+                        <li>Emitir nota fiscal de serviços</li>
+                        <li>Registrar devoluções</li>
+                        <li>Registrar cancelamentos</li>
+                        <li>Registrar perdas de estoque</li>
+                        <li>Registrar bonificações</li>
+                        <li>Registrar transferências de estoque</li>
+                        <li>Registrar consumo interno</li>
+                        <li>Registrar brindes</li>
+                      </ul>
+                      <p className="mt-2 text-sm text-muted-foreground">Base legal: Convênios ICMS e legislação municipal de ISS</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-3">
+                    <AccordionTrigger>📦 1.3 Controle de estoque</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="mb-2 font-semibold">Obrigatório principalmente para:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Lucro Presumido</li>
+                        <li>Lucro Real</li>
+                        <li>Empresas industriais</li>
+                        <li>Empresas com substituição tributária</li>
+                      </ul>
+                      <p className="mt-2 font-semibold">A empresa deve ter:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Inventário anual</li>
+                        <li>Controle de entradas e saídas</li>
+                        <li>Controle de perdas e devoluções</li>
+                        <li>Custo médio ou FIFO</li>
+                        <li>Rastreabilidade dos produtos</li>
+                      </ul>
+                      <p className="mt-2 text-sm text-muted-foreground">Base legal: RIR/2018, SPED Fiscal</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-4">
+                    <AccordionTrigger>📑 1.4 Cadastro correto de produtos</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">Todo produto deve possuir:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>NCM correto</li>
+                        <li>CFOP correto</li>
+                        <li>CST ICMS, PIS e COFINS</li>
+                        <li>CEST quando houver</li>
+                        <li>Unidade de medida</li>
+                        <li>Alíquota de ICMS</li>
+                        <li>Situação tributária</li>
+                      </ul>
+                      <p className="mt-2 font-semibold text-red-500">Erro de cadastro pode gerar: multa, imposto pago errado, autuação fiscal.</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-5">
+                    <AccordionTrigger>📊 1.5 Controle financeiro</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa deve manter controle de:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Contas a pagar e a receber</li>
+                        <li>Fluxo de caixa</li>
+                        <li>Extrato bancário, movimentação de cartão, PIX, boletos</li>
+                        <li>Financiamentos</li>
+                      </ul>
+                      <p className="mt-2 font-semibold">Importante:</p>
+                      <p className="text-red-500">⚠️ Receita financeira precisa bater com notas emitidas</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-6">
+                    <AccordionTrigger>⚠️ 1.6 Separação pessoa física x pessoa jurídica</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa deve:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Não misturar contas bancárias</li>
+                        <li>Não pagar despesas pessoais com conta da empresa</li>
+                        <li>Não receber vendas no CPF</li>
+                        <li>Não comprar mercadorias no CPF</li>
+                      </ul>
+                      <p className="mt-2 text-sm text-muted-foreground">Base legal: Princípio da entidade – NBC TG Estrutura Conceitual</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-7">
+                    <AccordionTrigger>👥 1.7 Obrigações trabalhistas internas</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa deve:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Registrar funcionários na CTPS e no eSocial</li>
+                        <li>Controlar jornada de trabalho, horas extras e banco de horas</li>
+                        <li>Controlar férias, atestados e afastamentos</li>
+                      </ul>
+                       <p className="mt-2 text-sm text-muted-foreground">Base legal: CLT</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-8">
+                    <AccordionTrigger>📅 1.8 Controle de prazos de impostos</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa deve acompanhar:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Vencimento de DAS, ICMS, ISS, INSS, FGTS</li>
+                      </ul>
+                      <p className="mt-2 font-semibold">Evita: multas, juros, bloqueio de CND.</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-9">
+                    <AccordionTrigger>📦 1.9 Controle de fornecedores</AccordionTrigger>
+                    <AccordionContent>
+                       <p className="font-semibold">A empresa deve verificar:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>CNPJ ativo</li>
+                        <li>Inscrição estadual</li>
+                        <li>Regime tributário</li>
+                        <li>Se o fornecedor emite nota fiscal</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-10">
+                    <AccordionTrigger>🚫 1.10 Proibições importantes</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa não deve:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Vender sem nota</li>
+                        <li>Comprar sem nota</li>
+                        <li>Ter funcionário sem registro</li>
+                        <li>Emitir nota com valor inferior</li>
+                        <li>Emitir nota para CPF para ocultar receita</li>
+                        <li>Manipular estoque</li>
+                      </ul>
+                      <p className="mt-2 font-semibold">Isso configura: sonegação, crime tributário (Lei 8137/90).</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
             </Card>
-          )}
-        </div>
-      </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Checklist de Conformidade</CardTitle>
+                <CardDescription>Marque os itens que sua empresa já cumpre.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center space-x-2"><Checkbox id="check-1" /><label htmlFor="check-1">Guarda e organização de documentos fiscais</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-2" /><label htmlFor="check-2">Controle correto das operações fiscais</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-3" /><label htmlFor="check-3">Controle de estoque</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-4" /><label htmlFor="check-4">Cadastro correto de produtos</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-5" /><label htmlFor="check-5">Controle financeiro</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-6" /><label htmlFor="check-6">Separação pessoa física x pessoa jurídica</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-7" /><label htmlFor="check-7">Obrigações trabalhistas internas</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-8" /><label htmlFor="check-8">Controle de prazos de impostos</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-9" /><label htmlFor="check-9">Controle de fornecedores</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-10" /><label htmlFor="check-10">Conformidade com proibições (não sonegar)</label></div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        <TabsContent value="contador">
+          <div className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">2️⃣ Obrigações da Empresa com o Contador</CardTitle>
+                <CardDescription>A contabilidade depende 100% das informações da empresa. Sem isso, o contador não consegue cumprir obrigações fiscais.</CardDescription>
+              <Button asChild variant="outline">
+                        <a href="https://www.nfe.fazenda.gov.br/portal/manifestacaoDestinatario.aspx?tipoConteudo=o9MkXc+hmKs=" target="_blank" rel="noopener noreferrer">
+                          Portal da Manifestação
+                        </a>
+                      </Button>
+              
+              </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger>📊 SETOR FISCAL</AccordionTrigger>
+                    <AccordionContent>
+                      <h4 className="font-semibold text-md mb-2">📅 Informações mensais obrigatórias (enviar até dia 5 do mês seguinte):</h4>
+                      <ul className="list-disc list-inside space-y-1 mb-4">
+                        <li>XML de notas de venda e compra</li>
+                        <li>XML de serviços tomados e prestados</li>
+                        <li>Notas de devolução, canceladas e de remessa</li>
+                      </ul>
+
+                      <h4 className="font-semibold text-md mb-2">📄 Informações adicionais:</h4>
+                      <ul className="list-disc list-inside space-y-1 mb-4">
+                        <li>Extrato bancário e de cartão</li>
+                        <li>Relatório de vendas por PIX</li>
+                        <li>Controle de estoque e contratos de serviços</li>
+                      </ul>
+
+                      <h4 className="font-semibold text-md mb-2">📢 Comunicação de operações especiais (avisar antes):</h4>
+                      <ul className="list-disc list-inside space-y-1 mb-4">
+                        <li>Importar ou exportar mercadoria</li>
+                        <li>Abrir ou fechar filial</li>
+                        <li>Comprar veículo ou vender ativo</li>
+                        <li>Contratar serviço de outra cidade</li>
+                      </ul>
+
+                      <h4 className="font-semibold text-md mb-2">📌 Manifestação de notas fiscais:</h4>
+                     <p className="text-sm text-muted-foreground mb-2">Realizar confirmação, ciência, desconhecimento ou se a operação não foi realizada para evitar fraudes. Acesse o portal:</p>
+                      
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger>📊 SETOR CONTÁBIL</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="mb-2 text-sm text-muted-foreground">Quando a empresa contrata contabilidade completa, deve enviar:</p>
+                      <h4 className="font-semibold text-md mb-2">Mensalmente:</h4>
+                      <ul className="list-disc list-inside space-y-1 mb-4">
+                        <li>Extrato bancário e fluxo de caixa</li>
+                        <li>Contas a pagar e a receber</li>
+                        <li>Movimentação de cartão e empréstimos</li>
+                      </ul>
+                      <h4 className="font-semibold text-md mb-2">Anualmente:</h4>
+                       <ul className="list-disc list-inside space-y-1">
+                        <li>Inventário de estoque</li>
+                        <li>Lista de bens (veículos, máquinas, imóveis, etc.)</li>
+                        <li>Investimentos</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-3">
+                    <AccordionTrigger>👥 SETOR DE FOLHA</AccordionTrigger>
+                    <AccordionContent>
+                      <h4 className="font-semibold text-md mb-2">Admissão (enviar):</h4>
+                      <ul className="list-disc list-inside space-y-1 mb-4">
+                        <li>Documentos pessoais (RG, CPF, etc.)</li>
+                        <li>Dados bancários</li>
+                      </ul>
+                      <h4 className="font-semibold text-md mb-2">Mensalmente (enviar até dia 20):</h4>
+                       <ul className="list-disc list-inside space-y-1">
+                        <li>Informar faltas, atrasos, horas extras</li>
+                        <li>Informar férias, afastamentos e rescisões</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  <AccordionItem value="item-4">
+                    <AccordionTrigger>📄 OUTRAS INFORMAÇÕES IMPORTANTES</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">Comunicar imediatamente ao contador sobre:</p>
+                      <ul className="list-disc list-inside space-y-1 mt-1">
+                        <li>Alteração contratual</li>
+                        <li>Mudança de endereço ou atividade</li>
+                        <li>Abertura ou fechamento de filial</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Checklist de Comunicação com o Contador</CardTitle>
+                <CardDescription>Marque os itens que sua empresa já enviou ou comunicou.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-1" /><label htmlFor="check-contador-1">Envio de documentos fiscais mensais (XMLs)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-2" /><label htmlFor="check-contador-2">Envio de documentos financeiros (extratos, etc)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-3" /><label htmlFor="check-contador-3">Envio de informações da folha (admissões, eventos)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-4" /><label htmlFor="check-contador-4">Comunicação de operações especiais (importação, etc)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-5" /><label htmlFor="check-contador-5">Realização da manifestação de notas fiscais</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-contador-6" /><label htmlFor="check-contador-6">Comunicação de alterações (endereço, atividade, etc)</label></div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+        <TabsContent value="fisco">
+          <div className="space-y-6 mt-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-2xl">3️⃣ Obrigações da Empresa com o Fisco</CardTitle>
+                <CardDescription>São as chamadas obrigações acessórias, que variam conforme o regime tributário.</CardDescription>
+               <Button asChild variant="outline">
+                        <a href="https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp" target="_blank" rel="noopener noreferrer">
+                          Consultra CNPJ
+                        </a>
+                      </Button>
+                       <Button asChild variant="outline">
+                        <a href="https://www.nfe.fazenda.gov.br/portal/consultaRecaptcha.aspx?tipoConsulta=resumo&tipoConteudo=7PhJ+gAVw2g=" target="_blank" rel="noopener noreferrer">
+                          Consultra NF-e
+                        </a>
+                            </Button>
+                             <Button asChild variant="outline">
+                        <a href="https://app.sefa.pa.gov.br/consulta-estabelecimento/index.action" target="_blank" rel="noopener noreferrer">
+                          Consultar Estabelecimento  
+                        </a>
+                            </Button>
+
+                             <Button asChild variant="outline">
+                        <a href="https://app.sefa.pa.gov.br/consulta-fic/" target="_blank" rel="noopener noreferrer">
+                          Consultar Inscrição Estadual
+                        </a>
+                            </Button>
+
+                                   <Button asChild variant="outline">
+                        <a href="https://www.gov.br/pt-br/servicos/apurar-carne-leao" target="_blank" rel="noopener noreferrer">
+                         Carnê Leão
+                        </a>
+                           </Button>
+                           
+                                      <Button asChild variant="outline">
+                        <a href="https://cav.receita.fazenda.gov.br/eCAC/publico/login.aspx" target="_blank" rel="noopener noreferrer">
+                        ECAC
+                        </a>
+                          </Button>
+                          
+                        <Button asChild variant="outline">
+                        <a href="http://siat.belem.pa.gov.br:8081/cadastro/pages/mobiliario/externo/cadastroConsultaExterna.jsf" target="_blank" rel="noopener noreferrer">
+                        Incrição Municipal
+                        </a>
+                            </Button>                            
+              
+                  </CardHeader>
+              <CardContent>
+                <Accordion type="single" collapsible className="w-full">
+                  <AccordionItem value="item-1">
+                    <AccordionTrigger>📊 SIMPLES NACIONAL</AccordionTrigger>
+                    <AccordionContent>
+                      <h4 className="font-semibold text-md mb-2">Principais obrigações:</h4>
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Obrigação</TableHead><TableHead>Prazo</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          <TableRow><TableCell>DAS</TableCell><TableCell>Dia 20</TableCell></TableRow>
+                          <TableRow><TableCell>PGDAS-D</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>DEFIS</TableCell><TableCell>Até 31 de Março</TableCell></TableRow>
+                          <TableRow><TableCell>eSocial</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>FGTS</TableCell><TableCell>Dia 7</TableCell></TableRow>
+                          <TableRow><TableCell>DCTFWeb</TableCell><TableCell>Mensal</TableCell></TableRow>
+                        </TableBody>
+                      </Table>
+                      <h4 className="font-semibold text-md mt-4 mb-2">Multas:</h4>
+                      <p>PGDAS atrasado → R$ 50 a R$ 500</p>
+                      <p>DEFIS → R$ 200 a R$ 500</p>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-2">
+                    <AccordionTrigger>📊 SIMPLES HÍBRIDO</AccordionTrigger>
+                    <AccordionContent>
+                      <p>Empresas com comércio + serviço, retenção de INSS, ou substituição tributária podem ter obrigações adicionais como:</p>
+                      <ul className="list-disc list-inside mt-2">
+                        <li>SPED Fiscal</li>
+                        <li>EFD Contribuições</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-3">
+                    <AccordionTrigger>📊 LUCRO PRESUMIDO</AccordionTrigger>
+                    <AccordionContent>
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Obrigação</TableHead><TableHead>Prazo</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          <TableRow><TableCell>DCTF</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>EFD Contribuições</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>SPED Fiscal</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>SPED Contábil</TableCell><TableCell>Anual</TableCell></TableRow>
+                          <TableRow><TableCell>ECF</TableCell><TableCell>Anual</TableCell></TableRow>
+                          <TableRow><TableCell>DIRF / EFD-Reinf</TableCell><TableCell>Mensal</TableCell></TableRow>
+                        </TableBody>
+                      </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-4">
+                    <AccordionTrigger>📊 LUCRO REAL</AccordionTrigger>
+                    <AccordionContent>
+                       <Table>
+                        <TableHeader><TableRow><TableHead>Obrigação</TableHead><TableHead>Prazo</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          <TableRow><TableCell>ECD</TableCell><TableCell>Anual</TableCell></TableRow>
+                          <TableRow><TableCell>ECF</TableCell><TableCell>Anual</TableCell></TableRow>
+                          <TableRow><TableCell>SPED Fiscal</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>EFD Contribuições</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>DCTF</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>eSocial</TableCell><TableCell>Mensal</TableCell></TableRow>
+                        </TableBody>
+                      </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-5">
+                    <AccordionTrigger>📊 OBRIGAÇÕES TRABALHISTAS</AccordionTrigger>
+                    <AccordionContent>
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Obrigação</TableHead><TableHead>Prazo</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          <TableRow><TableCell>FGTS</TableCell><TableCell>Dia 7</TableCell></TableRow>
+                          <TableRow><TableCell>INSS</TableCell><TableCell>Dia 20</TableCell></TableRow>
+                          <TableRow><TableCell>eSocial</TableCell><TableCell>Mensal</TableCell></TableRow>
+                          <TableRow><TableCell>DIRF</TableCell><TableCell>Anual</TableCell></TableRow>
+                        </TableBody>
+                      </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                   <AccordionItem value="item-6">
+                    <AccordionTrigger>⚠️ MULTAS MAIS COMUNS</AccordionTrigger>
+                    <AccordionContent>
+                      <Table>
+                        <TableHeader><TableRow><TableHead>Obrigação</TableHead><TableHead>Multa</TableHead></TableRow></TableHeader>
+                        <TableBody>
+                          <TableRow><TableCell>SPED Fiscal</TableCell><TableCell>R$ 500 a R$ 1500</TableCell></TableRow>
+                          <TableRow><TableCell>EFD Contribuições</TableCell><TableCell>R$ 500 a R$ 1500</TableCell></TableRow>
+                          <TableRow><TableCell>ECD</TableCell><TableCell>R$ 500 a R$ 5000</TableCell></TableRow>
+                           <TableRow><TableCell>ECF</TableCell><TableCell>Até 3% do lucro</TableCell></TableRow>
+                        </TableBody>
+                      </Table>
+                    </AccordionContent>
+                  </AccordionItem>
+                  <AccordionItem value="item-7">
+                    <AccordionTrigger>📌 CONCLUSÃO</AccordionTrigger>
+                    <AccordionContent>
+                      <p className="font-semibold">A empresa precisa cuidar de 3 pilares:</p>
+                      <ul className="list-decimal list-inside space-y-1 mt-2">
+                        <li>Organização interna</li>
+                        <li>Envio correto de informações ao contador</li>
+                        <li>Cumprimento das obrigações fiscais</li>
+                      </ul>
+                      <p className="mt-2">Se um desses falhar → surgem:</p>
+                      <ul className="list-disc list-inside text-red-500 space-y-1 mt-2">
+                        <li>Multas</li>
+                        <li>Autuações</li>
+                        <li>Impostos errados</li>
+                        <li>Problemas fiscais</li>
+                      </ul>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Checklist de Conformidade Fiscal</CardTitle>
+                <CardDescription>Marque as obrigações que sua empresa já entregou.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-1" /><label htmlFor="check-fisco-1">PGDAS-D (Simples Nacional)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-2" /><label htmlFor="check-fisco-2">DEFIS (Simples Nacional)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-3" /><label htmlFor="check-fisco-3">DCTF (Lucro Presumido/Real)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-4" /><label htmlFor="check-fisco-4">EFD Contribuições (Presumido/Real)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-5" /><label htmlFor="check-fisco-5">SPED Fiscal (Presumido/Real)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-6" /><label htmlFor="check-fisco-6">ECF / ECD (Presumido/Real)</label></div>
+                <div className="flex items-center space-x-2"><Checkbox id="check-fisco-7" /><label htmlFor="check-fisco-7">eSocial / DCTFWeb (Todos)</label></div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
-};
-
-const calculateGlobalSummary = (
-  productsToSummarize: CalculatedProduct[],
-  currentParams: CalculationParams,
-  globalFixedExpenses: number,
-  totalVariableExpensesPercent: number,
-  cfu: number,
-  totalInnerUnitsInXML: number
-): GlobalSummaryData => {
-  if (productsToSummarize.length === 0) {
-    return { totalSelling: 0, totalTax: 0, totalProfit: 0, profitMarginPercent: 0, breakEvenPoint: 0, totalVariableExpensesValue: 0, totalContributionMargin: 0, totalTaxPercent: 0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
-  }
-
-  const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
-  const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
-  const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
-  const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
-  
-  const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
-  const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
-  const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
-  const totalCsllToPaySum = productsToSummarize.reduce((sum, p) => sum + p.csllToPay * p.quantity, 0);
-  const totalSimplesToPaySum = productsToSummarize.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
-  const totalSelectiveTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
-  const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
-
-  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
-  const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
-
-  let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
-  const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
-  const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0;
-
-  if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
-  } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
-    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-  } else {
-    if (currentParams.generateIvaCredit) {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-    } else {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRateEffective;
-    }
-  }
-
-  const contributionMarginRatio = 1 - totalVariableCostsRatio;
-  const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
-
-  return { 
-    totalSelling: totalSellingSum, 
-    totalTax: totalTaxSum, 
-    totalProfit: totalProfitSum, 
-    profitMarginPercent, 
-    breakEvenPoint, 
-    totalVariableExpensesValue: totalVariableExpensesValueSum, 
-    totalContributionMargin: totalContributionMarginSum, 
-    totalTaxPercent, 
-    totalCbsCredit: productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0),
-    totalIbsCredit: productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0),
-    totalCbsDebit: productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0),
-    totalIbsDebit: productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0),
-    totalCbsTaxToPay: totalCbsTaxToPaySum, 
-    totalIbsTaxToPay: totalIbsTaxToPaySum, 
-    totalIrpjToPay: totalIrpjToPaySum, 
-    totalCsllToPay: totalCsllToPaySum, 
-    totalSimplesToPay: totalSimplesToPaySum, 
-    totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, 
-    totalIvaCreditForClient: totalIvaCreditForClientSum 
-  };
 };
 
 export default Index;
