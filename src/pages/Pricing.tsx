@@ -70,12 +70,48 @@ const Pricing = () => {
     const cnaesRaw = localStorage.getItem('viab-cnaes');
     const cnaesList = cnaesRaw ? JSON.parse(cnaesRaw) : [];
 
+    const faturamentoNum = parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0");
+    const percComercioNum = parseFloat(localStorage.getItem('viab-percentComercio') || "100");
+    const percServicoNum = parseFloat(localStorage.getItem('viab-percentServico') || "0");
+    
+    const folhaNum = params.payroll || 0;
+    const proLaboreNum = parseFloat(localStorage.getItem('viab-valorProlabore') || "0");
+    const folha12Meses = (folhaNum + proLaboreNum) * 12;
+    const percentualFatorR = faturamentoNum > 0 ? (folha12Meses / faturamentoNum) * 100 : 0;
+    const fatorROk = percentualFatorR >= 28;
+
     return {
       meta: {
         webhookUrl: webhookUrl,
         executionMode: environment
       },
       agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+      engine: {
+        analises_requeridas: [
+          "enquadramento_simples",
+          "calculo_carga_tributaria",
+          "analise_fator_r",
+          "diagnostico_risco",
+          "viabilidade_financeira",
+          "planejamento_tributario"
+        ],
+        simulacoes_pro_labore: [
+          { nome: "cenario_atual", descricao: "Situação atual conforme preenchido" },
+          { nome: "cenario_minimo", valor: currentMinWage, descricao: "Obrigatório legal mínimo (1 SM)" },
+          { nome: "cenario_otimizado_fator_r", descricao: "Pró-labore ideal para atingir 28% do Fator R (se Anexo V)" }
+        ],
+        output_config: {
+          formato: "relatorio_consultivo",
+          secoes: [
+            "diagnostico_geral",
+            "carga_tributaria",
+            "analise_fator_r",
+            "riscos_identificados",
+            "economia_potencial",
+            "recomendacoes_praticas"
+          ]
+        }
+      },
       contexto: {
         anoBase: ano,
         objetivo: "Análise de Viabilidade, Planejamento Tributário e Precificação"
@@ -104,12 +140,26 @@ const Pricing = () => {
       },
       financeiro: {
         faturamento: {
-          anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
-          mensal_medio: (parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0")) / 12,
+          anual_total: faturamentoNum,
+          mensal_medio: faturamentoNum / 12,
           segregacao: {
-            comercio_percent: parseFloat(localStorage.getItem('viab-percentComercio') || "100"),
-            servico_percent: parseFloat(localStorage.getItem('viab-percentServico') || "0")
+            comercio_percent: percComercioNum,
+            servico_percent: percServicoNum,
+            comercio_valor: (faturamentoNum * percComercioNum) / 100,
+            servico_valor: (faturamentoNum * percServicoNum) / 100
+          },
+          anexo_simples_sugerido: {
+            comercio: percComercioNum > 0 ? "Anexo I" : null,
+            servico: percServicoNum > 0 ? (fatorROk ? "Anexo III" : "Anexo V") : null
           }
+        },
+        fator_r: {
+          sujeito_fator_r: percServicoNum > 0,
+          folha_12_meses: folha12Meses,
+          faturamento_12_meses: faturamentoNum,
+          percentual_atual: percentualFatorR,
+          resultado: fatorROk ? "Anexo III" : "Anexo V",
+          valor_ideal_folha_mensal: faturamentoNum > 0 ? (faturamentoNum * 0.28) / 12 : 0
         },
         custos_operacionais: {
           fixos_mensais: params.fixedCostsTotal || 0,
@@ -140,7 +190,7 @@ const Pricing = () => {
         },
         pro_labore: {
           declara_prolabore: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim',
-          valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
+          valor_declarado: proLaboreNum,
           valor_estimado: currentMinWage,
           recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim',
           modo_calculo: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
@@ -148,8 +198,11 @@ const Pricing = () => {
         retira_valores_pf: localStorage.getItem('viab-sociosRetiramValores') === 'Sim'
       },
       conformidade_riscos: {
-        recebe_vendas_conta_pf: localStorage.getItem('viab-recebeContaPF') === 'Sim',
-        mistura_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim'
+        alertas_criticos: {
+          confusao_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim' || localStorage.getItem('viab-recebeContaPF') === 'Sim',
+          retirada_informal: localStorage.getItem('viab-sociosRetiramValores') === 'Sim' && localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim',
+          risco_previdenciario: localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim' || localStorage.getItem('viab-sociosRecolhemInssIr') !== 'Sim'
+        }
       }
     };
   };

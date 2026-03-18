@@ -118,6 +118,13 @@ const Viabilidade = () => {
     const faturamentoNum = parseFloat(faturamentoAnual) || 0;
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
+    
+    // Fator R Calculations
+    const folhaNum = parseFloat(folhaPagamento) || 0;
+    const proLaboreNum = parseFloat(valorProlabore) || 0;
+    const folha12Meses = (folhaNum + proLaboreNum) * 12;
+    const percentualFatorR = faturamentoNum > 0 ? (folha12Meses / faturamentoNum) * 100 : 0;
+    const fatorROk = percentualFatorR >= 28;
 
     try {
       const payload = {
@@ -126,6 +133,32 @@ const Viabilidade = () => {
           executionMode: environment
         },
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+        engine: {
+          analises_requeridas: [
+            "enquadramento_simples",
+            "calculo_carga_tributaria",
+            "analise_fator_r",
+            "diagnostico_risco",
+            "viabilidade_financeira",
+            "planejamento_tributario"
+          ],
+          simulacoes_pro_labore: [
+            { nome: "cenario_atual", descricao: "Situação atual conforme preenchido" },
+            { nome: "cenario_minimo", valor: currentMinWage, descricao: "Obrigatório legal mínimo (1 SM)" },
+            { nome: "cenario_otimizado_fator_r", descricao: "Pró-labore ideal para atingir 28% do Fator R (se Anexo V)" }
+          ],
+          output_config: {
+            formato: "relatorio_consultivo",
+            secoes: [
+              "diagnostico_geral",
+              "carga_tributaria",
+              "analise_fator_r",
+              "riscos_identificados",
+              "economia_potencial",
+              "recomendacoes_praticas"
+            ]
+          }
+        },
         contexto: {
           anoBase: anoBase,
           objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial"
@@ -170,7 +203,19 @@ const Viabilidade = () => {
               servico_percent: percServicoNum,
               comercio_valor: (faturamentoNum * percComercioNum) / 100,
               servico_valor: (faturamentoNum * percServicoNum) / 100
+            },
+            anexo_simples_sugerido: {
+              comercio: percComercioNum > 0 ? "Anexo I" : null,
+              servico: percServicoNum > 0 ? (fatorROk ? "Anexo III" : "Anexo V") : null
             }
+          },
+          fator_r: {
+            sujeito_fator_r: percServicoNum > 0,
+            folha_12_meses: folha12Meses,
+            faturamento_12_meses: faturamentoNum,
+            percentual_atual: percentualFatorR,
+            resultado: fatorROk ? "Anexo III" : "Anexo V",
+            valor_ideal_folha_mensal: faturamentoNum > 0 ? (faturamentoNum * 0.28) / 12 : 0
           },
           custos_operacionais: {
             fixos_mensais: parseFloat(fixosMensais) || 0,
@@ -190,11 +235,11 @@ const Viabilidade = () => {
         societario_trabalhista: {
           quadro_pessoal: {
             num_funcionarios: parseInt(numFuncionarios) || 0,
-            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
+            folha_salarial_mensal: folhaNum
           },
           pro_labore: {
             declara_prolabore: sociosDeclaramProlabore === 'Sim',
-            valor_declarado: parseFloat(valorProlabore) || 0,
+            valor_declarado: proLaboreNum,
             valor_estimado: currentMinWage,
             recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
             modo_calculo: sociosDeclaramProlabore === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
