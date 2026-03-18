@@ -45,7 +45,7 @@ const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit
 
 export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) => {
   const [profitMargin, setProfitMargin] = useState<string>("12");
-  const [taxPassThrough, setTaxPassThrough] = useState<number>(0); // 0% repasse por padrão
+  const [taxPassThrough, setTaxPassThrough] = useState<number>(0); 
   
   const [taxRegime, setTaxRegime] = useState<TaxRegime>(TaxRegime.LucroPresumido);
   const [simplesNacionalRate, setSimplesNacionalRate] = useState<string>("0");
@@ -73,6 +73,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [ibsDebitPercentage, setIbsDebitPercentage] = useState<string>("100");
 
   const [faturamento12Meses, setFaturamento12Meses] = useState<string>("540000");
+  const [percentComercio, setPercentComercio] = useState<string>("100");
+  const [percentServico, setPercentServico] = useState<string>("0");
   const [anexoSimples, setAnexoSimples] = useState<string>("Anexo I");
   const [tipoOperacao, setTipoOperacao] = useState<'Varejo' | 'Atacado'>('Varejo');
 
@@ -90,7 +92,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     { name: "Embalagens", percentage: 1 },
   ]);
 
-  // Carrega estado inicial do repasse
   useEffect(() => {
     const saved = localStorage.getItem('jota-taxPassThrough');
     if (saved) setTaxPassThrough(parseFloat(saved));
@@ -100,7 +101,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     setLossPercentage("2");
     setTotalStockUnits("4000");
     setProfitMargin("15");
-    setTaxPassThrough(0); // Restaura para 0 ao trocar o preset para segurança
+    setTaxPassThrough(0); 
     
     const realisticFixed = [
         { name: "Aluguel", value: 3500 },
@@ -121,6 +122,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
     if (type === 'simples' || type === 'hibrido') {
         setFaturamento12Meses("540000");
+        setPercentComercio("100");
+        setPercentServico("0");
         setAnexoSimples("Anexo I");
         setPayroll("6500");
         setTaxRegime(TaxRegime.SimplesNacional);
@@ -132,6 +135,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setIbsDebitPercentage(type === 'hibrido' ? "100" : "0");
     } else if (type === 'presumido') {
         setFaturamento12Meses("1800000");
+        setPercentComercio("100");
+        setPercentServico("0");
         setPayroll("18000");
         setTaxRegime(TaxRegime.LucroPresumido);
         setIrpjRate("1.2");
@@ -144,6 +149,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setIbsDebitPercentage("100");
     } else if (type === 'real') {
         setFaturamento12Meses("4800000");
+        setPercentComercio("100");
+        setPercentServico("0");
         setPayroll("45000");
         setTaxRegime(TaxRegime.LucroReal);
         setIrpjRateLucroReal("15");
@@ -233,6 +240,8 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       useCbsDebit,
       ibsDebitPercentage: parseFloat(ibsDebitPercentage),
       faturamento12Meses: parseFloat(faturamento12Meses) || undefined,
+      percentComercio: parseFloat(percentComercio) || 0,
+      percentServico: parseFloat(percentServico) || 0,
       anexoSimples: anexoSimples || undefined,
       tipoOperacao: tipoOperacao,
     });
@@ -266,6 +275,18 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             <Label htmlFor="faturamento12Meses">Faturamento 12 Meses (R$)</Label>
             <Input id="faturamento12Meses" type="number" step="0.01" value={faturamento12Meses} onChange={(e) => setFaturamento12Meses(e.target.value)} disabled={disabled} />
           </div>
+          
+          <div className="grid grid-cols-2 gap-4 p-3 rounded-md bg-muted/30 border border-border/50">
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold">Comércio (%)</Label>
+              <Input type="number" value={percentComercio} onChange={(e) => setPercentComercio(e.target.value)} disabled={disabled} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-[10px] uppercase font-bold">Serviço (%)</Label>
+              <Input type="number" value={percentServico} onChange={(e) => setPercentServico(e.target.value)} disabled={disabled} className="h-8 text-xs" />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="tipoOperacao">Tipo de Operação</Label>
             <Select onValueChange={(value: 'Varejo' | 'Atacado') => setTipoOperacao(value)} value={tipoOperacao} disabled={disabled}>

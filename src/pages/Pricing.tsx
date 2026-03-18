@@ -101,6 +101,8 @@ const Pricing = () => {
     tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
     businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
     faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
+    percentComercio: localStorage.getItem('viab-percentComercio') || '100',
+    percentServico: localStorage.getItem('viab-percentServico') || '0',
     honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
     honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
     valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
@@ -342,7 +344,6 @@ const Pricing = () => {
     try {
       const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
       
-      // MODELO PROFISSIONAL DE PAYLOAD (ESTRUTURADO)
       const payload = {
         agentName: "Auditoria Estratégica Global",
         systemPrompt: "Você é um auditor fiscal sênior...",
@@ -356,6 +357,10 @@ const Pricing = () => {
         financeiro: {
           faturamentoMensal: summary.totalSelling,
           faturamentoAnualEstimado: summary.totalSelling * 12,
+          segregacaoAtividade: {
+            comercioPercent: params.percentComercio || 0,
+            servicoPercent: params.percentServico || 0
+          },
           lucroLiquido: summary.totalProfit,
           margemLiquida: summary.profitMarginPercent / 100,
           pontoEquilibrio: summary.breakEvenPoint
@@ -414,46 +419,28 @@ const Pricing = () => {
 
         toast.loading(`Aguardando agentes responderem...`, { id: toastId });
 
-        const seenNames = new Set<string>();
-        const maxWait = 5 * 60 * 1000; 
         const pollStart = Date.now();
-
         const poll = async (): Promise<void> => {
-          if (Date.now() - pollStart > maxWait) {
-            toast.error("Tempo limite atingido. Verifique o n8n.", { id: toastId });
+          if (Date.now() - pollStart > 5 * 60 * 1000) {
+            toast.error("Tempo limite atingido.", { id: toastId });
             setIsSending(false);
-            setAgentStatuses(prev => prev.map(s => s.status === 'loading' ? { ...s, status: 'error', errorMessage: 'Timeout' } : s));
             return;
           }
-
           try {
             const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
             const json = await res.json();
-            const arrived: Array<{ nome: string; report: string }> = json.agents || [];
-
-            for (const agent of arrived) {
-              if (!seenNames.has(agent.nome)) {
-                seenNames.add(agent.nome);
-                setAgentStatuses(prev =>
-                  prev.map(s => s.nome === agent.nome
-                    ? { ...s, status: 'done' as const, report: agent.report }
-                    : s
-                  )
-                );
-              }
-            }
-
-            if (seenNames.size >= agentConfigs.length) {
-              const durationInSeconds = (Date.now() - pollStart) / 1000;
-              toast.success(`${seenNames.size} agentes concluídos em ${durationInSeconds.toFixed(0)}s!`, { id: toastId });
-              fetch(`${relayUrl}/agent-results/${sessionId}`, { method: 'DELETE' }).catch(() => {});
+            const arrived = json.agents || [];
+            arrived.forEach((agent: any) => {
+              setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
+            });
+            if (arrived.length >= agentConfigs.length) {
+              toast.success("Concluído!", { id: toastId });
               setIsSending(false);
               return;
             }
           } catch { }
           setTimeout(poll, 2000);
         };
-
         setTimeout(poll, 2000);
         return;
       }
@@ -471,48 +458,18 @@ const Pricing = () => {
       const durationInSeconds = (endTime - startTime) / 1000;
       setExecutionTime(durationInSeconds);
 
-      const isAgentsArray = (d: any): boolean =>
-        Array.isArray(d) && d.length > 0 && typeof d[0].nome === 'string' && typeof d[0].report === 'string';
       const unwrapped = Array.isArray(data) && data[0]?.json ? data[0].json : data;
-
-      if (isAgentsArray(unwrapped)) {
-        const statuses: AgentStatus[] = unwrapped.map((item: any) => ({
-          id: item.nome,
-          nome: item.nome,
-          systemPrompt: '',
-          status: 'done' as const,
-          report: item.report,
-        }));
-        setAgentStatuses(statuses);
-        toast.success(`${statuses.length} agentes concluídos em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
-        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-        return;
+      let extractedReport = unwrapped.report || unwrapped.output || unwrapped.text || (typeof unwrapped === 'string' ? unwrapped : "");
+      
+      if (!extractedReport && unwrapped.content?.parts) {
+        extractedReport = unwrapped.content.parts.map((p: any) => p.text || "").join("\n\n");
       }
-
-      let extractedReport = "";
-      if (Array.isArray(unwrapped)) {
-        const parts = unwrapped[0]?.content?.parts;
-        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-      } else if (unwrapped.content?.parts) {
-        const parts = unwrapped.content.parts;
-        if (Array.isArray(parts)) extractedReport = parts.map((p: any) => p.text || "").join("\n\n---\n\n");
-      }
-      if (!extractedReport) {
-        if (unwrapped.output) extractedReport = unwrapped.output;
-        else if (unwrapped.text) extractedReport = unwrapped.text;
-        else if (typeof unwrapped === 'string') extractedReport = unwrapped;
-      }
-      if (!extractedReport) throw new Error("Formato de resposta da IA não reconhecido.");
 
       setAiReport(extractedReport);
-      toast.success(`Análise Concluída em ${durationInSeconds.toFixed(2)}s!`, { id: toastId });
-      setTimeout(() => document.getElementById('ai-report-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
+      toast.success(`Análise Concluída!`, { id: toastId });
 
     } catch (error: any) {
-      toast.error("Erro na Auditoria IA", {
-        id: toastId,
-        description: error.message
-      });
+      toast.error("Erro na Auditoria IA", { id: toastId, description: error.message });
     } finally {
       setIsSending(false);
     }

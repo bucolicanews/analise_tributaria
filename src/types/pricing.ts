@@ -79,7 +79,7 @@ export interface CalculationParams {
   companyLegalNature?: string; 
   
   profitMargin: number;
-  taxPassThroughPercentage?: number; // NOVO: 0 a 100% de repasse
+  taxPassThroughPercentage?: number; 
   
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
@@ -109,6 +109,8 @@ export interface CalculationParams {
   ibsDebitPercentage: number; 
 
   faturamento12Meses?: number;
+  percentComercio?: number; // NOVO: % de faturamento comércio
+  percentServico?: number;  // NOVO: % de faturamento serviço
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
 

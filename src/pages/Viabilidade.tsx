@@ -58,6 +58,8 @@ const Viabilidade = () => {
 
   // Novos campos — Financeiro / Custos de Abertura
   const [faturamentoAnual, setFaturamentoAnual] = useState(localStorage.getItem('viab-faturamentoAnual') || '');
+  const [percentComercio, setPercentComercio] = useState(localStorage.getItem('viab-percentComercio') || '100');
+  const [percentServico, setPercentServico] = useState(localStorage.getItem('viab-percentServico') || '0');
   const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(localStorage.getItem('viab-honorariosLegalizacao') || '');
   const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(localStorage.getItem('viab-honorariosAssessoriaMensal') || '');
   const [valorJuntaCartorio, setValorJuntaCartorio] = useState(localStorage.getItem('viab-valorJuntaCartorio') || '');
@@ -89,6 +91,8 @@ const Viabilidade = () => {
   useEffect(() => { localStorage.setItem('viab-tributacaoSugerida', tributacaoSugerida); }, [tributacaoSugerida]);
   useEffect(() => { localStorage.setItem('viab-businessIdea', businessIdea); }, [businessIdea]);
   useEffect(() => { localStorage.setItem('viab-faturamentoAnual', faturamentoAnual); }, [faturamentoAnual]);
+  useEffect(() => { localStorage.setItem('viab-percentComercio', percentComercio); }, [percentComercio]);
+  useEffect(() => { localStorage.setItem('viab-percentServico', percentServico); }, [percentServico]);
   useEffect(() => { localStorage.setItem('viab-honorariosLegalizacao', honorariosLegalizacao); }, [honorariosLegalizacao]);
   useEffect(() => { localStorage.setItem('viab-honorariosAssessoriaMensal', honorariosAssessoriaMensal); }, [honorariosAssessoriaMensal]);
   useEffect(() => { localStorage.setItem('viab-valorJuntaCartorio', valorJuntaCartorio); }, [valorJuntaCartorio]);
@@ -111,7 +115,8 @@ const Viabilidade = () => {
       setRazaoSocial(''); setNaturezaJuridica(''); setCapital(''); setAtividades('');
       setNumSocios('1'); setNumFuncionarios('0'); setFolhaPagamento(''); setMunicipio('');
       setEstado('SP'); setTributacaoSugerida(''); setBusinessIdea('');
-      setFaturamentoAnual(''); setHonorariosLegalizacao(''); setHonorariosAssessoriaMensal('');
+      setFaturamentoAnual(''); setPercentComercio('100'); setPercentServico('0');
+      setHonorariosLegalizacao(''); setHonorariosAssessoriaMensal('');
       setValorJuntaCartorio(''); setValorDpa(''); setValorBombeiro(''); setValorLicencasMunicipais('');
       setSociosRetiramValores(''); setSociosDeclaramProlabore(''); setSociosRecolhemInssIr('');
       setRecebeContaPF(''); setMesmaContaSocios('');
@@ -121,7 +126,8 @@ const Viabilidade = () => {
         'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-atividades',
         'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 'viab-municipio',
         'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport',
-        'viab-faturamentoAnual', 'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal',
+        'viab-faturamentoAnual', 'viab-percentComercio', 'viab-percentServico',
+        'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal',
         'viab-valorJuntaCartorio', 'viab-valorDpa', 'viab-valorBombeiro', 'viab-valorLicencasMunicipais',
         'viab-sociosRetiramValores', 'viab-sociosDeclaramProlabore', 'viab-sociosRecolhemInssIr',
         'viab-recebeContaPF', 'viab-mesmaContaSocios',
@@ -143,7 +149,10 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
 
     try {
-      // MODELO PROFISSIONAL DE PAYLOAD (ESTRUTURADO)
+      const totalFaturamento = parseFloat(faturamentoAnual) || 0;
+      const pComercio = parseFloat(percentComercio) || 0;
+      const pServico = parseFloat(percentServico) || 0;
+
       const payload = {
         agentName: "Análise de Viabilidade Tributária",
         systemPrompt: "Você é um especialista sênior em direito tributário e contabilidade fiscal brasileira. Sua função é realizar uma análise técnica completa de viabilidade tributária para abertura ou regularização de empresas...",
@@ -157,8 +166,14 @@ const Viabilidade = () => {
           descricaoAdicional: businessIdea || 'Nenhuma descrição adicional fornecida.'
         },
         financeiro: {
-          faturamentoMensalEstimado: (parseFloat(faturamentoAnual) || 0) / 12,
-          faturamentoAnualEstimado: parseFloat(faturamentoAnual) || 0,
+          faturamentoMensalEstimado: totalFaturamento / 12,
+          faturamentoAnualEstimado: totalFaturamento,
+          segregacaoAtividade: {
+            comercioPercent: pComercio,
+            servicoPercent: pServico,
+            comercioValorAnual: totalFaturamento * (pComercio / 100),
+            servicoValorAnual: totalFaturamento * (pServico / 100)
+          },
           custosAbertura: {
             honorariosLegalizacao: parseFloat(honorariosLegalizacao) || 0,
             juntaCartorio: parseFloat(valorJuntaCartorio) || 0,
@@ -380,17 +395,18 @@ const Viabilidade = () => {
                 placeholder="Ex: 360000"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="honorarios-legalizacao">Honorários Contábeis de Legalização R$</Label>
-              <Input
-                id="honorarios-legalizacao"
-                type="number"
-                value={honorariosLegalizacao}
-                onChange={(e) => setHonorariosLegalizacao(e.target.value)}
-                disabled={isLoading}
-                placeholder="Ex: 1500"
-              />
+
+            <div className="grid grid-cols-2 gap-4 p-3 rounded-md bg-muted/30 border border-border/50">
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold">Comércio (%)</Label>
+                <Input type="number" value={percentComercio} onChange={(e) => setPercentComercio(e.target.value)} disabled={isLoading} className="h-8 text-xs" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-[10px] uppercase font-bold">Serviço (%)</Label>
+                <Input type="number" value={percentServico} onChange={(e) => setPercentServico(e.target.value)} disabled={isLoading} className="h-8 text-xs" />
+              </div>
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="honorarios-assessoria-mensal">Honorários de Assessoria Mensal R$</Label>
               <Input
@@ -402,6 +418,19 @@ const Viabilidade = () => {
                 placeholder="Ex: 600"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="honorarios-legalizacao">Honorários Contábeis de Legalização R$</Label>
+              <Input
+                id="honorarios-legalizacao"
+                type="number"
+                value={honorariosLegalizacao}
+                onChange={(e) => setHonorariosLegalizacao(e.target.value)}
+                disabled={isLoading}
+                placeholder="Ex: 1500"
+              />
+            </div>
+            
             <div className="space-y-2">
               <Label htmlFor="valor-junta-cartorio">Junta Comercial / Cartório R$</Label>
               <Input
@@ -435,7 +464,7 @@ const Viabilidade = () => {
                 placeholder="Ex: 500"
               />
             </div>
-            <div className="space-y-2 md:col-span-2 lg:col-span-3">
+            <div className="space-y-2 md:col-span-2 lg:col-span-2">
               <Label htmlFor="valor-licencas-municipais">Valor Médio das Licenças Municipais R$</Label>
               <Input
                 id="valor-licencas-municipais"
