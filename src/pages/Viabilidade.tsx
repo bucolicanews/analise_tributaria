@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import {
   DropdownMenu,
@@ -346,7 +346,7 @@ const Viabilidade = () => {
                   </Select>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Usa a mesma conta bancária para pagar contas dos sócios?</Label>
+                  <Label>Usa a mesma conta bancária para pagar as contas dos sócios?</Label>
                   <Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
