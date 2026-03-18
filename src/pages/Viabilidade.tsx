@@ -132,19 +132,22 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
 
     try {
-      const totalFaturamento = parseFloat(faturamentoAnual) || 0;
+      const totalFaturamentoAnual = parseFloat(faturamentoAnual) || 0;
+      const faturamentoMensalMedio = totalFaturamentoAnual / 12;
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
+      const folhaMensal = parseFloat(folhaPagamento) || 0;
+      const proLaboreValor = parseFloat(valorProlabore) || 0;
       
       // --- PAYLOAD ESTRUTURADO (NÍVEL SÊNIOR) ---
       const payload = {
-        agentName: "Análise de Viabilidade Tributária e Riscos",
-        systemPrompt: "Você é um consultor tributário sênior especializado em estruturação de novos negócios...",
+        agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+        systemPrompt: "Você é um consultor tributário e societário sênior...",
         
         // 1. CONTEXTO E METADADOS
         contexto: {
           anoBase,
-          objetivo: "Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
+          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
           timestamp: new Date().toISOString(),
           ambiente: environment
         },
@@ -152,7 +155,7 @@ const Viabilidade = () => {
         // 2. PERFIL DA EMPRESA (ESTRUTURA JURÍDICA)
         empresa: {
           razaoSocial: razaoSocial || 'Projeto não nomeado',
-          naturezaJuridica: naturezaJuridica || 'A definir/Sugerir',
+          naturezaJuridica: naturezaJuridica || 'A definir / Sugerir',
           capitalSocial: parseFloat(capital) || 0,
           numSocios: parseInt(numSocios) || 1,
           localizacao: { municipio, estado },
@@ -170,13 +173,13 @@ const Viabilidade = () => {
         // 4. FINANCEIRO E PROJEÇÕES (DRE PROJETADO)
         financeiro: {
           faturamento: {
-            anual_total: totalFaturamento,
-            mensal_medio: totalFaturamento / 12,
+            anual_total: totalFaturamentoAnual,
+            mensal_medio: faturamentoMensalMedio,
             segregacao: {
               comercio_percent: pComercio,
               servico_percent: pServico,
-              comercio_valor_anual: totalFaturamento * (pComercio / 100),
-              servico_valor_anual: totalFaturamento * (pServico / 100)
+              comercio_valor_anual: totalFaturamentoAnual * (pComercio / 100),
+              servico_valor_anual: totalFaturamentoAnual * (pServico / 100)
             }
           },
           tributos_locais: {
@@ -194,11 +197,11 @@ const Viabilidade = () => {
         societario_trabalhista: {
           quadro_pessoal: {
             num_funcionarios: parseInt(numFuncionarios) || 0,
-            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
+            folha_salarial_mensal: folhaMensal
           },
           pro_labore: {
             declara_prolabore: sociosDeclaramProlabore,
-            valor_declarado: parseFloat(valorProlabore) || 0,
+            valor_declarado: proLaboreValor,
             recolhe_inss_ir: sociosRecolhemInssIr
           }
         },
@@ -210,15 +213,16 @@ const Viabilidade = () => {
           mistura_patrimonial: mesmaContaSocios,
           alertas_criticos: {
             risco_confusao_patrimonial: mesmaContaSocios === 'Sim',
-            risco_previdenciario_prolabore: sociosDeclaramProlabore === 'Não' || (parseFloat(valorProlabore) || 0) < 1412,
-            risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim'
+            risco_previdenciario_prolabore: sociosDeclaramProlabore === 'Não' || proLaboreValor < 1412,
+            risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim',
+            fator_r_critico: (folhaMensal + proLaboreValor) / faturamentoMensalMedio < 0.28
           }
         }
       };
 
       const webhooks = {
-        test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
-        production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
+        test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
+        production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
       };
 
       const response = await fetch(webhooks[environment], {
@@ -233,8 +237,14 @@ const Viabilidade = () => {
       const duration = (performance.now() - startTime) / 1000;
       setExecutionTime(duration);
 
-      let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null);
-      if (!reportText) throw new Error("Resposta da IA sem relatório.");
+      // Tenta extrair o relatório de várias estruturas possíveis de retorno do n8n
+      let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
+      
+      if (!reportText && data.content?.parts) {
+        reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
+      }
+
+      if (!reportText) throw new Error("Resposta da IA sem relatório reconhecível.");
 
       setAiReport(reportText);
       toast.success(`Diagnóstico concluído!`, { id: toastId });
