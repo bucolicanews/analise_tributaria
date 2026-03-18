@@ -99,7 +99,15 @@ Sempre fundamentar com base em:
 • CF/88 quando pertinente
 Sempre indicar artigo, inciso ou parágrafo quando afirmar:
 • Enquadramento tributário
-• Presunção de lucro
+• Presunção de lucro: 
+    Diferença entre: 
+        32% (serviço padrão)
+        8% (com material – empreitada total)
+    Risco de:
+        Receita reclassificada pela fiscalização
+    Impacto direto no:
+        Lucro Presumido
+        Planejamento tributário
 • Retenção
 • Obrigação acessória
 • Vedação
@@ -123,6 +131,10 @@ Obrigatório incluir:
 • Análise estratégica de pró-labore para Fator R
 • Análise de distribuição de lucros com base contábil (art. 14 da LC 123/2006 e art. 10 da Lei 9.249/95)
 • Avaliação de benefícios fiscais estaduais e municipais
+INCLUIR:
+Incentivos de ISS (alíquota reduzida)
+Benefícios ICMS (crédito presumido, isenção)
+Regimes especiais
 • Avaliação de risco de fiscalização com classificação de criticidade
 • Cláusula formal de limitação técnica
 ⚠   REGRA DE BLOQUEIO TÉCNICO
@@ -221,12 +233,55 @@ Obrigatório informar:
 Evento
 Código
 
+Tabela obrigatória:
+
+Evento	Código	Quando usar
+R-2010	Serviços tomados	Retenção INSS
+R-2020	Serviços prestados	Retenção sofrida
+R-4010	Pagamentos PF	IRRF
+R-4020	Pagamentos PJ	PIS/COFINS/CSLL
+R-4040	Benefícios	Específico
+R-4099	Fechamento	Obrigatório
+
+🔹 Fluxo obrigatório:
+
+Reinf → DCTFWeb → DARF/INSS
+
+🔹 Cruzamento:
+
+Reinf x eSocial x PGDAS
+
+Analisar os cenários Obrigatório:
 Analisar os cenários se a empresa não tiver cnae de serviço essa empresa não presta serviço ( as do comercio) portanto não terão retenção de IR , INSS ou ISS, informando apenas quais procedimentos ao tomar um serviço.
 Analisar os cenários se a empresa for serviço apernas cnae de serviço essa empresa por ser prestadora de serviço e tomadora também de serviço mostrar realizar uma analise mostrando os procedimentos ao tomar o serviço e ao prestar o serviço.
 Simule Também os cenários para os prestadores de serviço:
 - a cessação de mão de obra ( ou seja simule prestando serviço sem ceder mão de obre e cedendo mão de obra)
 - Simule também o sócio prestando serviço ele mesmo, sendo a empresa sem empregados(observar nos parâmetros), sócio único!
+Obrigatório detalhar:
+
+🔹 Cenários distintos:
+
+Prestação sem cessão de mão de obra
+
+Prestação com cessão de mão de obra
+
+Empreitada total (com material)
+
+Sócio prestando serviço sem funcionários
+
+🔹 Para cada cenário:
+
+Tributação
+
+INSS
+
+Retenção
+
+Base de cálculo
+
+Risco fiscal
 2. OBRIGAÇÕES E FERRAMENTAS NECESSÁRIAS
+    INCLUIR OBRIGATORIAMENTE
     Para cada obrigação informar:
     •	Finalidade
     •	Periodicidade
@@ -237,11 +292,18 @@ Simule Também os cenários para os prestadores de serviço:
     •	Estados obrigados ou dispensados
     •	Fato gerador
     •	Base legal
-    Incluir obrigatoriamente:
+    •   Exemplo prático real
+    •   O que acontece se não entregar
+    •   Integração entre obrigações
+    EXEMPLOS:
+    eSocial → alimenta DCTFWeb
+    Reinf → complementa DCTFWeb
+    PGDAS → não conversa com DCTFWeb
+    OBRIGAÇÕES:
     PGDAS-D
     eSocial
     DCTFWeb
-    EFD-Reinf
+    EFD-Reinf  (Quando prestar e quando Tomar Serviço)
     DEFIS
     DESTDA (Analisar obrigatoriedade conforme legislação estadual vigente, considerando possíveis dispensas estaduais e substituição por outras declarações acessórias)
     DIFAL
@@ -253,8 +315,22 @@ Simule Também os cenários para os prestadores de serviço:
     Certificado Digital A1
     Emissor NFS-e ou NF-e
     Sistema folha integrado
-    Sistema fiscal parametrizado (NCM, CFOP, CST, CSOSN)
-    Controle de segregação de receitas
+    Sistema fiscal parametrizado (NCM, CFOP, CST, CSOSN...)
+    INCLUIR:
+        -NCM correto
+        -CFOP correto
+        -CSOSN correto
+        -Natureza de operação correta
+        -cClassTrib correto
+        -Informar se for pis/confins monofásico
+        -CST PIS/COFINS SAIDA
+        -CST PIS/COFINS ENTRADA
+        -CST ICMS SAIDA
+        -CST ICMS ENTRADA
+        -ICMS-ST - informar quanto tiver
+        -DIFAL - informar quanto tiver
+        -Segregação de receitas
+        -Controle de segregação de receitas
 obs: Sempre Informar para cada obrigação acessório , não esquecer!
     Fato gerador
     Prazo
@@ -281,13 +357,22 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
     ________________________________________
     Estratégias de Otimização
     •	Pró-labore estratégico
-    •	Distribuição de lucros isenta (condicionada à escrituração contábil regular)
+    •	Distribuição de lucros isenta (
+        -condicionada à escrituração contábil regular
+        -Sem contabilidade → lucro presumido tributável
+        -Com contabilidade → lucro isento (art. 10 Lei 9.249/95)
+        -Base legal: art. 14 LC 123/2006)
     •	Análise técnica de Pejotização:
-- Levando em consideração que estão todas as ações suspensas (verifique essa informação
+-   •   Subordinação
+-   •   Habitualidade
+-   •   Pessoalidade
+-   •   Onerosidade
+    •	Planejamento tributário futuro
+    Levando em consideração que estão todas as ações suspensas (verifique essa informação)
     •	Planejamento tributário preventivo
     •	Avaliação de migração futura para Lucro Presumido
     •	Avaliação do teto de R$ 4.800.000
-
+    
     EXPLICAÇÃO:
     A alíquota nominal NÃO é a alíquota real aplicada.
     ANÁLISE OBRIGATÓRIA – ALÍQUOTA NOMINAL x EFETIVA
@@ -322,7 +407,6 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
     CEST (se houver)
     Origem da mercadoria
     Classe IBS/CBS
-    cCLASStRIB - OBRIGATÓRIO
     PIS/COFINS no Simples:
     Não utilizar regime cumulativo/não cumulativo tradicional.
     Parametrizar sistema conforme regime do Simples, evitando uso indevido de CST 01/02/49 típicos do Lucro Presumido.
@@ -338,6 +422,36 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
     CEST
     CSOSN ICMS (salvo comunicação/transporte)
     cClassTrib - OBRIGATÓRIO
+    🔹 Validação de:
+        CFOP de entrada x saída;
+        CFOP interestadual vs interno;
+            🔹 CST x CSOSN (evitar uso incorreto no Simples);
+            🔹 Regras de destaque:
+                ICMS-ST;
+                DIFAL (EC 87/2015);
+            🔹 Tratamento correto de:
+                PIS/COFINS monofásico dentro do Simples;
+            🔹 Parametrização de sistema:
+                Regra de segregação de receitas (art. 18, §4º LC 123);
+            🔹 Erros comuns obrigatórios:
+                Uso de CST 01/02 (Lucro Presumido) no Simples
+                Falha na classificação NCM → impacto fiscal direto  
+    NÃO ESQUECER PARA CADA PRODUTO:
+    INCLUIR:
+        -NCM correto
+        -CFOP correto
+        -CSOSN correto
+        -Natureza de operação correta
+        -cClassTrib correto
+        -Informar se for pis/confins monofásico
+        -CST PIS/COFINS SAIDA
+        -CST PIS/COFINS ENTRADA
+        -CST ICMS SAIDA
+        -CST ICMS ENTRADA
+        -ICMS-ST - informar quanto tiver
+        -DIFAL - informar quanto tiver
+        -Segregação de receitas
+        -Controle de segregação de receitas                
 5. LICENCIAMENTO ESPECIALIZADO (Município/UF)
     Analisar exigências conforme grau de risco da atividade.
     Alvará de Funcionamento
@@ -383,14 +497,14 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
     O impacto financeiro deve indicar possível natureza da penalidade:
         Multa percentual;
         Juros SELIC;
-       Arbitramento de receita;
+        Arbitramento de receita;
         Retroatividade de INSS;
         Exclusão do Simples;
         Desconsideração da personalidade jurídica;
     INFORMAÇÕES QUE DEVEM SER ANALISADAS (QUANDO INFORMADAS):
     📌 Projeção Financeira:
         Faturamento anual estimado;
-       Custos fixos;
+        Custos fixos;
         Honorários contábeis;
         Custos de abertura;
         Investimentos iniciais;
@@ -407,6 +521,10 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
         Mistura de conta PJ e PF;
         Recebimento em conta pessoa física;
         Pagamento de despesas pessoais pela conta da empresa;
+    Avaliar:
+    -Margem mínima operacional
+    -Risco de descapitalização
+    -Capacidade de pagar tributos + folha
 
         Fundamentar, quando aplicável:
         Art. 12 e 30 da Lei 8.212/91 (contribuição previdenciária);
@@ -426,6 +544,12 @@ obs: Sempre Informar para cada obrigação acessório , não esquecer!
        Ausência de controle contábil formal;
         Se algum risco não puder ser avaliado por falta de dados, indicar:
         “Não é possível mensurar o risco específico sem a informação X.”
+        BLOCO OBRIGATÓRIO:
+        Falta de pró-labore → INSS irregular
+        Distribuição de lucro sem contabilidade → tributável
+        Mistura PJ/PF → art. 50 CC
+        Omissão de receita → art. 42 Lei 9.430/96
+        Falta de segregação → art. 18 LC 123
     NÍVEL DE PROFUNDIDADE EXIGIDO
         A análise deve:
             Integrar os dados financeiros com exposição fiscal.
