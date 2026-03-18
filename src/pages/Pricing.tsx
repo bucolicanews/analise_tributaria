@@ -110,9 +110,16 @@ const Pricing = () => {
       modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
     };
 
+    // CNAEs Estruturados
+    let cnaes = [];
+    try {
+      cnaes = JSON.parse(localStorage.getItem('viab-cnaes') || '[]');
+    } catch (e) { cnaes = []; }
+
     return {
       razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
-      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado / Sugerir',
+      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado',
+      classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || 'Não informado',
       capital: localStorage.getItem('viab-capital') || 'Não informado',
       numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
       numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
@@ -120,11 +127,19 @@ const Pricing = () => {
       municipio: localStorage.getItem('viab-municipio') || 'Não informado',
       estado: localStorage.getItem('viab-estado') || 'Não informado',
       atividades: localStorage.getItem('viab-atividades') || 'Não informado',
-      tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
+      tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado',
       businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
       faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
       percentComercio: localStorage.getItem('viab-percentComercio') || '100',
       percentServico: localStorage.getItem('viab-percentServico') || '0',
+      
+      custos_operacionais: {
+        fixos_mensais: parseFloat(localStorage.getItem('viab-fixosMensais') || '0'),
+        variaveis_percentual: parseFloat(localStorage.getItem('viab-variaveisPercentual') || '0')
+      },
+
+      cnaes: cnaes.map((c: any) => ({ codigo: c.code, descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
+
       honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
       honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
       valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
