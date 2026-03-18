@@ -42,9 +42,37 @@ const Configuracao = () => {
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
     localStorage.setItem('jota-gemini-key', geminiKey);
+    saveAgentsToStorage(agents);
     saveInssTables(inssTables);
     saveIrpfTables(irpfTables);
     toast.success("Configurações salvas com sucesso!");
+  };
+
+  // --- AGENTS LOGIC ---
+  const addAgent = () => {
+    const newAgent: AgentConfig = {
+      id: `agent-${Date.now()}`,
+      nome: 'Novo Agente',
+      systemPrompt: '',
+      order: agents.length + 1
+    };
+    setAgents([...agents, newAgent]);
+  };
+
+  const removeAgent = (id: string) => {
+    setAgents(agents.filter(a => a.id !== id));
+  };
+
+  const updateAgent = (id: string, field: keyof AgentConfig, value: any) => {
+    setAgents(agents.map(a => a.id === id ? { ...a, [field]: value } : a));
+  };
+
+  const resetAgents = () => {
+    if (confirm("Deseja restaurar os agentes padrão? Isso apagará suas customizações.")) {
+      setAgents(DEFAULT_AGENTS);
+      saveAgentsToStorage(DEFAULT_AGENTS);
+      toast.info("Agentes restaurados.");
+    }
   };
 
   // --- INSS LOGIC ---
@@ -100,6 +128,8 @@ const Configuracao = () => {
         <Card className="shadow-card">
           <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-8">
+            
+            {/* DADOS DA EMPRESA */}
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2"><Building className="h-5 w-5 text-muted-foreground" />Dados da Empresa</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -111,11 +141,63 @@ const Configuracao = () => {
 
             {autenticado && (
               <>
+                {/* RESPONSÁVEL TÉCNICO */}
                 <div className="space-y-4 rounded-lg border border-border p-4">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                      <div className="space-y-2"><Label>Nome do Contador</Label><Input value={contadorNome} onChange={(e) => setContadorNome(e.target.value)} /></div>
                      <div className="space-y-2"><Label>CRC</Label><Input value={contadorCrc} onChange={(e) => setContadorCrc(e.target.value)} /></div>
+                   </div>
+                </div>
+
+                {/* WEBHOOKS IA */}
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-accent/5">
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><Webhook className="h-5 w-5 text-accent" />Webhooks da IA (Viabilidade)</h3>
+                   <div className="grid grid-cols-1 gap-4">
+                     <div className="space-y-2"><Label>URL Webhook (Ambiente de Teste)</Label><Input value={webhookTestUrl} onChange={(e) => setWebhookTestUrl(e.target.value)} placeholder="https://n8n.seu-servidor.com/webhook-test/..." /></div>
+                     <div className="space-y-2"><Label>URL Webhook (Ambiente de Produção)</Label><Input value={webhookProdUrl} onChange={(e) => setWebhookProdUrl(e.target.value)} placeholder="https://n8n.seu-servidor.com/webhook/..." /></div>
+                   </div>
+                </div>
+
+                {/* CHAVE GEMINI */}
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Chave API Gemini (Agentes Locais)</h3>
+                   <div className="space-y-2">
+                     <Label>Gemini API Key</Label>
+                     <Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder="AIzaSy..." />
+                     <p className="text-[10px] text-muted-foreground">Necessária para executar os agentes que não possuem Webhook próprio.</p>
+                   </div>
+                </div>
+
+                {/* GERENCIADOR DE AGENTES */}
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-indigo-500/5">
+                   <div className="flex items-center justify-between">
+                     <h3 className="text-lg font-semibold flex items-center gap-2"><Bot className="h-5 w-5 text-indigo-500" />Gerenciador de Agentes IA</h3>
+                     <div className="flex gap-2">
+                       <Button type="button" variant="outline" size="sm" onClick={resetAgents}><History className="h-4 w-4 mr-2" /> Resetar</Button>
+                       <Button type="button" variant="outline" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
+                     </div>
+                   </div>
+                   <div className="space-y-6">
+                     {agents.sort((a,b) => (a.order||0) - (b.order||0)).map((agent, idx) => (
+                       <div key={agent.id} className="p-4 border rounded-md bg-background space-y-4 shadow-sm">
+                         <div className="flex items-center justify-between gap-4">
+                           <div className="flex-1 grid grid-cols-4 gap-2">
+                             <div className="col-span-3"><Label className="text-[10px] uppercase">Nome do Agente</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
+                             <div><Label className="text-[10px] uppercase">Ordem</Label><Input type="number" value={agent.order} onChange={e => updateAgent(agent.id, 'order', parseInt(e.target.value))} /></div>
+                           </div>
+                           <Button type="button" variant="ghost" size="icon" className="mt-5" onClick={() => removeAgent(agent.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-[10px] uppercase">System Prompt (Instruções)</Label>
+                           <Textarea className="text-xs h-24 font-mono" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} />
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-[10px] uppercase">URL Webhook Específico (Opcional)</Label>
+                           <Input className="text-xs" value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} placeholder="Se vazio, usará o Gemini local..." />
+                         </div>
+                       </div>
+                     ))}
                    </div>
                 </div>
 
