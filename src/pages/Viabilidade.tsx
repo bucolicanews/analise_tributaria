@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
+import { getIrpfTables } from '@/lib/tax/irpfData';
+import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +24,6 @@ const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (
 const classificacoesFiscais = ["Microempresa (ME)", "Empresa de Pequeno Porte (EPP)", "Médio/Grande Porte", "Sugerir com base no faturamento"];
 const anosBase = ["2022", "2023", "2024", "2025", "2026"];
 const simNao = ["Sim", "Não"];
-const simNaoNaoSei = ["Sim", "Não", "Não sei"];
 
 interface CnaeEntry { id: string; code: string; description: string; isPrimary: boolean; }
 
@@ -69,6 +70,12 @@ const Viabilidade = () => {
   const [anexoComercio, setAnexoComercio] = useState(() => getStored('viab-anexoComercio', 'Anexo I'));
   const [anexoServico, setAnexoServico] = useState(() => getStored('viab-anexoServico', 'Anexo III'));
   const [retiradaMensalLucro, setRetiradaMensalLucro] = useState(() => getStored('viab-retiradaMensalLucro', '0'));
+  
+  // Custos de Abertura (Guardados mas não no form principal por enquanto)
+  const [honorariosLegalizacao] = useState(() => getStored('viab-honorariosLegalizacao', '1900'));
+  const [assessoriaMensal] = useState(() => getStored('viab-honorariosAssessoriaMensal', '450'));
+  const [juntaCartorio] = useState(() => getStored('viab-valorJuntaCartorio', '519'));
+  const [bombeiroLicencas] = useState(() => getStored('viab-valorBombeiro', '650'));
 
   const [aiReport, setAiReport] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -99,14 +106,92 @@ const Viabilidade = () => {
 
     setIsLoading(true);
     const startTime = performance.now();
+
+    const inssTables = getInssTables();
+    const irpfTables = getIrpfTables();
+    const minWages = getMinimumWages();
+    const currentMinWage = minWages.find(w => w.year === anoBase)?.value || 1621;
+
     try {
-      // PAYLOAD APENAS COM DADOS DE VIABILIDADE
+      // PAYLOAD REESTRUTURADO CONFORME O PADRÃO QUE FUNCIONAVA
       const payload = {
-        razaoSocial, naturezaJuridica, classificacaoFiscal, capital, numSocios, numFuncionarios, folhaPagamento, municipio, estado, atividades, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, anexoComercio, anexoServico, retiradaMensalLucro,
-        cnaes: cnaes.map(c => `${c.code} - ${c.description}`).join(' | ')
+        agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+        contexto: {
+          anoBase: anoBase,
+          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
+          ambiente: environment === 'production' ? 'production' : 'development'
+        },
+        tabelasReferencia: {
+          inss: inssTables.filter(t => t.year === anoBase),
+          irpf: irpfTables.filter(t => t.year === anoBase),
+          salario_minimo: currentMinWage
+        },
+        empresa: {
+          razaoSocial,
+          naturezaJuridica,
+          classificacaoFiscal,
+          capitalSocial: parseFloat(capital) || 0,
+          numSocios: parseInt(numSocios) || 1,
+          localizacao: { municipio, estado },
+          tributacaoPretendida: tributacaoSugerida
+        },
+        operacional: {
+          cnaes: cnaes.map(c => ({ codigo: c.code, descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
+          descricaoAtividades: atividades,
+          ideiaNegocio: businessIdea
+        },
+        financeiro: {
+          faturamento: {
+            anual_total: parseFloat(faturamentoAnual) || 0,
+            mensal_medio: (parseFloat(faturamentoAnual) || 0) / 12,
+            segregacao: {
+              comercio_percent: parseFloat(percentComercio) || 0,
+              servico_percent: parseFloat(percentServico) || 0
+            }
+          },
+          custos_operacionais: {
+            fixos_mensais: parseFloat(fixosMensais) || 0,
+            variaveis_percentual: parseFloat(variaveisPercentual) || 0
+          },
+          tributos_locais: {
+            iss_municipio: parseFloat(aliquotaIss) || 0,
+            icms_estado: parseFloat(aliquotaIcms) || 0
+          },
+          custos_abertura: {
+            honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0,
+            assessoria_mensal: parseFloat(assessoriaMensal) || 0,
+            junta_cartorio: parseFloat(juntaCartorio) || 0,
+            bombeiro_licencas: parseFloat(bombeiroLicencas) || 0
+          }
+        },
+        societario_trabalhista: {
+          quadro_pessoal: {
+            num_funcionarios: parseInt(numFuncionarios) || 0,
+            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
+          },
+          pro_labore: {
+            declara_prolabore: sociosDeclaramProlabore === 'Sim',
+            valor_declarado: parseFloat(valorProlabore) || 0,
+            valor_estimado: currentMinWage,
+            recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
+            modo_calculo: sociosDeclaramProlabore === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
+          },
+          retira_valores_pf: sociosRetiramValores === 'Sim'
+        },
+        conformidade_riscos: {
+          recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física',
+          mistura_patrimonial: mesmaContaSocios === 'Sim'
+        },
+        webhookUrl: webhookUrl,
+        executionMode: environment
       };
 
-      const response = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const response = await fetch(webhookUrl, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+      });
+
       const data = await response.json();
       setAiReport(data.report || data.output || data.text || "");
       setExecutionTime((performance.now() - startTime) / 1000);
