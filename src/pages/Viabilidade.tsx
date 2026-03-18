@@ -132,45 +132,50 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
 
     try {
+      // --- PRÉ-NORMALIZAÇÃO (LÓGICA DE NEGÓCIO) ---
+      const cleanCnae = cnaePrincipal.replace(/\D/g, '');
+      const normalizedMunicipio = municipio.charAt(0).toUpperCase() + municipio.slice(1).toLowerCase();
+      
+      let finalDeclaraProlabore = sociosDeclaramProlabore === 'Sim';
+      let finalValorProlabore = parseFloat(valorProlabore) || 0;
+      let orientacaoProlabore = "";
+
+      if (!finalDeclaraProlabore && finalValorProlabore > 0) {
+        finalDeclaraProlabore = true;
+      } else if (!finalDeclaraProlabore && finalValorProlabore === 0) {
+        finalValorProlabore = 1412; // Salário Mínimo Padrão para efeito de cálculo
+        orientacaoProlabore = "Usuário não informou pró-labore. Utilizado Salário Mínimo vigente para projeção de custo previdenciário.";
+      }
+
       const totalFaturamentoAnual = parseFloat(faturamentoAnual) || 0;
       const faturamentoMensalMedio = totalFaturamentoAnual / 12;
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
-      const proLaboreValor = parseFloat(valorProlabore) || 0;
       
-      // --- PAYLOAD ESTRUTURADO (NÍVEL SÊNIOR) ---
+      // --- PAYLOAD ESTRUTURADO EM BLOCO ÚNICO (NÍVEL SÊNIOR) ---
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-        systemPrompt: "Você é um consultor tributário e societário sênior...",
-        
-        // 1. CONTEXTO E METADADOS
         contexto: {
           anoBase,
           objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
           timestamp: new Date().toISOString(),
           ambiente: environment
         },
-
-        // 2. PERFIL DA EMPRESA (ESTRUTURA JURÍDICA)
         empresa: {
           razaoSocial: razaoSocial || 'Projeto não nomeado',
           naturezaJuridica: naturezaJuridica || 'A definir / Sugerir',
           capitalSocial: parseFloat(capital) || 0,
           numSocios: parseInt(numSocios) || 1,
-          localizacao: { municipio, estado },
+          localizacao: { municipio: normalizedMunicipio, estado },
           tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário'
         },
-
-        // 3. OPERACIONAL E ATIVIDADES
         operacional: {
-          cnaeInformado: cnaePrincipal || 'Identificar por descrição',
+          cnaeInformado: cleanCnae,
           descricaoAtividades: atividades,
           ideiaNegocio: businessIdea,
           tipoOperacao: pComercio > 0 && pServico > 0 ? 'Mista' : pComercio > 0 ? 'Comércio' : 'Serviço'
         },
-
-        // 4. FINANCEIRO E PROJEÇÕES (DRE PROJETADO)
         financeiro: {
           faturamento: {
             anual_total: totalFaturamentoAnual,
@@ -186,36 +191,33 @@ const Viabilidade = () => {
             iss_municipio: parseFloat(aliquotaIss) || 5,
             icms_estado: parseFloat(aliquotaIcms) || 18
           },
-          custos_abertura_investimento: {
+          custos_abertura: {
             honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0,
             taxas_governo: (parseFloat(valorJuntaCartorio) || 0) + (parseFloat(valorDpa) || 0) + (parseFloat(valorBombeiro) || 0) + (parseFloat(valorLicencasMunicipais) || 0),
             assessoria_mensal_contabil: parseFloat(honorariosAssessoriaMensal) || 0
           }
         },
-
-        // 5. CAPITAL HUMANO E SÓCIOS (RISCO PREVIDENCIÁRIO)
         societario_trabalhista: {
           quadro_pessoal: {
             num_funcionarios: parseInt(numFuncionarios) || 0,
             folha_salarial_mensal: folhaMensal
           },
           pro_labore: {
-            declara_prolabore: sociosDeclaramProlabore,
-            valor_declarado: proLaboreValor,
-            recolhe_inss_ir: sociosRecolhemInssIr
+            declara_prolabore: finalDeclaraProlabore,
+            valor_declarado: finalValorProlabore,
+            recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
+            orientacao: orientacaoProlabore
           }
         },
-
-        // 6. MAPA DE CONFORMIDADE E RISCOS (FLAGS DE ALERTA)
         conformidade_riscos: {
-          recebe_vendas_conta_pf: recebeContaPF,
-          retira_valores_sem_origem: sociosRetiramValores,
-          mistura_patrimonial: mesmaContaSocios,
+          recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física' || recebeContaPF === 'Ambos',
+          retira_valores_sem_origem: sociosRetiramValores === 'Sim',
+          mistura_patrimonial: mesmaContaSocios === 'Sim',
           alertas_criticos: {
             risco_confusao_patrimonial: mesmaContaSocios === 'Sim',
-            risco_previdenciario_prolabore: sociosDeclaramProlabore === 'Não' || proLaboreValor < 1412,
+            risco_previdenciario_prolabore: !finalDeclaraProlabore,
             risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim',
-            fator_r_critico: (folhaMensal + proLaboreValor) / faturamentoMensalMedio < 0.28
+            fator_r_critico: (folhaMensal + finalValorProlabore) / (faturamentoMensalMedio || 1) < 0.28
           }
         }
       };
@@ -237,7 +239,6 @@ const Viabilidade = () => {
       const duration = (performance.now() - startTime) / 1000;
       setExecutionTime(duration);
 
-      // Tenta extrair o relatório de várias estruturas possíveis de retorno do n8n
       let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
       
       if (!reportText && data.content?.parts) {
@@ -362,7 +363,7 @@ const Viabilidade = () => {
                 </div>
                 <div className="space-y-2">
                   <Label>Valor do Pró-labore (R$)</Label>
-                  <Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} placeholder="Mínimo 1.412,00" className={!valorProlabore && sociosDeclaramProlabore === 'Não' ? "border-destructive" : ""} />
+                  <Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} placeholder="Mínimo 1.412,00" />
                 </div>
                 <div className="space-y-2">
                   <Label>Declaram Pró-labore?</Label>
