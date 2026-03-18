@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, Info, Plus, Trash2, ListChecks, Gavel } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, Info, Plus, Trash2, ListChecks, Gavel, Wallet } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
@@ -84,7 +85,6 @@ const Viabilidade = () => {
   const [classificacaoFiscal, setClassificacaoFiscal] = useState(() => getStored('viab-classificacaoFiscal', 'Microempresa (ME)'));
   const [capital, setCapital] = useState(() => getStored('viab-capital'));
   
-  // CNAEs Estruturados
   const [cnaes, setCnaes] = useState<CnaeEntry[]>(() => {
     const saved = localStorage.getItem('viab-cnaes');
     return saved ? JSON.parse(saved) : [{ id: '1', code: '', description: '', isPrimary: true }];
@@ -104,7 +104,6 @@ const Viabilidade = () => {
   const [percentComercio, setPercentComercio] = useState(() => getStored('viab-percentComercio', '100'));
   const [percentServico, setPercentServico] = useState(() => getStored('viab-percentServico', '0'));
   
-  // Custos Operacionais Estruturados
   const [fixosMensais, setFixosMensais] = useState(() => getStored('viab-fixosMensais', '3000'));
   const [variaveisPercentual, setVariaveisPercentual] = useState(() => getStored('viab-variaveisPercentual', '35'));
 
@@ -117,6 +116,11 @@ const Viabilidade = () => {
   const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(() => getStored('viab-sociosRecolhemInssIr'));
   const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF'));
   const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios'));
+  
+  // NOVOS CAMPOS ESTRUTURADOS
+  const [anexoComercio, setAnexoComercio] = useState(() => getStored('viab-anexoComercio', 'Anexo I'));
+  const [anexoServico, setAnexoServico] = useState(() => getStored('viab-anexoServico', 'Anexo III'));
+  const [retiradaMensalLucro, setRetiradaMensalLucro] = useState(() => getStored('viab-retiradaMensalLucro', '0'));
 
   const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(() => getStored('viab-honorariosLegalizacao'));
   const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(() => getStored('viab-honorariosAssessoriaMensal'));
@@ -149,9 +153,7 @@ const Viabilidade = () => {
   const updateCnae = (id: string, field: keyof CnaeEntry, value: any) => {
     setCnaes(cnaes.map(c => {
       if (c.id === id) {
-        if (field === 'isPrimary' && value === true) {
-          return { ...c, [field]: value };
-        }
+        if (field === 'isPrimary' && value === true) return { ...c, [field]: value };
         return { ...c, [field]: value };
       }
       if (field === 'isPrimary' && value === true) return { ...c, isPrimary: false };
@@ -170,7 +172,8 @@ const Viabilidade = () => {
       'viab-sociosDeclaramProlabore': sociosDeclaramProlabore, 'viab-valorProlabore': valorProlabore, 'viab-sociosRecolhemInssIr': sociosRecolhemInssIr,
       'viab-recebeContaPF': recebeContaPF, 'viab-mesmaContaSocios': mesmaContaSocios, 'viab-honorariosLegalizacao': honorariosLegalizacao, 
       'viab-honorariosAssessoriaMensal': honorariosAssessoriaMensal, 'viab-valorJuntaCartorio': valorJuntaCartorio, 'viab-valorDpa': valorDpa, 
-      'viab-valorBombeiro': valorBombeiro, 'viab-valorLicencasMunicipais': valorLicencasMunicipais
+      'viab-valorBombeiro': valorBombeiro, 'viab-valorLicencasMunicipais': valorLicencasMunicipais,
+      'viab-anexoComercio': anexoComercio, 'viab-anexoServico': anexoServico, 'viab-retiradaMensalLucro': retiradaMensalLucro
     };
     Object.entries(data).forEach(([key, val]) => { if (val !== undefined && val !== null) localStorage.setItem(key, val); });
     localStorage.setItem('viab-cnaes', JSON.stringify(cnaes));
@@ -182,7 +185,7 @@ const Viabilidade = () => {
     percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, 
     sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, 
     mesmaContaSocios, honorariosLegalizacao, honorariosAssessoriaMensal, valorJuntaCartorio, valorDpa, 
-    valorBombeiro, valorLicencasMunicipais, aiReport
+    valorBombeiro, valorLicencasMunicipais, anexoComercio, anexoServico, retiradaMensalLucro, aiReport
   ]);
 
   const handleSendToAI = async (environment: 'test' | 'production') => {
@@ -215,6 +218,10 @@ const Viabilidade = () => {
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
+      
+      // CÁLCULO FATOR R
+      const totalFolhaAnual = (folhaMensal + proLaborePayload.valor_estimado) * 12;
+      const fatorRPercent = totalFaturamentoAnual > 0 ? (totalFolhaAnual / totalFaturamentoAnual) * 100 : 0;
 
       const refInss = getInssTables().filter(t => t.year === anoBase);
       const refIrpf = getIrpfTables().filter(t => t.year === anoBase);
@@ -236,13 +243,33 @@ const Viabilidade = () => {
           localizacao: { municipio: normalizedMunicipio, estado }, 
           tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário' 
         },
+        classificacao_fiscal: {
+          simples_nacional: {
+            comercio_anexo: anexoComercio,
+            servico_anexo: anexoServico,
+            fator_r: {
+              percentual: fatorRPercent,
+              faixa: fatorRPercent >= 28 ? "acima_28" : "abaixo_28",
+              impacto: fatorRPercent >= 28 ? "tributacao_reduzida_anexo_iii" : "tributacao_mais_alta_servicos"
+            }
+          }
+        },
         operacional: { 
           cnaes: cnaes.map(c => ({ codigo: c.code.replace(/\D/g, ''), descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
           descricaoAtividades: atividades, 
           ideiaNegocio: businessIdea 
         },
         financeiro: { 
-          faturamento: { anual_total: totalFaturamentoAnual, mensal_medio: faturamentoMensalMedio, segregacao: { comercio_percent: pComercio, servico_percent: pServico } },
+          faturamento: { 
+            anual_total: totalFaturamentoAnual, 
+            mensal_medio: faturamentoMensalMedio, 
+            segregacao: { 
+              comercio_percent: pComercio, 
+              servico_percent: pServico,
+              comercio_valor_anual: totalFaturamentoAnual * (pComercio / 100),
+              servico_valor_anual: totalFaturamentoAnual * (pServico / 100)
+            } 
+          },
           custos_operacionais: {
             fixos_mensais: parseFloat(fixosMensais) || 0,
             variaveis_percentual: parseFloat(variaveisPercentual) || 0
@@ -260,9 +287,19 @@ const Viabilidade = () => {
           pro_labore: proLaborePayload,
           retira_valores_pf: sociosRetiramValores === 'Sim'
         },
+        distribuicao_lucro: {
+          retirada_mensal_aproximada: parseFloat(retiradaMensalLucro) || 0,
+          origem: sociosRetiramValores === 'Sim' ? "nao_formalizada" : "formalizada_via_lucros"
+        },
         conformidade_riscos: { 
           recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física' || recebeContaPF === 'Ambos', 
-          mistura_patrimonial: mesmaContaSocios === 'Sim' 
+          mistura_patrimonial: mesmaContaSocios === 'Sim',
+          alertas_criticos: {
+            risco_confusao_patrimonial: mesmaContaSocios === 'Sim',
+            risco_previdenciario_prolabore: !isDeclaring,
+            risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim',
+            retirada_informal: sociosRetiramValores === 'Sim'
+          }
         }
       };
 
@@ -349,6 +386,10 @@ const Viabilidade = () => {
                 <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Segregação: Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
                 <div className="space-y-2"><Label>Segregação: Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
+                
+                <div className="space-y-2"><Label>Anexo Comércio (Simples)</Label><Select value={anexoComercio} onValueChange={setAnexoComercio}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Anexo I">Anexo I (Comércio)</SelectItem><SelectItem value="Anexo II">Anexo II (Indústria)</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2"><Label>Anexo Serviço (Simples)</Label><Select value={anexoServico} onValueChange={setAnexoServico}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Anexo III">Anexo III (Serviços)</SelectItem><SelectItem value="Anexo IV">Anexo IV (Serviços)</SelectItem><SelectItem value="Anexo V">Anexo V (Serviços)</SelectItem></SelectContent></Select></div>
+                
                 <div className="space-y-2"><Label>Alíquota ISS Município (%)</Label><Input type="number" value={aliquotaIss} onChange={e => setAliquotaIss(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Alíquota ICMS Estado (%)</Label><Input type="number" value={aliquotaIcms} onChange={e => setAliquotaIcms(e.target.value)} /></div>
               </div>
@@ -398,9 +439,12 @@ const Viabilidade = () => {
                   <Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} placeholder="Mínimo 1.412,00" />
                 </div>
                 <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                
+                <div className="space-y-2"><Label>Retirada Mensal de Lucro (R$)</Label><Input type="number" value={retiradaMensalLucro} onChange={e => setRetiradaMensalLucro(e.target.value)} className="border-emerald-200 bg-emerald-50/30" /></div>
                 <div className="space-y-2"><Label>Retiram valores p/ conta PF?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                
                 <div className="space-y-2"><Label>Recebe em conta PF ou PJ?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="Pessoa Física">Pessoa Física</SelectItem><SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem><SelectItem value="Ambos">Ambos</SelectItem><SelectItem value="Não sei">Não sei</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2 md:col-span-2"><Label>Usa a mesma conta bancária para pagar as contas dos sócios?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Usa a mesma conta bancária?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 {mesmaContaSocios === 'Sim' && <div className="md:col-span-2"><p className="text-[10px] text-destructive font-bold mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> ALERTA: Risco de Confusão Patrimonial Identificado.</p></div>}
               </div>
             </CardContent>
@@ -433,9 +477,5 @@ const Viabilidade = () => {
     </div>
   );
 };
-
-const Badge = ({ children, variant, className }: { children: React.ReactNode, variant: 'default' | 'outline', className?: string }) => (
-  <span className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase ${variant === 'default' ? 'bg-primary text-primary-foreground' : 'border border-border text-muted-foreground'} ${className}`}>{children}</span>
-);
 
 export default Viabilidade;
