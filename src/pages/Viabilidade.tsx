@@ -288,6 +288,7 @@ const Viabilidade = () => {
                     <SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                      <SelectItem value="Simples Nacional (Híbrido)">Simples Nacional (Híbrido)</SelectItem>
                       <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
                       <SelectItem value="Lucro Real">Lucro Real</SelectItem>
                       <SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem>
