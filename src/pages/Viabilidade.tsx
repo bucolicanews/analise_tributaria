@@ -45,78 +45,114 @@ const SectionTitle = ({ icon: Icon, title, subtitle }: { icon: React.ElementType
 );
 
 const Viabilidade = () => {
-  // --- ESTADOS DO FORMULÁRIO ---
-  const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('viab-razaoSocial') || '');
-  const [naturezaJuridica, setNaturezaJuridica] = useState(localStorage.getItem('viab-naturezaJuridica') || '');
-  const [capital, setCapital] = useState(localStorage.getItem('viab-capital') || '');
-  const [cnaePrincipal, setCnaePrincipal] = useState(localStorage.getItem('viab-cnaePrincipal') || '');
-  const [atividades, setAtividades] = useState(localStorage.getItem('viab-atividades') || '');
-  const [numSocios, setNumSocios] = useState(localStorage.getItem('viab-numSocios') || '1');
-  const [numFuncionarios, setNumFuncionarios] = useState(localStorage.getItem('viab-numFuncionarios') || '0');
-  const [folhaPagamento, setFolhaPagamento] = useState(localStorage.getItem('viab-folhaPagamento') || '');
-  const [municipio, setMunicipio] = useState(localStorage.getItem('viab-municipio') || '');
-  const [estado, setEstado] = useState(localStorage.getItem('viab-estado') || 'SP');
-  const [tributacaoSugerida, setTributacaoSugerida] = useState(localStorage.getItem('viab-tributacaoSugerida') || '');
-  const [businessIdea, setBusinessIdea] = useState(localStorage.getItem('viab-businessIdea') || '');
-  const [anoBase, setAnoBase] = useState(localStorage.getItem('viab-anoBase') || '2025');
+  // --- ESTADOS DO FORMULÁRIO COM CARREGAMENTO SEGURO ---
+  const getStored = (key: string, fallback: string = '') => localStorage.getItem(key) ?? fallback;
 
-  // Financeiro / Segregação
-  const [faturamentoAnual, setFaturamentoAnual] = useState(localStorage.getItem('viab-faturamentoAnual') || '');
-  const [percentComercio, setPercentComercio] = useState(localStorage.getItem('viab-percentComercio') || '100');
-  const [percentServico, setPercentServico] = useState(localStorage.getItem('viab-percentServico') || '0');
+  const [razaoSocial, setRazaoSocial] = useState(() => getStored('viab-razaoSocial'));
+  const [naturezaJuridica, setNaturezaJuridica] = useState(() => getStored('viab-naturezaJuridica'));
+  const [capital, setCapital] = useState(() => getStored('viab-capital'));
+  const [cnaePrincipal, setCnaePrincipal] = useState(() => getStored('viab-cnaePrincipal'));
+  const [atividades, setAtividades] = useState(() => getStored('viab-atividades'));
+  const [numSocios, setNumSocios] = useState(() => getStored('viab-numSocios', '1'));
+  const [numFuncionarios, setNumFuncionarios] = useState(() => getStored('viab-numFuncionarios', '0'));
+  const [folhaPagamento, setFolhaPagamento] = useState(() => getStored('viab-folhaPagamento'));
+  const [municipio, setMunicipio] = useState(() => getStored('viab-municipio'));
+  const [estado, setEstado] = useState(() => getStored('viab-estado', 'SP'));
+  const [tributacaoSugerida, setTributacaoSugerida] = useState(() => getStored('viab-tributacaoSugerida'));
+  const [businessIdea, setBusinessIdea] = useState(() => getStored('viab-businessIdea'));
+  const [anoBase, setAnoBase] = useState(() => getStored('viab-anoBase', '2025'));
+
+  const [faturamentoAnual, setFaturamentoAnual] = useState(() => getStored('viab-faturamentoAnual'));
+  const [percentComercio, setPercentComercio] = useState(() => getStored('viab-percentComercio', '100'));
+  const [percentServico, setPercentServico] = useState(() => getStored('viab-percentServico', '0'));
   
-  // Alíquotas Locais
-  const [aliquotaIss, setAliquotaIss] = useState(localStorage.getItem('viab-aliquotaIss') || '5');
-  const [aliquotaIcms, setAliquotaIcms] = useState(localStorage.getItem('viab-aliquotaIcms') || '18');
+  const [aliquotaIss, setAliquotaIss] = useState(() => getStored('viab-aliquotaIss', '5'));
+  const [aliquotaIcms, setAliquotaIcms] = useState(() => getStored('viab-aliquotaIcms', '18'));
 
-  // Sócios e Pró-labore
-  const [sociosRetiramValores, setSociosRetiramValores] = useState(localStorage.getItem('viab-sociosRetiramValores') || '');
-  const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(localStorage.getItem('viab-sociosDeclaramProlabore') || '');
-  const [valorProlabore, setValorProlabore] = useState(localStorage.getItem('viab-valorProlabore') || '');
-  const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(localStorage.getItem('viab-sociosRecolhemInssIr') || '');
-  const [recebeContaPF, setRecebeContaPF] = useState(localStorage.getItem('viab-recebeContaPF') || '');
-  const [mesmaContaSocios, setMesmaContaSocios] = useState(localStorage.getItem('viab-mesmaContaSocios') || '');
+  const [sociosRetiramValores, setSociosRetiramValores] = useState(() => getStored('viab-sociosRetiramValores'));
+  const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(() => getStored('viab-sociosDeclaramProlabore'));
+  const [valorProlabore, setValorProlabore] = useState(() => getStored('viab-valorProlabore'));
+  const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(() => getStored('viab-sociosRecolhemInssIr'));
+  const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF'));
+  const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios'));
 
-  // Custos de Abertura
-  const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(localStorage.getItem('viab-honorariosLegalizacao') || '');
-  const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(localStorage.getItem('viab-honorariosAssessoriaMensal') || '');
-  const [valorJuntaCartorio, setValorJuntaCartorio] = useState(localStorage.getItem('viab-valorJuntaCartorio') || '');
-  const [valorDpa, setValorDpa] = useState(localStorage.getItem('viab-valorDpa') || '');
-  const [valorBombeiro, setValorBombeiro] = useState(localStorage.getItem('viab-valorBombeiro') || '');
-  const [valorLicencasMunicipais, setValorLicencasMunicipais] = useState(localStorage.getItem('viab-valorLicencasMunicipais') || '');
+  const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(() => getStored('viab-honorariosLegalizacao'));
+  const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(() => getStored('viab-honorariosAssessoriaMensal'));
+  const [valorJuntaCartorio, setValorJuntaCartorio] = useState(() => getStored('viab-valorJuntaCartorio'));
+  const [valorDpa, setValorDpa] = useState(() => getStored('viab-valorDpa'));
+  const [valorBombeiro, setValorBombeiro] = useState(() => getStored('viab-valorBombeiro'));
+  const [valorLicencasMunicipais, setValorLicencasMunicipais] = useState(() => getStored('viab-valorLicencasMunicipais'));
 
-  const [aiReport, setAiReport] = useState<string | null>(localStorage.getItem('viab-aiReport') || null);
+  const [aiReport, setAiReport] = useState<string | null>(() => localStorage.getItem('viab-aiReport'));
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  // Persistência
+  // --- EFEITO DE PERSISTÊNCIA ROBUSTO ---
   useEffect(() => {
-    const data = {
-      'viab-razaoSocial': razaoSocial, 'viab-naturezaJuridica': naturezaJuridica, 'viab-capital': capital,
-      'viab-cnaePrincipal': cnaePrincipal, 'viab-atividades': atividades, 'viab-numSocios': numSocios,
-      'viab-numFuncionarios': numFuncionarios, 'viab-folhaPagamento': folhaPagamento, 'viab-municipio': municipio,
-      'viab-estado': estado, 'viab-tributacaoSugerida': tributacaoSugerida, 'viab-businessIdea': businessIdea,
-      'viab-anoBase': anoBase, 'viab-faturamentoAnual': faturamentoAnual, 'viab-percentComercio': percentComercio,
-      'viab-percentServico': percentServico, 'viab-aliquotaIss': aliquotaIss, 'viab-aliquotaIcms': aliquotaIcms,
-      'viab-sociosRetiramValores': sociosRetiramValores, 'viab-sociosDeclaramProlabore': sociosDeclaramProlabore,
-      'viab-valorProlabore': valorProlabore, 'viab-sociosRecolhemInssIr': sociosRecolhemInssIr,
-      'viab-recebeContaPF': recebeContaPF, 'viab-mesmaContaSocios': mesmaContaSocios,
-      'viab-honorariosLegalizacao': honorariosLegalizacao, 'viab-honorariosAssessoriaMensal': honorariosAssessoriaMensal,
-      'viab-valorJuntaCartorio': valorJuntaCartorio, 'viab-valorDpa': valorDpa, 'viab-valorBombeiro': valorBombeiro,
+    const data: Record<string, string> = {
+      'viab-razaoSocial': razaoSocial,
+      'viab-naturezaJuridica': naturezaJuridica,
+      'viab-capital': capital,
+      'viab-cnaePrincipal': cnaePrincipal,
+      'viab-atividades': atividades,
+      'viab-numSocios': numSocios,
+      'viab-numFuncionarios': numFuncionarios,
+      'viab-folhaPagamento': folhaPagamento,
+      'viab-municipio': municipio,
+      'viab-estado': estado,
+      'viab-tributacaoSugerida': tributacaoSugerida,
+      'viab-businessIdea': businessIdea,
+      'viab-anoBase': anoBase,
+      'viab-faturamentoAnual': faturamentoAnual,
+      'viab-percentComercio': percentComercio,
+      'viab-percentServico': percentServico,
+      'viab-aliquotaIss': aliquotaIss,
+      'viab-aliquotaIcms': aliquotaIcms,
+      'viab-sociosRetiramValores': sociosRetiramValores,
+      'viab-sociosDeclaramProlabore': sociosDeclaramProlabore,
+      'viab-valorProlabore': valorProlabore,
+      'viab-sociosRecolhemInssIr': sociosRecolhemInssIr,
+      'viab-recebeContaPF': recebeContaPF,
+      'viab-mesmaContaSocios': mesmaContaSocios,
+      'viab-honorariosLegalizacao': honorariosLegalizacao,
+      'viab-honorariosAssessoriaMensal': honorariosAssessoriaMensal,
+      'viab-valorJuntaCartorio': valorJuntaCartorio,
+      'viab-valorDpa': valorDpa,
+      'viab-valorBombeiro': valorBombeiro,
       'viab-valorLicencasMunicipais': valorLicencasMunicipais
     };
-    Object.entries(data).forEach(([key, val]) => localStorage.setItem(key, val));
+
+    Object.entries(data).forEach(([key, val]) => {
+      if (val !== undefined && val !== null) {
+        localStorage.setItem(key, val);
+      }
+    });
+    
+    if (aiReport) localStorage.setItem('viab-aiReport', aiReport);
+    else localStorage.removeItem('viab-aiReport');
+
   }, [
     razaoSocial, naturezaJuridica, capital, cnaePrincipal, atividades, numSocios, numFuncionarios,
     folhaPagamento, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual,
     percentComercio, percentServico, aliquotaIss, aliquotaIcms, sociosRetiramValores,
     sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios,
-    honorariosLegalizacao, honorariosAssessoriaMensal, valorJuntaCartorio, valorDpa, valorBombeiro, valorLicencasMunicipais
+    honorariosLegalizacao, honorariosAssessoriaMensal, valorJuntaCartorio, valorDpa, valorBombeiro, valorLicencasMunicipais,
+    aiReport
   ]);
 
   const handleNewConsultation = () => {
     if (confirm("Deseja limpar todos os campos e iniciar uma nova consulta?")) {
-      localStorage.clear();
+      const keysToRemove = [
+        'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-cnaePrincipal', 
+        'viab-atividades', 'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 
+        'viab-municipio', 'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 
+        'viab-anoBase', 'viab-faturamentoAnual', 'viab-percentComercio', 'viab-percentServico', 
+        'viab-aliquotaIss', 'viab-aliquotaIcms', 'viab-sociosRetiramValores', 'viab-sociosDeclaramProlabore', 
+        'viab-valorProlabore', 'viab-sociosRecolhemInssIr', 'viab-recebeContaPF', 'viab-mesmaContaSocios',
+        'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal', 'viab-valorJuntaCartorio', 
+        'viab-valorDpa', 'viab-valorBombeiro', 'viab-valorLicencasMunicipais', 'viab-aiReport'
+      ];
+      keysToRemove.forEach(k => localStorage.removeItem(k));
       window.location.reload();
     }
   };
@@ -132,7 +168,6 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
 
     try {
-      // --- PRÉ-NORMALIZAÇÃO (LÓGICA DE NEGÓCIO) ---
       const cleanCnae = cnaePrincipal.replace(/\D/g, '');
       const normalizedMunicipio = municipio.charAt(0).toUpperCase() + municipio.slice(1).toLowerCase();
       
@@ -143,7 +178,7 @@ const Viabilidade = () => {
       if (!finalDeclaraProlabore && finalValorProlabore > 0) {
         finalDeclaraProlabore = true;
       } else if (!finalDeclaraProlabore && finalValorProlabore === 0) {
-        finalValorProlabore = 1412; // Salário Mínimo Padrão para efeito de cálculo
+        finalValorProlabore = 1412;
         orientacaoProlabore = "Usuário não informou pró-labore. Utilizado Salário Mínimo vigente para projeção de custo previdenciário.";
       }
 
@@ -153,7 +188,6 @@ const Viabilidade = () => {
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
       
-      // --- PAYLOAD ESTRUTURADO EM BLOCO ÚNICO (NÍVEL SÊNIOR) ---
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         contexto: {
