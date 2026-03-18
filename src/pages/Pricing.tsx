@@ -44,7 +44,6 @@ const Pricing = () => {
   const [isAgentsRunning, setIsAgentsRunning] = useState(false);
   const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
   const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
-  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
@@ -59,7 +58,7 @@ const Pricing = () => {
     if (storedSel) setSelectedProductCodes(new Set(JSON.parse(storedSel)));
   }, []);
 
-  const getFullStructuredPayload = (agentName: string) => {
+  const getFullStructuredPayload = () => {
     if (!params || !summary) return null;
     
     const ano = params.anoBase || "2025";
@@ -67,22 +66,13 @@ const Pricing = () => {
     const irpfTables = getIrpfTables();
     const currentMinWage = getMinimumWages().find(w => w.year === ano)?.value || 1621;
 
-    // Recupera dados de viabilidade do localstorage para compor a estrutura "body"
+    // Recupera dados de viabilidade
     const cnaesRaw = localStorage.getItem('viab-cnaes');
     const cnaesList = cnaesRaw ? JSON.parse(cnaesRaw) : [];
 
-    // OBTENÇÃO DOS DADOS SALVOS NA VIABILIDADE PARA PREENCHER A ESTRUTURA
-    const viabRazaoSocial = localStorage.getItem('viab-razaoSocial') || companyName;
-    const viabNatureza = localStorage.getItem('viab-naturezaJuridica') || "";
-    const viabFaturamentoAnual = parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0");
-    const viabMunicipio = localStorage.getItem('viab-municipio') || "";
-    const viabEstado = localStorage.getItem('viab-estado') || "SP";
-    const viabAtividades = localStorage.getItem('viab-atividades') || "";
-    const viabNumSocios = parseInt(localStorage.getItem('viab-numSocios') || "1");
-    const viabNumFuncionarios = parseInt(localStorage.getItem('viab-numFuncionarios') || "0");
-
     return {
-      agentName: agentName,
+      // OBRIGAMOS O agentName a ser exatamente o que funciona no n8n do usuário
+      agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
       contexto: {
         anoBase: ano,
         objetivo: "Análise de Viabilidade, Planejamento Tributário e Precificação",
@@ -94,23 +84,26 @@ const Pricing = () => {
         salario_minimo: currentMinWage
       },
       empresa: {
-        razaoSocial: viabRazaoSocial,
-        naturezaJuridica: viabNatureza,
+        razaoSocial: localStorage.getItem('viab-razaoSocial') || companyName,
+        naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || "",
         classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "ME",
         capitalSocial: parseFloat(localStorage.getItem('viab-capital') || "0"),
-        numSocios: viabNumSocios,
-        localizacao: { municipio: viabMunicipio, estado: viabEstado },
+        numSocios: parseInt(localStorage.getItem('viab-numSocios') || "1"),
+        localizacao: { 
+          municipio: localStorage.getItem('viab-municipio') || "", 
+          estado: localStorage.getItem('viab-estado') || "SP" 
+        },
         tributacaoPretendida: params.taxRegime
       },
       operacional: {
         cnaes: cnaesList.map((c: any) => ({ codigo: c.code, descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
-        descricaoAtividades: viabAtividades,
+        descricaoAtividades: localStorage.getItem('viab-atividades') || "",
         ideiaNegocio: localStorage.getItem('viab-businessIdea') || ""
       },
       financeiro: {
         faturamento: {
-          anual_total: viabFaturamentoAnual,
-          mensal_precificacao: summary.totalSelling,
+          anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
+          mensal_medio: (parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0")) / 12,
           segregacao: {
             comercio_percent: parseFloat(localStorage.getItem('viab-percentComercio') || "100"),
             servico_percent: parseFloat(localStorage.getItem('viab-percentServico') || "0")
@@ -119,6 +112,16 @@ const Pricing = () => {
         custos_operacionais: {
           fixos_mensais: params.fixedCostsTotal || 0,
           variaveis_percentual: params.variableExpenses.reduce((s,e)=>s+e.percentage, 0)
+        },
+        tributos_locais: {
+          iss_municipio: parseFloat(localStorage.getItem('viab-aliquotaIss') || "5"),
+          icms_estado: parseFloat(localStorage.getItem('viab-aliquotaIcms') || "18")
+        },
+        custos_abertura: {
+          honorarios_legalizacao: parseFloat(localStorage.getItem('viab-honorariosLegalizacao') || "1900"),
+          assessoria_mensal: parseFloat(localStorage.getItem('viab-honorariosAssessoriaMensal') || "450"),
+          junta_cartorio: parseFloat(localStorage.getItem('viab-valorJuntaCartorio') || "519"),
+          bombeiro_licencas: parseFloat(localStorage.getItem('viab-valorBombeiro') || "650")
         },
         precificacao_detalhada: {
           lucro_liquido_nota: summary.totalProfit,
@@ -130,23 +133,27 @@ const Pricing = () => {
       },
       societario_trabalhista: {
         quadro_pessoal: {
-          num_funcionarios: viabNumFuncionarios,
+          num_funcionarios: parseInt(localStorage.getItem('viab-numFuncionarios') || "0"),
           folha_salarial_mensal: params.payroll
         },
         pro_labore: {
+          declara_prolabore: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim',
           valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
-          valor_estimado: currentMinWage
-        }
+          valor_estimado: currentMinWage,
+          recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim',
+          modo_calculo: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
+        },
+        retira_valores_pf: localStorage.getItem('viab-sociosRetiramValores') === 'Sim'
       },
       conformidade_riscos: {
-        recebe_vendas_conta_pf: localStorage.getItem('viab-recebeContaPF') === 'Pessoa Física',
+        recebe_vendas_conta_pf: localStorage.getItem('viab-recebeContaPF') === 'Sim',
         mistura_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim'
       }
     };
   };
 
   const handleRunAgents = async () => {
-    const payload = getFullStructuredPayload("Agente de Planejamento e Precificação");
+    const payload = getFullStructuredPayload();
     if (!payload) return toast.error("Calcule a precificação primeiro.");
     
     const agentConfigs = loadAgentsFromStorage();
@@ -158,7 +165,7 @@ const Pricing = () => {
     const previousReports: Record<string, string> = {};
     const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-    // Envia o JSON do payload completo para ser parseado na função `callAgentWebhook`
+    // Envia o JSON com todas as propriedades na raiz. Se a IA/Webhook sobrescrever algo, preservamos as raízes principais.
     const userContent = JSON.stringify(payload, null, 2);
 
     for (const agent of agentConfigs.sort((a,b) => (a.order||0)-(b.order||0))) {
@@ -198,7 +205,7 @@ const Pricing = () => {
   const { summary, calculatedProducts } = calculationResults;
 
   const handleSendToWebhook = async (env: 'test' | 'production') => {
-    const payload = getFullStructuredPayload("Auditoria de Precificação IA");
+    const payload = getFullStructuredPayload();
     if (!payload) return;
     setIsSending(true);
     const url = env === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');

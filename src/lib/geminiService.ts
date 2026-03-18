@@ -83,17 +83,17 @@ export async function callAgentWebhook(
 
   let parsedPayload: any = {};
   
-  // Tenta desempacotar o JSON para que o n8n receba as chaves na raiz do body
   try {
     parsedPayload = JSON.parse(userContent);
   } catch (e) {
     parsedPayload = { userContent };
   }
 
+  // Preservamos o payload exato gerado, injetando apenas propriedades extras caso não existam
   const bodyToSend = {
-    agentName: agent.nome,
+    agentName: parsedPayload.agentName || agent.nome,
     systemPrompt: agent.systemPrompt,
-    ...parsedPayload, // Adiciona empresa, operacional, etc., diretamente na raiz
+    ...parsedPayload,
     ...(previousReports ? { previousReports } : {}),
   };
 

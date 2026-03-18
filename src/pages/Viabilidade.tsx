@@ -19,7 +19,6 @@ const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (
 const classificacoesFiscais = ["Microempresa (ME)", "Empresa de Pequeno Porte (EPP)", "Médio/Grande Porte", "Sugerir com base no faturamento"];
 const anosBase = ["2022", "2023", "2024", "2025", "2026"];
 const simNao = ["Sim", "Não"];
-const simNaoNaoSei = ["Sim", "Não", "Não sei"];
 
 interface CnaeEntry { id: string; code: string; description: string; isPrimary: boolean; }
 
@@ -57,12 +56,12 @@ const Viabilidade = () => {
   const [variaveisPercentual, setVariaveisPercentual] = useState(() => getStored('viab-variaveisPercentual', '35'));
   const [aliquotaIss, setAliquotaIss] = useState(() => getStored('viab-aliquotaIss', '5'));
   const [aliquotaIcms, setAliquotaIcms] = useState(() => getStored('viab-aliquotaIcms', '18'));
-  const [sociosRetiramValores, setSociosRetiramValores] = useState(() => getStored('viab-sociosRetiramValores'));
-  const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(() => getStored('viab-sociosDeclaramProlabore'));
+  const [sociosRetiramValores, setSociosRetiramValores] = useState(() => getStored('viab-sociosRetiramValores', 'Sim'));
+  const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(() => getStored('viab-sociosDeclaramProlabore', 'Não'));
   const [valorProlabore, setValorProlabore] = useState(() => getStored('viab-valorProlabore'));
-  const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(() => getStored('viab-sociosRecolhemInssIr'));
-  const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF'));
-  const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios'));
+  const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(() => getStored('viab-sociosRecolhemInssIr', 'Não'));
+  const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF', 'Não'));
+  const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios', 'Sim'));
   
   const honorariosLegalizacao = getStored('viab-honorariosLegalizacao', '1900');
   const assessoriaMensal = getStored('viab-honorariosAssessoriaMensal', '450');
@@ -112,7 +111,7 @@ const Viabilidade = () => {
     const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
 
     try {
-      // ESTRUTURA EXATA SOLICITADA PARA O N8N
+      // ESTRUTURA EXATA DO SEU EXEMPLO QUE FUNCIONAVA NO N8N
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         contexto: {
@@ -131,7 +130,7 @@ const Viabilidade = () => {
           classificacaoFiscal: classificacaoFiscal || "ME",
           capitalSocial: parseFloat(capital) || 0,
           numSocios: parseInt(numSocios) || 1,
-          localizacao: { municipio: municipio, estado: estado },
+          localizacao: { municipio: municipio || "", estado: estado || "PA" },
           tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
         },
         operacional: {
@@ -140,8 +139,8 @@ const Viabilidade = () => {
             descricao: c.description,
             tipo: c.isPrimary ? 'Principal' : 'Secundário'
           })),
-          descricaoAtividades: atividades,
-          ideiaNegocio: businessIdea
+          descricaoAtividades: atividades || "",
+          ideiaNegocio: businessIdea || ""
         },
         financeiro: {
           faturamento: {
@@ -182,7 +181,7 @@ const Viabilidade = () => {
           retira_valores_pf: sociosRetiramValores === 'Sim'
         },
         conformidade_riscos: {
-          recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física',
+          recebe_vendas_conta_pf: recebeContaPF === 'Sim',
           mistura_patrimonial: mesmaContaSocios === 'Sim'
         },
         webhookUrl: webhookUrl,
@@ -286,6 +285,12 @@ const Viabilidade = () => {
                 <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                
+                {/* Campos Faltantes do Conformidade & Riscos que afetam o Payload */}
+                <div className="space-y-2"><Label>Recebe na conta PF?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Mistura Patrimonial?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Sócios retiram lucros?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                <div className="space-y-2"><Label>Recolhe INSS/IR (Sócio)?</Label><Select value={sociosRecolhemInssIr} onValueChange={setSociosRecolhemInssIr}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
               </div>
             </CardContent>
           </Card>
