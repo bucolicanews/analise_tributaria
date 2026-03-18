@@ -29,6 +29,12 @@ const SectionTitle = ({ icon: Icon, title, subtitle }: { icon: React.ElementType
   </div>
 );
 
+// Função Helper para formatar o nome da cidade (Ex: "belém" -> "Belém")
+const formatCityName = (city: string) => {
+  if (!city) return "";
+  return city.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
+};
+
 const Viabilidade = () => {
   const getStored = (key: string, fallback: string = '') => localStorage.getItem(key) ?? fallback;
 
@@ -110,13 +116,18 @@ const Viabilidade = () => {
     const irpfTables = getIrpfTables();
     const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
 
+    // Converte os valores financeiros para cálculos
+    const faturamentoNum = parseFloat(faturamentoAnual) || 0;
+    const percComercioNum = parseFloat(percentComercio) || 0;
+    const percServicoNum = parseFloat(percentServico) || 0;
+
     try {
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         contexto: {
           anoBase: anoBase,
           objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
-          ambiente: environment === 'production' ? 'production' : 'development'
+          ambiente: environment // Remove a duplicação do executionMode lá embaixo
         },
         tabelasReferencia: {
           inss: inssTables.filter(t => t.year === anoBase),
@@ -129,25 +140,35 @@ const Viabilidade = () => {
           classificacaoFiscal: classificacaoFiscal || "ME",
           capitalSocial: parseFloat(capital) || 0,
           numSocios: parseInt(numSocios) || 1,
-          localizacao: { municipio: municipio || "", estado: estado || "PA" },
+          localizacao: { 
+            municipio: formatCityName(municipio), 
+            estado: estado || "PA" 
+          },
           tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
         },
         operacional: {
-          cnaes: cnaes.map(c => ({
-            codigo: c.code,
-            descricao: c.description,
-            tipo: c.isPrimary ? 'Principal' : 'Secundário'
-          })),
+          cnaes: cnaes.map(c => {
+            const trimmedCode = c.code.trim();
+            const cleanCode = trimmedCode.replace(/\D/g, ''); // Remove tudo que não for número
+            return {
+              codigo_formatado: trimmedCode,
+              codigo_limpo: cleanCode,
+              descricao: c.description.trim(),
+              tipo: c.isPrimary ? 'Principal' : 'Secundário'
+            };
+          }),
           descricaoAtividades: atividades || "",
           ideiaNegocio: businessIdea || ""
         },
         financeiro: {
           faturamento: {
-            anual_total: parseFloat(faturamentoAnual) || 0,
-            mensal_medio: (parseFloat(faturamentoAnual) || 0) / 12,
+            anual_total: faturamentoNum,
+            mensal_medio: faturamentoNum / 12,
             segregacao: {
-              comercio_percent: parseFloat(percentComercio) || 0,
-              servico_percent: parseFloat(percentServico) || 0
+              comercio_percent: percComercioNum,
+              servico_percent: percServicoNum,
+              comercio_valor: (faturamentoNum * percComercioNum) / 100,
+              servico_valor: (faturamentoNum * percServicoNum) / 100
             }
           },
           custos_operacionais: {
@@ -180,11 +201,13 @@ const Viabilidade = () => {
           retira_valores_pf: sociosRetiramValores === 'Sim'
         },
         conformidade_riscos: {
-          recebe_vendas_conta_pf: recebeContaPF === 'Sim',
-          mistura_patrimonial: mesmaContaSocios === 'Sim'
+          alertas_criticos: {
+            confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
+            retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
+            risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+          }
         },
-        webhookUrl: webhookUrl,
-        executionMode: environment
+        webhookUrl: webhookUrl
       };
 
       const response = await fetch(webhookUrl, { 
