@@ -1,17 +1,54 @@
 {
-  "dados_empresa": {
-    "razao_social": "COMERCIAL VEM K QUE TEM LTDA",
-    "natureza_juridica": "Sociedade Limitada (LTDA)",
-    "capital_social": "50000",
-    "num_socios": "1",
-    "num_funcionarios": "5",
-    "folha_pagamento_estimada": "10000",
-    "localizacao_municipio": "BELÉM",
-    "localizacao_uf": "PA"
+  "agentName": "Diagnóstico de Viabilidade e Estruturação de Negócios",
+  "contexto": {
+    "anoBase": "2026",
+    "objetivo": "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
+    "ambiente": "production"
   },
-  "atividades": {
-    "principais": "ALIMENTAÇÃO MERCADINHO",
+  "empresa": {
+    "razao_social": "COMERCIAL EXEMPLO LTDA",
+    "natureza_juridica": "Sociedade Limitada (LTDA)",
+    "capital_social": 50000,
+    "num_socios": 1,
+    "localizacao": {
+      "municipio": "Belém",
+      "estado": "PA"
+    },
     "tributacao_pretendida": "Simples Nacional"
   },
-  "descricao_adicional": "MERCADINHO"
+  "operacional": {
+    "cnae_informado": "4541206",
+    "descricao_atividades": "Comércio de peças e serviços de manutenção",
+    "tipo_operacao": "Mista"
+  },
+  "financeiro": {
+    "faturamento": {
+      "anual_total": 600000,
+      "segregacao": {
+        "comercio_percent": 90,
+        "servico_percent": 10,
+        "comercio_valor_anual": 540000,
+        "servico_valor_anual": 60000
+      }
+    },
+    "tributos_locais": {
+      "iss_municipio": 5,
+      "icms_estado": 18
+    }
+  },
+  "societario_trabalhista": {
+    "quadro_pessoal": {
+      "num_funcionarios": 2,
+      "folha_salarial_mensal": 4000
+    },
+    "pro_labore": {
+      "declara_prolabore": true,
+      "valor_declarado": 1412,
+      "recolhe_inss_ir": true
+    }
+  },
+  "conformidade_riscos": {
+    "recebe_vendas_conta_pf": false,
+    "mistura_patrimonial": true
+  }
 }
