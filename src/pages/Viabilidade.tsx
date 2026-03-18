@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Calendar } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import {
   DropdownMenu,
@@ -27,6 +27,8 @@ const naturezasJuridicas = [
   "Sociedade Simples",
   "Não sei / Sugerir"
 ];
+
+const anosBase = ["2024", "2025", "2026"];
 
 const simNao = ["Sim", "Não"];
 const simNaoNaoSei = ["Sim", "Não", "Não sei"];
@@ -55,6 +57,7 @@ const Viabilidade = () => {
   const [estado, setEstado] = useState(localStorage.getItem('viab-estado') || 'SP');
   const [tributacaoSugerida, setTributacaoSugerida] = useState(localStorage.getItem('viab-tributacaoSugerida') || '');
   const [businessIdea, setBusinessIdea] = useState(localStorage.getItem('viab-businessIdea') || '');
+  const [anoBase, setAnoBase] = useState(localStorage.getItem('viab-anoBase') || '2025');
 
   // Novos campos — Financeiro / Custos de Abertura
   const [faturamentoAnual, setFaturamentoAnual] = useState(localStorage.getItem('viab-faturamentoAnual') || '');
@@ -90,6 +93,7 @@ const Viabilidade = () => {
   useEffect(() => { localStorage.setItem('viab-estado', estado); }, [estado]);
   useEffect(() => { localStorage.setItem('viab-tributacaoSugerida', tributacaoSugerida); }, [tributacaoSugerida]);
   useEffect(() => { localStorage.setItem('viab-businessIdea', businessIdea); }, [businessIdea]);
+  useEffect(() => { localStorage.setItem('viab-anoBase', anoBase); }, [anoBase]);
   useEffect(() => { localStorage.setItem('viab-faturamentoAnual', faturamentoAnual); }, [faturamentoAnual]);
   useEffect(() => { localStorage.setItem('viab-percentComercio', percentComercio); }, [percentComercio]);
   useEffect(() => { localStorage.setItem('viab-percentServico', percentServico); }, [percentServico]);
@@ -114,7 +118,7 @@ const Viabilidade = () => {
     if (confirm("Deseja limpar todos os campos e iniciar uma nova consulta?")) {
       setRazaoSocial(''); setNaturezaJuridica(''); setCapital(''); setAtividades('');
       setNumSocios('1'); setNumFuncionarios('0'); setFolhaPagamento(''); setMunicipio('');
-      setEstado('SP'); setTributacaoSugerida(''); setBusinessIdea('');
+      setEstado('SP'); setTributacaoSugerida(''); setBusinessIdea(''); setAnoBase('2025');
       setFaturamentoAnual(''); setPercentComercio('100'); setPercentServico('0');
       setHonorariosLegalizacao(''); setHonorariosAssessoriaMensal('');
       setValorJuntaCartorio(''); setValorDpa(''); setValorBombeiro(''); setValorLicencasMunicipais('');
@@ -125,7 +129,7 @@ const Viabilidade = () => {
       const keysToRemove = [
         'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-atividades',
         'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 'viab-municipio',
-        'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport',
+        'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 'viab-aiReport', 'viab-anoBase',
         'viab-faturamentoAnual', 'viab-percentComercio', 'viab-percentServico',
         'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal',
         'viab-valorJuntaCartorio', 'viab-valorDpa', 'viab-valorBombeiro', 'viab-valorLicencasMunicipais',
@@ -156,6 +160,10 @@ const Viabilidade = () => {
       const payload = {
         agentName: "Análise de Viabilidade Tributária",
         systemPrompt: "Você é um especialista sênior em direito tributário e contabilidade fiscal brasileira. Sua função é realizar uma análise técnica completa de viabilidade tributária para abertura ou regularização de empresas...",
+        contexto: {
+          anoBase: anoBase,
+          objetivo: "Análise de Viabilidade e Risco Fiscal"
+        },
         empresa: {
           razaoSocial: razaoSocial || 'Não informado',
           naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
@@ -297,14 +305,25 @@ const Viabilidade = () => {
                 <Label htmlFor="razao-social">Razão Social (Opcional)</Label>
                 <Input id="razao-social" value={razaoSocial} onChange={(e) => setRazaoSocial(e.target.value)} disabled={isLoading} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="natureza-juridica">Natureza Jurídica</Label>
-                <Select value={naturezaJuridica} onValueChange={setNaturezaJuridica} disabled={isLoading}>
-                  <SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger>
-                  <SelectContent>
-                    {naturezasJuridicas.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="ano-base">Ano Base p/ Cálculo</Label>
+                  <Select value={anoBase} onValueChange={setAnoBase} disabled={isLoading}>
+                    <SelectTrigger id="ano-base"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {anosBase.map(ano => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="natureza-juridica">Natureza Jurídica</Label>
+                  <Select value={naturezaJuridica} onValueChange={setNaturezaJuridica} disabled={isLoading}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      {naturezasJuridicas.map(item => <SelectItem key={item} value={item}>{item}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="capital">Capital Social (R$)</Label>

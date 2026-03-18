@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Plus, Trash2, AlertTriangle, Calculator, Zap, Building2, Landmark, History } from "lucide-react";
+import { Plus, Trash2, AlertTriangle, Calculator, Zap, Building2, Landmark, History, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,8 @@ interface ParametersFormProps {
   onCalculate: (params: CalculationParams) => void;
   disabled?: boolean;
 }
+
+const anosBase = ["2024", "2025", "2026"];
 
 const MaxProfitIndicator = ({ maxProfit, currentProfit, isInvalid }: { maxProfit: number, currentProfit: number, isInvalid: boolean }) => {
   const formatPercent = (value: number) => value.toFixed(2).replace('.', ',');
@@ -58,6 +60,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [inssPatronalRate, setInssPatronalRate] = useState<string>("28.8");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("3000");
   const [lossPercentage, setLossPercentage] = useState<string>("1.5");
+  const [anoBase, setAnoBase] = useState<string>("2025");
   
   const [cbsRate, setCbsRate] = useState<string>("8.8");
   const [ibsRate, setIbsRate] = useState<string>("17.7");
@@ -244,6 +247,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       percentServico: parseFloat(percentServico) || 0,
       anexoSimples: anexoSimples || undefined,
       tipoOperacao: tipoOperacao,
+      anoBase: anoBase,
     });
     toast.success("Cálculos realizados com sucesso!");
   };
@@ -271,9 +275,20 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       <div className="space-y-4 border-t border-border pt-4">
         <h3 className="font-bold text-lg">1. Contexto da Empresa</h3>
         <div className="grid grid-cols-1 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="faturamento12Meses">Faturamento 12 Meses (R$)</Label>
-            <Input id="faturamento12Meses" type="number" step="0.01" value={faturamento12Meses} onChange={(e) => setFaturamento12Meses(e.target.value)} disabled={disabled} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="ano-base">Ano Base p/ Cálculo</Label>
+              <Select value={anoBase} onValueChange={setAnoBase} disabled={disabled}>
+                <SelectTrigger id="ano-base"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {anosBase.map(ano => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="faturamento12Meses">Faturamento 12 Meses (R$)</Label>
+              <Input id="faturamento12Meses" type="number" step="0.01" value={faturamento12Meses} onChange={(e) => setFaturamento12Meses(e.target.value)} disabled={disabled} />
+            </div>
           </div>
           
           <div className="grid grid-cols-2 gap-4 p-3 rounded-md bg-muted/30 border border-border/50">

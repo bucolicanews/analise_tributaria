@@ -109,10 +109,11 @@ export interface CalculationParams {
   ibsDebitPercentage: number; 
 
   faturamento12Meses?: number;
-  percentComercio?: number; // NOVO: % de faturamento comércio
-  percentServico?: number;  // NOVO: % de faturamento serviço
+  percentComercio?: number; 
+  percentServico?: number;  
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
+  anoBase?: string; // NOVO: Ano base para índices
 
   fixedCostsTotal?: number;
 }
