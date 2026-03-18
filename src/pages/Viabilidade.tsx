@@ -159,7 +159,9 @@ const Viabilidade = () => {
             principal: cnaePrincipal || 'Identificar por descrição',
             descricaoOperacional: atividades
           },
-          tipoOperacao: pComercio > 0 && pServico > 0 ? 'misto' : pComercio > 0 ? 'comercio' : 'servico'
+          tributacaoPretendida: tributacaoSugerida || 'Sugerir',
+          tipoOperacao: pComercio > 0 && pServico > 0 ? 'misto' : pComercio > 0 ? 'comercio' : 'servico',
+          descricaoAdicional: businessIdea
         },
 
         // BLOCO 2: FINANCEIRO COM SEGREGAÇÃO
@@ -281,7 +283,19 @@ const Viabilidade = () => {
                   <Input type="number" value={capital} onChange={e => setCapital(e.target.value)} />
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label>Descrição das Atividades</Label>
+                  <Label>Tributação Pretendida</Label>
+                  <Select value={tributacaoSugerida} onValueChange={setTributacaoSugerida}>
+                    <SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                      <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                      <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                      <SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label>Descrição das Atividades (para sugestão de CNAE)</Label>
                   <Textarea value={atividades} onChange={e => setAtividades(e.target.value)} placeholder="Descreva o que a empresa faz..." className="h-24" />
                 </div>
               </div>
@@ -345,16 +359,30 @@ const Viabilidade = () => {
                     <SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
+                  <Label>Recebe em conta PF ou PJ?</Label>
+                  <Select value={recebeContaPF} onValueChange={setRecebeContaPF}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Pessoa Física">Pessoa Física</SelectItem>
+                      <SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem>
+                      <SelectItem value="Ambos">Ambos</SelectItem>
+                      <SelectItem value="Não sei">Não sei</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
                   <Label>Usa a mesma conta bancária para pagar as contas dos sócios?</Label>
                   <Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent>
                   </Select>
-                  {mesmaContaSocios === 'Sim' && (
-                    <p className="text-[10px] text-destructive font-bold mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> ALERTA: Risco de Confusão Patrimonial Identificado.</p>
-                  )}
                 </div>
+                {mesmaContaSocios === 'Sim' && (
+                  <div className="md:col-span-2">
+                    <p className="text-[10px] text-destructive font-bold mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> ALERTA: Risco de Confusão Patrimonial Identificado.</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -371,6 +399,16 @@ const Viabilidade = () => {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      <div className="mt-6 space-y-2">
+        <Label className="font-semibold">Descrição Adicional da Ideia de Negócio</Label>
+        <Textarea
+          value={businessIdea}
+          onChange={(e) => setBusinessIdea(e.target.value)}
+          placeholder="Exemplo: Pretendo focar em produtos orgânicos, ter um delivery e talvez um pequeno café no local..."
+          className="min-h-[100px]"
+        />
       </div>
 
       <div className="text-center pt-4">
