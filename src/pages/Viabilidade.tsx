@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, ListChecks, Gavel, Bot, Loader2 } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, ListChecks, Gavel, Bot, Loader2, Trash2, Plus } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
@@ -198,7 +198,6 @@ const Viabilidade = () => {
       return;
     }
 
-    // CORREÇÃO: Usando as chaves de Webhook corretas da Configuração
     const webhookUrl = environment === 'test' 
       ? localStorage.getItem('jota-webhook-test') 
       : localStorage.getItem('jota-webhook-prod');
@@ -210,7 +209,8 @@ const Viabilidade = () => {
 
     const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
     const agentConfigs = loadAgentsFromStorage();
-    
+    const useRelay = agentConfigs.length > 0;
+
     setIsLoading(true);
     const startTime = performance.now();
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
@@ -248,7 +248,6 @@ const Viabilidade = () => {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         sessionId,
         relayUrl: `${relayUrl}/agent-result`,
-        // Enviamos os agentes para que o n8n saiba quem deve responder se usar o Relay
         agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
         contexto: { 
           anoBase, 
@@ -325,14 +324,17 @@ const Viabilidade = () => {
         }
       };
 
-      // PREPARA A TIMELINE (ANIMAÇÃO)
-      // Se houver agentes configurados, mostramos todos. Se não, mostramos apenas o Diagnóstico Principal.
-      const initialStatuses: AgentStatus[] = agentConfigs.length > 0 
-        ? agentConfigs.map(a => ({ id: a.id, nome: a.nome, systemPrompt: a.systemPrompt, status: 'loading' as const, report: null }))
-        : [{ id: 'main-diag', nome: 'Diagnóstico de Viabilidade', systemPrompt: '', status: 'loading' as const, report: null }];
-      
-      setAgentStatuses(initialStatuses);
-      setIsAgentsRunning(true);
+      if (useRelay) {
+        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
+          id: a.id,
+          nome: a.nome,
+          systemPrompt: a.systemPrompt,
+          status: 'loading' as const,
+          report: null,
+        }));
+        setAgentStatuses(initialStatuses);
+        setIsAgentsRunning(true);
+      }
 
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
@@ -346,13 +348,16 @@ const Viabilidade = () => {
         let errorMsg = "Erro na comunicação com a IA.";
         try {
           const errorJson = JSON.parse(responseText);
-          errorMsg = errorJson.errorMessage || errorMsg;
+          if (errorJson.errorMessage?.includes("No Respond to Webhook node")) {
+            errorMsg = "Configuração n8n incorreta: O nó de Webhook precisa estar em modo 'Immediately' ou possuir um nó 'Respond to Webhook'.";
+          } else {
+            errorMsg = errorJson.errorMessage || errorMsg;
+          }
         } catch { }
         throw new Error(errorMsg);
       }
       
-      // SE O N8N RESPONDEU VAZIO (MODO IMMEDIATELY), INICIAMOS O POLLING NO RELAY
-      if (!responseText) {
+      if (!responseText && useRelay) {
         toast.loading(`Aguardando agentes responderem via Relay...`, { id: toastId });
         const pollStart = Date.now();
         const poll = async (): Promise<void> => {
@@ -370,15 +375,10 @@ const Viabilidade = () => {
               arrived.forEach((agent: any) => {
                 setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
               });
-              
-              // Se todos os agentes chegaram ou se o diagnóstico principal chegou
-              if (arrived.length >= initialStatuses.length) {
-                toast.success("Diagnóstico concluído!", { id: toastId });
+              if (arrived.length >= agentConfigs.length) {
+                toast.success("Diagnóstico concluído via agentes!", { id: toastId });
                 setIsLoading(false);
                 setIsAgentsRunning(false);
-                // Se houver um relatório final (geralmente do último agente), exibe no componente de relatório
-                const lastReport = arrived[arrived.length - 1]?.report;
-                if (lastReport) setAiReport(lastReport);
                 return;
               }
             }
@@ -389,7 +389,6 @@ const Viabilidade = () => {
         return;
       }
 
-      // SE O N8N RESPONDEU COM DADOS DIRETAMENTE (MODO RESPOND TO WEBHOOK)
       if (responseText) {
         const data = JSON.parse(responseText);
         const duration = (performance.now() - startTime) / 1000;
@@ -398,21 +397,20 @@ const Viabilidade = () => {
         let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
         if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
         
+        if (!reportText && !useRelay) throw new Error("O servidor não retornou um relatório válido.");
+
         if (reportText) {
           setAiReport(reportText);
-          setAgentStatuses(prev => prev.map(s => ({ ...s, status: 'done', report: s.nome === 'Diagnóstico de Viabilidade' ? reportText : s.report })));
           toast.success(`Diagnóstico concluído!`, { id: toastId });
-        } else {
-          throw new Error("O servidor não retornou um relatório válido.");
         }
+      } else {
+        throw new Error("O servidor retornou uma resposta vazia e o Relay não está configurado.");
       }
 
     } catch (error: any) {
       toast.error("Falha na análise", { id: toastId, description: error.message });
-      setAgentStatuses(prev => prev.map(s => s.status === 'loading' ? { ...s, status: 'error', errorMessage: error.message } : s));
     } finally {
-      setIsLoading(false);
-      setIsAgentsRunning(false);
+      if (!useRelay) setIsLoading(false);
     }
   };
 
