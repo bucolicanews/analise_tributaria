@@ -6,11 +6,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, Info, Plus, Trash2, ListChecks, Gavel, Wallet } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, Info, Plus, Trash2, ListChecks, Gavel, Wallet, Bot, Loader2 } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
 import { getMinimumWages } from '@/lib/tax/minimumWageData';
+import { AgentsTimeline } from '@/components/AgentsTimeline';
+import { AgentStatus, loadAgentsFromStorage, callAgentWebhook, callGeminiAgent } from '@/lib/geminiService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -132,6 +134,10 @@ const Viabilidade = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
+  // ESTADOS PARA AGENTES E RELAY
+  const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
+  const [isAgentsRunning, setIsAgentsRunning] = useState(false);
+
   const inssTables = useMemo(() => getInssTables(), []);
   const irpfTables = useMemo(() => getIrpfTables(), []);
   const minimumWages = useMemo(() => getMinimumWages(), []);
@@ -192,15 +198,21 @@ const Viabilidade = () => {
       toast.error("Preencha pelo menos as Atividades e o Município.");
       return;
     }
+
+    const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
+    const agentConfigs = loadAgentsFromStorage();
+    const useRelay = agentConfigs.length > 0;
+
     setIsLoading(true);
     const startTime = performance.now();
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
+    
+    const sessionId = `session-viab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
     try {
       const normalizedMunicipio = municipio.charAt(0).toUpperCase() + municipio.slice(1).toLowerCase();
-      
       const minWageEntry = minimumWages.find(w => w.year === anoBase);
       const minWageValue = minWageEntry ? minWageEntry.value : 1412;
-      
       const isDeclaring = sociosDeclaramProlabore === 'Sim';
       const userValue = parseFloat(valorProlabore) || 0;
 
@@ -226,6 +238,9 @@ const Viabilidade = () => {
 
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+        sessionId,
+        relayUrl: `${relayUrl}/agent-result`,
+        agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
         contexto: { 
           anoBase, 
           objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial", 
@@ -301,29 +316,93 @@ const Viabilidade = () => {
         }
       };
 
-      const webhooks = { test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794', production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794' };
-      const response = await fetch(webhooks[environment], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const webhooks = { 
+        test: localStorage.getItem('viab-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794', 
+        production: localStorage.getItem('viab-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794' 
+      };
+
+      const webhookUrl = webhooks[environment];
+
+      // SE USAR RELAY, PREPARA A TIMELINE
+      if (useRelay) {
+        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
+          id: a.id,
+          nome: a.nome,
+          systemPrompt: a.systemPrompt,
+          status: 'loading' as const,
+          report: null,
+        }));
+        setAgentStatuses(initialStatuses);
+        setIsAgentsRunning(true);
+      }
+
+      const response = await fetch(webhookUrl, { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify(payload) 
+      });
       
       if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
       const responseText = await response.text();
-      if (!responseText) throw new Error("O servidor retornou uma resposta vazia.");
       
-      const data = JSON.parse(responseText);
-      const duration = (performance.now() - startTime) / 1000;
-      setExecutionTime(duration);
-      
-      let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
-      if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
-      
-      if (!reportText) throw new Error("Não foi possível extrair o relatório da resposta da IA.");
+      // SE O N8N RESPONDEU VAZIO MAS TEMOS RELAY, INICIAMOS O POLLING
+      if (!responseText && useRelay) {
+        toast.loading(`Aguardando agentes responderem via Relay...`, { id: toastId });
+        
+        const pollStart = Date.now();
+        const poll = async (): Promise<void> => {
+          if (Date.now() - pollStart > 5 * 60 * 1000) {
+            toast.error("Tempo limite atingido.", { id: toastId });
+            setIsLoading(false);
+            setIsAgentsRunning(false);
+            return;
+          }
+          try {
+            const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
+            if (res.ok) {
+              const json = await res.json();
+              const arrived = json.agents || [];
+              arrived.forEach((agent: any) => {
+                setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
+              });
+              if (arrived.length >= agentConfigs.length) {
+                toast.success("Diagnóstico concluído via agentes!", { id: toastId });
+                setIsLoading(false);
+                setIsAgentsRunning(false);
+                return;
+              }
+            }
+          } catch { }
+          setTimeout(poll, 2000);
+        };
+        setTimeout(poll, 2000);
+        return;
+      }
 
-      setAiReport(reportText);
-      toast.success(`Diagnóstico concluído!`, { id: toastId });
+      // SE O N8N RESPONDEU COM DADOS DIRETAMENTE
+      if (responseText) {
+        const data = JSON.parse(responseText);
+        const duration = (performance.now() - startTime) / 1000;
+        setExecutionTime(duration);
+        
+        let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
+        if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
+        
+        if (!reportText && !useRelay) throw new Error("O servidor não retornou um relatório válido.");
+
+        if (reportText) {
+          setAiReport(reportText);
+          toast.success(`Diagnóstico concluído!`, { id: toastId });
+        }
+      } else {
+        throw new Error("O servidor retornou uma resposta vazia e o Relay não está configurado.");
+      }
+
     } catch (error: any) {
       toast.error("Falha na análise", { id: toastId, description: error.message });
     } finally {
-      setIsLoading(false);
+      if (!useRelay) setIsLoading(false);
     }
   };
 
@@ -339,6 +418,17 @@ const Viabilidade = () => {
           <Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button>
         </CardHeader>
       </Card>
+
+      {agentStatuses.length > 0 && (
+        <div id="agents-timeline-section">
+          <AgentsTimeline
+            agents={agentStatuses}
+            onViewReport={(agent) => { setAiReport(agent.report); }}
+            onPrintReport={(agent) => { /* Implementar se necessário */ }}
+            onRunSingle={(agent) => { /* Implementar se necessário */ }}
+          />
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
