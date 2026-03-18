@@ -16,6 +16,7 @@ import { AiAnalysisReport } from "@/components/AiAnalysisReport";
 import { useNavigate } from "react-router-dom";
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
+import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -94,6 +95,20 @@ const Pricing = () => {
     const ano = localStorage.getItem('viab-anoBase') || '2025';
     const refInss = getInssTables().filter(t => t.year === ano);
     const refIrpf = getIrpfTables().filter(t => t.year === ano);
+    const minimumWages = getMinimumWages();
+    const minWageEntry = minimumWages.find(w => w.year === ano);
+    const minWageValue = minWageEntry ? minWageEntry.value : 1412;
+
+    const isDeclaring = localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim';
+    const userValue = parseFloat(localStorage.getItem('viab-valorProlabore') || '0');
+
+    const proLaborePayload = {
+      declara_prolabore: isDeclaring,
+      valor_declarado: isDeclaring ? userValue : 0,
+      valor_estimado: isDeclaring ? userValue : minWageValue,
+      recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim',
+      modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
+    };
 
     return {
       razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
@@ -117,13 +132,13 @@ const Pricing = () => {
       valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
       valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
       sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
-      sociosDeclaramProlabore: localStorage.getItem('viab-sociosDeclaramProlabore') || 'Não informado',
-      sociosRecolhemInssIr: localStorage.getItem('viab-sociosRecolhemInssIr') || 'Não informado',
+      pro_labore: proLaborePayload,
       recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
       mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
       tabelasReferencia: {
         inss: refInss,
-        irpf: refIrpf
+        irpf: refIrpf,
+        salario_minimo: minWageValue
       }
     };
   };

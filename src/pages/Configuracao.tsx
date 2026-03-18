@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, Lock, Table as TableIcon, Info, History } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, Lock, Table as TableIcon, Info, History, Coins } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { AgentConfig, DEFAULT_AGENTS, loadAgentsFromStorage, saveAgentsToStorage
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
+import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
@@ -31,6 +32,7 @@ const Configuracao = () => {
   const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
   const [inssTables, setInssTables] = useState<InssTable[]>(() => getInssTables());
   const [irpfTables, setIrpfTables] = useState<IrpfTable[]>(() => getIrpfTables());
+  const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +47,7 @@ const Configuracao = () => {
     saveAgentsToStorage(agents);
     saveInssTables(inssTables);
     saveIrpfTables(irpfTables);
+    saveMinimumWages(minimumWages);
     toast.success("Configurações salvas com sucesso!");
   };
 
@@ -122,6 +125,26 @@ const Configuracao = () => {
     setIrpfTables(newTables);
   };
 
+  // --- MINIMUM WAGE LOGIC ---
+  const addMinimumWage = () => {
+    const newEntry: MinimumWageEntry = {
+      id: `mw-${Date.now()}`,
+      year: '2026',
+      value: 0,
+      label: 'Novo Reajuste'
+    };
+    setMinimumWages([...minimumWages, newEntry]);
+  };
+
+  const removeMinimumWage = (id: string) => setMinimumWages(minimumWages.filter(w => w.id !== id));
+
+  const updateMinimumWage = (idx: number, field: keyof MinimumWageEntry, val: string) => {
+    const newWages = [...minimumWages];
+    if (field === 'value') (newWages[idx] as any)[field] = parseFloat(val) || 0;
+    else (newWages[idx] as any)[field] = val;
+    setMinimumWages(newWages);
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <form onSubmit={handleSave}>
@@ -196,6 +219,24 @@ const Configuracao = () => {
                            <Label className="text-[10px] uppercase">URL Webhook Específico (Opcional)</Label>
                            <Input className="text-xs" value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} placeholder="Se vazio, usará o Gemini local..." />
                          </div>
+                       </div>
+                     ))}
+                   </div>
+                </div>
+
+                {/* GERENCIADOR SALÁRIO MÍNIMO */}
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-emerald-50/30">
+                   <div className="flex items-center justify-between">
+                     <h3 className="text-lg font-semibold flex items-center gap-2 text-emerald-700"><Coins className="h-5 w-5" />Tabela de Salário Mínimo</h3>
+                     <Button type="button" variant="outline" size="sm" onClick={addMinimumWage}><Plus className="h-4 w-4 mr-2" /> Novo Valor</Button>
+                   </div>
+                   <div className="space-y-3">
+                     {minimumWages.sort((a,b) => b.year.localeCompare(a.year)).map((mw, idx) => (
+                       <div key={mw.id} className="grid grid-cols-12 gap-2 items-end bg-background p-2 rounded border">
+                         <div className="col-span-2"><Label className="text-[10px] uppercase">Ano</Label><Input value={mw.year} onChange={e => updateMinimumWage(idx, 'year', e.target.value)} /></div>
+                         <div className="col-span-3"><Label className="text-[10px] uppercase">Valor (R$)</Label><Input type="number" value={mw.value} onChange={e => updateMinimumWage(idx, 'value', e.target.value)} /></div>
+                         <div className="col-span-6"><Label className="text-[10px] uppercase">Legislação / Descrição</Label><Input value={mw.label} onChange={e => updateMinimumWage(idx, 'label', e.target.value)} /></div>
+                         <div className="col-span-1"><Button type="button" variant="ghost" size="icon" onClick={() => removeMinimumWage(mw.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button></div>
                        </div>
                      ))}
                    </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from '@/components/ui/textarea';
+import { Textarea } from '@/components/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -10,6 +10,7 @@ import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQu
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
+import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,6 +106,7 @@ const Viabilidade = () => {
 
   const inssTables = useMemo(() => getInssTables(), []);
   const irpfTables = useMemo(() => getIrpfTables(), []);
+  const minimumWages = useMemo(() => getMinimumWages(), []);
   
   const currentInssTables = useMemo(() => inssTables.filter(t => t.year === anoBase), [inssTables, anoBase]);
   const currentIrpfTables = useMemo(() => irpfTables.filter(t => t.year === anoBase), [irpfTables, anoBase]);
@@ -166,17 +168,28 @@ const Viabilidade = () => {
     try {
       const cleanCnae = cnaePrincipal.replace(/\D/g, '');
       const normalizedMunicipio = municipio.charAt(0).toUpperCase() + municipio.slice(1).toLowerCase();
-      let finalDeclaraProlabore = sociosDeclaramProlabore === 'Sim';
-      let finalValorProlabore = parseFloat(valorProlabore) || 0;
-      if (!finalDeclaraProlabore && finalValorProlabore > 0) finalDeclaraProlabore = true;
-      else if (!finalDeclaraProlabore && finalValorProlabore === 0) finalValorProlabore = 1412;
+      
+      // LÓGICA PROFISSIONAL DE PRÓ-LABORE
+      const minWageEntry = minimumWages.find(w => w.year === anoBase);
+      const minWageValue = minWageEntry ? minWageEntry.value : 1412;
+      
+      const isDeclaring = sociosDeclaramProlabore === 'Sim';
+      const userValue = parseFloat(valorProlabore) || 0;
+
+      const proLaborePayload = {
+        declara_prolabore: isDeclaring,
+        valor_declarado: isDeclaring ? userValue : 0,
+        valor_estimado: isDeclaring ? userValue : minWageValue,
+        recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
+        modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
+      };
+
       const totalFaturamentoAnual = parseFloat(faturamentoAnual) || 0;
       const faturamentoMensalMedio = totalFaturamentoAnual / 12;
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
 
-      // BUSCA TABELAS DE REFERÊNCIA DO ANO ESCOLHIDO
       const refInss = getInssTables().filter(t => t.year === anoBase);
       const refIrpf = getIrpfTables().filter(t => t.year === anoBase);
 
@@ -190,13 +203,14 @@ const Viabilidade = () => {
         },
         tabelasReferencia: {
           inss: refInss,
-          irpf: refIrpf
+          irpf: refIrpf,
+          salario_minimo: minWageValue
         },
         empresa: { razaoSocial: razaoSocial || 'Projeto não nomeado', naturezaJuridica: naturezaJuridica || 'A definir / Sugerir', capitalSocial: parseFloat(capital) || 0, numSocios: parseInt(numSocios) || 1, localizacao: { municipio: normalizedMunicipio, estado }, tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário' },
         operacional: { cnaeInformado: cleanCnae, descricaoAtividades: atividades, ideiaNegocio: businessIdea, tipoOperacao: pComercio > 0 && pServico > 0 ? 'Mista' : pComercio > 0 ? 'Comércio' : 'Serviço' },
         financeiro: { faturamento: { anual_total: totalFaturamentoAnual, mensal_medio: faturamentoMensalMedio, segregacao: { comercio_percent: pComercio, servico_percent: pServico, comercio_valor_anual: totalFaturamentoAnual * (pComercio / 100), servico_valor_anual: totalFaturamentoAnual * (pServico / 100) } }, tributos_locais: { iss_municipio: parseFloat(aliquotaIss) || 5, icms_estado: parseFloat(aliquotaIcms) || 18 }, custos_abertura: { honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0, taxas_governo: (parseFloat(valorJuntaCartorio) || 0) + (parseFloat(valorDpa) || 0) + (parseFloat(valorBombeiro) || 0) + (parseFloat(valorLicencasMunicipais) || 0), assessoria_mensal_contabil: parseFloat(honorariosAssessoriaMensal) || 0 } },
-        societario_trabalhista: { quadro_pessoal: { num_funcionarios: parseInt(numFuncionarios) || 0, folha_salarial_mensal: folhaMensal }, pro_labore: { declara_prolabore: finalDeclaraProlabore, valor_declarado: finalValorProlabore, recolhe_inss_ir: sociosRecolhemInssIr === 'Sim' } },
-        conformidade_riscos: { recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física' || recebeContaPF === 'Ambos', retira_valores_sem_origem: sociosRetiramValores === 'Sim', mistura_patrimonial: mesmaContaSocios === 'Sim', alertas_criticos: { risco_confusao_patrimonial: mesmaContaSocios === 'Sim', risco_previdenciario_prolabore: !finalDeclaraProlabore, risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim', fator_r_critico: (folhaMensal + finalValorProlabore) / (faturamentoMensalMedio || 1) < 0.28 } }
+        societario_trabalhista: { quadro_pessoal: { num_funcionarios: parseInt(numFuncionarios) || 0, folha_salarial_mensal: folhaMensal }, pro_labore: proLaborePayload },
+        conformidade_riscos: { recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física' || recebeContaPF === 'Ambos', retira_valores_sem_origem: sociosRetiramValores === 'Sim', mistura_patrimonial: mesmaContaSocios === 'Sim', alertas_criticos: { risco_confusao_patrimonial: mesmaContaSocios === 'Sim', risco_previdenciario_prolabore: !isDeclaring, risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim', fator_r_critico: (folhaMensal + proLaborePayload.valor_estimado) / (faturamentoMensalMedio || 1) < 0.28 } }
       };
       const webhooks = { test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794', production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794' };
       const response = await fetch(webhooks[environment], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
