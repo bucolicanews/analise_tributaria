@@ -14,6 +14,8 @@ import { createOptimizedAIPayload } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
 import { AiAnalysisReport } from "@/components/AiAnalysisReport";
 import { useNavigate } from "react-router-dom";
+import { getInssTables } from '@/lib/tax/inssData';
+import { getIrpfTables } from '@/lib/tax/irpfData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,33 +90,43 @@ const Pricing = () => {
     toast.success("Nova consulta iniciada.");
   };
 
-  const buildViabilidadePayload = () => ({
-    razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
-    naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado / Sugerir',
-    capital: localStorage.getItem('viab-capital') || 'Não informado',
-    numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
-    numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
-    folhaPagamento: localStorage.getItem('viab-folhaPagamento') || 'Não informado',
-    municipio: localStorage.getItem('viab-municipio') || 'Não informado',
-    estado: localStorage.getItem('viab-estado') || 'Não informado',
-    atividades: localStorage.getItem('viab-atividades') || 'Não informado',
-    tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
-    businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
-    faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
-    percentComercio: localStorage.getItem('viab-percentComercio') || '100',
-    percentServico: localStorage.getItem('viab-percentServico') || '0',
-    honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
-    honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
-    valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
-    valorDpa: localStorage.getItem('viab-valorDpa') || 'Não informado',
-    valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
-    valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
-    sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
-    sociosDeclaramProlabore: localStorage.getItem('viab-sociosDeclaramProlabore') || 'Não informado',
-    sociosRecolhemInssIr: localStorage.getItem('viab-sociosRecolhemInssIr') || 'Não informado',
-    recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
-    mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
-  });
+  const buildViabilidadePayload = () => {
+    const ano = localStorage.getItem('viab-anoBase') || '2025';
+    const refInss = getInssTables().filter(t => t.year === ano);
+    const refIrpf = getIrpfTables().filter(t => t.year === ano);
+
+    return {
+      razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
+      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado / Sugerir',
+      capital: localStorage.getItem('viab-capital') || 'Não informado',
+      numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
+      numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
+      folhaPagamento: localStorage.getItem('viab-folhaPagamento') || 'Não informado',
+      municipio: localStorage.getItem('viab-municipio') || 'Não informado',
+      estado: localStorage.getItem('viab-estado') || 'Não informado',
+      atividades: localStorage.getItem('viab-atividades') || 'Não informado',
+      tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado / Sugerir',
+      businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
+      faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
+      percentComercio: localStorage.getItem('viab-percentComercio') || '100',
+      percentServico: localStorage.getItem('viab-percentServico') || '0',
+      honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
+      honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
+      valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
+      valorDpa: localStorage.getItem('viab-valorDpa') || 'Não informado',
+      valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
+      valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
+      sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
+      sociosDeclaramProlabore: localStorage.getItem('viab-sociosDeclaramProlabore') || 'Não informado',
+      sociosRecolhemInssIr: localStorage.getItem('viab-sociosRecolhemInssIr') || 'Não informado',
+      recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
+      mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
+      tabelasReferencia: {
+        inss: refInss,
+        irpf: refIrpf
+      }
+    };
+  };
 
   const handleRunAgents = async () => {
     if (!params || !summary || calculatedProducts.length === 0) {
@@ -343,6 +355,7 @@ const Pricing = () => {
 
     try {
       const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
+      const viabilidadePayload = buildViabilidadePayload();
       
       const payload = {
         agentName: "Auditoria Estratégica Global",
@@ -374,7 +387,7 @@ const Pricing = () => {
           cargaTributariaEfetiva: summary.totalTaxPercent / 100,
           totalImpostosLiquidos: summary.totalTax
         },
-        viabilidade: buildViabilidadePayload(),
+        viabilidade: viabilidadePayload,
         agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
         sessionId,
         relayUrl: `${relayUrl}/agent-result`,

@@ -5,6 +5,33 @@
     "objetivo": "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
     "ambiente": "production"
   },
+  "tabelasReferencia": {
+    "inss": [
+      {
+        "id": "inss-2026",
+        "label": "Período de 01/01/2026 a 31/12/2026",
+        "year": "2026",
+        "ranges": [
+          { "min": 0, "max": 1621, "rate": 7.5, "deduction": 0 },
+          { "min": 1621.01, "max": 2902.84, "rate": 9, "deduction": 24.32 }
+        ]
+      }
+    ],
+    "irpf": [
+      {
+        "id": "irpf-2026",
+        "label": "Tabela Mensal IRPF 2026",
+        "year": "2026",
+        "ranges": [
+          { "min": 0, "max": 2428.8, "rate": 0, "deduction": 0 },
+          { "min": 2428.81, "max": 2826.65, "rate": 7.5, "deduction": 182.16 }
+        ],
+        "reductionRules": [
+          { "min": 0, "max": 5000, "description": "Redução de até R$ 312,89" }
+        ]
+      }
+    ]
+  },
   "empresa": {
     "razao_social": "COMERCIAL EXEMPLO LTDA",
     "natureza_juridica": "Sociedade Limitada (LTDA)",

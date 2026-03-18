@@ -175,9 +175,23 @@ const Viabilidade = () => {
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
+
+      // BUSCA TABELAS DE REFERÊNCIA DO ANO ESCOLHIDO
+      const refInss = getInssTables().filter(t => t.year === anoBase);
+      const refIrpf = getIrpfTables().filter(t => t.year === anoBase);
+
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-        contexto: { anoBase, objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial", timestamp: new Date().toISOString(), ambiente: environment },
+        contexto: { 
+          anoBase, 
+          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial", 
+          timestamp: new Date().toISOString(), 
+          ambiente: environment 
+        },
+        tabelasReferencia: {
+          inss: refInss,
+          irpf: refIrpf
+        },
         empresa: { razaoSocial: razaoSocial || 'Projeto não nomeado', naturezaJuridica: naturezaJuridica || 'A definir / Sugerir', capitalSocial: parseFloat(capital) || 0, numSocios: parseInt(numSocios) || 1, localizacao: { municipio: normalizedMunicipio, estado }, tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário' },
         operacional: { cnaeInformado: cleanCnae, descricaoAtividades: atividades, ideiaNegocio: businessIdea, tipoOperacao: pComercio > 0 && pServico > 0 ? 'Mista' : pComercio > 0 ? 'Comércio' : 'Serviço' },
         financeiro: { faturamento: { anual_total: totalFaturamentoAnual, mensal_medio: faturamentoMensalMedio, segregacao: { comercio_percent: pComercio, servico_percent: pServico, comercio_valor_anual: totalFaturamentoAnual * (pComercio / 100), servico_valor_anual: totalFaturamentoAnual * (pServico / 100) } }, tributos_locais: { iss_municipio: parseFloat(aliquotaIss) || 5, icms_estado: parseFloat(aliquotaIcms) || 18 }, custos_abertura: { honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0, taxas_governo: (parseFloat(valorJuntaCartorio) || 0) + (parseFloat(valorDpa) || 0) + (parseFloat(valorBombeiro) || 0) + (parseFloat(valorLicencasMunicipais) || 0), assessoria_mensal_contabil: parseFloat(honorariosAssessoriaMensal) || 0 } },
