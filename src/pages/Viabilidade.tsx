@@ -136,76 +136,84 @@ const Viabilidade = () => {
       const pComercio = parseFloat(percentComercio) || 0;
       const pServico = parseFloat(percentServico) || 0;
       
-      // --- NORMALIZADOR E VALIDADOR DE RISCO (LÓGICA DE NEGÓCIO) ---
-      const alertas = {
-        pro_labore_ausente: sociosDeclaramProlabore === 'Não' || !valorProlabore,
-        mistura_pf_pj: mesmaContaSocios === 'Sim' || sociosRetiramValores === 'Sim',
-        segregacao_receita_ausente: pComercio === 0 && pServico === 0,
-        faturamento_baixo_para_folha: (parseFloat(folhaPagamento) || 0) > (totalFaturamento / 12) * 0.5
-      };
-
+      // --- PAYLOAD ESTRUTURADO (NÍVEL SÊNIOR) ---
       const payload = {
-        agentName: "Análise de Viabilidade Tributária",
-        systemPrompt: "Você é um especialista sênior em direito tributário...",
-        contexto: { anoBase, objetivo: "Viabilidade e Risco Fiscal" },
+        agentName: "Análise de Viabilidade Tributária e Riscos",
+        systemPrompt: "Você é um consultor tributário sênior especializado em estruturação de novos negócios...",
         
-        // BLOCO 1: EMPRESA ESTRUTURADA
-        empresa: {
-          razaoSocial: razaoSocial || 'Não informado',
-          naturezaJuridica: naturezaJuridica || 'Sugerir',
-          capitalSocial: parseFloat(capital) || 0,
-          numSocios: parseInt(numSocios) || 1,
-          cnaes: {
-            principal: cnaePrincipal || 'Identificar por descrição',
-            descricaoOperacional: atividades
-          },
-          tributacaoPretendida: tributacaoSugerida || 'Sugerir',
-          tipoOperacao: pComercio > 0 && pServico > 0 ? 'misto' : pComercio > 0 ? 'comercio' : 'servico',
-          descricaoAdicional: businessIdea
+        // 1. CONTEXTO E METADADOS
+        contexto: {
+          anoBase,
+          objetivo: "Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
+          timestamp: new Date().toISOString(),
+          ambiente: environment
         },
 
-        // BLOCO 2: FINANCEIRO COM SEGREGAÇÃO
+        // 2. PERFIL DA EMPRESA (ESTRUTURA JURÍDICA)
+        empresa: {
+          razaoSocial: razaoSocial || 'Projeto não nomeado',
+          naturezaJuridica: naturezaJuridica || 'A definir/Sugerir',
+          capitalSocial: parseFloat(capital) || 0,
+          numSocios: parseInt(numSocios) || 1,
+          localizacao: { municipio, estado },
+          tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário'
+        },
+
+        // 3. OPERACIONAL E ATIVIDADES
+        operacional: {
+          cnaeInformado: cnaePrincipal || 'Identificar por descrição',
+          descricaoAtividades: atividades,
+          ideiaNegocio: businessIdea,
+          tipoOperacao: pComercio > 0 && pServico > 0 ? 'Mista' : pComercio > 0 ? 'Comércio' : 'Serviço'
+        },
+
+        // 4. FINANCEIRO E PROJEÇÕES (DRE PROJETADO)
         financeiro: {
           faturamento: {
-            mensal_total: totalFaturamento / 12,
             anual_total: totalFaturamento,
-            comercio_percent: pComercio,
-            servico_percent: pServico,
-            comercio_valor_estimado: totalFaturamento * (pComercio / 100),
-            servico_valor_estimado: totalFaturamento * (pServico / 100)
+            mensal_medio: totalFaturamento / 12,
+            segregacao: {
+              comercio_percent: pComercio,
+              servico_percent: pServico,
+              comercio_valor_anual: totalFaturamento * (pComercio / 100),
+              servico_valor_anual: totalFaturamento * (pServico / 100)
+            }
           },
-          custosAbertura: {
-            honorariosLegalizacao: parseFloat(honorariosLegalizacao) || 0,
-            taxasGoverno: (parseFloat(valorJuntaCartorio) || 0) + (parseFloat(valorDpa) || 0) + (parseFloat(valorBombeiro) || 0) + (parseFloat(valorLicencasMunicipais) || 0)
+          tributos_locais: {
+            iss_municipio: parseFloat(aliquotaIss) || 5,
+            icms_estado: parseFloat(aliquotaIcms) || 18
+          },
+          custos_abertura_investimento: {
+            honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0,
+            taxas_governo: (parseFloat(valorJuntaCartorio) || 0) + (parseFloat(valorDpa) || 0) + (parseFloat(valorBombeiro) || 0) + (parseFloat(valorLicencasMunicipais) || 0),
+            assessoria_mensal_contabil: parseFloat(honorariosAssessoriaMensal) || 0
           }
         },
 
-        // BLOCO 3: FOLHA E PRÓ-LABORE (COM VALIDAÇÃO DE MÍNIMO)
-        folha: {
-          salarios_mensal: parseFloat(folhaPagamento) || 0,
-          pro_labore_declarado: parseFloat(valorProlabore) || 0,
-          pro_labore_minimo_sugerido: 1412, // Base 2024 para normalização
-          funcionarios: parseInt(numFuncionarios) || 0,
-          comportamento: {
-            retira_valores_pf: sociosRetiramValores,
+        // 5. CAPITAL HUMANO E SÓCIOS (RISCO PREVIDENCIÁRIO)
+        societario_trabalhista: {
+          quadro_pessoal: {
+            num_funcionarios: parseInt(numFuncionarios) || 0,
+            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
+          },
+          pro_labore: {
             declara_prolabore: sociosDeclaramProlabore,
+            valor_declarado: parseFloat(valorProlabore) || 0,
             recolhe_inss_ir: sociosRecolhemInssIr
           }
         },
 
-        // BLOCO 4: LOCALIZAÇÃO E TRIBUTOS LOCAIS
-        localizacao: { municipio, estado },
-        tributos_locais: {
-          iss_percent: parseFloat(aliquotaIss) || 5,
-          icms_percent: parseFloat(aliquotaIcms) || 18
-        },
-
-        // BLOCO 5: CONFORMIDADE E ALERTAS (O "PULO DO GATO")
-        conformidade: {
-          recebe_conta_pf: recebeContaPF,
-          mistura_contas: mesmaContaSocios
-        },
-        alertas_sistema: alertas
+        // 6. MAPA DE CONFORMIDADE E RISCOS (FLAGS DE ALERTA)
+        conformidade_riscos: {
+          recebe_vendas_conta_pf: recebeContaPF,
+          retira_valores_sem_origem: sociosRetiramValores,
+          mistura_patrimonial: mesmaContaSocios,
+          alertas_criticos: {
+            risco_confusao_patrimonial: mesmaContaSocios === 'Sim',
+            risco_previdenciario_prolabore: sociosDeclaramProlabore === 'Não' || (parseFloat(valorProlabore) || 0) < 1412,
+            risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim'
+          }
+        }
       };
 
       const webhooks = {
