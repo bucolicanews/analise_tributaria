@@ -111,7 +111,6 @@ const Viabilidade = () => {
     const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
 
     try {
-      // ESTRUTURA EXATA DO SEU EXEMPLO QUE FUNCIONAVA NO N8N
       const payload = {
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         contexto: {
@@ -190,7 +189,10 @@ const Viabilidade = () => {
 
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        }, 
         body: JSON.stringify(payload) 
       });
       
@@ -207,7 +209,7 @@ const Viabilidade = () => {
         toast.info("Dados enviados, mas sem texto de resposta.");
       }
     } catch (error: any) {
-      toast.error("Falha no envio: " + error.message);
+      toast.error("Falha no envio. Erro: " + error.message);
     } finally {
       setIsLoading(false);
       setExecutionTime((performance.now() - startTime) / 1000);
@@ -286,7 +288,6 @@ const Viabilidade = () => {
                 <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 
-                {/* Campos Faltantes do Conformidade & Riscos que afetam o Payload */}
                 <div className="space-y-2"><Label>Recebe na conta PF?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label>Mistura Patrimonial?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
                 <div className="space-y-2"><Label>Sócios retiram lucros?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
