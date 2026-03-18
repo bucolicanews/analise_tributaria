@@ -6,74 +6,30 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, ListChecks, Gavel, Loader2, Trash2, Plus } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
-import { getIrpfTables } from '@/lib/tax/irpfData';
-import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
-const UFs = [
-  "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG",
-  "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"
-];
-
-const naturezasJuridicas = [
-  "Empresário Individual (EI)",
-  "Sociedade Limitada (LTDA)",
-  "Sociedade Limitada Unipessoal (SLU)",
-  "Sociedade Simples",
-  "Não sei / Sugerir"
-];
-
-const classificacoesFiscais = [
-  "Microempresa (ME)",
-  "Empresa de Pequeno Porte (EPP)",
-  "Médio/Grande Porte",
-  "Sugerir com base no faturamento"
-];
-
+const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (LTDA)", "Sociedade Limitada Unipessoal (SLU)", "Sociedade Simples", "Não sei / Sugerir"];
+const classificacoesFiscais = ["Microempresa (ME)", "Empresa de Pequeno Porte (EPP)", "Médio/Grande Porte", "Sugerir com base no faturamento"];
 const anosBase = ["2022", "2023", "2024", "2025", "2026"];
 const simNao = ["Sim", "Não"];
 const simNaoNaoSei = ["Sim", "Não", "Não sei"];
 
-interface CnaeEntry {
-  id: string;
-  code: string;
-  description: string;
-  isPrimary: boolean;
-}
+interface CnaeEntry { id: string; code: string; description: string; isPrimary: boolean; }
 
 const SectionTitle = ({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) => (
   <div className="flex items-center gap-3 pb-3 border-b border-border mb-4">
-    <div className="p-2 bg-accent/10 rounded-lg">
-      <Icon className="h-4 w-4 text-accent" />
-    </div>
-    <div>
-      <h3 className="font-semibold text-sm text-foreground">{title}</h3>
-      {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
-    </div>
+    <div className="p-2 bg-accent/10 rounded-lg"><Icon className="h-4 w-4 text-accent" /></div>
+    <div><h3 className="font-semibold text-sm text-foreground">{title}</h3>{subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}</div>
   </div>
 );
 
@@ -113,19 +69,10 @@ const Viabilidade = () => {
   const [anexoComercio, setAnexoComercio] = useState(() => getStored('viab-anexoComercio', 'Anexo I'));
   const [anexoServico, setAnexoServico] = useState(() => getStored('viab-anexoServico', 'Anexo III'));
   const [retiradaMensalLucro, setRetiradaMensalLucro] = useState(() => getStored('viab-retiradaMensalLucro', '0'));
-  const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(() => getStored('viab-honorariosLegalizacao'));
-  const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(() => getStored('viab-honorariosAssessoriaMensal'));
-  const [valorJuntaCartorio, setValorJuntaCartorio] = useState(() => getStored('viab-valorJuntaCartorio'));
-  const [valorDpa, setValorDpa] = useState(() => getStored('viab-valorDpa'));
-  const [valorBombeiro, setValorBombeiro] = useState(() => getStored('viab-valorBombeiro'));
-  const [valorLicencasMunicipais, setValorLicencasMunicipais] = useState(() => getStored('viab-valorLicencasMunicipais'));
 
-  const [aiReport, setAiReport] = useState<string | null>(() => localStorage.getItem('viab-aiReport'));
+  const [aiReport, setAiReport] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
-
-  const inssTables = useMemo(() => getInssTables(), []);
-  const currentInssTables = useMemo(() => inssTables.filter(t => t.year === anoBase), [inssTables, anoBase]);
 
   useEffect(() => {
     const data: Record<string, string> = {
@@ -136,26 +83,39 @@ const Viabilidade = () => {
       'viab-percentServico': percentServico, 'viab-fixosMensais': fixosMensais, 'viab-variaveisPercentual': variaveisPercentual,
       'viab-aliquotaIss': aliquotaIss, 'viab-aliquotaIcms': aliquotaIcms, 'viab-sociosRetiramValores': sociosRetiramValores, 
       'viab-sociosDeclaramProlabore': sociosDeclaramProlabore, 'viab-valorProlabore': valorProlabore, 'viab-sociosRecolhemInssIr': sociosRecolhemInssIr,
-      'viab-recebeContaPF': recebeContaPF, 'viab-mesmaContaSocios': mesmaContaSocios, 'viab-honorariosLegalizacao': honorariosLegalizacao, 
-      'viab-honorariosAssessoriaMensal': honorariosAssessoriaMensal, 'viab-valorJuntaCartorio': valorJuntaCartorio, 'viab-valorDpa': valorDpa, 
-      'viab-valorBombeiro': valorBombeiro, 'viab-valorLicencasMunicipais': valorLicencasMunicipais,
-      'viab-anexoComercio': anexoComercio, 'viab-anexoServico': anexoServico, 'viab-retiradaMensalLucro': retiradaMensalLucro
+      'viab-recebeContaPF': recebeContaPF, 'viab-mesmaContaSocios': mesmaContaSocios, 'viab-anexoComercio': anexoComercio, 'viab-anexoServico': anexoServico, 'viab-retiradaMensalLucro': retiradaMensalLucro
     };
     Object.entries(data).forEach(([key, val]) => { if (val !== undefined && val !== null) localStorage.setItem(key, val); });
     localStorage.setItem('viab-cnaes', JSON.stringify(cnaes));
-    if (aiReport) localStorage.setItem('viab-aiReport', aiReport);
-    else localStorage.removeItem('viab-aiReport');
-  }, [
-    razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios,
-    folhaPagamento, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual,
-    percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, 
-    sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, 
-    mesmaContaSocios, honorariosLegalizacao, honorariosAssessoriaMensal, valorJuntaCartorio, valorDpa, 
-    valorBombeiro, valorLicencasMunicipais, anexoComercio, anexoServico, retiradaMensalLucro, aiReport
-  ]);
+  }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, anexoComercio, anexoServico, retiradaMensalLucro]);
 
-  const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }]);
-  const removeCnae = (id: string) => { if (cnaes.length > 1) setCnaes(cnaes.filter(c => c.id !== id)); };
+  const handleSendToAI = async (environment: 'test' | 'production') => {
+    if (!atividades.trim() || !municipio.trim()) {
+      toast.error("Preencha Atividades e Município.");
+      return;
+    }
+    const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
+    if (!webhookUrl) return toast.error("Webhook não configurado.");
+
+    setIsLoading(true);
+    const startTime = performance.now();
+    try {
+      // PAYLOAD APENAS COM DADOS DE VIABILIDADE
+      const payload = {
+        razaoSocial, naturezaJuridica, classificacaoFiscal, capital, numSocios, numFuncionarios, folhaPagamento, municipio, estado, atividades, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, anexoComercio, anexoServico, retiradaMensalLucro,
+        cnaes: cnaes.map(c => `${c.code} - ${c.description}`).join(' | ')
+      };
+
+      const response = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await response.json();
+      setAiReport(data.report || data.output || data.text || "");
+      setExecutionTime((performance.now() - startTime) / 1000);
+      toast.success("Diagnóstico concluído!");
+    } catch (error: any) {
+      toast.error("Erro no envio: " + error.message);
+    } finally { setIsLoading(false); }
+  };
+
   const updateCnae = (id: string, field: keyof CnaeEntry, value: any) => {
     setCnaes(cnaes.map(c => {
       if (c.id === id) return { ...c, [field]: value };
@@ -164,204 +124,25 @@ const Viabilidade = () => {
     }));
   };
 
-  const handleSendToAI = async (environment: 'test' | 'production') => {
-    if (!atividades.trim() || !municipio.trim()) {
-      toast.error("Preencha pelo menos as Atividades e o Município.");
-      return;
-    }
-
-    const webhookUrl = environment === 'test' 
-      ? localStorage.getItem('jota-webhook-test') 
-      : localStorage.getItem('jota-webhook-prod');
-
-    if (!webhookUrl) {
-      toast.error(`Webhook de ${environment} não configurado nas Configurações.`);
-      return;
-    }
-
-    setIsLoading(true);
-    const startTime = performance.now();
-    const toastId = toast.loading(`Enviando para o n8n (${environment})...`);
-    
-    try {
-      // PAYLOAD PLANO E COMPLETO
-      const payload = {
-        razaoSocial,
-        naturezaJuridica,
-        classificacaoFiscal,
-        capital,
-        numSocios,
-        numFuncionarios,
-        folhaPagamento,
-        municipio,
-        estado,
-        atividades,
-        tributacaoSugerida,
-        businessIdea,
-        anoBase,
-        faturamentoAnual,
-        percentComercio,
-        percentServico,
-        fixosMensais,
-        variaveisPercentual,
-        aliquotaIss,
-        aliquotaIcms,
-        sociosRetiramValores,
-        sociosDeclaramProlabore,
-        valorProlabore,
-        sociosRecolhemInssIr,
-        recebeContaPF,
-        mesmaContaSocios,
-        honorariosLegalizacao,
-        honorariosAssessoriaMensal,
-        valorJuntaCartorio,
-        valorDpa,
-        valorBombeiro,
-        valorLicencasMunicipais,
-        anexoComercio,
-        anexoServico,
-        retiradaMensalLucro,
-        cnaes: cnaes.map(c => `${c.code} - ${c.description}`).join(' | ')
-      };
-
-      const response = await fetch(webhookUrl, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json' }, 
-        body: JSON.stringify(payload) 
-      });
-      
-      if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);
-      
-      const data = await response.json();
-      const duration = (performance.now() - startTime) / 1000;
-      setExecutionTime(duration);
-      
-      let reportText = data.report || data.output || data.text || "";
-      if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
-      
-      if (reportText) {
-        setAiReport(reportText);
-        toast.success(`Diagnóstico concluído!`, { id: toastId });
-      } else {
-        toast.info("Dados enviados com sucesso, mas o n8n não retornou texto.");
-      }
-
-    } catch (error: any) {
-      toast.error("Falha no envio", { id: toastId, description: error.message });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const formatCurrency = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
-
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      <Card className="shadow-card">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center gap-3 text-primary">
-            <Sparkles className="h-6 w-6" /> Análise de Viabilidade Profissional
-          </CardTitle>
-          <Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button>
-        </CardHeader>
-      </Card>
+      <Card className="shadow-card"><CardHeader className="flex flex-row items-center justify-between"><CardTitle className="flex items-center gap-3 text-primary"><Sparkles className="h-6 w-6" /> Análise de Viabilidade</CardTitle><Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button></CardHeader></Card>
 
-      {isLoading && (
-        <div className="rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 animate-pulse">
-          <Loader2 className="h-12 w-12 text-primary animate-spin" />
-          <div className="text-center">
-            <h3 className="text-lg font-bold text-primary">Enviando dados para a IA...</h3>
-            <p className="text-sm text-muted-foreground">Aguarde o processamento do relatório pelo n8n.</p>
-          </div>
-        </div>
-      )}
+      {isLoading && <div className="p-12 text-center animate-pulse"><Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" /><h3 className="text-lg font-bold">Processando Viabilidade...</h3></div>}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="space-y-6">
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={Building2} title="Identificação e Classificação" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Razão Social / Nome do Projeto</Label><Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} placeholder="Ex: Top Motos Ltda" /></div>
-                <div className="space-y-2"><Label>Ano Base</Label><Select value={anoBase} onValueChange={setAnoBase}><SelectTrigger><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger><SelectContent>{anosBase.map(ano => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Natureza Jurídica</Label><Select value={naturezaJuridica} onValueChange={setNaturezaJuridica}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent>{naturezasJuridicas.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Classificação Fiscal Explícita</Label><Select value={classificacaoFiscal} onValueChange={setClassificacaoFiscal}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{classificacoesFiscais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Capital Social (R$)</Label><Input type="number" value={capital} onChange={e => setCapital(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Município</Label><Input value={municipio} onChange={e => setMunicipio(e.target.value)} placeholder="Ex: Belém" /></div>
-                <div className="space-y-2"><Label>Estado (UF)</Label><Select value={estado} onValueChange={setEstado}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UFs.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2 md:col-span-2"><Label>Tributação Pretendida</Label><Select value={tributacaoSugerida} onValueChange={setTributacaoSugerida}><SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger><SelectContent><SelectItem value="Simples Nacional">Simples Nacional</SelectItem><SelectItem value="Simples Nacional (Híbrido)">Simples Nacional (Híbrido)</SelectItem><SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem><SelectItem value="Lucro Real">Lucro Real</SelectItem><SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem></SelectContent></Select></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={ListChecks} title="Estrutura de CNAEs" subtitle="Cadastre o CNAE principal e as atividades secundárias" />
-              <div className="space-y-4">
-                {cnaes.map((cnae) => (
-                  <div key={cnae.id} className="p-3 border rounded-md bg-muted/20 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={cnae.isPrimary ? "default" : "outline"} className="text-[10px]">{cnae.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>
-                        {!cnae.isPrimary && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => updateCnae(cnae.id, 'isPrimary', true)}>Tornar Principal</Button>}
-                      </div>
-                      {cnaes.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCnae(cnae.id)}><Trash2 className="h-4 w-4" /></Button>}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1"><Label className="text-[10px] uppercase">Código CNAE</Label><Input value={cnae.code} onChange={e => updateCnae(cnae.id, 'code', e.target.value)} placeholder="0000-0/00" className="h-8 text-xs" /></div>
-                      <div className="space-y-1 md:col-span-2"><Label className="text-[10px] uppercase">Descrição da Atividade</Label><Input value={cnae.description} onChange={e => updateCnae(cnae.id, 'description', e.target.value)} placeholder="Ex: Comércio varejista de..." className="h-8 text-xs" /></div>
-                    </div>
-                  </div>
-                ))}
-                <Button variant="outline" size="sm" className="w-full border-dashed" onClick={addCnae}><Plus className="h-4 w-4 mr-2" /> Adicionar CNAE Secundário</Button>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="p-6"><SectionTitle icon={Building2} title="Identificação" /><div className="grid grid-cols-1 md:grid-cols-2 gap-4"><div className="md:col-span-2 space-y-2"><Label>Razão Social</Label><Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} /></div><div className="space-y-2"><Label>Ano Base</Label><Select value={anoBase} onValueChange={setAnoBase}><SelectTrigger><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger><SelectContent>{anosBase.map(a => <SelectItem key={a} value={a}>{a}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Natureza Jurídica</Label><Select value={naturezaJuridica} onValueChange={setNaturezaJuridica}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{naturezasJuridicas.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div><div className="space-y-2"><Label>Capital Social</Label><Input type="number" value={capital} onChange={e => setCapital(e.target.value)} /></div><div className="space-y-2"><Label>Município</Label><Input value={municipio} onChange={e => setMunicipio(e.target.value)} /></div><div className="space-y-2"><Label>Estado (UF)</Label><Select value={estado} onValueChange={setEstado}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UFs.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}</SelectContent></Select></div></div></Card>
+          <Card className="p-6"><SectionTitle icon={ListChecks} title="CNAEs" />{cnaes.map(c => (<div key={c.id} className="p-3 border rounded-md mb-2 bg-muted/20 space-y-2"><div className="flex justify-between"><Badge variant={c.isPrimary ? "default" : "outline"}>{c.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>{cnaes.length > 1 && <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => setCnaes(cnaes.filter(x => x.id !== c.id))}><Trash2 className="h-4 w-4" /></Button>}</div><div className="grid grid-cols-3 gap-2"><Input value={c.code} onChange={e => updateCnae(c.id, 'code', e.target.value)} placeholder="Código" /><Input className="col-span-2" value={c.description} onChange={e => updateCnae(c.id, 'description', e.target.value)} placeholder="Atividade" /></div></div>))}<Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }])}><Plus className="h-4 w-4 mr-2" /> Adicionar</Button></Card>
         </div>
-
         <div className="space-y-6">
-          <Card className="shadow-card border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <SectionTitle icon={Gavel} title="Custos Operacionais e Faturamento" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual Estimado (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
-                <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
-                <div className="space-y-2"><Label>Segregação: Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-                <div className="space-y-2"><Label>Segregação: Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-                <div className="space-y-2"><Label>Alíquota ISS (%)</Label><Input type="number" value={aliquotaIss} onChange={e => setAliquotaIss(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Alíquota ICMS (%)</Label><Input type="number" value={aliquotaIcms} onChange={e => setAliquotaIcms(e.target.value)} /></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={ShieldQuestion} title="Folha e Sócios (Distribuição)" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Folha Salarial Mensal (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => setFolhaPagamento(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2 md:col-span-2"><Label>Retirada Mensal de Lucro (R$)</Label><Input type="number" value={retiradaMensalLucro} onChange={e => setRetiradaMensalLucro(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Recebe em conta PF ou PJ?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="Pessoa Física">Pessoa Física</SelectItem><SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem><SelectItem value="Ambos">Ambos</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Usa a mesma conta bancária?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-              </div>
-            </CardContent>
-          </Card>
+          <Card className="p-6 bg-primary/5 border-primary/20"><SectionTitle icon={Gavel} title="Financeiro" /><div className="grid grid-cols-2 gap-4"><div className="col-span-2 space-y-2"><Label>Faturamento Anual</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div><div className="space-y-2"><Label>Custos Fixos</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} /></div><div className="space-y-2"><Label>Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} /></div></div></Card>
+          <Card className="p-6"><SectionTitle icon={ShieldQuestion} title="Sócios e Folha" /><div className="grid grid-cols-2 gap-4"><div className="space-y-2"><Label>Folha Salarial</Label><Input type="number" value={folhaPagamento} onChange={e => setFolhaPagamento(e.target.value)} /></div><div className="space-y-2"><Label>Pró-labore</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div></div></Card>
         </div>
       </div>
-
-      <div className="mt-6 space-y-2"><Label className="font-semibold">Descrição Detalhada das Atividades</Label><Textarea value={atividades} onChange={(e) => setAtividades(e.target.value)} placeholder="Descreva detalhadamente o escopo do negócio..." className="min-h-[100px]" /></div>
-
-      <div className="text-center pt-4">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button size="lg" disabled={isLoading} className="bg-accent hover:bg-accent/90 px-12">{isLoading ? "Processando..." : "Gerar Diagnóstico com IA"}<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="center" className="w-56"><DropdownMenuItem onClick={() => handleSendToAI('test')} className="cursor-pointer"><Send className="h-4 w-4 mr-2" /> Ambiente de Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToAI('production')} className="cursor-pointer"><Send className="h-4 w-4 mr-2" /> Ambiente de Produção</DropdownMenuItem></DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
-      {aiReport && <div id="ai-report-section"><AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} clientName={razaoSocial} clientCity={municipio} clientState={estado} /></div>}
+      <Textarea value={atividades} onChange={e => setAtividades(e.target.value)} placeholder="Descrição do negócio..." className="min-h-[100px]" />
+      <div className="text-center"><DropdownMenu><DropdownMenuTrigger asChild><Button size="lg" className="bg-accent px-12">Gerar Diagnóstico IA <ChevronDown className="ml-2 h-4 w-4" /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onClick={() => handleSendToAI('test')}>Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToAI('production')}>Ambiente Produção</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+      {aiReport && <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} clientName={razaoSocial} clientCity={municipio} clientState={estado} />}
     </div>
   );
 };
