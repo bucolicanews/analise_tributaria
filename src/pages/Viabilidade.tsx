@@ -6,9 +6,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, DollarSign, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, Info } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
+import { getIrpfTables } from '@/lib/tax/irpfData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -103,9 +104,11 @@ const Viabilidade = () => {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const inssTables = useMemo(() => getInssTables(), []);
+  const irpfTables = useMemo(() => getIrpfTables(), []);
+  
   const currentInssTables = useMemo(() => inssTables.filter(t => t.year === anoBase), [inssTables, anoBase]);
+  const currentIrpfTables = useMemo(() => irpfTables.filter(t => t.year === anoBase), [irpfTables, anoBase]);
 
-  // --- LÓGICA DE TRAVA DE SEGREGAÇÃO (100%) ---
   const handleComercioChange = (val: string) => {
     const n = Math.min(100, Math.max(0, parseFloat(val) || 0));
     setPercentComercio(n.toString());
@@ -147,17 +150,7 @@ const Viabilidade = () => {
 
   const handleNewConsultation = () => {
     if (confirm("Deseja limpar todos os campos e iniciar uma nova consulta?")) {
-      const keysToRemove = [
-        'viab-razaoSocial', 'viab-naturezaJuridica', 'viab-capital', 'viab-cnaePrincipal', 
-        'viab-atividades', 'viab-numSocios', 'viab-numFuncionarios', 'viab-folhaPagamento', 
-        'viab-municipio', 'viab-estado', 'viab-tributacaoSugerida', 'viab-businessIdea', 
-        'viab-anoBase', 'viab-faturamentoAnual', 'viab-percentComercio', 'viab-percentServico', 
-        'viab-aliquotaIss', 'viab-aliquotaIcms', 'viab-sociosRetiramValores', 'viab-sociosDeclaramProlabore', 
-        'viab-valorProlabore', 'viab-sociosRecolhemInssIr', 'viab-recebeContaPF', 'viab-mesmaContaSocios',
-        'viab-honorariosLegalizacao', 'viab-honorariosAssessoriaMensal', 'viab-valorJuntaCartorio', 
-        'viab-valorDpa', 'viab-valorBombeiro', 'viab-valorLicencasMunicipais', 'viab-aiReport'
-      ];
-      keysToRemove.forEach(k => localStorage.removeItem(k));
+      localStorage.clear();
       window.location.reload();
     }
   };
@@ -274,34 +267,89 @@ const Viabilidade = () => {
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <Label>Valor do Pró-labore (R$)</Label>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-6 w-6 text-accent"><TableIcon className="h-3 w-3" /></Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-md">
-                        <DialogHeader><DialogTitle>Tabelas INSS - Ano {anoBase}</DialogTitle></DialogHeader>
-                        <div className="space-y-6 max-h-[400px] overflow-y-auto">
-                          {currentInssTables.length > 0 ? currentInssTables.map(table => (
-                            <div key={table.id} className="space-y-2">
-                              <h4 className="text-xs font-bold text-accent uppercase">{table.label}</h4>
-                              <Table>
-                                <TableHeader><TableRow><TableHead className="text-[10px]">De</TableHead><TableHead className="text-[10px]">Até</TableHead><TableHead className="text-[10px]">Aliq.</TableHead><TableHead className="text-[10px]">Dedução</TableHead></TableRow></TableHeader>
-                                <TableBody>
-                                  {table.ranges.map((r, i) => (
-                                    <TableRow key={i} className="text-[10px]">
-                                      <TableCell>{formatCurrency(r.min)}</TableCell>
-                                      <TableCell>{r.max ? formatCurrency(r.max) : 'Teto'}</TableCell>
-                                      <TableCell>{r.rate.toFixed(2)}%</TableCell>
-                                      <TableCell>{formatCurrency(r.deduction)}</TableCell>
-                                    </TableRow>
-                                  ))}
-                                </TableBody>
-                              </Table>
+                    <div className="flex gap-1">
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-accent" title="Tabelas INSS"><TableIcon className="h-3 w-3" /></Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-md">
+                          <DialogHeader><DialogTitle>Tabelas INSS - Ano {anoBase}</DialogTitle></DialogHeader>
+                          <div className="space-y-6 max-h-[400px] overflow-y-auto">
+                            {currentInssTables.length > 0 ? currentInssTables.map(table => (
+                              <div key={table.id} className="space-y-2">
+                                <h4 className="text-xs font-bold text-accent uppercase">{table.label}</h4>
+                                <Table>
+                                  <TableHeader><TableRow><TableHead className="text-[10px]">De</TableHead><TableHead className="text-[10px]">Até</TableHead><TableHead className="text-[10px]">Aliq.</TableHead><TableHead className="text-[10px]">Dedução</TableHead></TableRow></TableHeader>
+                                  <TableBody>
+                                    {table.ranges.map((r, i) => (
+                                      <TableRow key={i} className="text-[10px]">
+                                        <TableCell>{formatCurrency(r.min)}</TableCell>
+                                        <TableCell>{r.max ? formatCurrency(r.max) : 'Teto'}</TableCell>
+                                        <TableCell>{r.rate.toFixed(2)}%</TableCell>
+                                        <TableCell>{formatCurrency(r.deduction)}</TableCell>
+                                      </TableRow>
+                                    ))}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                            )) : <p className="text-sm text-muted-foreground">Nenhuma tabela INSS cadastrada para este ano.</p>}
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-blue-500" title="Tabelas IRPF"><Info className="h-3 w-3" /></Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-2xl">
+                          <DialogHeader><DialogTitle>Tabelas IRPF - Ano {anoBase}</DialogTitle></DialogHeader>
+                          <div className="space-y-6 max-h-[500px] overflow-y-auto">
+                            {currentIrpfTables.length > 0 ? currentIrpfTables.map(table => (
+                              <div key={table.id} className="space-y-4">
+                                <div className="space-y-2">
+                                  <h4 className="text-xs font-bold text-blue-600 uppercase">Tabela Progressiva Mensal</h4>
+                                  <Table>
+                                    <TableHeader><TableRow><TableHead className="text-[10px]">Base de Cálculo</TableHead><TableHead className="text-[10px]">Alíquota</TableHead><TableHead className="text-[10px]">Dedução</TableHead></TableRow></TableHeader>
+                                    <TableBody>
+                                      {table.ranges.map((r, i) => (
+                                        <TableRow key={i} className="text-[10px]">
+                                          <TableCell>{formatCurrency(r.min)} {r.max ? `a ${formatCurrency(r.max)}` : 'em diante'}</TableCell>
+                                          <TableCell>{r.rate > 0 ? `${r.rate.toFixed(2)}%` : 'Isento'}</TableCell>
+                                          <TableCell>{r.deduction > 0 ? formatCurrency(r.deduction) : '---'}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                                
+                                {table.reductionRules.length > 0 && (
+                                  <div className="space-y-2 p-3 bg-blue-50 rounded-md border border-blue-100">
+                                    <h4 className="text-xs font-bold text-blue-700 uppercase">Regras de Redução do Imposto</h4>
+                                    <div className="space-y-2">
+                                      {table.reductionRules.map((rule, ri) => (
+                                        <div key={ri} className="text-[10px] flex justify-between border-b border-blue-200 pb-1 last:border-0">
+                                          <span className="font-semibold">{formatCurrency(rule.min)} {rule.max ? `a ${formatCurrency(rule.max)}` : 'em diante'}:</span>
+                                          <span className="text-blue-800">{rule.description}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            )) : <p className="text-sm text-muted-foreground">Nenhuma tabela IRPF cadastrada para este ano.</p>}
+                            
+                            <div className="p-3 bg-yellow-50 rounded-md border border-yellow-100 text-[10px] text-yellow-800">
+                              <p className="font-bold mb-1">Observações Importantes:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>Critérios aplicáveis também ao 13º salário.</li>
+                                <li>Não afeta disposições relativas à tabela regressiva.</li>
+                                <li>Isenções por moléstia grave e parcela isenta 65+ (R$ 1.903,98) permanecem vigentes.</li>
+                              </ul>
                             </div>
-                          )) : <p className="text-sm text-muted-foreground">Nenhuma tabela cadastrada para este ano.</p>}
-                        </div>
-                      </DialogContent>
-                    </Dialog>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                   </div>
                   <Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} placeholder="Mínimo 1.412,00" />
                 </div>
