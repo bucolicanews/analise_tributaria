@@ -58,7 +58,6 @@ const Pricing = () => {
   const [isAgentsRunning, setIsAgentsRunning] = useState(false);
   const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
 
-  // Dados da empresa para o Relatório
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
   const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
@@ -110,7 +109,6 @@ const Pricing = () => {
       modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
     };
 
-    // CNAEs Estruturados
     let cnaes = [];
     try {
       cnaes = JSON.parse(localStorage.getItem('viab-cnaes') || '[]');
@@ -471,7 +469,10 @@ const Pricing = () => {
           }
           try {
             const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
-            const json = await res.json();
+            if (!res.ok) return;
+            const responseText = await res.text();
+            if (!responseText) return;
+            const json = JSON.parse(responseText);
             const arrived = json.agents || [];
             arrived.forEach((agent: any) => {
               setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
@@ -494,9 +495,12 @@ const Pricing = () => {
         body: JSON.stringify(payload),
       });
 
-      if (!response.ok) throw new Error("Erro na comunicação com a IA.");
+      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
 
-      const data = await response.json();
+      const responseText = await response.text();
+      if (!responseText) throw new Error("O servidor retornou uma resposta vazia.");
+      
+      const data = JSON.parse(responseText);
       const endTime = performance.now();
       const durationInSeconds = (endTime - startTime) / 1000;
       setExecutionTime(durationInSeconds);

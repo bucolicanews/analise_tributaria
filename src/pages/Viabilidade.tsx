@@ -117,7 +117,6 @@ const Viabilidade = () => {
   const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF'));
   const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios'));
   
-  // NOVOS CAMPOS ESTRUTURADOS
   const [anexoComercio, setAnexoComercio] = useState(() => getStored('viab-anexoComercio', 'Anexo I'));
   const [anexoServico, setAnexoServico] = useState(() => getStored('viab-anexoServico', 'Anexo III'));
   const [retiradaMensalLucro, setRetiradaMensalLucro] = useState(() => getStored('viab-retiradaMensalLucro', '0'));
@@ -219,7 +218,6 @@ const Viabilidade = () => {
       const pServico = parseFloat(percentServico) || 0;
       const folhaMensal = parseFloat(folhaPagamento) || 0;
       
-      // CÁLCULO FATOR R
       const totalFolhaAnual = (folhaMensal + proLaborePayload.valor_estimado) * 12;
       const fatorRPercent = totalFaturamentoAnual > 0 ? (totalFolhaAnual / totalFaturamentoAnual) * 100 : 0;
 
@@ -305,12 +303,21 @@ const Viabilidade = () => {
 
       const webhooks = { test: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794', production: 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794' };
       const response = await fetch(webhooks[environment], { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-      if (!response.ok) throw new Error("Erro na comunicação com a IA.");
-      const data = await response.json();
+      
+      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
+
+      const responseText = await response.text();
+      if (!responseText) throw new Error("O servidor retornou uma resposta vazia.");
+      
+      const data = JSON.parse(responseText);
       const duration = (performance.now() - startTime) / 1000;
       setExecutionTime(duration);
+      
       let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
       if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
+      
+      if (!reportText) throw new Error("Não foi possível extrair o relatório da resposta da IA.");
+
       setAiReport(reportText);
       toast.success(`Diagnóstico concluído!`, { id: toastId });
     } catch (error: any) {
