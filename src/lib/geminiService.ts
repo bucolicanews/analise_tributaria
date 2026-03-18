@@ -81,22 +81,33 @@ export async function callAgentWebhook(
 ): Promise<string> {
   if (!agent.webhookUrl) throw new Error(`Webhook não configurado para ${agent.nome}`);
 
+  let parsedPayload: any = {};
+  
+  // Tenta desempacotar o JSON para que o n8n receba as chaves na raiz do body
+  try {
+    parsedPayload = JSON.parse(userContent);
+  } catch (e) {
+    parsedPayload = { userContent };
+  }
+
+  const bodyToSend = {
+    agentName: agent.nome,
+    systemPrompt: agent.systemPrompt,
+    ...parsedPayload, // Adiciona empresa, operacional, etc., diretamente na raiz
+    ...(previousReports ? { previousReports } : {}),
+  };
+
   const response = await fetch(agent.webhookUrl.trim(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      agentName: agent.nome,
-      systemPrompt: agent.systemPrompt,
-      userContent,
-      ...(previousReports ? { previousReports } : {}),
-    }),
+    body: JSON.stringify(bodyToSend),
   });
 
   if (!response.ok) throw new Error(`Webhook Error: ${response.status}`);
 
   const data = await response.json();
   const report = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output;
-  if (!report) throw new Error("Resposta inválida do webhook.");
+  if (!report) throw new Error("Resposta inválida do webhook. O n8n precisa retornar um JSON com a chave 'report'.");
   return report;
 }
 

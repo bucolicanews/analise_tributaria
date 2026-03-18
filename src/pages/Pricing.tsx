@@ -46,6 +46,10 @@ const Pricing = () => {
   const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
   const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
+  const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
+  const accountantName = localStorage.getItem('jota-contador-nome') || '';
+  const accountantCrc = localStorage.getItem('jota-contador-crc') || '';
+
   useEffect(() => {
     const storedP = sessionStorage.getItem('jota-calc-purchase-products');
     const storedS = sessionStorage.getItem('jota-calc-params');
@@ -61,18 +65,27 @@ const Pricing = () => {
     const ano = params.anoBase || "2025";
     const inssTables = getInssTables();
     const irpfTables = getIrpfTables();
-    const minWages = getMinimumWages();
-    const currentMinWage = minWages.find(w => w.year === ano)?.value || 1621;
+    const currentMinWage = getMinimumWages().find(w => w.year === ano)?.value || 1621;
 
     // Recupera dados de viabilidade do localstorage para compor a estrutura "body"
     const cnaesRaw = localStorage.getItem('viab-cnaes');
     const cnaesList = cnaesRaw ? JSON.parse(cnaesRaw) : [];
 
+    // OBTENÇÃO DOS DADOS SALVOS NA VIABILIDADE PARA PREENCHER A ESTRUTURA
+    const viabRazaoSocial = localStorage.getItem('viab-razaoSocial') || companyName;
+    const viabNatureza = localStorage.getItem('viab-naturezaJuridica') || "";
+    const viabFaturamentoAnual = parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0");
+    const viabMunicipio = localStorage.getItem('viab-municipio') || "";
+    const viabEstado = localStorage.getItem('viab-estado') || "SP";
+    const viabAtividades = localStorage.getItem('viab-atividades') || "";
+    const viabNumSocios = parseInt(localStorage.getItem('viab-numSocios') || "1");
+    const viabNumFuncionarios = parseInt(localStorage.getItem('viab-numFuncionarios') || "0");
+
     return {
       agentName: agentName,
       contexto: {
         anoBase: ano,
-        objetivo: "Análise de Viabilidade e Operação Fiscal Detalhada",
+        objetivo: "Análise de Viabilidade, Planejamento Tributário e Precificação",
         ambiente: "production"
       },
       tabelasReferencia: {
@@ -81,25 +94,22 @@ const Pricing = () => {
         salario_minimo: currentMinWage
       },
       empresa: {
-        razaoSocial: localStorage.getItem('viab-razaoSocial') || "Não Informado",
-        naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || "Não Informado",
-        classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "Não Informado",
+        razaoSocial: viabRazaoSocial,
+        naturezaJuridica: viabNatureza,
+        classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "ME",
         capitalSocial: parseFloat(localStorage.getItem('viab-capital') || "0"),
-        numSocios: parseInt(localStorage.getItem('viab-numSocios') || "1"),
-        localizacao: { 
-          municipio: localStorage.getItem('viab-municipio') || "Não Informado", 
-          estado: localStorage.getItem('viab-estado') || "SP" 
-        },
+        numSocios: viabNumSocios,
+        localizacao: { municipio: viabMunicipio, estado: viabEstado },
         tributacaoPretendida: params.taxRegime
       },
       operacional: {
         cnaes: cnaesList.map((c: any) => ({ codigo: c.code, descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
-        descricaoAtividades: localStorage.getItem('viab-atividades') || "Não Informado",
+        descricaoAtividades: viabAtividades,
         ideiaNegocio: localStorage.getItem('viab-businessIdea') || ""
       },
       financeiro: {
         faturamento: {
-          anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
+          anual_total: viabFaturamentoAnual,
           mensal_precificacao: summary.totalSelling,
           segregacao: {
             comercio_percent: parseFloat(localStorage.getItem('viab-percentComercio') || "100"),
@@ -115,23 +125,30 @@ const Pricing = () => {
           margem_liquida_percent: summary.profitMarginPercent,
           carga_tributaria_efetiva: summary.totalTaxPercent,
           ponto_equilibrio: summary.breakEvenPoint,
-          amostra_produtos: calculatedProducts.slice(0, 5)
+          amostra_produtos: calculatedProducts.slice(0, 10)
         }
       },
       societario_trabalhista: {
         quadro_pessoal: {
-          num_funcionarios: parseInt(localStorage.getItem('viab-numFuncionarios') || "0"),
+          num_funcionarios: viabNumFuncionarios,
           folha_salarial_mensal: params.payroll
         },
         pro_labore: {
           valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
           valor_estimado: currentMinWage
         }
+      },
+      conformidade_riscos: {
+        recebe_vendas_conta_pf: localStorage.getItem('viab-recebeContaPF') === 'Pessoa Física',
+        mistura_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim'
       }
     };
   };
 
   const handleRunAgents = async () => {
+    const payload = getFullStructuredPayload("Agente de Planejamento e Precificação");
+    if (!payload) return toast.error("Calcule a precificação primeiro.");
+    
     const agentConfigs = loadAgentsFromStorage();
     if (agentConfigs.length === 0) return;
 
@@ -141,15 +158,15 @@ const Pricing = () => {
     const previousReports: Record<string, string> = {};
     const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
+    // Envia o JSON do payload completo para ser parseado na função `callAgentWebhook`
+    const userContent = JSON.stringify(payload, null, 2);
+
     for (const agent of agentConfigs.sort((a,b) => (a.order||0)-(b.order||0))) {
       setAgentStatuses(prev => prev.map(s => s.id === agent.id ? { ...s, status: 'loading' } : s));
       try {
-        const payload = getFullStructuredPayload(agent.nome);
-        if (!payload) throw new Error("Erro ao compor contexto.");
-
         const report = agent.webhookUrl?.trim() 
-          ? await callAgentWebhook(agent, JSON.stringify(payload), previousReports)
-          : await callGeminiAgent(agent.systemPrompt, JSON.stringify(payload) + "\n\nRelatórios: " + JSON.stringify(previousReports), apiKey);
+          ? await callAgentWebhook(agent, userContent, previousReports)
+          : await callGeminiAgent(agent.systemPrompt, userContent + "\n\nRelatórios anteriores: " + JSON.stringify(previousReports), apiKey);
         
         previousReports[agent.nome] = report;
         setAgentStatuses(prev => prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s));
@@ -181,14 +198,15 @@ const Pricing = () => {
   const { summary, calculatedProducts } = calculationResults;
 
   const handleSendToWebhook = async (env: 'test' | 'production') => {
-    const payload = getFullStructuredPayload("Auditoria de Precificação");
+    const payload = getFullStructuredPayload("Auditoria de Precificação IA");
     if (!payload) return;
     setIsSending(true);
     const url = env === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
     try {
       const res = await fetch(url!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error(`Erro de rede: ${res.status}`);
       const data = await res.json();
-      setAiReport(data.report || data.output || data.text || "");
+      setAiReport(data.report || data.output || data.text || "Relatório concluído com sucesso.");
       toast.success("Análise concluída!");
     } catch (err: any) { toast.error("Erro: " + err.message); } finally { setIsSending(false); }
   };
