@@ -76,7 +76,7 @@ const Viabilidade = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  // Persistência no localStorage — campos originais
+  // Persistência no localStorage
   useEffect(() => { localStorage.setItem('viab-razaoSocial', razaoSocial); }, [razaoSocial]);
   useEffect(() => { localStorage.setItem('viab-naturezaJuridica', naturezaJuridica); }, [naturezaJuridica]);
   useEffect(() => { localStorage.setItem('viab-capital', capital); }, [capital]);
@@ -88,8 +88,6 @@ const Viabilidade = () => {
   useEffect(() => { localStorage.setItem('viab-estado', estado); }, [estado]);
   useEffect(() => { localStorage.setItem('viab-tributacaoSugerida', tributacaoSugerida); }, [tributacaoSugerida]);
   useEffect(() => { localStorage.setItem('viab-businessIdea', businessIdea); }, [businessIdea]);
-
-  // Persistência no localStorage — novos campos
   useEffect(() => { localStorage.setItem('viab-faturamentoAnual', faturamentoAnual); }, [faturamentoAnual]);
   useEffect(() => { localStorage.setItem('viab-honorariosLegalizacao', honorariosLegalizacao); }, [honorariosLegalizacao]);
   useEffect(() => { localStorage.setItem('viab-honorariosAssessoriaMensal', honorariosAssessoriaMensal); }, [honorariosAssessoriaMensal]);
@@ -145,35 +143,50 @@ const Viabilidade = () => {
     const toastId = toast.loading(`Aguardando diagnóstico da IA (${environment})...`);
 
     try {
+      // MODELO PROFISSIONAL DE PAYLOAD (ESTRUTURADO)
       const payload = {
-        analise_simples: true,
-        // Dados da empresa
-        razaoSocial: razaoSocial || 'Não informado',
-        naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
-        capital: capital || 'Não informado',
-        numSocios: numSocios || 'Não informado',
-        numFuncionarios: numFuncionarios || 'Não informado',
-        folhaPagamento: folhaPagamento || 'Não informado',
-        municipio,
-        estado,
-        atividades,
-        tributacaoSugerida: tributacaoSugerida || 'Não informado / Sugerir',
-        businessIdea: businessIdea || 'Nenhuma descrição adicional fornecida.',
-        // Projeção financeira
-        faturamentoAnual: faturamentoAnual || 'Não informado',
-        // Custos de abertura e manutenção
-        honorariosLegalizacao: honorariosLegalizacao || 'Não informado',
-        honorariosAssessoriaMensal: honorariosAssessoriaMensal || 'Não informado',
-        valorJuntaCartorio: valorJuntaCartorio || 'Não informado',
-        valorDpa: valorDpa || 'Não informado',
-        valorBombeiro: valorBombeiro || 'Não informado',
-        valorLicencasMunicipais: valorLicencasMunicipais || 'Não informado',
-        // Comportamento financeiro dos sócios
-        sociosRetiramValores: sociosRetiramValores || 'Não informado',
-        sociosDeclaramProlabore: sociosDeclaramProlabore || 'Não informado',
-        sociosRecolhemInssIr: sociosRecolhemInssIr || 'Não informado',
-        recebeContaPF: recebeContaPF || 'Não informado',
-        mesmaContaSocios: mesmaContaSocios || 'Não informado',
+        agentName: "Análise de Viabilidade Tributária",
+        systemPrompt: "Você é um especialista sênior em direito tributário e contabilidade fiscal brasileira. Sua função é realizar uma análise técnica completa de viabilidade tributária para abertura ou regularização de empresas...",
+        empresa: {
+          razaoSocial: razaoSocial || 'Não informado',
+          naturezaJuridica: naturezaJuridica || 'Não informado / Sugerir',
+          capitalSocial: parseFloat(capital) || 0,
+          numSocios: parseInt(numSocios) || 1,
+          atividades: atividades,
+          tributacaoPretendida: tributacaoSugerida || 'Não informado / Sugerir',
+          descricaoAdicional: businessIdea || 'Nenhuma descrição adicional fornecida.'
+        },
+        financeiro: {
+          faturamentoMensalEstimado: (parseFloat(faturamentoAnual) || 0) / 12,
+          faturamentoAnualEstimado: parseFloat(faturamentoAnual) || 0,
+          custosAbertura: {
+            honorariosLegalizacao: parseFloat(honorariosLegalizacao) || 0,
+            juntaCartorio: parseFloat(valorJuntaCartorio) || 0,
+            dpa: parseFloat(valorDpa) || 0,
+            bombeiro: parseFloat(valorBombeiro) || 0,
+            licencasMunicipais: parseFloat(valorLicencasMunicipais) || 0
+          },
+          custosManutencao: {
+            honorariosAssessoriaMensal: parseFloat(honorariosAssessoriaMensal) || 0
+          }
+        },
+        folha: {
+          folhaPagamentoMensal: parseFloat(folhaPagamento) || 0,
+          numFuncionarios: parseInt(numFuncionarios) || 0,
+          comportamentoSocios: {
+            retiramValoresPF: sociosRetiramValores,
+            declaramProlabore: sociosDeclaramProlabore,
+            recolhemInssIr: sociosRecolhemInssIr
+          }
+        },
+        localizacao: {
+          municipio: municipio,
+          estado: estado
+        },
+        conformidade: {
+          recebeContaPF: recebeContaPF,
+          mesmaContaSocios: mesmaContaSocios
+        }
       };
 
       const webhooks = {

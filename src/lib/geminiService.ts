@@ -149,6 +149,8 @@ export async function callAgentWebhook(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        agentName: agent.nome,
+        systemPrompt: agent.systemPrompt,
         userContent,
         ...(previousReports && Object.keys(previousReports).length > 0 ? { previousReports } : {}),
       }),

@@ -153,6 +153,7 @@ const Pricing = () => {
     setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
     const previousReports: Record<string, string> = {};
+    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
 
     for (const agent of sorted) {
       setAgentStatuses(prev =>
@@ -336,16 +337,40 @@ const Pricing = () => {
     setIsSending(true);
     const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
 
-    // Gera sessionId único para esta execução
     const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
       const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-      const agentes = agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt }));
+      
+      // MODELO PROFISSIONAL DE PAYLOAD (ESTRUTURADO)
       const payload = {
-        ...precificacaoPayload,
+        agentName: "Auditoria Estratégica Global",
+        systemPrompt: "Você é um auditor fiscal sênior...",
+        empresa: {
+          razaoSocial: companyName,
+          cnpj: params.companyCnpj,
+          cnaes: params.companyCnaes?.split(','),
+          estado: params.companyState || "SP",
+          municipio: viabMunicipio
+        },
+        financeiro: {
+          faturamentoMensal: summary.totalSelling,
+          faturamentoAnualEstimado: summary.totalSelling * 12,
+          lucroLiquido: summary.totalProfit,
+          margemLiquida: summary.profitMarginPercent / 100,
+          pontoEquilibrio: summary.breakEvenPoint
+        },
+        folha: {
+          folhaPagamentoMensal: params.payroll,
+          inssPatronalRate: params.inssPatronalRate
+        },
+        tributos: {
+          regimeAtual: params.taxRegime,
+          cargaTributariaEfetiva: summary.totalTaxPercent / 100,
+          totalImpostosLiquidos: summary.totalTax
+        },
         viabilidade: buildViabilidadePayload(),
-        agentes,
+        agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
         sessionId,
         relayUrl: `${relayUrl}/agent-result`,
       };
@@ -358,7 +383,6 @@ const Pricing = () => {
       const webhookUrl = webhooks[environment];
       if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
 
-      // Inicializa linha do tempo com agentes em loading
       if (useRelay) {
         const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
           id: a.id,
@@ -371,10 +395,7 @@ const Pricing = () => {
         setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
       }
 
-      // Dispara o n8n sem aguardar resposta (fire and forget via relay)
-      // ou aguarda resposta direta se relay não estiver disponível
       let usedRelay = false;
-
       if (useRelay) {
         try {
           await fetch(`${relayUrl}/health`, { signal: AbortSignal.timeout(2000) });
@@ -385,7 +406,6 @@ const Pricing = () => {
       }
 
       if (usedRelay) {
-        // Envia para o n8n sem bloquear — o relay receberá as respostas
         fetch(webhookUrl, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -394,9 +414,8 @@ const Pricing = () => {
 
         toast.loading(`Aguardando agentes responderem...`, { id: toastId });
 
-        // Polling: consulta o relay a cada 2s
         const seenNames = new Set<string>();
-        const maxWait = 5 * 60 * 1000; // 5 minutos timeout
+        const maxWait = 5 * 60 * 1000; 
         const pollStart = Date.now();
 
         const poll = async (): Promise<void> => {
@@ -431,10 +450,7 @@ const Pricing = () => {
               setIsSending(false);
               return;
             }
-          } catch {
-            // relay indisponível momentaneamente, continua tentando
-          }
-
+          } catch { }
           setTimeout(poll, 2000);
         };
 
@@ -442,7 +458,6 @@ const Pricing = () => {
         return;
       }
 
-      // Fallback: sem relay — aguarda resposta direta do n8n (comportamento legado)
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
