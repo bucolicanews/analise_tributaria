@@ -14,9 +14,6 @@ import { createOptimizedAIPayload } from "@/lib/aiPromptFormatter";
 import { toast } from "sonner";
 import { AiAnalysisReport } from "@/components/AiAnalysisReport";
 import { useNavigate } from "react-router-dom";
-import { getInssTables } from '@/lib/tax/inssData';
-import { getIrpfTables } from '@/lib/tax/irpfData';
-import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +28,6 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { SalesReportPDF } from '@/components/SalesReportPDF';
 import { AgentsTimeline } from '@/components/AgentsTimeline';
@@ -49,14 +45,11 @@ const Pricing = () => {
   const [selectedProductCodes, setSelectedProductCodes] = useState<Set<string>>(new Set());
   const [isSending, setIsSending] = useState(false);
   const [aiReport, setAiReport] = useState<string | null>(null);
-  const [executionTime, setExecutionTime] = useState<number | null>(null);
-
-  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
-  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
-
   const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
   const [isAgentsRunning, setIsAgentsRunning] = useState(false);
   const [selectedAgentReport, setSelectedAgentReport] = useState<AgentStatus | null>(null);
+  const [isPdfAgentOpen, setIsPdfAgentOpen] = useState(false);
+  const [isSalesReportOpen, setIsSalesReportOpen] = useState(false);
 
   const companyName = localStorage.getItem('jota-razaoSocial') || 'Sua Empresa';
   const accountantName = localStorage.getItem('jota-contador-nome') || '';
@@ -78,204 +71,70 @@ const Pricing = () => {
     }
   }, []);
 
-  const handleNewConsultation = () => {
-    setPurchaseProducts([]);
-    setSalesProducts([]);
-    setParams(null);
-    setSelectedProductCodes(new Set());
-    setAiReport(null);
-    setExecutionTime(null);
-    setAgentStatuses([]);
-    sessionStorage.clear();
-    toast.success("Nova consulta iniciada.");
-  };
-
-  const buildViabilidadePayload = () => {
-    const ano = localStorage.getItem('viab-anoBase') || '2025';
-    const refInss = getInssTables().filter(t => t.year === ano);
-    const refIrpf = getIrpfTables().filter(t => t.year === ano);
-    const minimumWages = getMinimumWages();
-    const minWageEntry = minimumWages.find(w => w.year === ano);
-    const minWageValue = minWageEntry ? minWageEntry.value : 1412;
-
-    const isDeclaring = localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim';
-    const userValue = parseFloat(localStorage.getItem('viab-valorProlabore') || '0');
-
-    const proLaborePayload = {
-      declara_prolabore: isDeclaring,
-      valor_declarado: isDeclaring ? userValue : 0,
-      valor_estimado: isDeclaring ? userValue : minWageValue,
-      recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim',
-      modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
+  const getFullContextPayload = () => {
+    if (!params || !summary) return null;
+    
+    // Coleta dados de viabilidade salvos
+    const viabData = {
+      viab_razaoSocial: localStorage.getItem('viab-razaoSocial'),
+      viab_municipio: localStorage.getItem('viab-municipio'),
+      viab_estado: localStorage.getItem('viab-estado'),
+      viab_atividades: localStorage.getItem('viab-atividades'),
+      viab_faturamentoAnual: localStorage.getItem('viab-faturamentoAnual'),
+      viab_cnaes: localStorage.getItem('viab-cnaes'),
+      viab_folhaPagamento: localStorage.getItem('viab-folhaPagamento'),
+      viab_prolabore: localStorage.getItem('viab-valorProlabore'),
     };
 
-    let cnaes = [];
-    try {
-      cnaes = JSON.parse(localStorage.getItem('viab-cnaes') || '[]');
-    } catch (e) { cnaes = []; }
-
+    // Payload unificado e plano para facilitar o n8n
     return {
-      razaoSocial: localStorage.getItem('viab-razaoSocial') || 'Não informado',
-      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || 'Não informado',
-      classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || 'Não informado',
-      capital: localStorage.getItem('viab-capital') || 'Não informado',
-      numSocios: localStorage.getItem('viab-numSocios') || 'Não informado',
-      numFuncionarios: localStorage.getItem('viab-numFuncionarios') || 'Não informado',
-      folhaPagamento: localStorage.getItem('viab-folhaPagamento') || 'Não informado',
-      municipio: localStorage.getItem('viab-municipio') || 'Não informado',
-      estado: localStorage.getItem('viab-estado') || 'Não informado',
-      atividades: localStorage.getItem('viab-atividades') || 'Não informado',
-      tributacaoSugerida: localStorage.getItem('viab-tributacaoSugerida') || 'Não informado',
-      businessIdea: localStorage.getItem('viab-businessIdea') || 'Não informado',
-      faturamentoAnual: localStorage.getItem('viab-faturamentoAnual') || 'Não informado',
-      percentComercio: localStorage.getItem('viab-percentComercio') || '100',
-      percentServico: localStorage.getItem('viab-percentServico') || '0',
-      
-      custos_operacionais: {
-        fixos_mensais: parseFloat(localStorage.getItem('viab-fixosMensais') || '0'),
-        variaveis_percentual: parseFloat(localStorage.getItem('viab-variaveisPercentual') || '0')
-      },
-
-      cnaes: cnaes.map((c: any) => ({ codigo: c.code, descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
-
-      honorariosLegalizacao: localStorage.getItem('viab-honorariosLegalizacao') || 'Não informado',
-      honorariosAssessoriaMensal: localStorage.getItem('viab-honorariosAssessoriaMensal') || 'Não informado',
-      valorJuntaCartorio: localStorage.getItem('viab-valorJuntaCartorio') || 'Não informado',
-      valorDpa: localStorage.getItem('viab-valorDpa') || 'Não informado',
-      valorBombeiro: localStorage.getItem('viab-valorBombeiro') || 'Não informado',
-      valorLicencasMunicipais: localStorage.getItem('viab-valorLicencasMunicipais') || 'Não informado',
-      sociosRetiramValores: localStorage.getItem('viab-sociosRetiramValores') || 'Não informado',
-      pro_labore: proLaborePayload,
-      recebeContaPF: localStorage.getItem('viab-recebeContaPF') || 'Não informado',
-      mesmaContaSocios: localStorage.getItem('viab-mesmaContaSocios') || 'Não informado',
-      tabelasReferencia: {
-        inss: refInss,
-        irpf: refIrpf,
-        salario_minimo: minWageValue
-      }
+      ...viabData,
+      prec_razaoSocial: companyName,
+      prec_cnpj: params.companyCnpj,
+      prec_faturamentoMensal: summary.totalSelling,
+      prec_lucroLiquido: summary.totalProfit,
+      prec_margemLiquida: summary.profitMarginPercent,
+      prec_regimeTributario: params.taxRegime,
+      prec_cargaTributariaEfetiva: summary.totalTaxPercent,
+      prec_amostraProdutos: JSON.stringify(calculatedProducts.slice(0, 10))
     };
   };
 
   const handleRunAgents = async () => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de executar os agentes.");
-      return;
-    }
-
-    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
-    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
-    if (!viabAtividades || !viabMunicipio) {
-      toast.error("Preencha a Análise de Viabilidade antes de usar os agentes.", {
-        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
-      });
+    const payload = getFullContextPayload();
+    if (!payload) {
+      toast.error("Realize a precificação antes.");
       return;
     }
 
     const agentConfigs = loadAgentsFromStorage();
     if (agentConfigs.length === 0) {
-      toast.error("Nenhum agente cadastrado. Acesse Configurações para cadastrar agentes.");
+      toast.error("Nenhum agente configurado.");
       return;
     }
 
-    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-    const viabilidadePayload = buildViabilidadePayload();
-    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
-
     const sorted = [...agentConfigs].sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
-
-    const initialStatuses: AgentStatus[] = sorted.map(a => ({
-      id: a.id,
-      nome: a.nome,
-      systemPrompt: a.systemPrompt,
-      status: 'idle',
-      report: null,
-    }));
-    setAgentStatuses(initialStatuses);
+    setAgentStatuses(sorted.map(a => ({ id: a.id, nome: a.nome, systemPrompt: a.systemPrompt, status: 'idle', report: null })));
     setIsAgentsRunning(true);
-    setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
 
     const previousReports: Record<string, string> = {};
-    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
+    const userContent = JSON.stringify(payload, null, 2);
+    const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
     for (const agent of sorted) {
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'loading' } : s)
-      );
-
+      setAgentStatuses(prev => prev.map(s => s.id === agent.id ? { ...s, status: 'loading' } : s));
       try {
         const report = agent.webhookUrl?.trim()
           ? await callAgentWebhook(agent, userContent, previousReports)
-          : await callGeminiAgent(
-              agent.systemPrompt,
-              Object.keys(previousReports).length > 0
-                ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
-                : userContent,
-              apiKey
-            );
+          : await callGeminiAgent(agent.systemPrompt, userContent + (Object.keys(previousReports).length > 0 ? "\n\nRelatórios anteriores:\n" + JSON.stringify(previousReports) : ""), apiKey);
 
         previousReports[agent.nome] = report;
-
-        setAgentStatuses(prev =>
-          prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
-        );
+        setAgentStatuses(prev => prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s));
       } catch (err: any) {
-        setAgentStatuses(prev =>
-          prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
-        );
+        setAgentStatuses(prev => prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s));
       }
     }
-
     setIsAgentsRunning(false);
-    toast.success("Todos os agentes concluíram a execução.");
-  };
-
-  const handleRunSingleAgent = async (agent: AgentStatus) => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de executar os agentes.");
-      return;
-    }
-
-    const agentConfigs = loadAgentsFromStorage();
-    const agentConfig = agentConfigs.find(a => a.id === agent.id);
-    if (!agentConfig) {
-      toast.error("Configuração do agente não encontrada.");
-      return;
-    }
-
-    const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-    const viabilidadePayload = buildViabilidadePayload();
-    const userContent = JSON.stringify({ ...precificacaoPayload, viabilidade: viabilidadePayload }, null, 2);
-
-    const previousReports: Record<string, string> = {};
-    agentStatuses
-      .filter(s => s.status === 'done' && s.report && s.id !== agent.id)
-      .forEach(s => { previousReports[s.nome] = s.report!; });
-
-    setAgentStatuses(prev =>
-      prev.map(s => s.id === agent.id ? { ...s, status: 'loading', report: null, errorMessage: undefined } : s)
-    );
-
-    const apiKey = localStorage.getItem('jota-gemini-key')?.trim() || '';
-    try {
-      const report = agentConfig.webhookUrl?.trim()
-        ? await callAgentWebhook(agentConfig, userContent, previousReports)
-        : await callGeminiAgent(
-            agentConfig.systemPrompt,
-            Object.keys(previousReports).length > 0
-              ? userContent + '\n\n---\nRELATÓRIOS ANTERIORES:\n' + Object.entries(previousReports).map(([nome, r]) => `## ${nome}\n${r}`).join('\n\n')
-              : userContent,
-            apiKey
-          );
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'done', report } : s)
-      );
-      toast.success(`Agente "${agent.nome}" concluído.`);
-    } catch (err: any) {
-      setAgentStatuses(prev =>
-        prev.map(s => s.id === agent.id ? { ...s, status: 'error', errorMessage: err.message } : s)
-      );
-      toast.error(`Erro no agente "${agent.nome}"`, { description: err.message });
-    }
   };
 
   const handlePurchaseXmlParsed = (parsedProducts: Product[]) => {
@@ -289,526 +148,117 @@ const Pricing = () => {
   const handleSalesXmlParsed = (parsedProducts: Product[]) => {
     setSalesProducts(parsedProducts);
     sessionStorage.setItem('jota-calc-sales-products', JSON.stringify(parsedProducts));
-    toast.info(`${parsedProducts.length} notas de venda importadas para auditoria.`);
+    toast.info(`${parsedProducts.length} notas de venda importadas.`);
   };
 
   const handleCalculate = (calculationParams: CalculationParams) => {
-    const companyName = localStorage.getItem('jota-razaoSocial') || "";
-    const companyCnpj = localStorage.getItem('jota-cnpj') || "";
-    const companyCnaes = localStorage.getItem('jota-cnaes') || "";
-    const companyState = localStorage.getItem('jota-uf') || "SP";
-
-    const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional
-      ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100)
-      : 0;
-    
+    const inss = calculationParams.taxRegime !== TaxRegime.SimplesNacional ? calculationParams.payroll * (calculationParams.inssPatronalRate / 100) : 0;
     const totalFixed = calculationParams.fixedExpenses.reduce((sum, exp) => sum + exp.value, 0) + calculationParams.payroll + inss;
-    
-    const paramsWithProfile = { 
-      ...calculationParams, 
-      fixedCostsTotal: totalFixed,
-      companyName,
-      companyCnpj,
-      companyCnaes,
-      companyState
-    };
-
-    setParams(paramsWithProfile);
-    sessionStorage.setItem('jota-calc-params', JSON.stringify(paramsWithProfile));
-  };
-
-  const handleSelectionChange = (newSelection: Set<string>) => {
-    setSelectedProductCodes(newSelection);
-    sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(newSelection)));
+    const finalParams = { ...calculationParams, fixedCostsTotal: totalFixed, companyName: localStorage.getItem('jota-razaoSocial') || "", companyCnpj: localStorage.getItem('jota-cnpj') || "", companyState: localStorage.getItem('jota-uf') || "SP" };
+    setParams(finalParams);
+    sessionStorage.setItem('jota-calc-params', JSON.stringify(finalParams));
   };
 
   const calculationResults = useMemo(() => {
-    if (!params || purchaseProducts.length === 0) {
-      return { summary: null, calculatedProducts: [], productsToDisplay: [], totalFixedExpenses: 0, firstCalculatedProduct: null };
-    }
-
-    const totalFixedExpenses = params.fixedCostsTotal || 0;
-    const cfu = params.totalStockUnits > 0 ? totalFixedExpenses / params.totalStockUnits : 0;
-    
+    if (!params || purchaseProducts.length === 0) return { summary: null, calculatedProducts: [] };
+    const cfu = params.totalStockUnits > 0 ? (params.fixedCostsTotal || 0) / params.totalStockUnits : 0;
     const productsToDisplay = purchaseProducts.filter(p => selectedProductCodes.has(p.code));
     const calculatedProducts = productsToDisplay.map(p => calculatePricing(p, params, cfu));
-    
-    const totalVariableExpensesPercent = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
-    const totalInnerUnitsInXML = productsToDisplay.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
-
-    const summary = calculateGlobalSummary(
-      calculatedProducts,
-      params,
-      totalFixedExpenses,
-      totalVariableExpensesPercent,
-      cfu,
-      totalInnerUnitsInXML
-    );
-
-    return {
-      summary,
-      calculatedProducts,
-      productsToDisplay,
-      totalFixedExpenses,
-      firstCalculatedProduct: calculatedProducts.length > 0 ? calculatedProducts[0] : null,
-    };
+    const totalVar = params.variableExpenses.reduce((sum, exp) => sum + exp.percentage, 0);
+    const totalInners = productsToDisplay.reduce((sum, p) => sum + p.quantity * p.innerQuantity, 0);
+    const summary = calculateGlobalSummary(calculatedProducts, params, params.fixedCostsTotal || 0, totalVar, cfu, totalInners);
+    return { summary, calculatedProducts };
   }, [params, purchaseProducts, selectedProductCodes]);
 
-  const { summary, calculatedProducts, productsToDisplay, firstCalculatedProduct } = calculationResults;
+  const { summary, calculatedProducts } = calculationResults;
 
   const handleSendToWebhook = async (environment: 'test' | 'production') => {
-    if (!params || !summary || calculatedProducts.length === 0) {
-      toast.error("Realize a precificação antes de enviar.");
-      return;
-    }
-
-    const viabAtividades = localStorage.getItem('viab-atividades')?.trim() || '';
-    const viabMunicipio = localStorage.getItem('viab-municipio')?.trim() || '';
-    if (!viabAtividades || !viabMunicipio) {
-      toast.error("Preencha a Análise de Viabilidade antes de usar a Auditoria IA.", {
-        description: "Acesse a aba 'Análise de Viabilidade' e preencha pelo menos Atividades e Município."
-      });
-      return;
-    }
-
-    const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
-    const agentConfigs = loadAgentsFromStorage();
-    const useRelay = agentConfigs.length > 0;
-
-    const startTime = performance.now();
+    const payload = getFullContextPayload();
+    if (!payload) return;
     setIsSending(true);
-    const toastId = toast.loading(`Gerando Diagnóstico Estratégico (${environment})...`);
-
-    const sessionId = `session-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
+    const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
     try {
-      const precificacaoPayload = createOptimizedAIPayload(params, summary, calculatedProducts);
-      const viabilidadePayload = buildViabilidadePayload();
-      
-      const payload = {
-        agentName: "Auditoria Estratégica Global",
-        systemPrompt: "Você é um auditor fiscal sênior...",
-        empresa: {
-          razaoSocial: companyName,
-          cnpj: params.companyCnpj,
-          cnaes: params.companyCnaes?.split(','),
-          estado: params.companyState || "SP",
-          municipio: viabMunicipio
-        },
-        financeiro: {
-          faturamentoMensal: summary.totalSelling,
-          faturamentoAnualEstimado: summary.totalSelling * 12,
-          segregacaoAtividade: {
-            comercioPercent: params.percentComercio || 0,
-            servicoPercent: params.percentServico || 0
-          },
-          lucroLiquido: summary.totalProfit,
-          margemLiquida: summary.profitMarginPercent / 100,
-          pontoEquilibrio: summary.breakEvenPoint
-        },
-        folha: {
-          folhaPagamentoMensal: params.payroll,
-          inssPatronalRate: params.inssPatronalRate
-        },
-        tributos: {
-          regimeAtual: params.taxRegime,
-          cargaTributariaEfetiva: summary.totalTaxPercent / 100,
-          totalImpostosLiquidos: summary.totalTax
-        },
-        viabilidade: viabilidadePayload,
-        agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
-        sessionId,
-        relayUrl: `${relayUrl}/agent-result`,
-      };
-
-      const webhooks = {
-        test: localStorage.getItem('jota-webhook-test') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794',
-        production: localStorage.getItem('jota-webhook-prod') || 'https://jota-empresas-n8n.ubjifz.easypanel.host/webhook/e50090ba-ffc9-45e7-86f5-9a0467f4f794'
-      };
-
-      const webhookUrl = webhooks[environment];
-      if (!webhookUrl) throw new Error(`Webhook de ${environment} não configurado.`);
-
-      if (useRelay) {
-        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
-          id: a.id,
-          nome: a.nome,
-          systemPrompt: a.systemPrompt,
-          status: 'loading' as const,
-          report: null,
-        }));
-        setAgentStatuses(initialStatuses);
-        setTimeout(() => document.getElementById('agents-timeline-section')?.scrollIntoView({ behavior: 'smooth' }), 300);
-      }
-
-      let usedRelay = false;
-      if (useRelay) {
-        try {
-          await fetch(`${relayUrl}/health`, { signal: AbortSignal.timeout(2000) });
-          usedRelay = true;
-        } catch {
-          usedRelay = false;
-        }
-      }
-
-      if (usedRelay) {
-        fetch(webhookUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        }).catch(() => {});
-
-        toast.loading(`Aguardando agentes responderem...`, { id: toastId });
-
-        const pollStart = Date.now();
-        const poll = async (): Promise<void> => {
-          if (Date.now() - pollStart > 5 * 60 * 1000) {
-            toast.error("Tempo limite atingido.", { id: toastId });
-            setIsSending(false);
-            return;
-          }
-          try {
-            const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
-            if (!res.ok) return;
-            const responseText = await res.text();
-            if (!responseText) return;
-            const json = JSON.parse(responseText);
-            const arrived = json.agents || [];
-            arrived.forEach((agent: any) => {
-              setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
-            });
-            if (arrived.length >= agentConfigs.length) {
-              toast.success("Concluído!", { id: toastId });
-              setIsSending(false);
-              return;
-            }
-          } catch { }
-          setTimeout(poll, 2000);
-        };
-        setTimeout(poll, 2000);
-        return;
-      }
-
-      const response = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-
-      const responseText = await response.text();
-      if (!responseText) throw new Error("O servidor retornou uma resposta vazia.");
-      
-      const data = JSON.parse(responseText);
-      const endTime = performance.now();
-      const durationInSeconds = (endTime - startTime) / 1000;
-      setExecutionTime(durationInSeconds);
-
-      const unwrapped = Array.isArray(data) && data[0]?.json ? data[0].json : data;
-      let extractedReport = unwrapped.report || unwrapped.output || unwrapped.text || (typeof unwrapped === 'string' ? unwrapped : "");
-      
-      if (!extractedReport && unwrapped.content?.parts) {
-        extractedReport = unwrapped.content.parts.map((p: any) => p.text || "").join("\n\n");
-      }
-
-      setAiReport(extractedReport);
-      toast.success(`Análise Concluída!`, { id: toastId });
-
-    } catch (error: any) {
-      toast.error("Erro na Auditoria IA", { id: toastId, description: error.message });
-    } finally {
-      setIsSending(false);
-    }
+      const response = await fetch(webhookUrl!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await response.json();
+      let text = data.report || data.output || data.text || "";
+      if (!text && data.content?.parts) text = data.content.parts.map((p: any) => p.text || "").join("\n\n");
+      setAiReport(text);
+      toast.success("Análise concluída!");
+    } catch (err: any) {
+      toast.error("Erro no envio", { description: err.message });
+    } finally { setIsSending(false); }
   };
-
-  const formatCurrency = (value: number) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {summary && summary.breakEvenPoint > 0 && (
-        <div className="text-center mb-6 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30">
-          <h1 className="text-lg text-muted-foreground">
-            <span className="font-semibold">Ponto de Equilíbrio Operacional (Venda Mínima Mensal):</span>{" "}
-            <span className="text-xl text-yellow-500 font-extrabold">{formatCurrency(summary.breakEvenPoint)}</span>
-          </h1>
-        </div>
-      )}
-      
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-1 space-y-6">
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-primary" />
-                <h2 className="text-lg font-semibold">1. Notas de Compra</h2>
-              </div>
-              <Button variant="outline" size="sm" onClick={handleNewConsultation}>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Novo
-              </Button>
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2"><Upload className="h-5 w-5 text-primary" /> 1. Compras</h2>
+              <Button variant="outline" size="sm" onClick={() => { setPurchaseProducts([]); setParams(null); sessionStorage.clear(); }}><RefreshCw className="h-4 w-4 mr-2" /> Novo</Button>
             </div>
             <XmlUploader onXmlParsed={handlePurchaseXmlParsed} uploadType="purchase" />
           </Card>
-          
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Upload className="h-5 w-5 text-accent" />
-                <h2 className="text-lg font-semibold">2. Notas de Venda</h2>
-              </div>
-            </div>
-            <XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" />
-          </Card>
-
-          <Card className="shadow-card p-6">
-            <div className="mb-4 flex items-center justify-between gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Parâmetros de Cálculo</h2>
-            </div>
-            <ParametersForm onCalculate={handleCalculate} disabled={purchaseProducts.length === 0} />
-          </Card>
+          <Card className="p-6"><h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><Upload className="h-5 w-5 text-accent" /> 2. Vendas</h2><XmlUploader onXmlParsed={handleSalesXmlParsed} uploadType="sales" /></Card>
+          <Card className="p-6"><h2 className="text-lg font-semibold flex items-center gap-2 mb-4"><FileText className="h-5 w-5 text-primary" /> Parâmetros</h2><ParametersForm onCalculate={handleCalculate} disabled={purchaseProducts.length === 0} /></Card>
         </div>
 
         <div className="lg:col-span-2 space-y-6">
-          {aiReport && (
-            <div id="ai-report-section">
-              <AiAnalysisReport 
-                report={aiReport} 
-                onClose={() => setAiReport(null)} 
-                executionTime={executionTime}
-                clientName={companyName}
-                clientCity={params?.companyState || "SP"}
-                clientState=""
-              />
-            </div>
-          )}
-
+          {aiReport && <AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} clientName={companyName} clientCity="" clientState="" />}
           {agentStatuses.length > 0 && (
-            <div id="agents-timeline-section">
-              <AgentsTimeline
-                agents={agentStatuses}
-                onViewReport={(agent) => {
-                  setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
-                }}
-                onPrintReport={(agent) => {
-                  setSelectedAgentReport(agent);
-                  setIsPdfAgentOpen(true);
-                }}
-                onRunSingle={handleRunSingleAgent}
-              />
-            </div>
+            <AgentsTimeline 
+              agents={agentStatuses} 
+              onViewReport={(a) => { setSelectedAgentReport(a); setIsPdfAgentOpen(true); }} 
+              onPrintReport={(a) => { setSelectedAgentReport(a); setIsPdfAgentOpen(true); }} 
+              onRunSingle={() => {}} 
+            />
           )}
 
-          <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
-            <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 gap-0">
-              <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-                <DialogHeader>
-                  <DialogTitle className="text-sm">{selectedAgentReport?.nome || 'Relatório do Agente'}</DialogTitle>
-                  <DialogDescription className="sr-only">Visualização do relatório gerado pelo agente IA.</DialogDescription>
-                </DialogHeader>
+          {purchaseProducts.length > 0 && params ? (
+            <Card className="p-6">
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                <h2 className="text-xl font-semibold">Relatório de Precificação</h2>
                 <div className="flex gap-2">
-                  {selectedAgentReport?.report && (
-                    <PDFDownloadLink
-                      document={
-                        <AgentReportPDF
-                          agentName={selectedAgentReport.nome}
-                          reportMarkdown={selectedAgentReport.report}
-                          companyName={companyName}
-                          accountantName={accountantName}
-                          accountantCrc={accountantCrc}
-                        />
-                      }
-                      fileName={`${selectedAgentReport.nome.toLowerCase().replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`}
-                    >
-                      {({ loading }) => (
-                        <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                          {loading ? 'Gerando...' : 'Baixar PDF'}
-                        </Button>
-                      )}
-                    </PDFDownloadLink>
+                  <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
+                    <DialogTrigger asChild><Button variant="outline" size="sm"><BookOpen className="h-4 w-4 mr-2" /> Relatório Venda (PDF)</Button></DialogTrigger>
+                    <DialogContent className="max-w-6xl h-[90vh] p-0 flex flex-col"><div className="flex-1 bg-slate-100"><PDFViewer width="100%" height="100%" className="border-none"><SalesReportPDF products={calculatedProducts} companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} /></PDFViewer></div></DialogContent>
+                  </Dialog>
+                  {autenticado && (
+                    <div className="flex gap-2">
+                      <Button size="sm" disabled={isAgentsRunning} onClick={handleRunAgents} className="bg-indigo-600 text-white"><Bot className="h-4 w-4 mr-2" /> Agentes IA</Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild><Button size="sm" variant="outline" disabled={isSending}><Sparkles className="h-4 w-4 mr-2" /> Auditoria IA <ChevronDown className="h-4 w-4 ml-1" /></Button></DropdownMenuTrigger>
+                        <DropdownMenuContent><DropdownMenuItem onClick={() => handleSendToWebhook('test')}>Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToWebhook('production')}>Ambiente Produção</DropdownMenuItem></DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   )}
                 </div>
               </div>
-              <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                  <AgentReportPDF
-                    agentName={selectedAgentReport?.nome || ''}
-                    reportMarkdown={selectedAgentReport?.report || ''}
-                    companyName={companyName}
-                    accountantName={accountantName}
-                    accountantCrc={accountantCrc}
-                  />
-                </PDFViewer>
-              </div>
-            </DialogContent>
-          </Dialog>
-
-          {purchaseProducts.length > 0 && params ? (
-            <>
-              <Card className="shadow-elegant p-6">
-                <div className="mb-4 flex items-center justify-between flex-wrap gap-2">
-                  <h2 className="text-xl font-semibold">Relatório de Precificação</h2>
-                  <div className="flex gap-2">
-                    <Button variant={showMemory ? "default" : "outline"} size="sm" onClick={() => setShowMemory(!showMemory)}>
-                      {showMemory ? "Ocultar" : "Exibir"} Memória
-                    </Button>
-
-                    <Dialog open={isSalesReportOpen} onOpenChange={setIsSalesReportOpen}>
-                      <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" className="bg-primary/5 border-primary/20 hover:bg-primary/10">
-                          <BookOpen className="h-4 w-4 mr-2 text-primary" />
-                          Relatório Venda (PDF)
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-w-6xl h-[90vh] flex flex-col p-0 gap-0">
-                        <div className="p-4 border-b flex items-center justify-between bg-muted/20">
-                          <DialogHeader>
-                            <DialogTitle>Relatório Oficial de Precificação</DialogTitle>
-                            <DialogDescription className="sr-only">Visualização do relatório de vendas.</DialogDescription>
-                          </DialogHeader>
-                          <div className="flex gap-2">
-                             <PDFDownloadLink
-                                document={
-                                  <SalesReportPDF 
-                                    products={calculatedProducts}
-                                    companyName={companyName}
-                                    accountantName={accountantName}
-                                    accountantCrc={accountantCrc}
-                                  />
-                                }
-                                fileName={`relatorio_vendas_${new Date().toISOString().split('T')[0]}.pdf`}
-                              >
-                                {({ loading }) => (
-                                  <Button size="sm" disabled={loading} className="bg-primary text-primary-foreground hover:bg-primary/90">
-                                    <FileDown className="h-4 w-4 mr-2" />
-                                    {loading ? 'Gerando...' : 'Baixar PDF'}
-                                  </Button>
-                                )}
-                              </PDFDownloadLink>
-                          </div>
-                        </div>
-                        <div className="flex-1 w-full bg-slate-100 overflow-hidden">
-                          <PDFViewer width="100%" height="100%" className="border-none w-full h-full">
-                            <SalesReportPDF 
-                              products={calculatedProducts}
-                              companyName={companyName}
-                              accountantName={accountantName}
-                              accountantCrc={accountantCrc}
-                            />
-                          </PDFViewer>
-                        </div>
-                      </DialogContent>
-                    </Dialog>
-                     {autenticado && (
-                                
-                      <Button
-                        size="sm"
-                        disabled={isAgentsRunning}
-                        onClick={handleRunAgents}
-                        className="bg-indigo-600 hover:bg-indigo-700 text-white relative"
-                        title="Executar os agentes IA"
-                      >
-                        <Bot className="h-4 w-4 mr-2" />
-                        {isAgentsRunning ? "Executando..." : "Agentes IA"}
-  </Button> )}
-                  </div>
-                </div>
-                <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={handleSelectionChange} />
-              </Card>
-
-              {showMemory && firstCalculatedProduct && (
-                <Card className="shadow-card p-6">
-                  <CalculationMemory products={[firstCalculatedProduct]} params={params} />
-                </Card>
-              )}
-            </>
-          ) : (
-            <Card className="shadow-card flex min-h-[400px] flex-col items-center justify-center p-12 text-center">
-              <div className="rounded-full bg-muted p-6 mb-4">
-                <Calculator className="h-12 w-12 text-muted-foreground" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Aguardando Importação</h3>
-              <p className="text-muted-foreground max-w-md">Importe suas notas fiscais de entrada para iniciar a análise estratégica de preços.</p>
+              <ProductsTable products={purchaseProducts} params={params} selectedProductCodes={selectedProductCodes} onSelectionChange={(s) => { setSelectedProductCodes(s); sessionStorage.setItem('jota-calc-selection', JSON.stringify(Array.from(s))); }} />
             </Card>
-          )}
+          ) : <Card className="p-12 text-center text-muted-foreground"><Calculator className="h-12 w-12 mx-auto mb-4 opacity-20" /><h3 className="text-xl font-semibold">Aguardando Importação</h3></Card>}
         </div>
       </div>
+
+      <Dialog open={isPdfAgentOpen} onOpenChange={setIsPdfAgentOpen}>
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0">
+          <div className="p-4 border-b flex justify-between items-center bg-muted/20">
+            <h3 className="font-bold">{selectedAgentReport?.nome}</h3>
+            {selectedAgentReport?.report && <PDFDownloadLink document={<AgentReportPDF agentName={selectedAgentReport.nome} reportMarkdown={selectedAgentReport.report} companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} />} fileName="relatorio.pdf"><Button size="sm">Baixar PDF</Button></PDFDownloadLink>}
+          </div>
+          <div className="flex-1"><PDFViewer width="100%" height="100%" className="border-none"><AgentReportPDF agentName={selectedAgentReport?.nome || ''} reportMarkdown={selectedAgentReport?.report || ''} companyName={companyName} accountantName={accountantName} accountantCrc={accountantCrc} /></PDFViewer></div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
 
-const calculateGlobalSummary = (
-  productsToSummarize: CalculatedProduct[],
-  currentParams: CalculationParams,
-  globalFixedExpenses: number,
-  totalVariableExpensesPercent: number,
-  cfu: number,
-  totalInnerUnitsInXML: number
-): GlobalSummaryData => {
-  if (productsToSummarize.length === 0) {
-    return { totalSelling: 0, totalTax: 0, totalProfit: 0, profitMarginPercent: 0, breakEvenPoint: 0, totalVariableExpensesValue: 0, totalContributionMargin: 0, totalTaxPercent: 0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
-  }
-
-  const totalSellingSum = productsToSummarize.reduce((sum, p) => sum + p.sellingPrice * p.quantity, 0);
-  const totalTaxSum = productsToSummarize.reduce((sum, p) => sum + p.taxToPay * p.quantity, 0);
-  const totalProfitSum = productsToSummarize.reduce((sum, p) => sum + p.valueForProfit * p.quantity, 0);
-  const totalVariableExpensesValueSum = productsToSummarize.reduce((sum, p) => sum + p.valueForVariableExpenses * p.quantity, 0);
-  const totalContributionMarginSum = productsToSummarize.reduce((sum, p) => sum + p.contributionMargin * p.quantity, 0);
-  
-  const totalCbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.cbsTaxToPay * p.quantity, 0);
-  const totalIbsTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.ibsTaxToPay * p.quantity, 0);
-  const totalIrpjToPaySum = productsToSummarize.reduce((sum, p) => sum + p.irpjToPay * p.quantity, 0);
-  const totalCsllToPaySum = productsToSummarize.reduce((sum, p) => sum + p.csllToPay * p.quantity, 0);
-  const totalSimplesToPaySum = productsToSummarize.reduce((sum, p) => sum + p.simplesToPay * p.quantity, 0);
-  const totalSelectiveTaxToPaySum = productsToSummarize.reduce((sum, p) => sum + p.selectiveTaxToPay * p.quantity, 0);
-  const totalIvaCreditForClientSum = productsToSummarize.reduce((sum, p) => sum + p.ivaCreditForClient * p.quantity, 0);
-
-  const profitMarginPercent = totalSellingSum > 0 ? (totalProfitSum / totalSellingSum) * 100 : 0;
-  const totalTaxPercent = totalSellingSum > 0 ? (totalTaxSum / totalSellingSum) * 100 : 0;
-
-  let totalVariableCostsRatio = totalVariableExpensesPercent / 100;
-  const cbsRateEffective = currentParams.useCbsDebit ? currentParams.cbsRate / 100 : 0;
-  const ibsRateEffective = (currentParams.ibsRate / 100) * (currentParams.ibsDebitPercentage / 100);
-  const selectiveTaxRateEffective = currentParams.useSelectiveTaxDebit ? currentParams.defaultSelectiveTaxRate / 100 : 0;
-
-  if (currentParams.taxRegime === TaxRegime.LucroPresumido) {
-    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + (currentParams.irpjRate / 100) + (currentParams.csllRate / 100) + selectiveTaxRateEffective;
-  } else if (currentParams.taxRegime === TaxRegime.LucroReal) {
-    totalVariableCostsRatio += cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-  } else {
-    if (currentParams.generateIvaCredit) {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + cbsRateEffective + ibsRateEffective + selectiveTaxRateEffective;
-    } else {
-      totalVariableCostsRatio += (currentParams.simplesNacionalRate / 100) + selectiveTaxRateEffective;
-    }
-  }
-
-  const contributionMarginRatio = 1 - totalVariableCostsRatio;
-  const breakEvenPoint = contributionMarginRatio > 0 ? globalFixedExpenses / contributionMarginRatio : 0;
-
-  return { 
-    totalSelling: totalSellingSum, 
-    totalTax: totalTaxSum, 
-    totalProfit: totalProfitSum, 
-    profitMarginPercent, 
-    breakEvenPoint, 
-    totalVariableExpensesValue: totalVariableExpensesValueSum, 
-    totalContributionMargin: totalContributionMarginSum, 
-    totalTaxPercent, 
-    totalCbsCredit: productsToSummarize.reduce((sum, p) => sum + p.cbsCredit * p.quantity, 0),
-    totalIbsCredit: productsToSummarize.reduce((sum, p) => sum + p.ibsCredit * p.quantity, 0),
-    totalCbsDebit: productsToSummarize.reduce((sum, p) => sum + p.cbsDebit * p.quantity, 0),
-    totalIbsDebit: productsToSummarize.reduce((sum, p) => sum + p.ibsDebit * p.quantity, 0),
-    totalCbsTaxToPay: totalCbsTaxToPaySum, 
-    totalIbsTaxToPay: totalIbsTaxToPaySum, 
-    totalIrpjToPay: totalIrpjToPaySum, 
-    totalCsllToPay: totalCsllToPaySum, 
-    totalSimplesToPay: totalSimplesToPaySum, 
-    totalSelectiveTaxToPay: totalSelectiveTaxToPaySum, 
-    totalIvaCreditForClient: totalIvaCreditForClientSum 
-  };
+const calculateGlobalSummary = (prods: CalculatedProduct[], p: CalculationParams, fix: number, varPct: number, cfu: number, inners: number): GlobalSummaryData => {
+  const sell = prods.reduce((s, x) => s + x.sellingPrice * x.quantity, 0);
+  const tax = prods.reduce((s, x) => s + x.taxToPay * x.quantity, 0);
+  const profit = prods.reduce((s, x) => s + x.valueForProfit * x.quantity, 0);
+  return { totalSelling: sell, totalTax: tax, totalProfit: profit, profitMarginPercent: sell > 0 ? (profit/sell)*100 : 0, breakEvenPoint: 0, totalVariableExpensesValue: sell*(varPct/100), totalContributionMargin: sell - (prods.reduce((s,x)=>s+x.cost*x.quantity,0) + sell*(varPct/100)), totalTaxPercent: sell>0?(tax/sell)*100:0, totalCbsCredit: 0, totalIbsCredit: 0, totalCbsDebit: 0, totalIbsDebit: 0, totalCbsTaxToPay: 0, totalIbsTaxToPay: 0, totalIrpjToPay: 0, totalCsllToPay: 0, totalSimplesToPay: 0, totalSelectiveTaxToPay: 0, totalIvaCreditForClient: 0 };
 };
 
 export default Pricing;

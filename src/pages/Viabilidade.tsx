@@ -84,12 +84,10 @@ const Viabilidade = () => {
   const [naturezaJuridica, setNaturezaJuridica] = useState(() => getStored('viab-naturezaJuridica'));
   const [classificacaoFiscal, setClassificacaoFiscal] = useState(() => getStored('viab-classificacaoFiscal', 'Microempresa (ME)'));
   const [capital, setCapital] = useState(() => getStored('viab-capital'));
-  
   const [cnaes, setCnaes] = useState<CnaeEntry[]>(() => {
     const saved = localStorage.getItem('viab-cnaes');
     return saved ? JSON.parse(saved) : [{ id: '1', code: '', description: '', isPrimary: true }];
   });
-
   const [atividades, setAtividades] = useState(() => getStored('viab-atividades'));
   const [numSocios, setNumSocios] = useState(() => getStored('viab-numSocios', '1'));
   const [numFuncionarios, setNumFuncionarios] = useState(() => getStored('viab-numFuncionarios', '0'));
@@ -99,28 +97,22 @@ const Viabilidade = () => {
   const [tributacaoSugerida, setTributacaoSugerida] = useState(() => getStored('viab-tributacaoSugerida'));
   const [businessIdea, setBusinessIdea] = useState(() => getStored('viab-businessIdea'));
   const [anoBase, setAnoBase] = useState(() => getStored('viab-anoBase', '2025'));
-
   const [faturamentoAnual, setFaturamentoAnual] = useState(() => getStored('viab-faturamentoAnual'));
   const [percentComercio, setPercentComercio] = useState(() => getStored('viab-percentComercio', '100'));
   const [percentServico, setPercentServico] = useState(() => getStored('viab-percentServico', '0'));
-  
   const [fixosMensais, setFixosMensais] = useState(() => getStored('viab-fixosMensais', '3000'));
   const [variaveisPercentual, setVariaveisPercentual] = useState(() => getStored('viab-variaveisPercentual', '35'));
-
   const [aliquotaIss, setAliquotaIss] = useState(() => getStored('viab-aliquotaIss', '5'));
   const [aliquotaIcms, setAliquotaIcms] = useState(() => getStored('viab-aliquotaIcms', '18'));
-
   const [sociosRetiramValores, setSociosRetiramValores] = useState(() => getStored('viab-sociosRetiramValores'));
   const [sociosDeclaramProlabore, setSociosDeclaramProlabore] = useState(() => getStored('viab-sociosDeclaramProlabore'));
   const [valorProlabore, setValorProlabore] = useState(() => getStored('viab-valorProlabore'));
   const [sociosRecolhemInssIr, setSociosRecolhemInssIr] = useState(() => getStored('viab-sociosRecolhemInssIr'));
   const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF'));
   const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios'));
-  
   const [anexoComercio, setAnexoComercio] = useState(() => getStored('viab-anexoComercio', 'Anexo I'));
   const [anexoServico, setAnexoServico] = useState(() => getStored('viab-anexoServico', 'Anexo III'));
   const [retiradaMensalLucro, setRetiradaMensalLucro] = useState(() => getStored('viab-retiradaMensalLucro', '0'));
-
   const [honorariosLegalizacao, setHonorariosLegalizacao] = useState(() => getStored('viab-honorariosLegalizacao'));
   const [honorariosAssessoriaMensal, setHonorariosAssessoriaMensal] = useState(() => getStored('viab-honorariosAssessoriaMensal'));
   const [valorJuntaCartorio, setValorJuntaCartorio] = useState(() => getStored('viab-valorJuntaCartorio'));
@@ -133,31 +125,7 @@ const Viabilidade = () => {
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
   const inssTables = useMemo(() => getInssTables(), []);
-  const irpfTables = useMemo(() => getIrpfTables(), []);
-  const minimumWages = useMemo(() => getMinimumWages(), []);
-  
   const currentInssTables = useMemo(() => inssTables.filter(t => t.year === anoBase), [inssTables, anoBase]);
-
-  const addCnae = () => {
-    setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }]);
-  };
-
-  const removeCnae = (id: string) => {
-    if (cnaes.length > 1) {
-      setCnaes(cnaes.filter(c => c.id !== id));
-    }
-  };
-
-  const updateCnae = (id: string, field: keyof CnaeEntry, value: any) => {
-    setCnaes(cnaes.map(c => {
-      if (c.id === id) {
-        if (field === 'isPrimary' && value === true) return { ...c, [field]: value };
-        return { ...c, [field]: value };
-      }
-      if (field === 'isPrimary' && value === true) return { ...c, isPrimary: false };
-      return c;
-    }));
-  };
 
   useEffect(() => {
     const data: Record<string, string> = {
@@ -186,13 +154,22 @@ const Viabilidade = () => {
     valorBombeiro, valorLicencasMunicipais, anexoComercio, anexoServico, retiradaMensalLucro, aiReport
   ]);
 
+  const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }]);
+  const removeCnae = (id: string) => { if (cnaes.length > 1) setCnaes(cnaes.filter(c => c.id !== id)); };
+  const updateCnae = (id: string, field: keyof CnaeEntry, value: any) => {
+    setCnaes(cnaes.map(c => {
+      if (c.id === id) return { ...c, [field]: value };
+      if (field === 'isPrimary' && value === true) return { ...c, isPrimary: false };
+      return c;
+    }));
+  };
+
   const handleSendToAI = async (environment: 'test' | 'production') => {
     if (!atividades.trim() || !municipio.trim()) {
       toast.error("Preencha pelo menos as Atividades e o Município.");
       return;
     }
 
-    // CORREÇÃO: Usando as chaves de Webhook corretas da Configuração
     const webhookUrl = environment === 'test' 
       ? localStorage.getItem('jota-webhook-test') 
       : localStorage.getItem('jota-webhook-prod');
@@ -204,10 +181,10 @@ const Viabilidade = () => {
 
     setIsLoading(true);
     const startTime = performance.now();
-    const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
+    const toastId = toast.loading(`Enviando para o n8n (${environment})...`);
     
     try {
-      // REVERTENDO PARA PAYLOAD PLANO (COMO ESTAVA ANTES)
+      // PAYLOAD PLANO E COMPLETO
       const payload = {
         razaoSocial,
         naturezaJuridica,
@@ -253,35 +230,24 @@ const Viabilidade = () => {
         body: JSON.stringify(payload) 
       });
       
-      const responseText = await response.text();
-
-      if (!response.ok) {
-        let errorMsg = "Erro na comunicação com a IA.";
-        try {
-          const errorJson = JSON.parse(responseText);
-          errorMsg = errorJson.errorMessage || errorMsg;
-        } catch { }
-        throw new Error(errorMsg);
-      }
+      if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);
       
-      if (responseText) {
-        const data = JSON.parse(responseText);
-        const duration = (performance.now() - startTime) / 1000;
-        setExecutionTime(duration);
-        
-        let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
-        if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
-        
-        if (reportText) {
-          setAiReport(reportText);
-          toast.success(`Diagnóstico concluído!`, { id: toastId });
-        } else {
-          throw new Error("O servidor não retornou um relatório válido.");
-        }
+      const data = await response.json();
+      const duration = (performance.now() - startTime) / 1000;
+      setExecutionTime(duration);
+      
+      let reportText = data.report || data.output || data.text || "";
+      if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
+      
+      if (reportText) {
+        setAiReport(reportText);
+        toast.success(`Diagnóstico concluído!`, { id: toastId });
+      } else {
+        toast.info("Dados enviados com sucesso, mas o n8n não retornou texto.");
       }
 
     } catch (error: any) {
-      toast.error("Falha na análise", { id: toastId, description: error.message });
+      toast.error("Falha no envio", { id: toastId, description: error.message });
     } finally {
       setIsLoading(false);
     }
@@ -304,8 +270,8 @@ const Viabilidade = () => {
         <div className="rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 animate-pulse">
           <Loader2 className="h-12 w-12 text-primary animate-spin" />
           <div className="text-center">
-            <h3 className="text-lg font-bold text-primary">Processando Diagnóstico...</h3>
-            <p className="text-sm text-muted-foreground">Aguarde enquanto nossa IA analisa os dados fiscais e societários.</p>
+            <h3 className="text-lg font-bold text-primary">Enviando dados para a IA...</h3>
+            <p className="text-sm text-muted-foreground">Aguarde o processamento do relatório pelo n8n.</p>
           </div>
         </div>
       )}
@@ -332,7 +298,7 @@ const Viabilidade = () => {
             <CardContent className="pt-6">
               <SectionTitle icon={ListChecks} title="Estrutura de CNAEs" subtitle="Cadastre o CNAE principal e as atividades secundárias" />
               <div className="space-y-4">
-                {cnaes.map((cnae, idx) => (
+                {cnaes.map((cnae) => (
                   <div key={cnae.id} className="p-3 border rounded-md bg-muted/20 space-y-3">
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
@@ -363,12 +329,8 @@ const Viabilidade = () => {
                 <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Segregação: Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
                 <div className="space-y-2"><Label>Segregação: Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-                
-                <div className="space-y-2"><Label>Anexo Comércio (Simples)</Label><Select value={anexoComercio} onValueChange={setAnexoComercio}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Anexo I">Anexo I (Comércio)</SelectItem><SelectItem value="Anexo II">Anexo II (Indústria)</SelectItem></SelectContent></Select></div>
-                <div className="space-y-2"><Label>Anexo Serviço (Simples)</Label><Select value={anexoServico} onValueChange={setAnexoServico}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Anexo III">Anexo III (Serviços)</SelectItem><SelectItem value="Anexo IV">Anexo IV (Serviços)</SelectItem><SelectItem value="Anexo V">Anexo V (Serviços)</SelectItem></SelectContent></Select></div>
-                
-                <div className="space-y-2"><Label>Alíquota ISS Município (%)</Label><Input type="number" value={aliquotaIss} onChange={e => setAliquotaIss(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Alíquota ICMS Estado (%)</Label><Input type="number" value={aliquotaIcms} onChange={e => setAliquotaIcms(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Alíquota ISS (%)</Label><Input type="number" value={aliquotaIss} onChange={e => setAliquotaIss(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Alíquota ICMS (%)</Label><Input type="number" value={aliquotaIcms} onChange={e => setAliquotaIcms(e.target.value)} /></div>
               </div>
             </CardContent>
           </Card>
@@ -379,62 +341,11 @@ const Viabilidade = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2"><Label>Folha Salarial Mensal (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => setFolhaPagamento(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label>Valor do Pró-labore (R$)</Label>
-                    <div className="flex gap-1">
-                      <Dialog>
-                        <DialogTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-accent" title="Tabelas INSS"><TableIcon className="h-3 w-3" /></Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-md">
-                          <DialogHeader><DialogTitle>Tabelas INSS - Ano {anoBase}</DialogTitle></DialogHeader>
-                          <div className="space-y-6 max-h-[400px] overflow-y-auto">
-                            {currentInssTables.length > 0 ? currentInssTables.map(table => (
-                              <div key={table.id} className="space-y-2">
-                                <h4 className="text-xs font-bold text-accent uppercase">{table.label}</h4>
-                                <Table>
-                                  <TableHeader><TableRow><TableHead className="text-[10px]">De</TableHead><TableHead className="text-[10px]">Até</TableHead><TableHead className="text-[10px]">Aliq.</TableHead><TableHead className="text-[10px]">Dedução</TableHead></TableRow></TableHeader>
-                                  <TableBody>
-                                    {table.ranges.map((r, i) => (
-                                      <TableRow key={i} className="text-[10px]">
-                                        <TableCell>{formatCurrency(r.min)}</TableCell>
-                                        <TableCell>{r.max ? formatCurrency(r.max) : 'Teto'}</TableCell>
-                                        <TableCell>{r.rate.toFixed(2)}%</TableCell>
-                                        <TableCell>{formatCurrency(r.deduction)}</TableCell>
-                                      </TableRow>
-                                    ))}
-                                  </TableBody>
-                                </Table>
-                              </div>
-                            )) : <p className="text-sm text-muted-foreground">Nenhuma tabela INSS cadastrada para este ano.</p>}
-                          </div>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </div>
-                  <Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} placeholder="Mínimo 1.412,00" />
-                </div>
+                <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                
-                <div className="space-y-2"><Label>Retirada Mensal de Lucro (R$)</Label><Input type="number" value={retiradaMensalLucro} onChange={e => setRetiradaMensalLucro(e.target.value)} className="border-emerald-200 bg-emerald-50/30" /></div>
-                <div className="space-y-2"><Label>Retiram valores p/ conta PF?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                
-                <div className="space-y-2"><Label>Recebe em conta PF ou PJ?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="Pessoa Física">Pessoa Física</SelectItem><SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem><SelectItem value="Ambos">Ambos</SelectItem><SelectItem value="Não sei">Não sei</SelectItem></SelectContent></Select></div>
+                <div className="space-y-2 md:col-span-2"><Label>Retirada Mensal de Lucro (R$)</Label><Input type="number" value={retiradaMensalLucro} onChange={e => setRetiradaMensalLucro(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Recebe em conta PF ou PJ?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="Pessoa Física">Pessoa Física</SelectItem><SelectItem value="Pessoa Jurídica">Pessoa Jurídica</SelectItem><SelectItem value="Ambos">Ambos</SelectItem></SelectContent></Select></div>
                 <div className="space-y-2"><Label>Usa a mesma conta bancária?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNaoNaoSei.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                {mesmaContaSocios === 'Sim' && <div className="md:col-span-2"><p className="text-[10px] text-destructive font-bold mt-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" /> ALERTA: Risco de Confusão Patrimonial Identificado.</p></div>}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={Zap} title="Custos de Abertura e Manutenção" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Honorários Legalização (R$)</Label><Input type="number" value={honorariosLegalizacao} onChange={e => setHonorariosLegalizacao(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Assessoria Mensal (R$)</Label><Input type="number" value={honorariosAssessoriaMensal} onChange={e => setHonorariosAssessoriaMensal(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Junta/Cartório (R$)</Label><Input type="number" value={valorJuntaCartorio} onChange={e => setValorJuntaCartorio(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Bombeiro/Licenças (R$)</Label><Input type="number" value={valorBombeiro} onChange={e => setValorBombeiro(e.target.value)} /></div>
               </div>
             </CardContent>
           </Card>
@@ -445,7 +356,7 @@ const Viabilidade = () => {
 
       <div className="text-center pt-4">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button size="lg" disabled={isLoading} className="bg-accent hover:bg-accent/90 px-12">{isLoading ? "Processando Diagnóstico..." : "Gerar Diagnóstico com IA"}<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger>
+          <DropdownMenuTrigger asChild><Button size="lg" disabled={isLoading} className="bg-accent hover:bg-accent/90 px-12">{isLoading ? "Processando..." : "Gerar Diagnóstico com IA"}<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger>
           <DropdownMenuContent align="center" className="w-56"><DropdownMenuItem onClick={() => handleSendToAI('test')} className="cursor-pointer"><Send className="h-4 w-4 mr-2" /> Ambiente de Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToAI('production')} className="cursor-pointer"><Send className="h-4 w-4 mr-2" /> Ambiente de Produção</DropdownMenuItem></DropdownMenuContent>
         </DropdownMenu>
       </div>
