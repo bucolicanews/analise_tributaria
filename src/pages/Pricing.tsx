@@ -58,7 +58,7 @@ const Pricing = () => {
     if (storedSel) setSelectedProductCodes(new Set(JSON.parse(storedSel)));
   }, []);
 
-  const getFullStructuredPayload = () => {
+  const getFullStructuredPayload = (environment: 'test' | 'production', webhookUrl: string) => {
     if (!params || !summary) return null;
     
     const ano = params.anoBase || "2025";
@@ -71,12 +71,14 @@ const Pricing = () => {
     const cnaesList = cnaesRaw ? JSON.parse(cnaesRaw) : [];
 
     return {
-      // OBRIGAMOS O agentName a ser exatamente o que funciona no n8n do usuário
+      meta: {
+        webhookUrl: webhookUrl,
+        executionMode: environment
+      },
       agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
       contexto: {
         anoBase: ano,
-        objetivo: "Análise de Viabilidade, Planejamento Tributário e Precificação",
-        ambiente: "production"
+        objetivo: "Análise de Viabilidade, Planejamento Tributário e Precificação"
       },
       tabelasReferencia: {
         inss: inssTables.filter(t => t.year === ano),
@@ -153,7 +155,7 @@ const Pricing = () => {
   };
 
   const handleRunAgents = async () => {
-    const payload = getFullStructuredPayload();
+    const payload = getFullStructuredPayload('production', '');
     if (!payload) return toast.error("Calcule a precificação primeiro.");
     
     const agentConfigs = loadAgentsFromStorage();
@@ -165,7 +167,6 @@ const Pricing = () => {
     const previousReports: Record<string, string> = {};
     const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-    // Envia o JSON com todas as propriedades na raiz. Se a IA/Webhook sobrescrever algo, preservamos as raízes principais.
     const userContent = JSON.stringify(payload, null, 2);
 
     for (const agent of agentConfigs.sort((a,b) => (a.order||0)-(b.order||0))) {
@@ -205,12 +206,15 @@ const Pricing = () => {
   const { summary, calculatedProducts } = calculationResults;
 
   const handleSendToWebhook = async (env: 'test' | 'production') => {
-    const payload = getFullStructuredPayload();
-    if (!payload) return;
-    setIsSending(true);
     const url = env === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
+    if (!url) return toast.error(`Webhook de ${env} não configurado.`);
+    
+    const payload = getFullStructuredPayload(env, url);
+    if (!payload) return;
+    
+    setIsSending(true);
     try {
-      const res = await fetch(url!, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!res.ok) throw new Error(`Erro de rede: ${res.status}`);
       const data = await res.json();
       setAiReport(data.report || data.output || data.text || "Relatório concluído com sucesso.");

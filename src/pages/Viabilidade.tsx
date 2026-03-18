@@ -29,7 +29,6 @@ const SectionTitle = ({ icon: Icon, title, subtitle }: { icon: React.ElementType
   </div>
 );
 
-// Função Helper para formatar o nome da cidade (Ex: "belém" -> "Belém")
 const formatCityName = (city: string) => {
   if (!city) return "";
   return city.toLowerCase().replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
@@ -116,18 +115,20 @@ const Viabilidade = () => {
     const irpfTables = getIrpfTables();
     const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
 
-    // Converte os valores financeiros para cálculos
     const faturamentoNum = parseFloat(faturamentoAnual) || 0;
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
 
     try {
       const payload = {
+        meta: {
+          webhookUrl: webhookUrl,
+          executionMode: environment
+        },
         agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
         contexto: {
           anoBase: anoBase,
-          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial",
-          ambiente: environment // Remove a duplicação do executionMode lá embaixo
+          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial"
         },
         tabelasReferencia: {
           inss: inssTables.filter(t => t.year === anoBase),
@@ -149,7 +150,7 @@ const Viabilidade = () => {
         operacional: {
           cnaes: cnaes.map(c => {
             const trimmedCode = c.code.trim();
-            const cleanCode = trimmedCode.replace(/\D/g, ''); // Remove tudo que não for número
+            const cleanCode = trimmedCode.replace(/\D/g, '');
             return {
               codigo_formatado: trimmedCode,
               codigo_limpo: cleanCode,
@@ -206,8 +207,7 @@ const Viabilidade = () => {
             retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
             risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
           }
-        },
-        webhookUrl: webhookUrl
+        }
       };
 
       const response = await fetch(webhookUrl, { 
