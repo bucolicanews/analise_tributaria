@@ -6,13 +6,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, ListChecks, Gavel, Bot, Loader2, Trash2, Plus } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Zap, AlertTriangle, Calendar, Table as TableIcon, ListChecks, Gavel, Loader2, Trash2, Plus } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
 import { getMinimumWages } from '@/lib/tax/minimumWageData';
-import { AgentsTimeline } from '@/components/AgentsTimeline';
-import { AgentStatus, loadAgentsFromStorage } from '@/lib/geminiService';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -134,10 +132,6 @@ const Viabilidade = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  // ESTADOS PARA AGENTES E RELAY
-  const [agentStatuses, setAgentStatuses] = useState<AgentStatus[]>([]);
-  const [isAgentsRunning, setIsAgentsRunning] = useState(false);
-
   const inssTables = useMemo(() => getInssTables(), []);
   const irpfTables = useMemo(() => getIrpfTables(), []);
   const minimumWages = useMemo(() => getMinimumWages(), []);
@@ -198,6 +192,7 @@ const Viabilidade = () => {
       return;
     }
 
+    // CORREÇÃO: Usando as chaves de Webhook corretas da Configuração
     const webhookUrl = environment === 'test' 
       ? localStorage.getItem('jota-webhook-test') 
       : localStorage.getItem('jota-webhook-prod');
@@ -207,134 +202,50 @@ const Viabilidade = () => {
       return;
     }
 
-    const relayUrl = localStorage.getItem('jota-relay-url')?.trim() || 'http://localhost:3001';
-    const agentConfigs = loadAgentsFromStorage();
-    const useRelay = agentConfigs.length > 0;
-
     setIsLoading(true);
     const startTime = performance.now();
     const toastId = toast.loading(`Gerando Diagnóstico Profissional (${environment})...`);
     
-    const sessionId = `session-viab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
     try {
-      const normalizedMunicipio = municipio.charAt(0).toUpperCase() + municipio.slice(1).toLowerCase();
-      const minWageEntry = minimumWages.find(w => w.year === anoBase);
-      const minWageValue = minWageEntry ? minWageEntry.value : 1412;
-      const isDeclaring = sociosDeclaramProlabore === 'Sim';
-      const userValue = parseFloat(valorProlabore) || 0;
-
-      const proLaborePayload = {
-        declara_prolabore: isDeclaring,
-        valor_declarado: isDeclaring ? userValue : 0,
-        valor_estimado: isDeclaring ? userValue : minWageValue,
-        recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
-        modo_calculo: isDeclaring ? "declarado_pelo_usuario" : "estimado_para_simulacao"
-      };
-
-      const totalFaturamentoAnual = parseFloat(faturamentoAnual) || 0;
-      const faturamentoMensalMedio = totalFaturamentoAnual / 12;
-      const pComercio = parseFloat(percentComercio) || 0;
-      const pServico = parseFloat(percentServico) || 0;
-      const folhaMensal = parseFloat(folhaPagamento) || 0;
-      
-      const totalFolhaAnual = (folhaMensal + proLaborePayload.valor_estimado) * 12;
-      const fatorRPercent = totalFaturamentoAnual > 0 ? (totalFolhaAnual / totalFaturamentoAnual) * 100 : 0;
-
-      const refInss = getInssTables().filter(t => t.year === anoBase);
-      const refIrpf = getIrpfTables().filter(t => t.year === anoBase);
-
+      // REVERTENDO PARA PAYLOAD PLANO (COMO ESTAVA ANTES)
       const payload = {
-        agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-        sessionId,
-        relayUrl: `${relayUrl}/agent-result`,
-        agentes: agentConfigs.map(a => ({ nome: a.nome, systemPrompt: a.systemPrompt })),
-        contexto: { 
-          anoBase, 
-          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial", 
-          ambiente: environment 
-        },
-        tabelasReferencia: { inss: refInss, irpf: refIrpf, salario_minimo: minWageValue },
-        empresa: { 
-          razaoSocial: razaoSocial || 'Projeto não nomeado', 
-          naturezaJuridica: naturezaJuridica || 'A definir', 
-          classificacaoFiscal: classificacaoFiscal,
-          capitalSocial: parseFloat(capital) || 0, 
-          numSocios: parseInt(numSocios) || 1, 
-          localizacao: { municipio: normalizedMunicipio, estado }, 
-          tributacaoPretendida: tributacaoSugerida || 'Sugerir melhor cenário' 
-        },
-        classificacao_fiscal: {
-          simples_nacional: {
-            comercio_anexo: anexoComercio,
-            servico_anexo: anexoServico,
-            fator_r: {
-              percentual: fatorRPercent,
-              faixa: fatorRPercent >= 28 ? "acima_28" : "abaixo_28",
-              impacto: fatorRPercent >= 28 ? "tributacao_reduzida_anexo_iii" : "tributacao_mais_alta_servicos"
-            }
-          }
-        },
-        operacional: { 
-          cnaes: cnaes.map(c => ({ codigo: c.code.replace(/\D/g, ''), descricao: c.description, tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
-          descricaoAtividades: atividades, 
-          ideiaNegocio: businessIdea 
-        },
-        financeiro: { 
-          faturamento: { 
-            anual_total: totalFaturamentoAnual, 
-            mensal_medio: faturamentoMensalMedio, 
-            segregacao: { 
-              comercio_percent: pComercio, 
-              servico_percent: pServico,
-              comercio_valor_anual: totalFaturamentoAnual * (pComercio / 100),
-              servico_valor_anual: totalFaturamentoAnual * (pServico / 100)
-            } 
-          },
-          custos_operacionais: {
-            fixos_mensais: parseFloat(fixosMensais) || 0,
-            variaveis_percentual: parseFloat(variaveisPercentual) || 0
-          },
-          tributos_locais: { iss_municipio: parseFloat(aliquotaIss) || 5, icms_estado: parseFloat(aliquotaIcms) || 18 },
-          custos_abertura: {
-            honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0,
-            assessoria_mensal: parseFloat(honorariosAssessoriaMensal) || 0,
-            junta_cartorio: parseFloat(valorJuntaCartorio) || 0,
-            bombeiro_licencas: parseFloat(valorBombeiro) || 0
-          }
-        },
-        societario_trabalhista: { 
-          quadro_pessoal: { num_funcionarios: parseInt(numFuncionarios) || 0, folha_salarial_mensal: folhaMensal }, 
-          pro_labore: proLaborePayload,
-          retira_valores_pf: sociosRetiramValores === 'Sim'
-        },
-        distribuicao_lucro: {
-          retirada_mensal_aproximada: parseFloat(retiradaMensalLucro) || 0,
-          origem: sociosRetiramValores === 'Sim' ? "nao_formalizada" : "formalizada_via_lucros"
-        },
-        conformidade_riscos: { 
-          recebe_vendas_conta_pf: recebeContaPF === 'Pessoa Física' || recebeContaPF === 'Ambos', 
-          mistura_patrimonial: mesmaContaSocios === 'Sim',
-          alertas_criticos: {
-            risco_confusao_patrimonial: mesmaContaSocios === 'Sim',
-            risco_previdenciario_prolabore: !isDeclaring,
-            risco_desconsideracao_pj: recebeContaPF === 'Pessoa Física' || mesmaContaSocios === 'Sim',
-            retirada_informal: sociosRetiramValores === 'Sim'
-          }
-        }
+        razaoSocial,
+        naturezaJuridica,
+        classificacaoFiscal,
+        capital,
+        numSocios,
+        numFuncionarios,
+        folhaPagamento,
+        municipio,
+        estado,
+        atividades,
+        tributacaoSugerida,
+        businessIdea,
+        anoBase,
+        faturamentoAnual,
+        percentComercio,
+        percentServico,
+        fixosMensais,
+        variaveisPercentual,
+        aliquotaIss,
+        aliquotaIcms,
+        sociosRetiramValores,
+        sociosDeclaramProlabore,
+        valorProlabore,
+        sociosRecolhemInssIr,
+        recebeContaPF,
+        mesmaContaSocios,
+        honorariosLegalizacao,
+        honorariosAssessoriaMensal,
+        valorJuntaCartorio,
+        valorDpa,
+        valorBombeiro,
+        valorLicencasMunicipais,
+        anexoComercio,
+        anexoServico,
+        retiradaMensalLucro,
+        cnaes: cnaes.map(c => `${c.code} - ${c.description}`).join(' | ')
       };
-
-      if (useRelay) {
-        const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
-          id: a.id,
-          nome: a.nome,
-          systemPrompt: a.systemPrompt,
-          status: 'loading' as const,
-          report: null,
-        }));
-        setAgentStatuses(initialStatuses);
-        setIsAgentsRunning(true);
-      }
 
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
@@ -348,47 +259,11 @@ const Viabilidade = () => {
         let errorMsg = "Erro na comunicação com a IA.";
         try {
           const errorJson = JSON.parse(responseText);
-          if (errorJson.errorMessage?.includes("No Respond to Webhook node")) {
-            errorMsg = "Configuração n8n incorreta: O nó de Webhook precisa estar em modo 'Immediately' ou possuir um nó 'Respond to Webhook'.";
-          } else {
-            errorMsg = errorJson.errorMessage || errorMsg;
-          }
+          errorMsg = errorJson.errorMessage || errorMsg;
         } catch { }
         throw new Error(errorMsg);
       }
       
-      if (!responseText && useRelay) {
-        toast.loading(`Aguardando agentes responderem via Relay...`, { id: toastId });
-        const pollStart = Date.now();
-        const poll = async (): Promise<void> => {
-          if (Date.now() - pollStart > 5 * 60 * 1000) {
-            toast.error("Tempo limite atingido.", { id: toastId });
-            setIsLoading(false);
-            setIsAgentsRunning(false);
-            return;
-          }
-          try {
-            const res = await fetch(`${relayUrl}/agent-results/${sessionId}`);
-            if (res.ok) {
-              const json = await res.json();
-              const arrived = json.agents || [];
-              arrived.forEach((agent: any) => {
-                setAgentStatuses(prev => prev.map(s => s.nome === agent.nome ? { ...s, status: 'done', report: agent.report } : s));
-              });
-              if (arrived.length >= agentConfigs.length) {
-                toast.success("Diagnóstico concluído via agentes!", { id: toastId });
-                setIsLoading(false);
-                setIsAgentsRunning(false);
-                return;
-              }
-            }
-          } catch { }
-          setTimeout(poll, 2000);
-        };
-        setTimeout(poll, 2000);
-        return;
-      }
-
       if (responseText) {
         const data = JSON.parse(responseText);
         const duration = (performance.now() - startTime) / 1000;
@@ -397,20 +272,18 @@ const Viabilidade = () => {
         let reportText = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output || data.text;
         if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
         
-        if (!reportText && !useRelay) throw new Error("O servidor não retornou um relatório válido.");
-
         if (reportText) {
           setAiReport(reportText);
           toast.success(`Diagnóstico concluído!`, { id: toastId });
+        } else {
+          throw new Error("O servidor não retornou um relatório válido.");
         }
-      } else {
-        throw new Error("O servidor retornou uma resposta vazia e o Relay não está configurado.");
       }
 
     } catch (error: any) {
       toast.error("Falha na análise", { id: toastId, description: error.message });
     } finally {
-      if (!useRelay) setIsLoading(false);
+      setIsLoading(false);
     }
   };
 
@@ -427,14 +300,13 @@ const Viabilidade = () => {
         </CardHeader>
       </Card>
 
-      {agentStatuses.length > 0 && (
-        <div id="agents-timeline-section">
-          <AgentsTimeline
-            agents={agentStatuses}
-            onViewReport={(agent) => { setAiReport(agent.report); }}
-            onPrintReport={(agent) => { /* Implementar se necessário */ }}
-            onRunSingle={(agent) => { /* Implementar se necessário */ }}
-          />
+      {isLoading && (
+        <div className="rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 animate-pulse">
+          <Loader2 className="h-12 w-12 text-primary animate-spin" />
+          <div className="text-center">
+            <h3 className="text-lg font-bold text-primary">Processando Diagnóstico...</h3>
+            <p className="text-sm text-muted-foreground">Aguarde enquanto nossa IA analisa os dados fiscais e societários.</p>
+          </div>
         </div>
       )}
 
