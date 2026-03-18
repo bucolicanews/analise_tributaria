@@ -323,7 +323,6 @@ const Viabilidade = () => {
 
       const webhookUrl = webhooks[environment];
 
-      // SE USAR RELAY, PREPARA A TIMELINE
       if (useRelay) {
         const initialStatuses: AgentStatus[] = agentConfigs.map(a => ({
           id: a.id,
@@ -342,14 +341,23 @@ const Viabilidade = () => {
         body: JSON.stringify(payload) 
       });
       
-      if (!response.ok) throw new Error(`Erro HTTP: ${response.status}`);
-
       const responseText = await response.text();
+
+      if (!response.ok) {
+        let errorMsg = "Erro na comunicação com a IA.";
+        try {
+          const errorJson = JSON.parse(responseText);
+          if (errorJson.errorMessage?.includes("No Respond to Webhook node")) {
+            errorMsg = "Configuração n8n incorreta: O nó de Webhook precisa estar em modo 'Immediately' ou possuir um nó 'Respond to Webhook'.";
+          } else {
+            errorMsg = errorJson.errorMessage || errorMsg;
+          }
+        } catch { }
+        throw new Error(errorMsg);
+      }
       
-      // SE O N8N RESPONDEU VAZIO MAS TEMOS RELAY, INICIAMOS O POLLING
       if (!responseText && useRelay) {
         toast.loading(`Aguardando agentes responderem via Relay...`, { id: toastId });
-        
         const pollStart = Date.now();
         const poll = async (): Promise<void> => {
           if (Date.now() - pollStart > 5 * 60 * 1000) {
@@ -380,7 +388,6 @@ const Viabilidade = () => {
         return;
       }
 
-      // SE O N8N RESPONDEU COM DADOS DIRETAMENTE
       if (responseText) {
         const data = JSON.parse(responseText);
         const duration = (performance.now() - startTime) / 1000;
