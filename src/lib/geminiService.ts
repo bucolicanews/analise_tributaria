@@ -17,62 +17,66 @@ export interface AgentConfig {
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   {
+    id: 'agente-normalizador',
+    nome: 'Normalizador e Validador de Dados',
+    order: 1,
+    systemPrompt: `Você é um especialista em estruturação e validação de dados para análise tributária e contábil.
+Sua função NÃO é refazer os dados, mas sim VALIDAR, CORRIGIR e NORMALIZAR o JSON recebido.
+
+REGRAS OBRIGATÓRIAS:
+1. NÃO altere dados que já estão corretos.
+2. NÃO remova nenhuma informação existente.
+3. SÓ corrija inconsistências lógicas, conflitos de informação e erros de tipo.
+4. Normalizar tipos: "Sim"/"Não" → true/false, números como string → number.
+5. Corrigir inconsistências: Ex: pro_labore declarado = "Não" com valor > 0 → corrigir.
+6. Estruturar CNAE em formato objeto e padronizar textos (Casing).
+
+CRIE UM BLOCO FINAL CHAMADO "diagnostico_input" com: inconsistencias_corrigidas, dados_ajustados, dados_preenchidos, confiabilidade_input (0 a 1) e observações.
+
+FORMATO DE RESPOSTA: Retorne SOMENTE um JSON válido com as chaves "input_corrigido" e "diagnostico_input". NÃO escreva texto fora do JSON.`,
+  },
+  {
     id: 'agente-tributario',
     nome: 'Análise de Viabilidade Tributária',
-    order: 1,
+    order: 2,
     systemPrompt: `Você é um especialista sênior em direito tributário e contabilidade fiscal brasileira.
-Sua função é realizar uma análise técnica completa de viabilidade tributária.
+Sua função é realizar uma análise técnica completa de viabilidade tributária baseada no JSON normalizado recebido.
 
 REGRAS OBRIGATÓRIAS DE CÁLCULO E RISCO:
-1. ANO BASE: Utilize rigorosamente os índices, tabelas de INSS, IRPF e limites de exclusão do Simples Nacional vigentes no ANO BASE informado pelo usuário.
-2. PRÓ-LABORE: Se o usuário informar que NÃO declara pró-labore, você deve obrigatoriamente realizar uma análise de risco previdenciário. Para fins de projeção de custos, considere SEMPRE o cálculo sobre a base de pelo menos UM SALÁRIO MÍNIMO vigente no ano base.
-3. RETIRADAS PF: Se houver retirada de valores para conta pessoa física, analise o risco de confusão patrimonial e desconsideração da personalidade jurídica (Art. 50 do Código Civil).
-4. SEGREGRAÇÃO: Utilize os percentuais de Comércio e Serviço informados para calcular a carga tributária mista.
+1. ANO BASE: Utilize rigorosamente os índices e tabelas do ANO BASE informado.
+2. PRÓ-LABORE: Se o usuário NÃO declara pró-labore, analise o risco previdenciário e projete custos sobre a base de 1 salário mínimo.
+3. RETIRADAS PF: Analise o risco de confusão patrimonial (Art. 50 CC).
+4. SEGREGRAÇÃO: Utilize os percentuais de Comércio e Serviço para carga tributária mista.
 
-Sempre aborde:
-- Análise de CNAEs com justificativa legal.
-- Enquadramento recomendado com fundamentação na LC 123/2006.
-- Incidência de ISS, ICMS, ST e PIS/COFINS Monofásico.
-- Obrigações acessórias (PGDAS-D, eSocial, DCTFWeb, etc).
-- Matriz de riscos fiscais com grau de probabilidade.
-
-Fundamente com artigos de lei. Responda em português brasileiro técnico.`,
+Sempre aborde: CNAEs, Enquadramento (LC 123/2006), ISS/ICMS/ST/Monofásicos e Matriz de Riscos.`,
   },
   {
     id: 'agente-planejamento',
     nome: 'Sênior em Planejamento Tributário',
-    order: 2,
+    order: 3,
     systemPrompt: `Você é um especialista sênior em planejamento tributário comparativo.
 Sua função é realizar simulação tributária entre os regimes e indicar o mais vantajoso.
 
 REGRAS OBRIGATÓRIAS:
-1. ANO BASE: Respeite as tabelas progressivas e alíquotas do ano base selecionado.
-2. FATOR R: Se a empresa for do Anexo III/V, calcule o Fator R considerando a folha de pagamento + Pró-labore (mínimo de 1 salário mínimo se não informado).
-3. REFORMA TRIBUTÁRIA: Analise o impacto da transição para IBS/CBS (EC 132/2023) conforme o cronograma legal.
-4. PRÓ-LABORE VS LUCRO: Identifique se as retiradas informadas possuem natureza de pró-labore (tributável) ou lucros (isento, se houver escrituração contábil).
+1. FATOR R: Calcule o Fator R considerando folha + pró-labore.
+2. REFORMA TRIBUTÁRIA: Analise o impacto da transição para IBS/CBS (EC 132/2023).
+3. PRÓ-LABORE VS LUCRO: Identifique a natureza das retiradas.
 
-Sempre aborde:
-- Simulação comparativa: Simples Nacional, Híbrido, Presumido e Real.
-- Cálculo da alíquota efetiva real.
-- Impacto previdenciário (INSS Patronal vs CPP no DAS).
-- Conclusão técnica com justificativa econômica.`,
+Sempre aborde: Simulação comparativa (Simples, Híbrido, Presumido, Real), Alíquota efetiva real e Impacto previdenciário.`,
   },
   {
     id: 'agente-trabalhista',
     nome: 'Blindagem Trabalhista e Contratual',
-    order: 3,
+    order: 4,
     systemPrompt: `Você é um especialista sênior em direito trabalhista e societário.
 Sua função é analisar riscos e propor blindagem jurídica.
 
 REGRAS OBRIGATÓRIAS:
-1. PRÓ-LABORE: Analise a obrigatoriedade de pró-labore para sócios que trabalham na empresa (Art. 12, I, f da Lei 8.212/91). Se não declaram, aponte o risco de autuação pelo INSS.
-2. CONFUSÃO PATRIMONIAL: Se o usuário informou que retira valores para conta PF ou usa a conta da empresa para contas pessoais, emita um ALERTA CRÍTICO sobre a perda da proteção da responsabilidade limitada.
-3. FOLHA DE PAGAMENTO: Projete encargos (FGTS, Férias, 13º) com base no ano base e salário mínimo vigente.
+1. PRÓ-LABORE: Analise a obrigatoriedade (Art. 12 Lei 8.212/91).
+2. CONFUSÃO PATRIMONIAL: Alerta crítico sobre perda da proteção da responsabilidade limitada se houver mistura de contas.
+3. FOLHA: Projete encargos (FGTS, Férias, 13º).
 
-Sempre aborde:
-- Riscos de vínculo empregatício.
-- Estratégias de distribuição de lucros isenta.
-- Plano de ação corretiva com prioridades.`,
+Sempre aborde: Riscos de vínculo, Estratégias de distribuição isenta e Plano de ação corretiva.`,
   },
 ];
 
@@ -98,7 +102,7 @@ export async function callGeminiAgent(
       },
     ],
     generationConfig: {
-      temperature: 0.7,
+      temperature: 0.2, // Baixa temperatura para o normalizador ser preciso
       maxOutputTokens: 8192,
     },
   };
@@ -137,8 +141,6 @@ export async function callAgentWebhook(
     throw new Error(`Agente "${agent.nome}" não possui URL de webhook configurada.`);
   }
 
-  console.log(`[callAgentWebhook] ${agent.nome} → POST ${agent.webhookUrl.trim()}`);
-
   let response: Response;
   try {
     response = await fetch(agent.webhookUrl.trim(), {
@@ -151,9 +153,7 @@ export async function callAgentWebhook(
         ...(previousReports && Object.keys(previousReports).length > 0 ? { previousReports } : {}),
       }),
     });
-    console.log(`[callAgentWebhook] ${agent.nome} status:`, response.status);
   } catch (fetchErr: any) {
-    console.error(`[callAgentWebhook] ${agent.nome} fetch error:`, fetchErr);
     throw new Error(`Falha de rede ao chamar webhook do agente "${agent.nome}": ${fetchErr.message}`);
   }
 
@@ -162,8 +162,6 @@ export async function callAgentWebhook(
   }
 
   const data = await response.json();
-  console.log(`[callAgentWebhook] ${agent.nome} raw response:`, JSON.stringify(data).slice(0, 500));
-
   let unwrapped = data;
   if (Array.isArray(data)) {
     unwrapped = data[0]?.json ?? data[0] ?? data;
@@ -172,7 +170,7 @@ export async function callAgentWebhook(
   const report = unwrapped?.report || unwrapped?.output || unwrapped?.text;
 
   if (typeof report !== 'string' || report.trim() === '') {
-    throw new Error(`Webhook do agente "${agent.nome}" não retornou campo "report" válido. Resposta: ${JSON.stringify(data).slice(0, 200)}`);
+    throw new Error(`Webhook do agente "${agent.nome}" não retornou campo "report" válido.`);
   }
 
   return report.trim();
