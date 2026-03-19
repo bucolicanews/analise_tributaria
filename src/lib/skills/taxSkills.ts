@@ -13,7 +13,7 @@ export interface DynamicSkill {
 }
 
 /**
- * Skills nativas do sistema (Hardcoded para performance e segurança)
+ * Skills nativas do sistema
  */
 export const SYSTEM_SKILLS: Record<string, Function> = {
   calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
@@ -39,9 +39,6 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
   }
 };
 
-/**
- * Manifesto de ferramentas para a IA (Padronizado como JOTA_TOOLS_MANIFEST)
- */
 export const JOTA_TOOLS_MANIFEST = [
   {
     name: "calculate_simples_nacional",
@@ -78,9 +75,6 @@ export const JOTA_TOOLS_MANIFEST = [
   }
 ];
 
-/**
- * Gerenciador de Armazenamento de Skills
- */
 export const loadDynamicSkills = (): DynamicSkill[] => {
   const saved = localStorage.getItem('jota-dynamic-skills');
   return saved ? JSON.parse(saved) : [];
@@ -92,14 +86,13 @@ export const saveDynamicSkills = (skills: DynamicSkill[]) => {
 
 /**
  * Executor de Skills (O Coração do Agente)
+ * Agora suporta AsyncFunction para permitir fetch/APIs no local_js
  */
 export async function executeSkill(name: string, args: any): Promise<any> {
-  // 1. Tenta Skill de Sistema
   if (SYSTEM_SKILLS[name]) {
     return SYSTEM_SKILLS[name](args);
   }
 
-  // 2. Tenta Skill Dinâmica
   const dynamicSkills = loadDynamicSkills();
   const skill = dynamicSkills.find(s => s.name === name);
 
@@ -122,8 +115,10 @@ export async function executeSkill(name: string, args: any): Promise<any> {
 
   if (skill.executionType === 'local_js' && skill.jsCode) {
     try {
-      const fn = new Function('args', skill.jsCode);
-      return fn(args);
+      // Cria uma função assíncrona dinamicamente
+      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+      const fn = new AsyncFunction('args', skill.jsCode);
+      return await fn(args);
     } catch (e: any) {
       return { error: `Erro no JS da Skill: ${e.message}` };
     }
