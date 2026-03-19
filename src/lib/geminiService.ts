@@ -20,7 +20,8 @@ export interface AgentConfig {
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é um Consultor Tributário Sênior e Planejador Tributário Nível Extremo (10/10) da Jota Contabilidade.
 Sua missão é gerar um Parecer Técnico e Pericial de altíssimo nível, vendável (High-Ticket), analítico e 100% prático. O relatório deve orientar tanto o EMPRESÁRIO (decisões estratégicas) quanto o CONTADOR (parametrização técnica de ERP).
 
-⛔ REGRA DE OURO MÁXIMA (ANTI-RESUMO): É ESTRITAMENTE PROIBIDO RESUMIR, ENCURTAR OU OMITIR QUALQUER SEÇÃO. VOCÊ DEVE GERAR UM RELATÓRIO LONGO, ROBUSTO E COMPLETO, CONTENDO EXATAMENTE AS 13 SEÇÕES ABAIXO, COM TODOS OS CÁLCULOS, TABELAS E SIMULAÇÕES EXIGIDAS. SE FALTAR ESPAÇO, DETALHE O MÁXIMO POSSÍVEL.
+⛔ REGRA DE OURO MÁXIMA (ANTI-RESUMO E ANTI-QUEBRA): É ESTRITAMENTE PROIBIDO RESUMIR, ENCURTAR OU OMITIR QUALQUER SEÇÃO. VOCÊ DEVE GERAR UM RELATÓRIO LONGO, ROBUSTO E COMPLETO, CONTENDO EXATAMENTE AS 13 SEÇÕES ABAIXO. 
+⚠ ATENÇÃO SOBRE TABELAS: Você DEVE gerar as tabelas em Markdown perfeito, fechando todas as colunas (|) e preenchendo todas as linhas. NUNCA deixe uma tabela pela metade. Continue a geração até concluir todo o documento.
 
 ESTRUTURA OBRIGATÓRIA DO RELATÓRIO (Siga exatamente esta ordem e numeração):
 
@@ -48,7 +49,7 @@ Analise OBRIGATORIAMENTE os seguintes eventos informando o 'Evento' e o 'Código
 - Série R-4000 (EFD-Reinf): Analisar R-4010 (Pagamentos a PF - EXCLUSIVO PARA: aluguéis, distribuição de lucros, royalties. NÃO usar para pró-labore), R-4020 (Pagamentos a PJ), R-4040 (Pagamentos não identificados) e R-4099 (Fechamento).
 
 ### 4. ANÁLISE DE CENÁRIOS: RETENÇÃO E PRESTAÇÃO DE SERVIÇOS
-⚠ ATENÇÃO TÉCNICA À RETENÇÃO DE INSS (11%): Avalie o regime tributário da empresa. Se for Simples Nacional (Anexo I, II ou III), a empresa em regra É DISPENSADA da retenção de 11% de INSS na prestação de serviço (IN RFB 2110/2022). A retenção aplica-se ao Anexo IV ou Lucro Presumido/Real.
+⚠ ATENÇÃO TÉCNICA À RETENÇÃO DE INSS (11%): Avalie o regime tributário da empresa. Se for Simples Nacional (Anexo I, II ou III), a empresa em regra É DISPENSADA da retenção de 11% de INSS na prestação de serviço (IN RFB 2110/2022). A retenção aplica-se ao Anexo IV ou Lucro Presumido/Real. NÃO aplique a retenção de 11% de forma cega.
 - CENÁRIO 1 (Apenas Comércio): Se não tiver CNAE de serviço, afirme categoricamente que não haverá retenção de IR, INSS ou ISS na venda. Detalhe os procedimentos ao TOMAR serviços.
 - CENÁRIO 2 (Serviços): Analise os procedimentos ao PRESTAR e ao TOMAR serviços.
 - SIMULAÇÕES EXIGIDAS: a) Serviço SEM ceder mão de obra vs CEDENDO mão de obra. b) Sócio único prestando serviço.
@@ -132,14 +133,16 @@ export async function callGeminiAgent(
   const enableGoogleSearch = localStorage.getItem('jota-gemini-search') === 'true';
   if (enableGoogleSearch && allFunctionTools.length === 0) {
     toolsArray.push({ googleSearch: {} });
+  } else if (enableGoogleSearch) {
+    console.warn("[Gemini] Pesquisa Nativa ignorada para evitar Erro 400. Function Calling tem prioridade.");
   }
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO INVISÍVEL]: Lembre-se de testar o CEP com suas tools de endereço antes de iniciar. VOCÊ DEVE RESPONDER COM UM RELATÓRIO LONGO, MÁXIMA PROFUNDIDADE E GERAR TODAS AS 13 SEÇÕES COMPLETAS." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO INVISÍVEL]: Gere a resposta de uma única vez, NUNCA quebre tabelas no meio. PREENCHA TODAS AS 13 SEÇÕES." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
-      temperature: 0.1, 
+      temperature: 0.2, // Aumentado levemente para evitar loop de trava em tabelas gigantes
       maxOutputTokens: 8192 
     }, 
   };
@@ -158,6 +161,7 @@ export async function callGeminiAgent(
 
   const data = await response.json();
   let message = data?.candidates?.[0]?.content;
+  let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
 
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
@@ -184,7 +188,7 @@ export async function callGeminiAgent(
         { role: 'function', parts: toolResults } 
       ],
       generationConfig: { 
-        temperature: 0.1,
+        temperature: 0.2,
         maxOutputTokens: 8192 
       },
     };
@@ -202,7 +206,13 @@ export async function callGeminiAgent(
     }
 
     const finalData = await finalRes.json();
-    message = finalData?.candidates?.[0]?.content;
+    let secondText = finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\n') || '';
+    
+    // Se a IA gerou um pedaço do relatório ANTES de chamar a função, junta com o resto para não cortar
+    if (firstText && !secondText.includes("# RELATÓRIO")) {
+       return firstText + '\n' + secondText;
+    }
+    return secondText || firstText;
   }
 
   return message?.parts?.map((p: any) => p.text || '').join('\n') || '';
