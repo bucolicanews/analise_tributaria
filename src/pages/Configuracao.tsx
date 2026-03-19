@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw, Info } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -74,7 +74,8 @@ const Configuracao = () => {
       description: 'Descrição da habilidade para a IA...',
       parameters: { type: "object", properties: { param1: { type: "string" } } },
       executionType: 'webhook',
-      isActive: true
+      isActive: true,
+      jsCode: '// args contém os parâmetros enviados pela IA\nreturn { status: "sucesso", dados: args };'
     });
   };
 
@@ -86,7 +87,7 @@ const Configuracao = () => {
     else newSkills.push(editingSkill as DynamicSkill);
     setDynamicSkills(newSkills);
     setEditingSkill(null);
-    toast.success("Skill atualizada localmente.");
+    toast.success("Skill atualizada localmente. Salve as configurações para persistir.");
   };
 
   const handleImportSkill = () => {
@@ -113,6 +114,125 @@ const Configuracao = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* MODAL: VISUALIZAR SKILL DO SISTEMA */}
+      <Dialog open={!!viewingSystemSkill} onOpenChange={(open) => !open && setViewingSystemSkill(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-primary">
+              <Zap className="h-5 w-5" /> Detalhes da Habilidade Nativa
+            </DialogTitle>
+            <DialogDescription>Esta é uma função interna que a IA pode chamar para garantir precisão técnica.</DialogDescription>
+          </DialogHeader>
+          {viewingSystemSkill && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-1">
+                <Label className="text-xs uppercase text-muted-foreground">Nome Técnico</Label>
+                <div className="p-2 bg-muted font-mono text-sm rounded border">{viewingSystemSkill.name}</div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase text-muted-foreground">O que ela faz</Label>
+                <p className="text-sm leading-relaxed">{viewingSystemSkill.description}</p>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs uppercase text-muted-foreground">Esquema de Parâmetros (JSON Schema)</Label>
+                <pre className="p-3 bg-black/80 text-green-400 font-mono text-[10px] rounded overflow-x-auto">
+                  {JSON.stringify(viewingSystemSkill.parameters, null, 2)}
+                </pre>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setViewingSystemSkill(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* MODAL: EDITAR/CRIAR SKILL PERSONALIZADA */}
+      <Dialog open={!!editingSkill} onOpenChange={(open) => !open && setEditingSkill(null)}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {editingSkill?.id?.includes('new') ? <Plus className="h-5 w-5" /> : <Edit3 className="h-5 w-5" />}
+              Configurar Habilidade Customizada
+            </DialogTitle>
+          </DialogHeader>
+          {editingSkill && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome da Função (Snake Case)</Label>
+                  <Input 
+                    placeholder="ex: consultar_api_externa" 
+                    value={editingSkill.name} 
+                    onChange={e => setEditingSkill({...editingSkill, name: e.target.value})} 
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Execução</Label>
+                  <Select 
+                    value={editingSkill.executionType} 
+                    onValueChange={(val: any) => setEditingSkill({...editingSkill, executionType: val})}
+                  >
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="webhook">Webhook (API Externa)</SelectItem>
+                      <SelectItem value="local_js">JavaScript Local (Sandbox)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label>Descrição para a IA (Explique quando usar)</Label>
+                <Textarea 
+                  placeholder="Esta skill deve ser usada quando..." 
+                  value={editingSkill.description} 
+                  onChange={e => setEditingSkill({...editingSkill, description: e.target.value})} 
+                />
+              </div>
+
+              {editingSkill.executionType === 'webhook' ? (
+                <div className="space-y-2">
+                  <Label>URL do Webhook</Label>
+                  <Input 
+                    placeholder="https://seu-n8n.com/webhook/..." 
+                    value={editingSkill.webhookUrl} 
+                    onChange={e => setEditingSkill({...editingSkill, webhookUrl: e.target.value})} 
+                  />
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Label>Código JavaScript (Async)</Label>
+                  <Textarea 
+                    className="font-mono text-xs h-48 bg-black text-green-400" 
+                    value={editingSkill.jsCode} 
+                    onChange={e => setEditingSkill({...editingSkill, jsCode: e.target.value})} 
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Parâmetros (JSON Schema)</Label>
+                <Textarea 
+                  className="font-mono text-xs h-32" 
+                  value={JSON.stringify(editingSkill.parameters, null, 2)} 
+                  onChange={e => {
+                    try {
+                      const p = JSON.parse(e.target.value);
+                      setEditingSkill({...editingSkill, parameters: p});
+                    } catch(err) {}
+                  }} 
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSkill(null)}>Cancelar</Button>
+            <Button onClick={handleSaveSkill}>Salvar Habilidade</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <form onSubmit={handleSave}>
         <Card className="shadow-card">
           <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle></CardHeader>
@@ -129,7 +249,6 @@ const Configuracao = () => {
 
             {autenticado && (
               <>
-                {/* SEÇÃO DO PROMPT - AGORA EM DESTAQUE */}
                 <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (System Prompt)</h3>
