@@ -17,32 +17,15 @@ export interface DynamicSkill {
  */
 export const SYSTEM_SKILLS: Record<string, Function> = {
   get_address_by_cep: async (args: { cep: string | number }) => {
-    // Garante que o CEP seja uma string e limpa caracteres
     const cleanCep = String(args.cep).replace(/\D/g, '');
-    
-    if (cleanCep.length !== 8) {
-      return { error: "CEP inválido. Deve conter 8 dígitos.", status: "erro" };
-    }
-    
+    if (cleanCep.length !== 8) return { error: "CEP inválido", status: "erro" };
     try {
       const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
       const data = await response.json();
-      
-      if (data.erro) {
-        return { error: "CEP não localizado na base dos Correios.", status: "erro" };
-      }
-      
-      // Retorno direto e limpo para a IA
-      return {
-        logradouro: data.logradouro || "Não informado",
-        bairro: data.bairro || "Não informado",
-        cidade: data.localidade,
-        uf: data.uf,
-        cep_consultado: cleanCep,
-        status: "sucesso"
-      };
+      if (data.erro) return { error: "CEP não localizado", status: "erro" };
+      return { ...data, status: "sucesso" };
     } catch (e) {
-      return { error: "Serviço de consulta de CEP temporariamente indisponível.", status: "erro" };
+      return { error: "Falha no serviço de CEP", status: "erro" };
     }
   },
   calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
@@ -101,12 +84,10 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
   calculate_lucro_presumido: (args: { faturamento_mensal: number; tipo_atividade: 'comercio' | 'servico' }) => {
     const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
     const baseCalculo = args.faturamento_mensal * presuncao;
-    
     const irpj = baseCalculo * 0.15;
     const csll = baseCalculo * 0.09;
     const pis = args.faturamento_mensal * 0.0065;
     const cofins = args.faturamento_mensal * 0.03;
-    
     return {
       base_presuncao_percentual: (presuncao * 100) + "%",
       irpj_valor: irpj,
@@ -216,10 +197,24 @@ export async function executeSkill(name: string, args: any): Promise<any> {
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
     try {
-      const res = await fetch(skill.webhookUrl, {
-        method: 'POST',
+      let url = skill.webhookUrl;
+      let method = 'POST';
+      let body: any = JSON.stringify(args);
+
+      // Suporte a substituição dinâmica na URL (ex: {{cep}})
+      const hasPlaceholders = url.includes('{{');
+      if (hasPlaceholders) {
+        Object.keys(args).forEach(key => {
+          url = url.replace(new RegExp(`{{${key}}}`, 'g'), args[key]);
+        });
+        method = 'GET'; // Se tem placeholder na URL, assume-se que é uma consulta GET
+        body = undefined;
+      }
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(args)
+        body
       });
       return await res.json();
     } catch (e: any) {
