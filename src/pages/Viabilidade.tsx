@@ -14,7 +14,7 @@ import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader as UIDialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { callGeminiAgent } from '@/lib/geminiService';
+import { callGeminiAgent, DEFAULT_PRE_ANALYSIS_PROMPT } from '@/lib/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -119,7 +119,6 @@ const Viabilidade = () => {
     }));
   };
 
-  // Monta o payload base que será usado tanto na pré-análise quanto no webhook final
   const buildPayload = (environment: 'test' | 'production', webhookUrl: string) => {
     const inssTables = getInssTables();
     const irpfTables = getIrpfTables();
@@ -187,7 +186,6 @@ const Viabilidade = () => {
     };
   };
 
-  // FUNÇÃO DE PRÉ-ANÁLISE COM A IA LOCAL (GEMINI)
   const handlePreAnalysis = async () => {
     const apiKey = localStorage.getItem('jota-gemini-key');
     if (!apiKey) {
@@ -198,13 +196,7 @@ const Viabilidade = () => {
     setIsPreAnalyzing(true);
     try {
       const payload = buildPayload('test', '');
-      const systemPrompt = `Você é um Auditor Fiscal e Consultor de Negócios Sênior. 
-Sua função é fazer um 'Sanity Check' (validação rápida) dos dados informados pelo usuário ANTES de gerar o relatório final.
-Analise o JSON de contexto e aponte APENAS:
-1. Inconsistências Financeiras (ex: custos absurdos para o faturamento).
-2. Riscos Societários Críticos (ex: confusão patrimonial, retirada de lucros sem pró-labore).
-3. Atenção aos CNAEs (avise rapidamente se algum CNAE não pode ser Simples Nacional ou se é óbvio que entra no Fator R).
-Seja extremamente direto, use marcadores (bullet points) e não escreva uma introdução longa. O foco é alertar o usuário para corrigir dados errados.`;
+      const systemPrompt = localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT;
 
       const result = await callGeminiAgent(systemPrompt, JSON.stringify(payload, null, 2), apiKey);
       setPreAnalysisReport(result);
@@ -215,7 +207,6 @@ Seja extremamente direto, use marcadores (bullet points) e não escreva uma intr
     }
   };
 
-  // FUNÇÃO DE ENVIO OFICIAL (WEBHOOK N8N)
   const handleSendToAI = async (environment: 'test' | 'production') => {
     if (!atividades.trim() || !municipio.trim()) return toast.error("Preencha Atividades e Município.");
     const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
@@ -225,7 +216,6 @@ Seja extremamente direto, use marcadores (bullet points) e não escreva uma intr
     const startTime = performance.now();
     const payload = buildPayload(environment, webhookUrl);
     
-    // Adicionando as instruções específicas do motor para o n8n
     const fullPayload = {
       ...payload,
       engine: {

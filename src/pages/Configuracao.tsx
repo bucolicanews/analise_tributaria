@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AgentConfig, DEFAULT_AGENTS, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
+import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
@@ -28,6 +28,7 @@ const Configuracao = () => {
   const [contadorNome, setContadorNome] = useState(localStorage.getItem('jota-contador-nome') || '');
   const [contadorCrc, setContadorCrc] = useState(localStorage.getItem('jota-contador-crc') || '');
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
+  const [preAnalysisPrompt, setPreAnalysisPrompt] = useState(localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT);
 
   const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
   const [inssTables, setInssTables] = useState<InssTable[]>(() => getInssTables());
@@ -44,6 +45,7 @@ const Configuracao = () => {
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
     localStorage.setItem('jota-gemini-key', geminiKey);
+    localStorage.setItem('jota-pre-analysis-prompt', preAnalysisPrompt);
     saveAgentsToStorage(agents);
     saveInssTables(inssTables);
     saveIrpfTables(irpfTables);
@@ -184,18 +186,28 @@ const Configuracao = () => {
 
                 {/* CHAVE GEMINI */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
-                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Chave API Gemini (Agentes Locais)</h3>
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
                    <div className="space-y-2">
                      <Label>Gemini API Key</Label>
                      <Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} placeholder="AIzaSy..." />
-                     <p className="text-[10px] text-muted-foreground">Necessária para executar os agentes que não possuem Webhook próprio.</p>
+                     <p className="text-[10px] text-muted-foreground">Necessária para executar os agentes locais e a Pré-Validação Inteligente.</p>
+                   </div>
+                   <div className="space-y-2 pt-2 border-t border-blue-500/20">
+                     <Label>System Prompt (Pré-Validação Inteligente)</Label>
+                     <Textarea 
+                       className="font-mono text-xs h-32" 
+                       value={preAnalysisPrompt} 
+                       onChange={(e) => setPreAnalysisPrompt(e.target.value)} 
+                       placeholder="Instruções para o agente local que revisa os dados..."
+                     />
+                     <p className="text-[10px] text-muted-foreground">Este prompt orienta a IA na função "Pré-Validação com IA Local" da tela de Viabilidade.</p>
                    </div>
                 </div>
 
                 {/* GERENCIADOR DE AGENTES */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-indigo-500/5">
                    <div className="flex items-center justify-between">
-                     <h3 className="text-lg font-semibold flex items-center gap-2"><Bot className="h-5 w-5 text-indigo-500" />Gerenciador de Agentes IA</h3>
+                     <h3 className="text-lg font-semibold flex items-center gap-2"><Bot className="h-5 w-5 text-indigo-500" />Gerenciador de Agentes IA (Timeline)</h3>
                      <div className="flex gap-2">
                        <Button type="button" variant="outline" size="sm" onClick={resetAgents}><History className="h-4 w-4 mr-2" /> Resetar</Button>
                        <Button type="button" variant="outline" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
