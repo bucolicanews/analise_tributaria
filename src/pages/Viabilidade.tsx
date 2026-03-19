@@ -21,6 +21,7 @@ import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from '@/components/ViabilityReportPDF';
+import { calculateSimplesNacionalEffectiveRate } from '@/lib/simplesNacional';
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (LTDA)", "Sociedade Limitada Unipessoal (SLU)", "Sociedade Simples", "Não sei / Sugerir"];
@@ -124,7 +125,10 @@ const Viabilidade = () => {
     const percServicoNum = parseFloat(percentServico) || 0;
     
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
-    const percentualFatorR = faturamentoNum > 0 ? parseFloat(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0;
+    
+    // Pré-cálculo de alíquotas para ajudar a IA
+    const aliqComercio = calculateSimplesNacionalEffectiveRate("Anexo I", faturamentoNum);
+    const aliqServicoIII = calculateSimplesNacionalEffectiveRate("Anexo III", faturamentoNum);
 
     return {
       meta: { webhookUrl, executionMode: environment },
@@ -151,14 +155,21 @@ const Viabilidade = () => {
       financeiro: {
         faturamento: {
           anual_total: faturamentoNum,
-          mensal_medio: parseFloat((faturamentoNum / 12).toFixed(2)),
-          segregacao: { comercio_percent: percComercioNum, servico_percent: percServicoNum }
+          segregacao: { 
+            comercio_percent: percComercioNum, 
+            servico_percent: percServicoNum,
+            comercio_valor: (faturamentoNum * percComercioNum) / 100,
+            servico_valor: (faturamentoNum * percServicoNum) / 100
+          },
+          referencia_aliquotas: {
+            anexo_i_efetiva: aliqComercio,
+            anexo_iii_efetiva: aliqServicoIII
+          }
         },
-        fator_r: {
-          sujeito_fator_r: percServicoNum > 0 ? "A definir pela IA com base nos CNAEs" : false,
-          folha_12_meses: folha12mNum,
-          faturamento_12_meses: faturamentoNum,
-          percentual_atual: percentualFatorR
+        folha_pagamento: {
+          mensal: parseFloat(folhaPagamento) || 0,
+          anual_12m: folha12mNum,
+          fator_r_percentual: faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0
         },
         custos_operacionais: {
           fixos_mensais: parseFloat(fixosMensais) || 0,
@@ -229,18 +240,10 @@ const Viabilidade = () => {
       setProgressStep('analyzing');
       
       const payload = buildPayload(environment, webhookUrl);
-      const fullPayload = {
-        ...payload,
-        engine: {
-          analises_requeridas: ["enquadramento_simples", "calculo_carga_tributaria", "analise_fator_r", "diagnostico_risco", "viabilidade_financeira", "planejamento_tributario"],
-          output_config: { formato: "relatorio_consultivo" }
-        }
-      };
-
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
-        body: JSON.stringify(fullPayload) 
+        body: JSON.stringify(payload) 
       });
       
       if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);

@@ -15,40 +15,49 @@ export interface AgentConfig {
   order?: number;
 }
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é um Especialista Sênior em Viabilidade Contábil e Auditoria Tributária da Jota Contabilidade.
-Sua missão é realizar uma AUDITORIA LEGAL E TRIBUTÁRIA rigorosa antes de emitir qualquer parecer.
+export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é um Auditor Tributário Sênior e Consultor de Estruturação de Negócios da Jota Contabilidade.
+Sua missão é emitir um Parecer Técnico de Viabilidade que seja IRREFUTÁVEL legalmente.
 
-⚠ REGRAS DE OURO DE ENQUADRAMENTO (PROIBIDO ERRAR)
-1. COMÉRCIO (Venda de mercadorias/peças): Sempre ANEXO I.
-2. MANUTENÇÃO E REPARAÇÃO (Serviços técnicos): Sempre ANEXO III (Art. 18, § 5º-F da LC 123/2006). Ex: CNAE 45.43-9-00.
-3. SERVIÇOS INTELECTUAIS/REGULAMENTADOS: Sujeitos ao FATOR R (Anexo III se Folha/Faturamento >= 28%, caso contrário Anexo V).
-4. CONSTRUÇÃO CIVIL E ADVOCACIA: Sempre ANEXO IV (CPP não inclusa no DAS).
+⚠ REGRAS NORMATIVAS CRÍTICAS (PROIBIDO ERRAR):
 
-INICIE O PARECER COM A SEGUINTE FRASE:
- “Parecer técnico-contábil estratégico, com visão preventiva, fiscalizatória, pericial e de planejamento tributário estruturado”
+1. ENQUADRAMENTO DE ANEXOS:
+   - COMÉRCIO (Peças/Mercadorias): Sempre ANEXO I (Art. 18, § 4º, I da LC 123/2006).
+   - MANUTENÇÃO E REPARAÇÃO (Oficinas/Técnicos): Sempre ANEXO III DIRETO (Art. 18, § 5º-F). 
+   - 🚨 ERRO FATAL: NÃO aplique Fator R para manutenção/reparação. Essas atividades NÃO estão no § 5º-I.
 
-⚠ PROTOCOLO DE AUDITORIA OBRIGATÓRIO:
-Antes de processar, você deve:
-- Validar cada CNAE informado contra a Tabela de Anexos da LC 123/2006.
-- Se houver atividade mista (Comércio + Serviço), separar explicitamente as alíquotas de cada anexo.
-- Verificar se o usuário informou o anexo errado e CORRIGIR IMEDIATAMENTE no relatório, citando a base legal.
+2. CÁLCULO DO SIMPLES NACIONAL:
+   - Use a Receita Bruta Total (RBT12) para identificar a faixa.
+   - Demonstre a segregação: (Valor Comércio x Alíquota Anexo I) + (Valor Serviço x Alíquota Anexo III).
+   - Cite a fórmula da Alíquota Efetiva: (RBT12 * AliqNominal - ParcelaDedução) / RBT12.
 
-Sua resposta DEVE começar imediatamente com a frase exigida, seguida de:
-RELATÓRIO DE VIABILIDADE TÉCNICA E AUDITORIA FISCAL
+3. PRÓ-LABORE E RISCO FISCAL:
+   - Cite o Art. 12, V, 'f' da Lei 8.212/91 sobre a obrigatoriedade do sócio que trabalha.
+   - Alerte sobre o risco de ARBITRAMENTO pela Receita Federal em caso de omissão.
+   - Planejamento: Se Anexo III direto, o Pró-labore deve ser o MÍNIMO estratégico (1 SM), focando em Distribuição de Lucros Isenta.
 
-ESTRUTURA OBRIGATÓRIA:
-1.0 ANÁLISE E AUDITORIA DE CNAEs
-- Identificação de inconsistências entre a atividade descrita e o anexo pretendido.
-- Enquadramento legal definitivo por CNAE.
+4. BLINDAGEM E SOCIEDADE:
+   - Cite o Art. 50 do Código Civil (Desconsideração da Personalidade Jurídica) ao falar de confusão patrimonial.
 
-1.1 Tributação Previdenciária e Retenções
-... (manter estrutura anterior)
+ESTRUTURA OBRIGATÓRIA DO RELATÓRIO:
 
-8. MATRIZ DE RISCOS E CONFORMIDADE
-Obrigatório incluir análise de "Risco de Desenquadramento" ou "Pagamento Indevido" se o anexo estiver incorreto.
+# 1. AUDITORIA DE CNAE E ENQUADRAMENTO LEGAL
+(Valide cada CNAE, cite o Anexo e a Base Legal explícita)
 
-16. TABELAS DE REFERÊNCIA
-UTILIZE ESTRITAMENTE as Tabelas de INSS, IRPF e os valores de Salário Mínimo vigentes para o Ano Base escolhido pelo usuário.`;
+# 2. SIMULAÇÃO TRIBUTÁRIA DETALHADA (DRE FISCAL)
+(Demonstre o cálculo do DAS, segregando receitas e apresentando o valor total anual)
+
+# 3. ANÁLISE PREVIDENCIÁRIA E PRÓ-LABORE
+(Risco fiscal e sugestão de retirada mínima estratégica)
+
+# 4. MATRIZ DE RISCOS E CONFORMIDADE
+| Risco | Impacto | Probabilidade | Ação Corretiva |
+|-------|---------|---------------|----------------|
+| ...   | ...     | ...           | ...            |
+
+# 5. PARECER DO CONSULTOR (DECISÃO ESTRATÉGICA)
+(Conclusão direta: Qual o melhor caminho e por quê?)
+
+INICIE SEMPRE COM: "Parecer técnico-contábil estratégico, com visão preventiva, fiscalizatória, pericial e de planejamento tributário estruturado."`;
 
 export const PROMPT_PARECER_TECNICO = DEFAULT_PRE_ANALYSIS_PROMPT;
 
@@ -57,7 +66,7 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     id: 'agente-normalizador',
     nome: '1. Normalizador e Validador',
     order: 1,
-    systemPrompt: `Você é um especialista em estruturação de dados. Converta "Sim/Não" em true/false. Formate CNAE apenas como números. Corrija a lógica de Pró-labore: se houver valor mas estiver como "Não", mude para "Sim". Se não houver valor, oriente o uso do salário mínimo do ano base. Retorne APENAS JSON.`,
+    systemPrompt: `Converta os dados para um formato técnico limpo. Corrija inconsistências de Pró-labore e CNAE. Retorne APENAS JSON.`,
   },
   {
     id: 'agente-parecer-tecnico',
@@ -69,7 +78,7 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     id: 'agente-decisor',
     nome: '3. Resumo Executivo e Decisão',
     order: 3,
-    systemPrompt: `Você é o CTO. Faça um resumo direto do melhor regime baseado nas simulações do parecer anterior. Calcule a economia anual em R$. Justifique tecnicamente a escolha e crie um plano de ação imediato de 5 passos para a contabilidade.`,
+    systemPrompt: `Resuma o melhor regime, calcule a economia anual real e crie um plano de ação de 5 passos.`,
   },
 ];
 
@@ -79,7 +88,7 @@ export async function callGeminiAgent(
   apiKey: string
 ): Promise<string> {
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('Chave API Gemini não configurada. Configure na página de Configurações.');
+    throw new Error('Chave API Gemini não configurada.');
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -96,20 +105,11 @@ export async function callGeminiAgent(
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) {
-    let errorMsg = `Gemini API Error: ${response.status}`;
-    try {
-      const errorData = await response.json();
-      if (errorData.error && errorData.error.message) {
-        errorMsg += ` - ${errorData.error.message}`;
-      }
-    } catch (e) {}
-    throw new Error(errorMsg);
-  }
+  if (!response.ok) throw new Error(`Erro API Gemini: ${response.status}`);
 
   const data = await response.json();
   const parts = data?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts) || parts.length === 0) throw new Error('Sem conteúdo na resposta da IA.');
+  if (!Array.isArray(parts) || parts.length === 0) throw new Error('Sem resposta da IA.');
 
   return parts.map((p: any) => (p.text || '').trim()).join('\n\n');
 }
@@ -119,19 +119,12 @@ export async function callAgentWebhook(
   userContent: string,
   previousReports?: Record<string, string>
 ): Promise<string> {
-  if (!agent.webhookUrl) throw new Error(`Webhook não configurado para ${agent.nome}`);
-
-  let parsedPayload: any = {};
-  try {
-    parsedPayload = JSON.parse(userContent);
-  } catch (e) {
-    parsedPayload = { userContent };
-  }
+  if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
 
   const bodyToSend = {
-    agentName: parsedPayload.agentName || agent.nome,
+    agentName: agent.nome,
     systemPrompt: agent.systemPrompt,
-    ...parsedPayload,
+    data: JSON.parse(userContent),
     ...(previousReports ? { previousReports } : {}),
   };
 
@@ -141,12 +134,10 @@ export async function callAgentWebhook(
     body: JSON.stringify(bodyToSend),
   });
 
-  if (!response.ok) throw new Error(`Webhook Error: ${response.status}`);
+  if (!response.ok) throw new Error(`Erro Webhook: ${response.status}`);
 
   const data = await response.json();
-  const report = data.report || (Array.isArray(data) ? data[0]?.report : null) || data.output;
-  if (!report) throw new Error("Resposta inválida do webhook. O n8n precisa retornar um JSON com a chave 'report'.");
-  return report;
+  return data.report || data.output || "Erro no processamento do relatório.";
 }
 
 export function loadAgentsFromStorage(): AgentConfig[] {
