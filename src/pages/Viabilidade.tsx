@@ -126,7 +126,7 @@ const Viabilidade = () => {
     
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
     
-    // Pré-cálculo de alíquotas para ajudar a IA
+    // CÁLCULO TÉCNICO DE REFERÊNCIA (PARA GUIAR A IA)
     const aliqComercio = calculateSimplesNacionalEffectiveRate("Anexo I", faturamentoNum);
     const aliqServicoIII = calculateSimplesNacionalEffectiveRate("Anexo III", faturamentoNum);
 
@@ -161,9 +161,10 @@ const Viabilidade = () => {
             comercio_valor: (faturamentoNum * percComercioNum) / 100,
             servico_valor: (faturamentoNum * percServicoNum) / 100
           },
-          referencia_aliquotas: {
+          referencia_aliquotas_calculadas: {
             anexo_i_efetiva: aliqComercio,
-            anexo_iii_efetiva: aliqServicoIII
+            anexo_iii_efetiva: aliqServicoIII,
+            observacao: "Estes valores foram calculados pelo sistema usando a fórmula oficial da LC 123/2006."
           }
         },
         folha_pagamento: {
