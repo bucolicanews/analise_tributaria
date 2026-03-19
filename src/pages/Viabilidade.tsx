@@ -6,13 +6,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
 import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader as UIDialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { callGeminiAgent } from '@/lib/geminiService';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (LTDA)", "Sociedade Limitada Unipessoal (SLU)", "Sociedade Simples", "Não sei / Sugerir"];
@@ -78,6 +82,10 @@ const Viabilidade = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
+  // Estados para Pré-Análise Local
+  const [isPreAnalyzing, setIsPreAnalyzing] = useState(false);
+  const [preAnalysisReport, setPreAnalysisReport] = useState<string | null>(null);
+
   const handleFolhaMensalChange = (val: string) => {
     setFolhaPagamento(val);
     const num = parseFloat(val) || 0;
@@ -111,13 +119,8 @@ const Viabilidade = () => {
     }));
   };
 
-  const handleSendToAI = async (environment: 'test' | 'production') => {
-    if (!atividades.trim() || !municipio.trim()) return toast.error("Preencha Atividades e Município.");
-    const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
-    if (!webhookUrl) return toast.error(`Webhook de ${environment} não configurado.`);
-
-    setIsLoading(true);
-    const startTime = performance.now();
+  // Monta o payload base que será usado tanto na pré-análise quanto no webhook final
+  const buildPayload = (environment: 'test' | 'production', webhookUrl: string) => {
     const inssTables = getInssTables();
     const irpfTables = getIrpfTables();
     const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
@@ -126,146 +129,116 @@ const Viabilidade = () => {
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
     
-    // Fator R usa a folha de 12 meses direta, e não apenas a mensal multiplicada.
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
     const percentualFatorR = faturamentoNum > 0 ? parseFloat(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0;
 
-    try {
-      const payload = {
-        meta: {
-          webhookUrl: webhookUrl,
-          executionMode: environment
+    return {
+      meta: { webhookUrl, executionMode: environment },
+      agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+      contexto: { anoBase, objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial" },
+      empresa: {
+        razaoSocial: razaoSocial || "Não Informada",
+        naturezaJuridica: naturezaJuridica || "Não Informada",
+        classificacaoFiscal: classificacaoFiscal || "ME",
+        capitalSocial: parseFloat(capital) || 0,
+        numSocios: parseInt(numSocios) || 1,
+        localizacao: { municipio: formatCityName(municipio), estado: estado || "PA" },
+        tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
+      },
+      operacional: {
+        cnaes: cnaes.map(c => ({
+          codigo_formatado: c.code.trim(),
+          codigo_limpo: c.code.replace(/\D/g, ''),
+          descricao: c.description.trim(),
+          tipo: c.isPrimary ? 'Principal' : 'Secundário'
+        })),
+        descricaoAtividades: atividades || "",
+      },
+      financeiro: {
+        faturamento: {
+          anual_total: faturamentoNum,
+          mensal_medio: parseFloat((faturamentoNum / 12).toFixed(2)),
+          segregacao: { comercio_percent: percComercioNum, servico_percent: percServicoNum }
         },
-        agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-        engine: {
-          analises_requeridas: [
-            "enquadramento_simples",
-            "calculo_carga_tributaria",
-            "analise_fator_r",
-            "diagnostico_risco",
-            "viabilidade_financeira",
-            "planejamento_tributario"
-          ],
-          simulacoes_pro_labore: [
-            { nome: "cenario_atual", descricao: "Situação atual conforme preenchido" },
-            { nome: "cenario_minimo", valor: currentMinWage, descricao: "Obrigatório legal mínimo (1 SM)" },
-            { nome: "cenario_otimizado_fator_r", descricao: "Pró-labore ideal para atingir 28% do Fator R (se aplicável ao CNAE)" }
-          ],
-          output_config: {
-            formato: "relatorio_consultivo",
-            secoes: [
-              "diagnostico_geral",
-              "carga_tributaria",
-              "analise_fator_r",
-              "riscos_identificados",
-              "economia_potencial",
-              "recomendacoes_praticas"
-            ]
-          }
+        fator_r: {
+          sujeito_fator_r: percServicoNum > 0 ? "A definir pela IA com base nos CNAEs" : false,
+          folha_12_meses: folha12mNum,
+          faturamento_12_meses: faturamentoNum,
+          percentual_atual: percentualFatorR
         },
-        contexto: {
-          anoBase: anoBase,
-          objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial"
-        },
-        tabelasReferencia: {
-          inss: inssTables.filter(t => t.year === anoBase),
-          irpf: irpfTables.filter(t => t.year === anoBase),
-          salario_minimo: currentMinWage
-        },
-        empresa: {
-          razaoSocial: razaoSocial || "Não Informada",
-          naturezaJuridica: naturezaJuridica || "Não Informada",
-          classificacaoFiscal: classificacaoFiscal || "ME",
-          capitalSocial: parseFloat(capital) || 0,
-          numSocios: parseInt(numSocios) || 1,
-          localizacao: { 
-            municipio: formatCityName(municipio), 
-            estado: estado || "PA" 
-          },
-          tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
-        },
-        operacional: {
-          cnaes: cnaes.map(c => {
-            const trimmedCode = c.code.trim();
-            const cleanCode = trimmedCode.replace(/\D/g, '');
-            return {
-              codigo_formatado: trimmedCode,
-              codigo_limpo: cleanCode,
-              descricao: c.description.trim(),
-              tipo: c.isPrimary ? 'Principal' : 'Secundário'
-            };
-          }),
-          descricaoAtividades: atividades || "",
-          ideiaNegocio: businessIdea || ""
-        },
-        financeiro: {
-          faturamento: {
-            anual_total: faturamentoNum,
-            mensal_medio: parseFloat((faturamentoNum / 12).toFixed(2)),
-            segregacao: {
-              comercio_percent: percComercioNum,
-              servico_percent: percServicoNum,
-              comercio_valor: parseFloat(((faturamentoNum * percComercioNum) / 100).toFixed(2)),
-              servico_valor: parseFloat(((faturamentoNum * percServicoNum) / 100).toFixed(2))
-            },
-            anexo_simples_sugerido: {
-              comercio: percComercioNum > 0 ? "Anexo I" : null,
-              servico: percServicoNum > 0 ? "Avaliar enquadramento conforme LC 123/2006, Art. 18, § 5º-B a § 5º-I" : null
-            }
-          },
-          fator_r: {
-            sujeito_fator_r: percServicoNum > 0 ? "Avaliar se o CNAE está sujeito ao Fator R (LC 123/2006, Art. 18, § 5º-J e § 5º-M)" : false,
-            folha_12_meses: folha12mNum,
-            faturamento_12_meses: faturamentoNum,
-            percentual_atual: percentualFatorR,
-            resultado: percServicoNum > 0 ? "Aguardando análise da IA sobre o CNAE para definir o Anexo" : "N/A",
-            valor_ideal_folha_mensal: faturamentoNum > 0 ? parseFloat(((faturamentoNum * 0.28) / 12).toFixed(2)) : 0
-          },
-          custos_operacionais: {
-            fixos_mensais: parseFloat(fixosMensais) || 0,
-            variaveis_percentual: parseFloat(variaveisPercentual) || 0
-          },
-          tributos_locais: {
-            iss_municipio: parseFloat(aliquotaIss) || 0,
-            icms_estado: parseFloat(aliquotaIcms) || 0
-          },
-          custos_abertura: {
-            honorarios_legalizacao: parseFloat(honorariosLegalizacao) || 0,
-            assessoria_mensal: parseFloat(assessoriaMensal) || 0,
-            junta_cartorio: parseFloat(juntaCartorio) || 0,
-            bombeiro_licencas: parseFloat(bombeiroLicencas) || 0
-          }
-        },
-        societario_trabalhista: {
-          quadro_pessoal: {
-            num_funcionarios: parseInt(numFuncionarios) || 0,
-            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
-          },
-          pro_labore: {
-            declara_prolabore: sociosDeclaramProlabore === 'Sim',
-            valor_declarado: parseFloat(valorProlabore) || 0,
-            valor_estimado: currentMinWage,
-            recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
-            modo_calculo: sociosDeclaramProlabore === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
-          },
-          retira_valores_pf: sociosRetiramValores === 'Sim'
-        },
-        conformidade_riscos: {
-          alertas_criticos: {
-            confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
-            retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
-            risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
-          }
+        custos_operacionais: {
+          fixos_mensais: parseFloat(fixosMensais) || 0,
+          variaveis_percentual: parseFloat(variaveisPercentual) || 0
         }
-      };
+      },
+      societario_trabalhista: {
+        pro_labore: {
+          declara_prolabore: sociosDeclaramProlabore === 'Sim',
+          valor_declarado: parseFloat(valorProlabore) || 0,
+          recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
+        },
+        retira_valores_pf: sociosRetiramValores === 'Sim'
+      },
+      conformidade_riscos: {
+        confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
+        retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
+        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+      }
+    };
+  };
 
+  // FUNÇÃO DE PRÉ-ANÁLISE COM A IA LOCAL (GEMINI)
+  const handlePreAnalysis = async () => {
+    const apiKey = localStorage.getItem('jota-gemini-key');
+    if (!apiKey) {
+      toast.error("Chave API do Gemini não configurada.", { description: "Vá em Configurações e insira sua chave para habilitar a IA Local." });
+      return;
+    }
+
+    setIsPreAnalyzing(true);
+    try {
+      const payload = buildPayload('test', '');
+      const systemPrompt = `Você é um Auditor Fiscal e Consultor de Negócios Sênior. 
+Sua função é fazer um 'Sanity Check' (validação rápida) dos dados informados pelo usuário ANTES de gerar o relatório final.
+Analise o JSON de contexto e aponte APENAS:
+1. Inconsistências Financeiras (ex: custos absurdos para o faturamento).
+2. Riscos Societários Críticos (ex: confusão patrimonial, retirada de lucros sem pró-labore).
+3. Atenção aos CNAEs (avise rapidamente se algum CNAE não pode ser Simples Nacional ou se é óbvio que entra no Fator R).
+Seja extremamente direto, use marcadores (bullet points) e não escreva uma introdução longa. O foco é alertar o usuário para corrigir dados errados.`;
+
+      const result = await callGeminiAgent(systemPrompt, JSON.stringify(payload, null, 2), apiKey);
+      setPreAnalysisReport(result);
+    } catch (e: any) {
+      toast.error("Erro na pré-análise: " + e.message);
+    } finally {
+      setIsPreAnalyzing(false);
+    }
+  };
+
+  // FUNÇÃO DE ENVIO OFICIAL (WEBHOOK N8N)
+  const handleSendToAI = async (environment: 'test' | 'production') => {
+    if (!atividades.trim() || !municipio.trim()) return toast.error("Preencha Atividades e Município.");
+    const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
+    if (!webhookUrl) return toast.error(`Webhook de ${environment} não configurado.`);
+
+    setIsLoading(true);
+    const startTime = performance.now();
+    const payload = buildPayload(environment, webhookUrl);
+    
+    // Adicionando as instruções específicas do motor para o n8n
+    const fullPayload = {
+      ...payload,
+      engine: {
+        analises_requeridas: ["enquadramento_simples", "calculo_carga_tributaria", "analise_fator_r", "diagnostico_risco", "viabilidade_financeira", "planejamento_tributario"],
+        output_config: { formato: "relatorio_consultivo" }
+      }
+    };
+
+    try {
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
-        headers: { 
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }, 
-        body: JSON.stringify(payload) 
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
+        body: JSON.stringify(fullPayload) 
       });
       
       if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);
@@ -290,6 +263,40 @@ const Viabilidade = () => {
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
+      {/* DIALOG DE PRÉ-ANÁLISE */}
+      <Dialog open={!!preAnalysisReport} onOpenChange={(open) => !open && setPreAnalysisReport(null)}>
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+          <UIDialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600">
+              <Bot className="h-5 w-5" /> Pré-Validação Inteligente (IA Local)
+            </DialogTitle>
+            <DialogDescription>
+              A IA analisou seus dados antes da geração do relatório final. Verifique os alertas abaixo.
+            </DialogDescription>
+          </UIDialogHeader>
+          <div className="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-li:marker:text-blue-500">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {preAnalysisReport || ""}
+              </ReactMarkdown>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="bg-accent">Ignorar e Gerar Relatório <ChevronDown className="h-4 w-4 ml-2" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}>Ambiente Teste</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}>Ambiente Produção</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
       <Card className="shadow-card"><CardHeader className="flex flex-row items-center justify-between"><CardTitle className="flex items-center gap-3 text-primary"><Sparkles className="h-6 w-6" /> Análise de Viabilidade</CardTitle><Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button></CardHeader></Card>
 
       {isLoading && <div className="rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 animate-pulse"><Loader2 className="h-12 w-12 text-primary animate-spin" /><h3>Enviando dados para a IA...</h3></div>}
@@ -373,11 +380,26 @@ const Viabilidade = () => {
 
       <div className="mt-6 space-y-2"><Label className="font-semibold">Descrição Detalhada das Atividades</Label><Textarea value={atividades} onChange={(e) => setAtividades(e.target.value)} className="min-h-[100px]" /></div>
 
-      <div className="text-center pt-4">
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+        
+        <Button variant="outline" size="lg" onClick={handlePreAnalysis} disabled={isLoading || isPreAnalyzing} className="text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50">
+          <Bot className="h-5 w-5 mr-2" />
+          {isPreAnalyzing ? 'Validando...' : 'Pré-Validação com IA Local'}
+        </Button>
+
         <DropdownMenu>
-          <DropdownMenuTrigger asChild><Button size="lg" disabled={isLoading} className="bg-accent px-12">{isLoading ? "Processando..." : "Gerar Diagnóstico"}<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger>
-          <DropdownMenuContent align="center"><DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem></DropdownMenuContent>
+          <DropdownMenuTrigger asChild>
+            <Button size="lg" disabled={isLoading || isPreAnalyzing} className="bg-accent px-12 text-white">
+              {isLoading ? "Processando..." : "Gerar Diagnóstico Oficial"}
+              <ChevronDown className="h-4 w-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="center">
+            <DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
+          </DropdownMenuContent>
         </DropdownMenu>
+        
       </div>
 
       {aiReport && <div id="ai-report-section"><AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} clientName={razaoSocial} clientCity={municipio} clientState={estado} /></div>}
