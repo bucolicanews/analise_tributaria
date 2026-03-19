@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, Lock, Table as TableIcon, Info, History, Coins } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, Lock, Table as TableIcon, Info, History, Coins, Zap, CheckCircle } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
+import { JOTA_TOOLS_MANIFEST } from '@/lib/skills/taxSkills';
 
 const UFs = [
   "AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", 
@@ -53,7 +54,6 @@ const Configuracao = () => {
     toast.success("Configurações salvas com sucesso!");
   };
 
-  // --- AGENTS LOGIC ---
   const addAgent = () => {
     const newAgent: AgentConfig = {
       id: `agent-${Date.now()}`,
@@ -80,7 +80,6 @@ const Configuracao = () => {
     }
   };
 
-  // --- INSS LOGIC ---
   const addInssTable = () => {
     const newTable: InssTable = {
       id: `inss-${Date.now()}`,
@@ -100,7 +99,6 @@ const Configuracao = () => {
     setInssTables(newTables);
   };
 
-  // --- IRPF LOGIC ---
   const addIrpfTable = () => {
     const newTable: IrpfTable = {
       id: `irpf-${Date.now()}`,
@@ -127,7 +125,6 @@ const Configuracao = () => {
     setIrpfTables(newTables);
   };
 
-  // --- MINIMUM WAGE LOGIC ---
   const addMinimumWage = () => {
     const newEntry: MinimumWageEntry = {
       id: `mw-${Date.now()}`,
@@ -154,7 +151,6 @@ const Configuracao = () => {
           <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-8">
             
-            {/* DADOS DA EMPRESA */}
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2"><Building className="h-5 w-5 text-muted-foreground" />Dados da Empresa</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -166,7 +162,26 @@ const Configuracao = () => {
 
             {autenticado && (
               <>
-                {/* RESPONSÁVEL TÉCNICO */}
+                {/* BIBLIOTECA DE SKILLS (NOVO) */}
+                <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
+                   <div className="flex items-center justify-between">
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Habilidades Ativas (Skills Engine)</h3>
+                     <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">IA Agêntica Ativada</Badge>
+                   </div>
+                   <p className="text-xs text-muted-foreground mb-4">Estas são as ferramentas que a IA utiliza para garantir precisão matemática e técnica nos relatórios.</p>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                     {JOTA_TOOLS_MANIFEST.map((tool) => (
+                       <div key={tool.name} className="p-3 rounded-md bg-background border border-border flex items-start gap-3 shadow-sm">
+                         <div className="p-2 bg-success/10 rounded-full"><CheckCircle className="h-4 w-4 text-success" /></div>
+                         <div>
+                           <p className="text-sm font-bold font-mono text-foreground">{tool.name}</p>
+                           <p className="text-[10px] text-muted-foreground leading-tight mt-1">{tool.description}</p>
+                         </div>
+                       </div>
+                     ))}
+                   </div>
+                </div>
+
                 <div className="space-y-4 rounded-lg border border-border p-4">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -175,7 +190,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* WEBHOOKS IA */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-accent/5">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><Webhook className="h-5 w-5 text-accent" />Webhooks da IA (Viabilidade)</h3>
                    <div className="grid grid-cols-1 gap-4">
@@ -184,7 +198,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* CHAVE GEMINI */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
                    <div className="space-y-2">
@@ -204,7 +217,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* GERENCIADOR DE AGENTES */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-indigo-500/5">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-semibold flex items-center gap-2"><Bot className="h-5 w-5 text-indigo-500" />Gerenciador de Agentes IA (Timeline)</h3>
@@ -236,7 +248,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* GERENCIADOR SALÁRIO MÍNIMO */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-emerald-50/30">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-semibold flex items-center gap-2 text-emerald-700"><Coins className="h-5 w-5" />Tabela de Salário Mínimo</h3>
@@ -254,7 +265,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* GERENCIADOR INSS */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/10">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><TableIcon className="h-5 w-5 text-muted-foreground" />Gerenciador de Tabelas INSS</h3>
                    <div className="space-y-6">
@@ -282,7 +292,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* GERENCIADOR IRPF */}
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-50/30">
                    <h3 className="text-lg font-semibold flex items-center gap-2 text-blue-700"><Info className="h-5 w-5" />Gerenciador de Tabelas IRPF</h3>
                    <div className="space-y-6">
