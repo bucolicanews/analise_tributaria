@@ -13,7 +13,7 @@ export interface DynamicSkill {
 }
 
 /**
- * Skills nativas do sistema
+ * Skills nativas do sistema (Lógica de Execução)
  */
 export const SYSTEM_SKILLS: Record<string, Function> = {
   calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
@@ -36,9 +36,45 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       resultado_enquadramento: ratio >= 0.28 ? "Anexo III" : "Anexo V",
       status: "sucesso"
     };
+  },
+  // NOVA SKILL: Cálculo de IRPF Pró-labore 2026
+  calculate_irpf_prolabore: (args: { valor_pro_labore: number }) => {
+    const v = args.valor_pro_labore;
+    let imposto = 0;
+    let faixa = "Isento";
+    let aliquota = 0;
+    let deducao = 0;
+
+    if (v <= 2428.80) {
+      imposto = 0;
+    } else if (v <= 2826.65) {
+      aliquota = 7.5; deducao = 182.16; faixa = "7,5%";
+    } else if (v <= 3751.05) {
+      aliquota = 15.0; deducao = 394.16; faixa = "15%";
+    } else if (v <= 4664.68) {
+      aliquota = 22.5; deducao = 675.49; faixa = "22,5%";
+    } else {
+      aliquota = 27.5; deducao = 908.73; faixa = "27,5%";
+    }
+
+    if (aliquota > 0) {
+      imposto = (v * (aliquota / 100)) - deducao;
+    }
+
+    return {
+      valor_bruto: v,
+      imposto_devido: Math.max(0, imposto),
+      aliquota_aplicada: faixa,
+      valor_liquido: v - Math.max(0, imposto),
+      ano_base: "2026",
+      status: "sucesso"
+    };
   }
 };
 
+/**
+ * Manifesto de Ferramentas (O que a IA enxerga)
+ */
 export const JOTA_TOOLS_MANIFEST = [
   {
     name: "calculate_simples_nacional",
@@ -72,6 +108,20 @@ export const JOTA_TOOLS_MANIFEST = [
       },
       required: ["folha_12m", "faturamento_12m"]
     }
+  },
+  {
+    name: "calculate_irpf_prolabore",
+    description: "Calcula o Imposto de Renda Pessoa Física (IRPF) sobre o valor do pró-labore mensal (Tabela 2026).",
+    parameters: {
+      type: "object",
+      properties: {
+        valor_pro_labore: { 
+          type: "number", 
+          description: "O valor bruto mensal do pró-labore do sócio." 
+        }
+      },
+      required: ["valor_pro_labore"]
+    }
   }
 ];
 
@@ -84,10 +134,6 @@ export const saveDynamicSkills = (skills: DynamicSkill[]) => {
   localStorage.setItem('jota-dynamic-skills', JSON.stringify(skills));
 };
 
-/**
- * Executor de Skills (O Coração do Agente)
- * Agora suporta AsyncFunction para permitir fetch/APIs no local_js
- */
 export async function executeSkill(name: string, args: any): Promise<any> {
   if (SYSTEM_SKILLS[name]) {
     return SYSTEM_SKILLS[name](args);
@@ -115,7 +161,6 @@ export async function executeSkill(name: string, args: any): Promise<any> {
 
   if (skill.executionType === 'local_js' && skill.jsCode) {
     try {
-      // Cria uma função assíncrona dinamicamente
       const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
       const fn = new AsyncFunction('args', skill.jsCode);
       return await fn(args);
