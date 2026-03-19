@@ -265,27 +265,31 @@ Seja extremamente direto, use marcadores (bullet points) e não escreva uma intr
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* DIALOG DE PRÉ-ANÁLISE */}
       <Dialog open={!!preAnalysisReport} onOpenChange={(open) => !open && setPreAnalysisReport(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto border-primary/20 bg-card">
           <UIDialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className="flex items-center gap-2 text-primary">
               <Bot className="h-5 w-5" /> Pré-Validação Inteligente (IA Local)
             </DialogTitle>
             <DialogDescription>
               A IA analisou seus dados antes da geração do relatório final. Verifique os alertas abaixo.
             </DialogDescription>
           </UIDialogHeader>
-          <div className="mt-4 p-4 rounded-lg bg-slate-50 border border-slate-200">
-            <div className="prose prose-sm max-w-none prose-p:leading-relaxed prose-li:marker:text-blue-500">
+          
+          <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border">
+            <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {preAnalysisReport || ""}
               </ReactMarkdown>
             </div>
           </div>
+          
           <div className="flex justify-end gap-2 mt-4">
             <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="bg-accent">Ignorar e Gerar Relatório <ChevronDown className="h-4 w-4 ml-2" /></Button>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                  Ignorar e Gerar Relatório <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}>Ambiente Teste</DropdownMenuItem>
