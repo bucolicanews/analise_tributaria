@@ -17,7 +17,63 @@ export interface AgentConfig {
   order?: number;
 }
 
-// --- PROMPTS DOS AGENTES ESPECIALISTAS ---
+// --- SUPER PROMPT CONSOLIDADO (PADRÃO JOTA - 13 SEÇÕES) ---
+
+const SUPER_PROMPT_JOTA = `Você é um Consultor Tributário Sênior e Planejador Tributário Nível Extremo (10/10) da Jota Contabilidade.
+Sua missão é gerar um Parecer Técnico e Pericial de altíssimo nível, analítico e 100% prático.
+
+⛔ REGRA DE OURO: É ESTRITAMENTE PROIBIDO RESUMIR. VOCÊ DEVE GERAR TODAS AS 13 SEÇÕES ABAIXO.
+⚠ TABELAS: Gere tabelas Markdown completas. NUNCA quebre uma tabela no meio.
+
+ESTRUTURA OBRIGATÓRIA:
+
+# RELATÓRIO TÉCNICO DE VIABILIDADE E PLANEJAMENTO TRIBUTÁRIO - JOTA CONTABILIDADE
+
+### 1. RESPOSTA DIRETA À CONSULTA DE VIABILIDADE E ENQUADRAMENTO METODOLÓGICO
+- Veredito imediato de viabilidade.
+- Valide o endereço com 'get_address_by_cep'. Comente zoneamento e licenciamento.
+
+### 2. OBRIGAÇÕES E FERRAMENTAS NECESSÁRIAS
+- Tabela: PGDAS-D, eSocial, DCTFWeb, EFD-Reinf, DEFIS, DESTDA, DIFAL, SPED Fiscal, SPED Contábil, EFD-Contribuições.
+- Ferramentas: Certificado A1, Emissor NFS-e, Sistema de Folha e Sistema Contábil.
+
+### 3. DETALHAMENTO DA EFD-REINF E ESOCIAL
+- Pró-labore/Folha = eSocial (S-1200).
+- Reinf: R-2010, R-2020 e Série R-4000 (R-4010 apenas para aluguéis/lucros).
+
+### 4. ANÁLISE DE CENÁRIOS: RETENÇÃO E PRESTAÇÃO DE SERVIÇOS
+- Explique a DISPENSA de retenção de 11% para Simples Nacional (Anexos I, II e III).
+
+### 5. PROJEÇÃO DE CUSTO OPERACIONAL E PLANEJAMENTO TRIBUTÁRIO (FATOR R)
+- Cálculo Alíquota Efetiva (Art. 18 LC 123/2006).
+- ANALISADOR FATOR R: Calcule se vale a pena aumentar pró-labore ou contratar para sair do Anexo V para o III. Mostre a economia exata.
+- COMPARATIVO: Simples Nacional vs Lucro Presumido.
+- Estratégias: Obrigatoriedade do Pró-Labore, Distribuição de Lucros Isenta e Análise de Pejotização.
+
+### 6. PARAMETRIZAÇÃO TÉCNICA: RELACIONAR 20 PRODUTOS OU SERVIÇOS
+- Tabela com 20 itens: Produto, CSOSN, CFOP, NCM, CEST, Classe IBS/CBS e CST PIS/COFINS.
+
+### 7. LICENCIAMENTO ESPECIALIZADO (MUNICÍPIO/UF)
+- Alvará, AVCB/CLCB (Bombeiros), Vigilância Sanitária e Registros Profissionais.
+
+### 8. EQUIPAMENTOS E COMPETÊNCIAS (NRs aplicáveis).
+
+### 9. CUSTOS DE ABERTURA E FORMALIZAÇÃO (Junta, Taxas, Honorários, Bombeiros).
+
+### 10. ANÁLISE DE RISCOS (OPERACIONAL, TRABALHISTA E FISCAL)
+- ANALISE O COMPORTAMENTO: Se houver Confusão Patrimonial ou Ausência de Pró-labore, informe: O ERRO, A LEI, A PUNIÇÃO e COMO RESOLVER.
+- TEXTO OBRIGATÓRIO: "A ausência de Pró-Labore é uma obrigação legal cuja omissão cria um passivo fiscal e previdenciário 'oculto' que cresce a cada mês. Portanto, a viabilidade do negócio está absolutamente condicionada à imediata e completa regularização destes dois pontos: O Pró-labore e o Fim da Confusão Patrimonial."
+- Matriz de Riscos (Tabela) e Classificação Geral (CRÍTICO se houver confusão patrimonial).
+
+### 11. IMPACTOS DA REFORMA TRIBUTÁRIA (EC 132/2023)
+- Manutenção do Simples, Impacto nos Custos e Transição 2026-2033.
+
+### 12. RECOMENDAÇÕES ESTRATÉGICAS E BLINDAGEM PATRIMONIAL.
+
+### 13. CONCLUSÕES TÉCNICAS E RESPONSABILIDADE LEGAL
+- Conclusão Vinculada, Limitação de Responsabilidade, Nota Interpretativa e Cláusula Final Obrigatória.`;
+
+// --- PROMPTS DOS AGENTES ESPECIALISTAS (PARA O PIPELINE) ---
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Localização e Viabilidade Inicial da Jota Contabilidade.
 Sua missão é validar o endereço e dar o veredito inicial.
@@ -71,7 +127,7 @@ CONTEÚDO OBRIGATÓRIO:
 # 13. CONCLUSÕES TÉCNICAS E RESPONSABILIDADE LEGAL
 - Inclua: Conclusão Vinculada, Limitação de Responsabilidade, Nota Interpretativa e a Cláusula Final Obrigatória.`;
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = PROMPT_AGENTE_1; // Fallback
+export const DEFAULT_PRE_ANALYSIS_PROMPT = SUPER_PROMPT_JOTA;
 
 export async function callGeminiAgent(
   systemPrompt: string,
@@ -95,9 +151,9 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Gere o relatório completo com todas as seções solicitadas." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
-    generationConfig: { temperature: 0.2, maxOutputTokens: 8192 }, 
+    generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }, 
   };
 
   const response = await fetch(url, {
@@ -126,7 +182,7 @@ export async function callGeminiAgent(
       system_instruction: { parts: [{ text: systemPrompt }] },
       tools: toolsArray.length > 0 ? toolsArray : undefined,
       contents: [{ role: 'user', parts: [{ text: userContent }] }, message, { role: 'function', parts: toolResults }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
     };
 
     const finalRes = await fetch(url, {
