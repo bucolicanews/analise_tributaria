@@ -168,17 +168,21 @@ export async function callGeminiAgent(
     toolsArray.push({ functionDeclarations: allFunctionTools });
   }
 
+  // A API do Gemini retorna Erro 400 (INVALID_ARGUMENT) se enviarmos googleSearch e functionDeclarations na mesma requisição.
+  // Como as nossas funções nativas (CEP, Fator R, etc.) são vitais, nós ignoramos a pesquisa do Google se tivermos functions.
   const enableGoogleSearch = localStorage.getItem('jota-gemini-search') === 'true';
-  if (enableGoogleSearch) {
+  if (enableGoogleSearch && allFunctionTools.length === 0) {
     toolsArray.push({ googleSearch: {} });
-    console.log("[Gemini] Pesquisa Nativa no Google (Grounding) habilitada.");
+    console.log("[Gemini] Pesquisa Nativa no Google ativada (Sem funções customizadas).");
+  } else if (enableGoogleSearch) {
+    console.warn("[Gemini] Pesquisa Nativa ignorada para evitar Erro 400. Function Calling tem prioridade.");
   }
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO INVISÍVEL]: Lembre-se de testar o CEP 66910010 com suas tools de endereço antes de iniciar." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
-    generationConfig: { temperature: 0.1 }, // Temperatura baixa garante que a IA siga o formato de forma mais rígida
+    generationConfig: { temperature: 0.1 }, 
   };
 
   const response = await fetch(url, {
@@ -190,7 +194,7 @@ export async function callGeminiAgent(
   if (!response.ok) {
     const errText = await response.text();
     console.error("[Gemini] Erro na requisição inicial:", errText);
-    throw new Error(`Erro API: ${response.status}`);
+    throw new Error(`Erro API: ${response.status} - ${errText}`);
   }
 
   const data = await response.json();
