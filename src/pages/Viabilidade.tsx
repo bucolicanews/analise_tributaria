@@ -126,10 +126,8 @@ const Viabilidade = () => {
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
     
-    // Fator R usa a folha de 12 meses direta, e não apenas a mensal multiplicada.
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
-    const percentualFatorR = faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0;
-    const fatorROk = percentualFatorR >= 28;
+    const percentualFatorR = faturamentoNum > 0 ? parseFloat(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0;
 
     try {
       const payload = {
@@ -150,7 +148,7 @@ const Viabilidade = () => {
           simulacoes_pro_labore: [
             { nome: "cenario_atual", descricao: "Situação atual conforme preenchido" },
             { nome: "cenario_minimo", valor: currentMinWage, descricao: "Obrigatório legal mínimo (1 SM)" },
-            { nome: "cenario_otimizado_fator_r", descricao: "Pró-labore ideal para atingir 28% do Fator R (se Anexo V)" }
+            { nome: "cenario_otimizado_fator_r", descricao: "Pró-labore ideal para atingir 28% do Fator R (se aplicável ao CNAE)" }
           ],
           output_config: {
             formato: "relatorio_consultivo",
@@ -202,25 +200,25 @@ const Viabilidade = () => {
         financeiro: {
           faturamento: {
             anual_total: faturamentoNum,
-            mensal_medio: faturamentoNum / 12,
+            mensal_medio: parseFloat((faturamentoNum / 12).toFixed(2)),
             segregacao: {
               comercio_percent: percComercioNum,
               servico_percent: percServicoNum,
-              comercio_valor: (faturamentoNum * percComercioNum) / 100,
-              servico_valor: (faturamentoNum * percServicoNum) / 100
+              comercio_valor: parseFloat(((faturamentoNum * percComercioNum) / 100).toFixed(2)),
+              servico_valor: parseFloat(((faturamentoNum * percServicoNum) / 100).toFixed(2))
             },
             anexo_simples_sugerido: {
               comercio: percComercioNum > 0 ? "Anexo I" : null,
-              servico: percServicoNum > 0 ? (fatorROk ? "Anexo III" : "Anexo V") : null
+              servico: percServicoNum > 0 ? "A definir pela IA (Anexo III, IV ou V conforme CNAE)" : null
             }
           },
           fator_r: {
-            sujeito_fator_r: percServicoNum > 0,
-            folha_12_meses: folha12mNum, // ENVIANDO O VALOR EXATO
+            sujeito_fator_r: percServicoNum > 0 ? "A definir pela IA com base nos CNAEs de serviço" : false,
+            folha_12_meses: folha12mNum,
             faturamento_12_meses: faturamentoNum,
             percentual_atual: percentualFatorR,
-            resultado: fatorROk ? "Anexo III" : "Anexo V",
-            valor_ideal_folha_mensal: faturamentoNum > 0 ? (faturamentoNum * 0.28) / 12 : 0
+            resultado: percServicoNum > 0 ? "A definir pela IA" : "N/A",
+            valor_ideal_folha_mensal: faturamentoNum > 0 ? parseFloat(((faturamentoNum * 0.28) / 12).toFixed(2)) : 0
           },
           custos_operacionais: {
             fixos_mensais: parseFloat(fixosMensais) || 0,
@@ -343,7 +341,7 @@ const Viabilidade = () => {
             <CardContent className="pt-6">
               <SectionTitle icon={Gavel} title="Custos Operacionais e Faturamento" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Faturamento Últ. 12 Meses (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>

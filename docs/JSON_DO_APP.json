@@ -1,0 +1,260 @@
+[
+  {
+    "headers": {
+      "host": "jota-empresas-n8n.ubjifz.easypanel.host",
+      "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36",
+      "content-length": "3963",
+      "accept": "application/json",
+      "accept-encoding": "gzip, deflate, br, zstd",
+      "accept-language": "pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+      "content-type": "application/json",
+      "origin": "http://localhost:8080",
+      "priority": "u=1, i",
+      "referer": "http://localhost:8080/",
+      "sec-ch-ua": "\"Chromium\";v=\"146\", \"Not-A.Brand\";v=\"24\", \"Google Chrome\";v=\"146\"",
+      "sec-ch-ua-mobile": "?0",
+      "sec-ch-ua-platform": "\"Windows\"",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "cross-site",
+      "x-forwarded-for": "138.186.18.96",
+      "x-forwarded-host": "jota-empresas-n8n.ubjifz.easypanel.host",
+      "x-forwarded-port": "443",
+      "x-forwarded-proto": "https",
+      "x-forwarded-server": "dd4d6cd04afb",
+      "x-real-ip": "138.186.18.96"
+    },
+    "params": {},
+    "query": {},
+    "body": {
+      "meta": {
+        "webhookUrl": "https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794",
+        "executionMode": "test"
+      },
+      "agentName": "Diagnóstico de Viabilidade e Estruturação de Negócios",
+      "engine": {
+        "analises_requeridas": [
+          "enquadramento_simples",
+          "calculo_carga_tributaria",
+          "analise_fator_r",
+          "diagnostico_risco",
+          "viabilidade_financeira",
+          "planejamento_tributario"
+        ],
+        "simulacoes_pro_labore": [
+          {
+            "nome": "cenario_atual",
+            "descricao": "Situação atual conforme preenchido"
+          },
+          {
+            "nome": "cenario_minimo",
+            "valor": 1621,
+            "descricao": "Obrigatório legal mínimo (1 SM)"
+          },
+          {
+            "nome": "cenario_otimizado_fator_r",
+            "descricao": "Pró-labore ideal para atingir 28% do Fator R (se Anexo V)"
+          }
+        ],
+        "output_config": {
+          "formato": "relatorio_consultivo",
+          "secoes": [
+            "diagnostico_geral",
+            "carga_tributaria",
+            "analise_fator_r",
+            "riscos_identificados",
+            "economia_potencial",
+            "recomendacoes_praticas"
+          ]
+        }
+      },
+      "contexto": {
+        "anoBase": "2026",
+        "objetivo": "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial"
+      },
+      "tabelasReferencia": {
+        "inss": [
+          {
+            "id": "inss-2026",
+            "label": "Período de 01/01/2026 a 31/12/2026",
+            "year": "2026",
+            "ranges": [
+              {
+                "min": 0,
+                "max": 1621,
+                "rate": 7.5,
+                "deduction": 0
+              },
+              {
+                "min": 1621.01,
+                "max": 2902.84,
+                "rate": 9,
+                "deduction": 24.32
+              },
+              {
+                "min": 2902.85,
+                "max": 4354.27,
+                "rate": 12,
+                "deduction": 111.4
+              },
+              {
+                "min": 4354.28,
+                "max": 8475.55,
+                "rate": 14,
+                "deduction": 198.49
+              }
+            ]
+          }
+        ],
+        "irpf": [
+          {
+            "id": "irpf-2026",
+            "label": "Tabela Mensal IRPF 2026",
+            "year": "2026",
+            "ranges": [
+              {
+                "min": 0,
+                "max": 2428.8,
+                "rate": 0,
+                "deduction": 0
+              },
+              {
+                "min": 2428.81,
+                "max": 2826.65,
+                "rate": 7.5,
+                "deduction": 182.16
+              },
+              {
+                "min": 2826.66,
+                "max": 3751.05,
+                "rate": 15,
+                "deduction": 394.16
+              },
+              {
+                "min": 3751.06,
+                "max": 4664.68,
+                "rate": 22.5,
+                "deduction": 675.49
+              },
+              {
+                "min": 4664.69,
+                "max": null,
+                "rate": 27.5,
+                "deduction": 908.73
+              }
+            ],
+            "reductionRules": [
+              {
+                "min": 0,
+                "max": 5000,
+                "description": "Redução de até R$ 312,89 (limitado ao imposto devido)"
+              },
+              {
+                "min": 5000.01,
+                "max": 7350,
+                "description": "Fórmula: R$ 978,62 – (0,133145 x Renda Mensal)"
+              },
+              {
+                "min": 7350.01,
+                "max": null,
+                "description": "Sem redução aplicada"
+              }
+            ]
+          }
+        ],
+        "salario_minimo": 1621
+      },
+      "empresa": {
+        "razaoSocial": "TOP MOTOS LTDA",
+        "naturezaJuridica": "Sociedade Limitada (LTDA)",
+        "classificacaoFiscal": "Microempresa (ME)",
+        "capitalSocial": 30000,
+        "numSocios": 1,
+        "localizacao": {
+          "municipio": "Belém",
+          "estado": "PA"
+        },
+        "tributacaoPretendida": "Simples Nacional"
+      },
+      "operacional": {
+        "cnaes": [
+          {
+            "codigo_formatado": "45.41-2-06",
+            "codigo_limpo": "4541206",
+            "descricao": "Comércio a varejo de peças e acessórios novos para motocicletas e motonetas",
+            "tipo": "Principal"
+          },
+          {
+            "codigo_formatado": "45.43-9-00",
+            "codigo_limpo": "4543900",
+            "descricao": "Manutenção e reparação de motocicletas e motonetas",
+            "tipo": "Secundário"
+          }
+        ],
+        "descricaoAtividades": "PRINCIPAL\n45.41-2-06 - Comércio a varejo de peças e acessórios novos para motocicletas e motonetas\nSECUNDARIAS\n45.43-9-00 - Manutenção e reparação de motocicletas e motonetas",
+        "ideiaNegocio": "VENDE PEÇAS DE MOTOS E FAZ SERVIÇO DE MANUTENÇÃO DE  MOTO"
+      },
+      "financeiro": {
+        "faturamento": {
+          "anual_total": 270000,
+          "mensal_medio": 22500,
+          "segregacao": {
+            "comercio_percent": 90,
+            "servico_percent": 10,
+            "comercio_valor": 243000,
+            "servico_valor": 27000
+          },
+          "anexo_simples_sugerido": {
+            "comercio": "Anexo I",
+            "servico": "Anexo V"
+          }
+        },
+        "fator_r": {
+          "sujeito_fator_r": true,
+          "folha_12_meses": 19452,
+          "faturamento_12_meses": 270000,
+          "percentual_atual": 7.2044444444444435,
+          "resultado": "Anexo V",
+          "valor_ideal_folha_mensal": 6300
+        },
+        "custos_operacionais": {
+          "fixos_mensais": 3000,
+          "variaveis_percentual": 35
+        },
+        "tributos_locais": {
+          "iss_municipio": 5,
+          "icms_estado": 18
+        },
+        "custos_abertura": {
+          "honorarios_legalizacao": 1900,
+          "assessoria_mensal": 450,
+          "junta_cartorio": 519,
+          "bombeiro_licencas": 650
+        }
+      },
+      "societario_trabalhista": {
+        "quadro_pessoal": {
+          "num_funcionarios": 1,
+          "folha_salarial_mensal": 1621
+        },
+        "pro_labore": {
+          "declara_prolabore": false,
+          "valor_declarado": 0,
+          "valor_estimado": 1621,
+          "recolhe_inss_ir": false,
+          "modo_calculo": "estimado_para_simulacao"
+        },
+        "retira_valores_pf": true
+      },
+      "conformidade_riscos": {
+        "alertas_criticos": {
+          "confusao_patrimonial": true,
+          "retirada_informal": true,
+          "risco_previdenciario": true
+        }
+      }
+    },
+    "webhookUrl": "https://jota-empresas-n8n.ubjifz.easypanel.host/webhook-test/e50090ba-ffc9-45e7-86f5-9a0467f4f794",
+    "executionMode": "test"
+  }
+]
