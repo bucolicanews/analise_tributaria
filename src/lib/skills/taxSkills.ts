@@ -1,114 +1,119 @@
 import { calculateSimplesNacionalEffectiveRate } from "../simplesNacional";
 import { findCClassByNcm, checkIfNcmHasSelectiveTax } from "../tax/taxClassificationService";
 
+export interface DynamicSkill {
+  id: string;
+  name: string;
+  description: string;
+  parameters: any; // JSON Schema
+  executionType: 'local_js' | 'webhook';
+  jsCode?: string;
+  webhookUrl?: string;
+  isActive: boolean;
+}
+
 /**
- * Esta biblioteca contém as "Skills" (Habilidades) que a IA pode "chamar"
- * para garantir precisão de 100% nos relatórios.
+ * Skills nativas do sistema (Hardcoded para performance e segurança)
  */
-
-export const JOTA_SKILLS = {
-  /**
-   * Skill: Cálculo exato de Simples Nacional
-   */
+export const SYSTEM_SKILLS: Record<string, Function> = {
   calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
-    try {
-      const rate = calculateSimplesNacionalEffectiveRate(args.anexo, args.faturamento_12m);
-      return {
-        aliquota_efetiva: rate,
-        formula_aplicada: "((RBT12 * AliqNominal) - ParcelaDeduzir) / RBT12",
-        status: "sucesso"
-      };
-    } catch (e) {
-      return { status: "erro", mensagem: "Falha ao calcular alíquota." };
-    }
+    const rate = calculateSimplesNacionalEffectiveRate(args.anexo, args.faturamento_12m);
+    return { aliquota_efetiva: rate, status: "sucesso" };
   },
-
-  /**
-   * Skill: Consulta técnica de NCM
-   */
   get_ncm_technical_info: (args: { ncm: string }) => {
     const cleanNcm = args.ncm.replace(/\D/g, '');
-    const hasSelective = checkIfNcmHasSelectiveTax(cleanNcm);
-    const cClass = findCClassByNcm(cleanNcm);
-    
     return {
       ncm: cleanNcm,
-      incide_imposto_seletivo: hasSelective,
-      classe_tributaria_reforma: cClass || "Não encontrada (usar padrão)",
+      incide_imposto_seletivo: checkIfNcmHasSelectiveTax(cleanNcm),
+      classe_tributaria_reforma: findCClassByNcm(cleanNcm) || "Padrão",
       status: "sucesso"
     };
   },
-
-  /**
-   * Skill: Análise de Fator R
-   */
   analyze_fator_r: (args: { folha_12m: number; faturamento_12m: number }) => {
     const ratio = args.faturamento_12m > 0 ? (args.folha_12m / args.faturamento_12m) : 0;
-    const percent = ratio * 100;
-    const enquadramento = percent >= 28 ? "Anexo III (Vantajoso)" : "Anexo V (Carga Elevada)";
-    
     return {
-      percentual_fator_r: percent.toFixed(2) + "%",
-      resultado_enquadramento: enquadramento,
-      precisa_aumentar_prolabore: percent < 28,
-      valor_ideal_folha_mensal: (args.faturamento_12m * 0.28) / 12,
-      status: "sucesso"
-    };
-  },
-
-  /**
-   * Skill: Data Atual (para relatórios)
-   */
-  get_current_date_info: () => {
-    const now = new Date();
-    return {
-      data_extenso: now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }),
-      ano_base: now.getFullYear(),
+      percentual_fator_r: (ratio * 100).toFixed(2) + "%",
+      resultado_enquadramento: ratio >= 0.28 ? "Anexo III" : "Anexo V",
       status: "sucesso"
     };
   }
 };
 
-// Definição dos manifestos (o que a IA "lê" para saber como usar a skill)
-export const JOTA_TOOLS_MANIFEST = [
+export const SYSTEM_TOOLS_MANIFEST = [
   {
     name: "calculate_simples_nacional",
-    description: "Calcula a alíquota efetiva exata do Simples Nacional com base na Lei Complementar 123/2006. Use sempre que precisar de valores de impostos do Simples.",
+    description: "Calcula a alíquota efetiva exata do Simples Nacional (LC 123/2006).",
     parameters: {
       type: "object",
       properties: {
-        faturamento_12m: { type: "number", description: "Faturamento bruto acumulado dos últimos 12 meses (RBT12)" },
-        anexo: { type: "string", enum: ["Anexo I", "Anexo II", "Anexo III", "Anexo IV", "Anexo V"], description: "O anexo do Simples Nacional" }
+        faturamento_12m: { type: "number" },
+        anexo: { type: "string", enum: ["Anexo I", "Anexo II", "Anexo III", "Anexo IV", "Anexo V"] }
       },
       required: ["faturamento_12m", "anexo"]
     }
   },
   {
     name: "get_ncm_technical_info",
-    description: "Consulta regras técnicas de um NCM, incluindo incidência de Imposto Seletivo e classificação na Reforma Tributária (IBS/CBS).",
+    description: "Consulta regras de NCM e Imposto Seletivo.",
     parameters: {
       type: "object",
-      properties: {
-        ncm: { type: "string", description: "O código NCM do produto (8 dígitos)" }
-      },
+      properties: { ncm: { type: "string" } },
       required: ["ncm"]
     }
-  },
-  {
-    name: "analyze_fator_r",
-    description: "Realiza a análise técnica do Fator R para empresas de serviços, definindo se tributam pelo Anexo III ou V.",
-    parameters: {
-      type: "object",
-      properties: {
-        folha_12m: { type: "number", description: "Soma da folha de pagamento + pró-labore dos últimos 12 meses" },
-        faturamento_12m: { type: "number", description: "Faturamento bruto acumulado dos últimos 12 meses" }
-      },
-      required: ["folha_12m", "faturamento_12m"]
-    }
-  },
-  {
-    name: "get_current_date_info",
-    description: "Retorna a data atual e informações de calendário para contextualizar o relatório.",
-    parameters: { type: "object", properties: {} }
   }
 ];
+
+/**
+ * Gerenciador de Armazenamento de Skills
+ */
+export const loadDynamicSkills = (): DynamicSkill[] => {
+  const saved = localStorage.getItem('jota-dynamic-skills');
+  return saved ? JSON.parse(saved) : [];
+};
+
+export const saveDynamicSkills = (skills: DynamicSkill[]) => {
+  localStorage.setItem('jota-dynamic-skills', JSON.stringify(skills));
+};
+
+/**
+ * Executor de Skills (O Coração do Agente)
+ */
+export async function executeSkill(name: string, args: any): Promise<any> {
+  // 1. Tenta Skill de Sistema
+  if (SYSTEM_SKILLS[name]) {
+    return SYSTEM_SKILLS[name](args);
+  }
+
+  // 2. Tenta Skill Dinâmica
+  const dynamicSkills = loadDynamicSkills();
+  const skill = dynamicSkills.find(s => s.name === name);
+
+  if (!skill || !skill.isActive) {
+    return { error: `Skill '${name}' não encontrada ou inativa.` };
+  }
+
+  if (skill.executionType === 'webhook' && skill.webhookUrl) {
+    try {
+      const res = await fetch(skill.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(args)
+      });
+      return await res.json();
+    } catch (e: any) {
+      return { error: `Falha no Webhook: ${e.message}` };
+    }
+  }
+
+  if (skill.executionType === 'local_js' && skill.jsCode) {
+    try {
+      // Execução segura via Function constructor
+      const fn = new Function('args', skill.jsCode);
+      return fn(args);
+    } catch (e: any) {
+      return { error: `Erro no JS da Skill: ${e.message}` };
+    }
+  }
+
+  return { error: "Configuração de execução inválida." };
+}
