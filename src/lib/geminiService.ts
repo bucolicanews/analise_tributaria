@@ -61,16 +61,29 @@ export async function callGeminiAgent(
     parameters: s.parameters
   }));
 
-  // A IA verá tanto as nativas quanto as customizadas
-  const allTools = [...JOTA_TOOLS_MANIFEST, ...dynamicManifests];
+  const allFunctionTools = [...JOTA_TOOLS_MANIFEST, ...dynamicManifests];
+  
+  // Montando as Ferramentas (Tools Array)
+  const toolsArray: any[] = [];
+  
+  // 1. Injeta as Funções (Function Calling)
+  if (allFunctionTools.length > 0) {
+    toolsArray.push({ functionDeclarations: allFunctionTools });
+  }
 
-  console.log("[Gemini] Enviando ferramentas para a IA:", allTools.map(t => t.name));
+  // 2. Injeta o Google Search Nativo (se habilitado pelo usuário)
+  const enableGoogleSearch = localStorage.getItem('jota-gemini-search') === 'true';
+  if (enableGoogleSearch) {
+    toolsArray.push({ googleSearch: {} });
+    console.log("[Gemini] Pesquisa Nativa no Google (Grounding) habilitada.");
+  }
 
-  // O Segredo: A chave correta para a API REST do Gemini é functionDeclarations (CamelCase)
+  console.log("[Gemini] Enviando ferramentas (Functions):", allFunctionTools.map(t => t.name));
+
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO INVISÍVEL]: Lembre-se de testar o CEP 66910010 com suas tools." }] }],
-    tools: allTools.length > 0 ? [{ functionDeclarations: allTools }] : undefined,
+    tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { temperature: 0.1 },
   };
 
@@ -114,11 +127,11 @@ export async function callGeminiAgent(
     // Devolve o resultado da ferramenta para a IA continuar o texto
     const finalBody = {
       system_instruction: { parts: [{ text: systemPrompt }] },
-      tools: allTools.length > 0 ? [{ functionDeclarations: allTools }] : undefined,
+      tools: toolsArray.length > 0 ? toolsArray : undefined,
       contents: [
         { role: 'user', parts: [{ text: userContent }] },
         message, // A mensagem da IA pedindo a função
-        { role: 'function', parts: toolResults } // Nossa resposta com os dados do ViaCEP
+        { role: 'function', parts: toolResults } // Nossa resposta com os dados da função
       ]
     };
 

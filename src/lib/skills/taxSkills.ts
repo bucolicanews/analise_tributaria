@@ -6,9 +6,10 @@ export interface DynamicSkill {
   name: string;
   description: string;
   parameters: any; // JSON Schema
-  executionType: 'local_js' | 'webhook';
+  executionType: 'local_js' | 'webhook' | 'knowledge_base';
   jsCode?: string;
   webhookUrl?: string;
+  knowledgeBaseText?: string;
   isActive: boolean;
 }
 
@@ -194,6 +195,14 @@ export async function executeSkill(name: string, args: any): Promise<any> {
   if (!skill || !skill.isActive) {
     return { error: `Skill '${name}' não encontrada ou inativa.` };
   }
+  
+  // RAG Simples (Base de Conhecimento Embutida)
+  if (skill.executionType === 'knowledge_base') {
+    return { 
+      status: "sucesso", 
+      conteudo_recuperado: skill.knowledgeBaseText || "Nenhum conteúdo cadastrado na base." 
+    };
+  }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
     try {
@@ -207,7 +216,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
         Object.keys(args).forEach(key => {
           url = url.replace(new RegExp(`{{${key}}}`, 'g'), args[key]);
         });
-        method = 'GET'; // Se tem placeholder na URL, assume-se que é uma consulta GET
+        method = 'GET'; 
         body = undefined;
       }
 

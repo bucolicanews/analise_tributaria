@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw, Info } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw, Info, Search, FileText } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,10 @@ const Configuracao = () => {
   const [uf, setUf] = useState(localStorage.getItem('jota-uf') || 'SP');
   const [contadorNome, setContadorNome] = useState(localStorage.getItem('jota-contador-nome') || '');
   const [contadorCrc, setContadorCrc] = useState(localStorage.getItem('jota-contador-crc') || '');
+  
+  // Gemini Settings
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
+  const [enableGoogleSearch, setEnableGoogleSearch] = useState(localStorage.getItem('jota-gemini-search') === 'true');
   const [preAnalysisPrompt, setPreAnalysisPrompt] = useState(localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT);
 
   const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
@@ -53,6 +56,7 @@ const Configuracao = () => {
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
     localStorage.setItem('jota-gemini-key', geminiKey);
+    localStorage.setItem('jota-gemini-search', enableGoogleSearch.toString());
     localStorage.setItem('jota-pre-analysis-prompt', preAnalysisPrompt);
     saveAgentsToStorage(agents);
     saveInssTables(inssTables);
@@ -73,10 +77,11 @@ const Configuracao = () => {
     setEditingSkill({
       id: `skill-${Date.now()}`,
       name: 'nova_habilidade',
-      description: 'Descrição da habilidade para a IA...',
-      parameters: { type: "object", properties: { param1: { type: "string" } } },
-      executionType: 'webhook',
+      description: 'Descrição detalhada de quando a IA deve chamar esta habilidade...',
+      parameters: { type: "object", properties: { termo_busca: { type: "string" } } },
+      executionType: 'knowledge_base',
       isActive: true,
+      knowledgeBaseText: 'Cole aqui o texto da lei, normas, ou informações do seu PDF...',
       jsCode: '// args contém os parâmetros enviados pela IA\nreturn { status: "sucesso", dados: args };'
     });
   };
@@ -123,71 +128,6 @@ const Configuracao = () => {
     }))
   ];
 
-  const businessPayloadMock = {
-    meta: { webhookUrl: webhookTestUrl || "https://sua-url-webhook.com", executionMode: "test" },
-    agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-    contexto: { anoBase: localStorage.getItem('viab-anoBase') || "2026", objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial" },
-    empresa: {
-      razaoSocial: razaoSocial || "TOP MOTOS LTDA",
-      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || "Sociedade Limitada (LTDA)",
-      classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "ME",
-      capitalSocial: parseFloat(localStorage.getItem('viab-capital') || "30000"),
-      numSocios: parseInt(localStorage.getItem('viab-numSocios') || "1"),
-      localizacao: { municipio: localStorage.getItem('viab-municipio') || "Belém", estado: uf || "PA" },
-      tributacaoPretendida: localStorage.getItem('viab-tributacaoSugerida') || "Simples Nacional"
-    },
-    operacional: {
-      cnaes: JSON.parse(localStorage.getItem('viab-cnaes') || '[]'),
-      descricaoAtividades: localStorage.getItem('viab-atividades') || "",
-    },
-    financeiro: {
-      faturamento: { 
-        anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
-        mensal_medio: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0") / 12,
-        segregacao: {
-          comercio_percent: parseFloat(localStorage.getItem('viab-percentComercio') || "100"),
-          servico_percent: parseFloat(localStorage.getItem('viab-percentServico') || "0")
-        }
-      },
-      fator_r: {
-        sujeito_fator_r: "A definir pela IA com base nos CNAEs",
-        folha_12_meses: parseFloat(localStorage.getItem('viab-folha12Meses') || "0"),
-        faturamento_12_meses: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
-        percentual_atual: 0
-      },
-      custos_operacionais: {
-        fixos_mensais: parseFloat(localStorage.getItem('viab-fixosMensais') || "0"),
-        variaveis_percentual: parseFloat(localStorage.getItem('viab-variaveisPercentual') || "0")
-      }
-    },
-    societario_trabalhista: {
-      pro_labore: {
-        declara_prolabore: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim',
-        valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
-        recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim'
-      },
-      retira_valores_pf: localStorage.getItem('viab-sociosRetiramValores') === 'Sim'
-    },
-    conformidade_riscos: {
-      confusao_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim' || localStorage.getItem('viab-recebeContaPF') === 'Sim',
-      retirada_informal: localStorage.getItem('viab-sociosRetiramValores') === 'Sim' && localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim',
-      risco_previdenciario: localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim' || localStorage.getItem('viab-sociosRecolhemInssIr') !== 'Sim'
-    },
-    engine: {
-      analises_requeridas: [
-        "enquadramento_simples",
-        "calculo_carga_tributaria",
-        "analise_fator_r",
-        "diagnostico_risco",
-        "viabilidade_financeira",
-        "planejamento_tributario"
-      ],
-      output_config: {
-        formato: "relatorio_consultivo"
-      }
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       {/* MODAL: VISUALIZAR SKILL DO SISTEMA */}
@@ -231,6 +171,7 @@ const Configuracao = () => {
               {editingSkill?.id?.includes('new') ? <Plus className="h-5 w-5" /> : <Edit3 className="h-5 w-5" />}
               Configurar Habilidade Customizada
             </DialogTitle>
+            <DialogDescription>Crie integrações com n8n ou adicione bases de conhecimento (arquivos).</DialogDescription>
           </DialogHeader>
           {editingSkill && (
             <div className="space-y-4 py-4">
@@ -238,7 +179,7 @@ const Configuracao = () => {
                 <div className="space-y-2">
                   <Label>Nome da Função (Snake Case)</Label>
                   <Input 
-                    placeholder="ex: consultar_api_externa" 
+                    placeholder="ex: consultar_lei_icms" 
                     value={editingSkill.name} 
                     onChange={e => setEditingSkill({...editingSkill, name: e.target.value})} 
                   />
@@ -251,7 +192,8 @@ const Configuracao = () => {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="webhook">Webhook (API Externa)</SelectItem>
+                      <SelectItem value="knowledge_base">Base de Conhecimento (Texto/Leis)</SelectItem>
+                      <SelectItem value="webhook">Webhook (API Externa / n8n / Vector DB)</SelectItem>
                       <SelectItem value="local_js">JavaScript Local (Sandbox)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -259,26 +201,43 @@ const Configuracao = () => {
               </div>
               
               <div className="space-y-2">
-                <Label>Descrição para a IA (Explique quando usar)</Label>
+                <Label>Descrição para a IA (Explique quando ela deve usar isso)</Label>
                 <Textarea 
-                  placeholder="Esta skill deve ser usada quando..." 
+                  className="h-20"
+                  placeholder="Use esta habilidade sempre que o cliente perguntar sobre a lei XPTO..." 
                   value={editingSkill.description} 
                   onChange={e => setEditingSkill({...editingSkill, description: e.target.value})} 
                 />
               </div>
 
-              {editingSkill.executionType === 'webhook' ? (
-                <div className="space-y-2">
-                  <Label>URL do Webhook</Label>
+              {editingSkill.executionType === 'knowledge_base' && (
+                <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-lg">
+                  <Label className="flex items-center gap-2 text-primary"><FileText className="h-4 w-4" /> Conteúdo do Documento (RAG Embutido)</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Cole aqui o texto do seu PDF, Lei, ou Normativa. A IA fará a leitura desse texto automaticamente quando julgar necessário.</p>
+                  <Textarea 
+                    className="font-mono text-xs h-48" 
+                    placeholder="Cole o texto aqui..."
+                    value={editingSkill.knowledgeBaseText} 
+                    onChange={e => setEditingSkill({...editingSkill, knowledgeBaseText: e.target.value})} 
+                  />
+                </div>
+              )}
+
+              {editingSkill.executionType === 'webhook' && (
+                <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-lg">
+                  <Label className="flex items-center gap-2 text-primary"><Globe className="h-4 w-4" /> URL do Webhook (n8n / API)</Label>
+                  <p className="text-xs text-muted-foreground mb-2">Para usar RAG Avançado (Pinecone/Qdrant), envie para o seu fluxo do n8n. Você pode passar variáveis na URL usando chaves, ex: <code className="bg-background px-1 rounded">?busca=&#123;&#123;termo_busca&#125;&#125;</code>.</p>
                   <Input 
                     placeholder="https://seu-n8n.com/webhook/..." 
                     value={editingSkill.webhookUrl} 
                     onChange={e => setEditingSkill({...editingSkill, webhookUrl: e.target.value})} 
                   />
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <Label>Código JavaScript (Async)</Label>
+              )}
+
+              {editingSkill.executionType === 'local_js' && (
+                <div className="space-y-2 p-4 bg-muted/30 border border-border rounded-lg">
+                  <Label className="flex items-center gap-2 text-primary"><Code className="h-4 w-4" /> Código JavaScript (Async)</Label>
                   <Textarea 
                     className="font-mono text-xs h-48 bg-black text-green-400" 
                     value={editingSkill.jsCode} 
@@ -288,7 +247,7 @@ const Configuracao = () => {
               )}
 
               <div className="space-y-2">
-                <Label>Parâmetros (JSON Schema)</Label>
+                <Label>Parâmetros que a IA deve enviar (JSON Schema)</Label>
                 <Textarea 
                   className="font-mono text-xs h-32" 
                   value={JSON.stringify(editingSkill.parameters, null, 2)} 
@@ -343,7 +302,7 @@ const Configuracao = () => {
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
-                   <div className="flex items-center justify-between">
+                   <div className="flex items-center justify-between flex-wrap gap-4">
                      <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Gerenciador de Habilidades (Skills)</h3>
                      <div className="flex gap-2">
                         <Dialog>
@@ -375,19 +334,23 @@ const Configuracao = () => {
                      </div>
 
                      <div className="space-y-2 pt-4">
-                        <Label className="text-[10px] uppercase font-bold text-primary">Habilidades Customizadas / Importadas</Label>
+                        <Label className="text-[10px] uppercase font-bold text-primary">Habilidades Customizadas (Arquivos, Webhooks, Leis)</Label>
                         {dynamicSkills.length === 0 && <p className="text-xs text-muted-foreground italic p-4 border border-dashed rounded-md text-center">Nenhuma skill customizada cadastrada.</p>}
                         <div className="grid grid-cols-1 gap-3">
                           {dynamicSkills.map(skill => (
                             <div key={skill.id} className="p-4 rounded-md bg-background border border-border flex items-center justify-between shadow-sm hover:border-primary/50 transition-colors">
                               <div className="flex items-center gap-4">
-                                <div className={skill.isActive ? "text-primary" : "text-muted-foreground"}>{skill.executionType === 'webhook' ? <Globe className="h-5 w-5" /> : <Code className="h-5 w-5" />}</div>
+                                <div className={skill.isActive ? "text-primary" : "text-muted-foreground"}>
+                                  {skill.executionType === 'webhook' ? <Globe className="h-5 w-5" /> : 
+                                   skill.executionType === 'knowledge_base' ? <FileText className="h-5 w-5" /> : 
+                                   <Code className="h-5 w-5" />}
+                                </div>
                                 <div>
                                   <p className="text-sm font-bold font-mono">{skill.name}</p>
-                                  <p className="text-[10px] text-muted-foreground">{skill.description}</p>
+                                  <p className="text-[10px] text-muted-foreground line-clamp-1">{skill.description}</p>
                                 </div>
                               </div>
-                              <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-3 shrink-0">
                                 <Switch checked={skill.isActive} onCheckedChange={(val) => {
                                   const n = [...dynamicSkills];
                                   const i = n.findIndex(s => s.id === skill.id);
@@ -404,25 +367,37 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-border p-4">
-                   <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                     <div className="space-y-2"><Label>Nome do Contador</Label><Input value={contadorNome} onChange={(e) => setContadorNome(e.target.value)} /></div>
-                     <div className="space-y-2"><Label>CRC</Label><Input value={contadorCrc} onChange={(e) => setContadorCrc(e.target.value)} /></div>
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Google Gemini)</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     <div className="space-y-2">
+                       <Label>Gemini API Key</Label>
+                       <Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
+                     </div>
+                     <div className="space-y-2">
+                       <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding: Google Search Nativo</Label>
+                       <div className="flex items-center justify-between p-2 border border-blue-500/30 rounded bg-blue-500/10">
+                         <span className="text-xs text-blue-800">Permitir que a IA pesquise na internet em tempo real (Leis, Notícias, etc)</span>
+                         <Switch checked={enableGoogleSearch} onCheckedChange={setEnableGoogleSearch} />
+                       </div>
+                     </div>
                    </div>
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-accent/5">
-                   <h3 className="text-lg font-semibold flex items-center gap-2"><Webhook className="h-5 w-5 text-accent" />Webhooks da IA (Viabilidade)</h3>
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><Webhook className="h-5 w-5 text-accent" />Integração Externa (Webhooks do n8n)</h3>
                    <div className="grid grid-cols-1 gap-4">
                      <div className="space-y-2"><Label>URL Webhook (Ambiente de Teste)</Label><Input value={webhookTestUrl} onChange={(e) => setWebhookTestUrl(e.target.value)} /></div>
                      <div className="space-y-2"><Label>URL Webhook (Ambiente de Produção)</Label><Input value={webhookProdUrl} onChange={(e) => setWebhookProdUrl(e.target.value)} /></div>
                    </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
-                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
-                   <div className="space-y-2"><Label>Gemini API Key</Label><Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} /></div>
+                <div className="space-y-4 rounded-lg border border-border p-4">
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
+                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                     <div className="space-y-2"><Label>Nome do Contador</Label><Input value={contadorNome} onChange={(e) => setContadorNome(e.target.value)} /></div>
+                     <div className="space-y-2"><Label>CRC</Label><Input value={contadorCrc} onChange={(e) => setContadorCrc(e.target.value)} /></div>
+                   </div>
                 </div>
 
                 {/* NOVA SEÇÃO: DEBUG & PAYLOADS (ACCORDION) */}
@@ -446,7 +421,7 @@ const Configuracao = () => {
   contents: [{ role: 'user', parts: [{ text: "{ ... JSON DE NEGÓCIO INSERIDO AQUI ... }" }] }],
   tools: [{ 
     functionDeclarations: allToolsForDebug 
-  }],
+  }, enableGoogleSearch ? { googleSearch: {} } : undefined].filter(Boolean),
   generationConfig: { temperature: 0.1 },
 }, null, 2)}
                           </pre>
@@ -454,19 +429,8 @@ const Configuracao = () => {
                       </AccordionContent>
                     </AccordionItem>
                     
-                    <AccordionItem value="business-payload">
-                      <AccordionTrigger className="text-sm font-bold">2. Payload de Negócio (JSON enviado no Webhook ou dentro do Gemini)</AccordionTrigger>
-                      <AccordionContent>
-                        <ScrollArea className="h-96 w-full rounded-md border bg-black p-4">
-                          <pre className="text-[10px] text-blue-400 font-mono whitespace-pre-wrap">
-{JSON.stringify(businessPayloadMock, null, 2)}
-                          </pre>
-                        </ScrollArea>
-                      </AccordionContent>
-                    </AccordionItem>
                   </Accordion>
                 </div>
-                {/* FIM DA SEÇÃO DE DEBUG */}
 
               </>
             )}
