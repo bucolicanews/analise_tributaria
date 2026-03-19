@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
@@ -17,6 +17,9 @@ import { Dialog, DialogContent, DialogHeader as UIDialogHeader, DialogTitle, Dia
 import { callGeminiAgent, DEFAULT_PRE_ANALYSIS_PROMPT } from '@/lib/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { ViabilityReportPDF } from '@/components/ViabilityReportPDF';
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (LTDA)", "Sociedade Limitada Unipessoal (SLU)", "Sociedade Simples", "Não sei / Sugerir"];
@@ -120,10 +123,6 @@ const Viabilidade = () => {
   };
 
   const buildPayload = (environment: 'test' | 'production', webhookUrl: string) => {
-    const inssTables = getInssTables();
-    const irpfTables = getIrpfTables();
-    const currentMinWage = getMinimumWages().find(w => w.year === anoBase)?.value || 1621;
-
     const faturamentoNum = parseFloat(faturamentoAnual) || 0;
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
@@ -255,35 +254,65 @@ const Viabilidade = () => {
     <div className="container mx-auto px-4 py-8 space-y-6">
       {/* DIALOG DE PRÉ-ANÁLISE */}
       <Dialog open={!!preAnalysisReport} onOpenChange={(open) => !open && setPreAnalysisReport(null)}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto border-primary/20 bg-card">
-          <UIDialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-primary">
-              <Bot className="h-5 w-5" /> Pré-Validação Inteligente (IA Local)
-            </DialogTitle>
-            <DialogDescription>
-              A IA analisou seus dados antes da geração do relatório final. Verifique os alertas abaixo.
-            </DialogDescription>
-          </UIDialogHeader>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col border-primary/20 bg-card p-0 overflow-hidden">
+          <div className="p-6 border-b border-border bg-muted/20">
+            <UIDialogHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="flex items-center gap-2 text-primary">
+                    <Bot className="h-5 w-5" /> Parecer Técnico Prévio (IA Local)
+                  </DialogTitle>
+                  <DialogDescription>
+                    Análise técnica preliminar baseada nos dados informados.
+                  </DialogDescription>
+                </div>
+                <div className="flex gap-2">
+                  <PDFDownloadLink 
+                    document={
+                      <ViabilityReportPDF 
+                        reportMarkdown={preAnalysisReport || ""}
+                        clientName={razaoSocial || "Interessado"}
+                        clientCity={municipio || ""}
+                        clientState={estado || ""}
+                        companyName={localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade'}
+                        accountantName={localStorage.getItem('jota-contador-nome') || ''}
+                        accountantCrc={localStorage.getItem('jota-contador-crc') || ''}
+                        qrCodeDataUrl=""
+                      />
+                    } 
+                    fileName={`parecer_previo_${(razaoSocial || 'viabilidade').toLowerCase()}.pdf`}
+                  >
+                    {({ loading }) => (
+                      <Button variant="outline" size="sm" disabled={loading} className="text-primary border-primary/30 hover:bg-primary/10">
+                        <Printer className="h-4 w-4 mr-2" />
+                        {loading ? 'Gerando...' : 'Imprimir Parecer'}
+                      </Button>
+                    )}
+                  </PDFDownloadLink>
+                </div>
+              </div>
+            </UIDialogHeader>
+          </div>
           
-          <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border">
+          <ScrollArea className="flex-1 p-6">
             <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary">
               <ReactMarkdown remarkPlugins={[remarkGfm]}>
                 {preAnalysisReport || ""}
               </ReactMarkdown>
             </div>
-          </div>
+          </ScrollArea>
           
-          <div className="flex justify-end gap-2 mt-4">
+          <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Ignorar e Gerar Relatório <ChevronDown className="h-4 w-4 ml-2" />
+                  Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}>Ambiente Teste</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}>Ambiente Produção</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
