@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -36,9 +36,9 @@ const Configuracao = () => {
   const [irpfTables, setIrpfTables] = useState<IrpfTable[]>(() => getIrpfTables());
   const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
   
-  // Estado das Skills Dinâmicas
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
   const [editingSkill, setEditingSkill] = useState<Partial<DynamicSkill> | null>(null);
+  const [viewingSystemSkill, setViewingSystemSkill] = useState<any | null>(null);
   const [importJson, setImportJson] = useState('');
 
   const handleSave = (e: React.FormEvent) => {
@@ -60,7 +60,6 @@ const Configuracao = () => {
     toast.success("Configurações salvas com sucesso!");
   };
 
-  // Funções de Gerenciamento de Skills
   const handleAddSkill = () => {
     setEditingSkill({
       id: `skill-${Date.now()}`,
@@ -76,26 +75,22 @@ const Configuracao = () => {
     if (!editingSkill?.name) return toast.error("Nome é obrigatório.");
     const newSkills = [...dynamicSkills];
     const index = newSkills.findIndex(s => s.id === editingSkill.id);
-    
     if (index >= 0) newSkills[index] = editingSkill as DynamicSkill;
     else newSkills.push(editingSkill as DynamicSkill);
-    
     setDynamicSkills(newSkills);
     setEditingSkill(null);
-    toast.success("Skill atualizada localmente. Salve as configurações para persistir.");
+    toast.success("Skill atualizada localmente.");
   };
 
   const handleImportSkill = () => {
     try {
       const parsed = JSON.parse(importJson);
       const skillsToImport = Array.isArray(parsed) ? parsed : [parsed];
-      
       const validated = skillsToImport.map(s => ({
         ...s,
         id: s.id || `skill-imp-${Math.random().toString(36).substr(2, 9)}`,
         isActive: s.isActive ?? true
       }));
-
       setDynamicSkills([...dynamicSkills, ...validated]);
       setImportJson('');
       toast.success(`${validated.length} Skill(s) importada(s)!`);
@@ -116,7 +111,6 @@ const Configuracao = () => {
           <CardHeader><CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle></CardHeader>
           <CardContent className="space-y-8">
             
-            {/* DADOS BÁSICOS */}
             <div className="space-y-4 rounded-lg border border-border p-4">
                <h3 className="text-lg font-semibold flex items-center gap-2"><Building className="h-5 w-5 text-muted-foreground" />Dados da Empresa</h3>
                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,7 +122,6 @@ const Configuracao = () => {
 
             {autenticado && (
               <>
-                {/* GERENCIADOR DE SKILLS (NOVO) */}
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Gerenciador de Habilidades (Skills)</h3>
@@ -137,12 +130,7 @@ const Configuracao = () => {
                           <DialogTrigger asChild><Button type="button" variant="outline" size="sm"><UploadIcon className="h-4 w-4 mr-2" /> Importar JSON</Button></DialogTrigger>
                           <DialogContent>
                             <DialogHeader><DialogTitle>Importar Skills de Terceiros</DialogTitle></DialogHeader>
-                            <Textarea 
-                              placeholder='Cole o JSON da Skill aqui...' 
-                              className="h-64 font-mono text-xs" 
-                              value={importJson} 
-                              onChange={e => setImportJson(e.target.value)} 
-                            />
+                            <Textarea placeholder='Cole o JSON da Skill aqui...' className="h-64 font-mono text-xs" value={importJson} onChange={e => setImportJson(e.target.value)} />
                             <DialogFooter><Button type="button" onClick={handleImportSkill}>Confirmar Importação</Button></DialogFooter>
                           </DialogContent>
                         </Dialog>
@@ -151,23 +139,21 @@ const Configuracao = () => {
                    </div>
                    
                    <div className="grid grid-cols-1 gap-4">
-                     {/* Skills de Sistema (Read Only) */}
                      <div className="space-y-2">
                         <Label className="text-[10px] uppercase font-bold text-muted-foreground">Habilidades de Sistema (Nativas)</Label>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                           {JOTA_TOOLS_MANIFEST.map(tool => (
-                            <div key={tool.name} className="p-3 rounded-md bg-muted/50 border border-border flex items-center justify-between opacity-70">
+                            <div key={tool.name} className="p-3 rounded-md bg-muted/50 border border-border flex items-center justify-between">
                               <div className="flex items-center gap-3">
                                 <CheckCircle className="h-4 w-4 text-success" />
                                 <span className="text-sm font-mono font-bold">{tool.name}</span>
                               </div>
-                              <Badge variant="outline">Sistema</Badge>
+                              <Button type="button" variant="ghost" size="icon" onClick={() => setViewingSystemSkill(tool)}><Eye className="h-4 w-4" /></Button>
                             </div>
                           ))}
                         </div>
                      </div>
 
-                     {/* Skills Dinâmicas (CRUD) */}
                      <div className="space-y-2 pt-4">
                         <Label className="text-[10px] uppercase font-bold text-primary">Habilidades Customizadas / Importadas</Label>
                         {dynamicSkills.length === 0 && <p className="text-xs text-muted-foreground italic p-4 border border-dashed rounded-md text-center">Nenhuma skill customizada cadastrada.</p>}
@@ -175,9 +161,7 @@ const Configuracao = () => {
                           {dynamicSkills.map(skill => (
                             <div key={skill.id} className="p-4 rounded-md bg-background border border-border flex items-center justify-between shadow-sm hover:border-primary/50 transition-colors">
                               <div className="flex items-center gap-4">
-                                <div className={skill.isActive ? "text-primary" : "text-muted-foreground"}>
-                                  {skill.executionType === 'webhook' ? <Globe className="h-5 w-5" /> : <Code className="h-5 w-5" />}
-                                </div>
+                                <div className={skill.isActive ? "text-primary" : "text-muted-foreground"}>{skill.executionType === 'webhook' ? <Globe className="h-5 w-5" /> : <Code className="h-5 w-5" />}</div>
                                 <div>
                                   <p className="text-sm font-bold font-mono">{skill.name}</p>
                                   <p className="text-[10px] text-muted-foreground">{skill.description}</p>
@@ -200,7 +184,22 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* DIALOG DE EDIÇÃO DE SKILL */}
+                {/* DIALOG DE VISUALIZAÇÃO DE SKILL DO SISTEMA */}
+                {viewingSystemSkill && (
+                  <Dialog open={!!viewingSystemSkill} onOpenChange={() => setViewingSystemSkill(null)}>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader><DialogTitle>Manifesto Técnico: {viewingSystemSkill.name}</DialogTitle></DialogHeader>
+                      <div className="space-y-4 py-4">
+                        <p className="text-sm text-muted-foreground">Este é o JSON que descreve a habilidade para a IA. Você pode usar esta estrutura como base para criar Skills dinâmicas.</p>
+                        <div className="bg-black/90 p-4 rounded-lg overflow-x-auto">
+                          <pre className="text-[10px] font-mono text-green-400">{JSON.stringify(viewingSystemSkill, null, 2)}</pre>
+                        </div>
+                      </div>
+                      <DialogFooter><Button type="button" onClick={() => setViewingSystemSkill(null)}>Fechar</Button></DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                )}
+
                 {editingSkill && (
                   <Dialog open={!!editingSkill} onOpenChange={() => setEditingSkill(null)}>
                     <DialogContent className="max-w-2xl">
@@ -216,13 +215,11 @@ const Configuracao = () => {
                           </div>
                         </div>
                         <div className="space-y-2"><Label>Descrição para a IA (Quando usar?)</Label><Textarea value={editingSkill.description} onChange={e => setEditingSkill({...editingSkill, description: e.target.value})} /></div>
-                        
                         {editingSkill.executionType === 'webhook' ? (
                           <div className="space-y-2"><Label>URL do Webhook</Label><Input value={editingSkill.webhookUrl} onChange={e => setEditingSkill({...editingSkill, webhookUrl: e.target.value})} placeholder="https://api.terceiro.com/v1/..." /></div>
                         ) : (
                           <div className="space-y-2"><Label>Código JavaScript (Recebe 'args', retorna objeto)</Label><Textarea className="font-mono text-xs h-32" value={editingSkill.jsCode} onChange={e => setEditingSkill({...editingSkill, jsCode: e.target.value})} placeholder="return { resultado: args.valor * 2 };" /></div>
                         )}
-
                         <div className="space-y-2">
                           <Label>Parâmetros (JSON Schema)</Label>
                           <Textarea className="font-mono text-xs h-32" value={JSON.stringify(editingSkill.parameters, null, 2)} onChange={e => {
@@ -235,7 +232,6 @@ const Configuracao = () => {
                   </Dialog>
                 )}
 
-                {/* RESTANTE DAS CONFIGURAÇÕES (RESPONSÁVEL, WEBHOOKS, ETC) */}
                 <div className="space-y-4 rounded-lg border border-border p-4">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
