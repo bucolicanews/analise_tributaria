@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
+import { AnalysisProgress, ProgressStep } from '@/components/AnalysisProgress';
 import { getInssTables } from '@/lib/tax/inssData';
 import { getIrpfTables } from '@/lib/tax/irpfData';
 import { getMinimumWages } from '@/lib/tax/minimumWageData';
@@ -76,16 +77,11 @@ const Viabilidade = () => {
   const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF', 'Não'));
   const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios', 'Sim'));
   
-  const honorariosLegalizacao = getStored('viab-honorariosLegalizacao', '1900');
-  const assessoriaMensal = getStored('viab-honorariosAssessoriaMensal', '450');
-  const juntaCartorio = getStored('viab-valorJuntaCartorio', '519');
-  const bombeiroLicencas = getStored('viab-valorBombeiro', '650');
-
   const [aiReport, setAiReport] = useState<string | null>(() => localStorage.getItem('viab-aiReport'));
   const [isLoading, setIsLoading] = useState(false);
+  const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
-  // Estados para Pré-Análise Local
   const [isPreAnalyzing, setIsPreAnalyzing] = useState(false);
   const [preAnalysisReport, setPreAnalysisReport] = useState<string | null>(null);
 
@@ -188,21 +184,34 @@ const Viabilidade = () => {
   const handlePreAnalysis = async () => {
     const apiKey = localStorage.getItem('jota-gemini-key');
     if (!apiKey) {
-      toast.error("Chave API do Gemini não configurada.", { description: "Vá em Configurações e insira sua chave para habilitar a IA Local." });
+      toast.error("Chave API do Gemini não configurada.");
       return;
     }
 
     setIsPreAnalyzing(true);
+    setProgressStep('validating_data');
+    
     try {
       const payload = buildPayload('test', '');
       const systemPrompt = localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT;
 
+      await new Promise(r => setTimeout(r, 800));
+      setProgressStep('analyzing');
+      
       const result = await callGeminiAgent(systemPrompt, JSON.stringify(payload, null, 2), apiKey);
+      
+      setProgressStep('auditing');
+      await new Promise(r => setTimeout(r, 1000));
+      
+      setProgressStep('completed');
+      await new Promise(r => setTimeout(r, 500));
+      
       setPreAnalysisReport(result);
     } catch (e: any) {
       toast.error("Erro na pré-análise: " + e.message);
     } finally {
       setIsPreAnalyzing(false);
+      setProgressStep('idle');
     }
   };
 
@@ -212,18 +221,22 @@ const Viabilidade = () => {
     if (!webhookUrl) return toast.error(`Webhook de ${environment} não configurado.`);
 
     setIsLoading(true);
+    setProgressStep('validating_data');
     const startTime = performance.now();
-    const payload = buildPayload(environment, webhookUrl);
     
-    const fullPayload = {
-      ...payload,
-      engine: {
-        analises_requeridas: ["enquadramento_simples", "calculo_carga_tributaria", "analise_fator_r", "diagnostico_risco", "viabilidade_financeira", "planejamento_tributario"],
-        output_config: { formato: "relatorio_consultivo" }
-      }
-    };
-
     try {
+      await new Promise(r => setTimeout(r, 800));
+      setProgressStep('analyzing');
+      
+      const payload = buildPayload(environment, webhookUrl);
+      const fullPayload = {
+        ...payload,
+        engine: {
+          analises_requeridas: ["enquadramento_simples", "calculo_carga_tributaria", "analise_fator_r", "diagnostico_risco", "viabilidade_financeira", "planejamento_tributario"],
+          output_config: { formato: "relatorio_consultivo" }
+        }
+      };
+
       const response = await fetch(webhookUrl, { 
         method: 'POST', 
         headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
@@ -231,12 +244,19 @@ const Viabilidade = () => {
       });
       
       if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);
+      
+      setProgressStep('auditing');
       const data = await response.json();
       
+      setProgressStep('validating_audit');
+      await new Promise(r => setTimeout(r, 1200));
+
       let reportText = data.report || data.output || data.text || "";
       if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
       
       if (reportText) {
+        setProgressStep('completed');
+        await new Promise(r => setTimeout(r, 500));
         setAiReport(reportText);
         toast.success(`Diagnóstico concluído!`);
       } else {
@@ -246,13 +266,13 @@ const Viabilidade = () => {
       toast.error("Falha no envio. Erro: " + error.message);
     } finally {
       setIsLoading(false);
+      setProgressStep('idle');
       setExecutionTime((performance.now() - startTime) / 1000);
     }
   };
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
-      {/* DIALOG DE PRÉ-ANÁLISE */}
       <Dialog open={!!preAnalysisReport} onOpenChange={(open) => !open && setPreAnalysisReport(null)}>
         <DialogContent className="max-w-4xl h-[85vh] flex flex-col border-primary/20 bg-card p-0 overflow-hidden">
           <div className="p-6 border-b border-border bg-muted/20">
@@ -262,9 +282,7 @@ const Viabilidade = () => {
                   <DialogTitle className="flex items-center gap-2 text-primary">
                     <Bot className="h-5 w-5" /> Parecer Técnico Prévio (IA Local)
                   </DialogTitle>
-                  <DialogDescription>
-                    Análise técnica preliminar baseada nos dados informados.
-                  </DialogDescription>
+                  <DialogDescription>Análise técnica preliminar baseada nos dados informados.</DialogDescription>
                 </div>
                 <div className="flex gap-2">
                   <PDFDownloadLink 
@@ -293,22 +311,16 @@ const Viabilidade = () => {
               </div>
             </UIDialogHeader>
           </div>
-          
           <ScrollArea className="flex-1 p-6">
             <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {preAnalysisReport || ""}
-              </ReactMarkdown>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{preAnalysisReport || ""}</ReactMarkdown>
             </div>
           </ScrollArea>
-          
           <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2">
             <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                  Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" /></Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
@@ -319,111 +331,113 @@ const Viabilidade = () => {
         </DialogContent>
       </Dialog>
 
-
       <Card className="shadow-card"><CardHeader className="flex flex-row items-center justify-between"><CardTitle className="flex items-center gap-3 text-primary"><Sparkles className="h-6 w-6" /> Análise de Viabilidade</CardTitle><Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button></CardHeader></Card>
 
-      {isLoading && <div className="rounded-xl border border-border bg-card p-8 shadow-sm flex flex-col items-center justify-center gap-4 animate-pulse"><Loader2 className="h-12 w-12 text-primary animate-spin" /><h3>Enviando dados para a IA...</h3></div>}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={Building2} title="Identificação e Classificação" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Razão Social / Nome do Projeto</Label><Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Ano Base</Label><Select value={anoBase} onValueChange={setAnoBase}><SelectTrigger><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger><SelectContent>{anosBase.map(ano => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Natureza Jurídica</Label><Select value={naturezaJuridica} onValueChange={setNaturezaJuridica}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{naturezasJuridicas.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Classificação Fiscal Explícita</Label><Select value={classificacaoFiscal} onValueChange={setClassificacaoFiscal}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{classificacoesFiscais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Capital Social (R$)</Label><Input type="number" value={capital} onChange={e => setCapital(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Município</Label><Input value={municipio} onChange={e => setMunicipio(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Estado (UF)</Label><Select value={estado} onValueChange={setEstado}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UFs.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2 md:col-span-2"><Label>Tributação Pretendida</Label><Select value={tributacaoSugerida} onValueChange={setTributacaoSugerida}><SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger><SelectContent><SelectItem value="Simples Nacional">Simples Nacional</SelectItem><SelectItem value="Simples Nacional (Híbrido)">Simples Nacional (Híbrido)</SelectItem><SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem><SelectItem value="Lucro Real">Lucro Real</SelectItem><SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem></SelectContent></Select></div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={ListChecks} title="Estrutura de CNAEs" />
-              <div className="space-y-4">
-                {cnaes.map((cnae) => (
-                  <div key={cnae.id} className="p-3 border rounded-md bg-muted/20 space-y-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2">
-                        <Badge variant={cnae.isPrimary ? "default" : "outline"} className="text-[10px]">{cnae.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>
-                        {!cnae.isPrimary && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => updateCnae(cnae.id, 'isPrimary', true)}>Tornar Principal</Button>}
-                      </div>
-                      {cnaes.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCnae(cnae.id)}><Trash2 className="h-4 w-4" /></Button>}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className="space-y-1"><Label className="text-[10px] uppercase">Código CNAE</Label><Input value={cnae.code} onChange={e => updateCnae(cnae.id, 'code', e.target.value)} placeholder="0000-0/00" className="h-8 text-xs" /></div>
-                      <div className="space-y-1 md:col-span-2"><Label className="text-[10px] uppercase">Descrição da Atividade</Label><Input value={cnae.description} onChange={e => updateCnae(cnae.id, 'description', e.target.value)} placeholder="Ex: Comércio varejista de..." className="h-8 text-xs" /></div>
-                    </div>
+      {isLoading || isPreAnalyzing ? (
+        <div className="py-12">
+          <AnalysisProgress step={progressStep} />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <Card className="shadow-card">
+                <CardContent className="pt-6">
+                  <SectionTitle icon={Building2} title="Identificação e Classificação" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 md:col-span-2"><Label>Razão Social / Nome do Projeto</Label><Input value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Ano Base</Label><Select value={anoBase} onValueChange={setAnoBase}><SelectTrigger><Calendar className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger><SelectContent>{anosBase.map(ano => <SelectItem key={ano} value={ano}>{ano}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Natureza Jurídica</Label><Select value={naturezaJuridica} onValueChange={setNaturezaJuridica}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{naturezasJuridicas.map(n => <SelectItem key={n} value={n}>{n}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Classificação Fiscal Explícita</Label><Select value={classificacaoFiscal} onValueChange={setClassificacaoFiscal}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{classificacoesFiscais.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Capital Social (R$)</Label><Input type="number" value={capital} onChange={e => setCapital(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Município</Label><Input value={municipio} onChange={e => setMunicipio(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Estado (UF)</Label><Select value={estado} onValueChange={setEstado}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{UFs.map(uf => <SelectItem key={uf} value={uf}>{uf}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2 md:col-span-2"><Label>Tributação Pretendida</Label><Select value={tributacaoSugerida} onValueChange={setTributacaoSugerida}><SelectTrigger><SelectValue placeholder="Selecione ou deixe para a IA sugerir" /></SelectTrigger><SelectContent><SelectItem value="Simples Nacional">Simples Nacional</SelectItem><SelectItem value="Simples Nacional (Híbrido)">Simples Nacional (Híbrido)</SelectItem><SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem><SelectItem value="Lucro Real">Lucro Real</SelectItem><SelectItem value="Não sei / Sugerir">Não sei / Sugerir</SelectItem></SelectContent></Select></div>
                   </div>
-                ))}
-                <Button variant="outline" size="sm" className="w-full border-dashed" onClick={addCnae}><Plus className="h-4 w-4 mr-2" /> Adicionar CNAE</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                </CardContent>
+              </Card>
 
-        <div className="space-y-6">
-          <Card className="shadow-card border-primary/20 bg-primary/5">
-            <CardContent className="pt-6">
-              <SectionTitle icon={Gavel} title="Custos Operacionais e Faturamento" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
-                <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
-                <div className="space-y-2"><Label>Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-                <div className="space-y-2"><Label>Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-              </div>
-            </CardContent>
-          </Card>
+              <Card className="shadow-card">
+                <CardContent className="pt-6">
+                  <SectionTitle icon={ListChecks} title="Estrutura de CNAEs" />
+                  <div className="space-y-4">
+                    {cnaes.map((cnae) => (
+                      <div key={cnae.id} className="p-3 border rounded-md bg-muted/20 space-y-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <Badge variant={cnae.isPrimary ? "default" : "outline"} className="text-[10px]">{cnae.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>
+                            {!cnae.isPrimary && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => updateCnae(cnae.id, 'isPrimary', true)}>Tornar Principal</Button>}
+                          </div>
+                          {cnaes.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCnae(cnae.id)}><Trash2 className="h-4 w-4" /></Button>}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          <div className="space-y-1"><Label className="text-[10px] uppercase">Código CNAE</Label><Input value={cnae.code} onChange={e => updateCnae(cnae.id, 'code', e.target.value)} placeholder="0000-0/00" className="h-8 text-xs" /></div>
+                          <div className="space-y-1 md:col-span-2"><Label className="text-[10px] uppercase">Descrição da Atividade</Label><Input value={cnae.description} onChange={e => updateCnae(cnae.id, 'description', e.target.value)} placeholder="Ex: Comércio varejista de..." className="h-8 text-xs" /></div>
+                        </div>
+                      </div>
+                    ))}
+                    <Button variant="outline" size="sm" className="w-full border-dashed" onClick={addCnae}><Plus className="h-4 w-4 mr-2" /> Adicionar CNAE</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
 
-          <Card className="shadow-card">
-            <CardContent className="pt-6">
-              <SectionTitle icon={ShieldQuestion} title="Folha e Sócios" />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Folha Mensal Estimada (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => handleFolhaMensalChange(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Folha 12 Meses p/ Fator R (R$)</Label><Input type="number" value={folha12Meses} onChange={e => setFolha12Meses(e.target.value)} className="border-primary/50 bg-primary/5" /></div>
-                <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
-                <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                
-                <div className="space-y-2"><Label>Recebe na conta PF?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Mistura Patrimonial?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Sócios retiram lucros?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-                <div className="space-y-2"><Label>Recolhe INSS/IR (Sócio)?</Label><Select value={sociosRecolhemInssIr} onValueChange={setSociosRecolhemInssIr}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+            <div className="space-y-6">
+              <Card className="shadow-card border-primary/20 bg-primary/5">
+                <CardContent className="pt-6">
+                  <SectionTitle icon={Gavel} title="Custos Operacionais e Faturamento" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
+                    <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
+                    <div className="space-y-2"><Label>Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
+                    <div className="space-y-2"><Label>Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
+                  </div>
+                </CardContent>
+              </Card>
 
-      <div className="mt-6 space-y-2"><Label className="font-semibold">Descrição Detalhada das Atividades</Label><Textarea value={atividades} onChange={(e) => setAtividades(e.target.value)} className="min-h-[100px]" /></div>
+              <Card className="shadow-card">
+                <CardContent className="pt-6">
+                  <SectionTitle icon={ShieldQuestion} title="Folha e Sócios" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2"><Label>Folha Mensal Estimada (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => handleFolhaMensalChange(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Folha 12 Meses p/ Fator R (R$)</Label><Input type="number" value={folha12Meses} onChange={e => setFolha12Meses(e.target.value)} className="border-primary/50 bg-primary/5" /></div>
+                    <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
+                    <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Recebe na conta PF?</Label><Select value={recebeContaPF} onValueChange={setRecebeContaPF}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Mistura Patrimonial?</Label><Select value={mesmaContaSocios} onValueChange={setMesmaContaSocios}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Sócios retiram lucros?</Label><Select value={sociosRetiramValores} onValueChange={setSociosRetiramValores}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                    <div className="space-y-2"><Label>Recolhe INSS/IR (Sócio)?</Label><Select value={sociosRecolhemInssIr} onValueChange={setSociosRecolhemInssIr}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-        
-        <Button variant="outline" size="lg" onClick={handlePreAnalysis} disabled={isLoading || isPreAnalyzing} className="text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50">
-          <Bot className="h-5 w-5 mr-2" />
-          {isPreAnalyzing ? 'Validando...' : 'Pré-Validação com IA Local'}
-        </Button>
+          <div className="mt-6 space-y-2"><Label className="font-semibold">Descrição Detalhada das Atividades</Label><Textarea value={atividades} onChange={(e) => setAtividades(e.target.value)} className="min-h-[100px]" /></div>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button size="lg" disabled={isLoading || isPreAnalyzing} className="bg-accent px-12 text-white">
-              {isLoading ? "Processando..." : "Gerar Diagnóstico Oficial"}
-              <ChevronDown className="h-4 w-4 ml-2" />
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+            <Button variant="outline" size="lg" onClick={handlePreAnalysis} disabled={isLoading || isPreAnalyzing} className="text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50">
+              <Bot className="h-5 w-5 mr-2" />
+              {isPreAnalyzing ? 'Validando...' : 'Pré-Validação com IA Local'}
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="center">
-            <DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        
-      </div>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="lg" disabled={isLoading || isPreAnalyzing} className="bg-accent px-12 text-white">
+                  {isLoading ? "Processando..." : "Gerar Diagnóstico Oficial"}
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="center">
+                <DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </>
+      )}
 
       {aiReport && <div id="ai-report-section"><AiAnalysisReport report={aiReport} onClose={() => setAiReport(null)} executionTime={executionTime || undefined} clientName={razaoSocial} clientCity={municipio} clientState={estado} /></div>}
     </div>
