@@ -114,7 +114,6 @@ const Configuracao = () => {
     toast.info("Skill removida.");
   };
 
-  // Montagem do Payload de Debug para Visualização
   const allToolsForDebug = [
     ...JOTA_TOOLS_MANIFEST, 
     ...dynamicSkills.filter(s => s.isActive).map(s => ({
@@ -127,21 +126,66 @@ const Configuracao = () => {
   const businessPayloadMock = {
     meta: { webhookUrl: webhookTestUrl || "https://sua-url-webhook.com", executionMode: "test" },
     agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-    contexto: { anoBase: localStorage.getItem('viab-anoBase') || "2025" },
+    contexto: { anoBase: localStorage.getItem('viab-anoBase') || "2026", objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial" },
     empresa: {
-      razaoSocial: razaoSocial || "Não Informada",
+      razaoSocial: razaoSocial || "TOP MOTOS LTDA",
+      naturezaJuridica: localStorage.getItem('viab-naturezaJuridica') || "Sociedade Limitada (LTDA)",
       classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "ME",
-      localizacao: { municipio: localStorage.getItem('viab-municipio') || "", estado: uf },
+      capitalSocial: parseFloat(localStorage.getItem('viab-capital') || "30000"),
+      numSocios: parseInt(localStorage.getItem('viab-numSocios') || "1"),
+      localizacao: { municipio: localStorage.getItem('viab-municipio') || "Belém", estado: uf || "PA" },
+      tributacaoPretendida: localStorage.getItem('viab-tributacaoSugerida') || "Simples Nacional"
     },
     operacional: {
       cnaes: JSON.parse(localStorage.getItem('viab-cnaes') || '[]'),
       descricaoAtividades: localStorage.getItem('viab-atividades') || "",
     },
     financeiro: {
-      faturamento: { anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0") },
-      folha_pagamento: { mensal: parseFloat(localStorage.getItem('viab-folhaPagamento') || "0") }
+      faturamento: { 
+        anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
+        mensal_medio: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0") / 12,
+        segregacao: {
+          comercio_percent: parseFloat(localStorage.getItem('viab-percentComercio') || "100"),
+          servico_percent: parseFloat(localStorage.getItem('viab-percentServico') || "0")
+        }
+      },
+      fator_r: {
+        sujeito_fator_r: "A definir pela IA com base nos CNAEs",
+        folha_12_meses: parseFloat(localStorage.getItem('viab-folha12Meses') || "0"),
+        faturamento_12_meses: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0"),
+        percentual_atual: 0
+      },
+      custos_operacionais: {
+        fixos_mensais: parseFloat(localStorage.getItem('viab-fixosMensais') || "0"),
+        variaveis_percentual: parseFloat(localStorage.getItem('viab-variaveisPercentual') || "0")
+      }
     },
-    _nota: "Este é um espelho aproximado. Os dados reais são extraídos da tela de Viabilidade na hora do clique."
+    societario_trabalhista: {
+      pro_labore: {
+        declara_prolabore: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim',
+        valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
+        recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim'
+      },
+      retira_valores_pf: localStorage.getItem('viab-sociosRetiramValores') === 'Sim'
+    },
+    conformidade_riscos: {
+      confusao_patrimonial: localStorage.getItem('viab-mesmaContaSocios') === 'Sim' || localStorage.getItem('viab-recebeContaPF') === 'Sim',
+      retirada_informal: localStorage.getItem('viab-sociosRetiramValores') === 'Sim' && localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim',
+      risco_previdenciario: localStorage.getItem('viab-sociosDeclaramProlabore') !== 'Sim' || localStorage.getItem('viab-sociosRecolhemInssIr') !== 'Sim'
+    },
+    engine: {
+      analises_requeridas: [
+        "enquadramento_simples",
+        "calculo_carga_tributaria",
+        "analise_fator_r",
+        "diagnostico_risco",
+        "viabilidade_financeira",
+        "planejamento_tributario"
+      ],
+      output_config: {
+        formato: "relatorio_consultivo"
+      }
+    }
   };
 
   return (

@@ -125,9 +125,6 @@ const Viabilidade = () => {
     const percServicoNum = parseFloat(percentServico) || 0;
     
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
-    
-    const aliqComercio = calculateSimplesNacionalEffectiveRate("Anexo I", faturamentoNum);
-    const aliqServicoIII = calculateSimplesNacionalEffectiveRate("Anexo III", faturamentoNum);
 
     return {
       meta: { webhookUrl, executionMode: environment },
@@ -154,24 +151,17 @@ const Viabilidade = () => {
       financeiro: {
         faturamento: {
           anual_total: faturamentoNum,
-          faturamento_acumulado_12m: faturamentoNum, // RBT12 exigido pelo prompt
-          faturamento_mensal_estimado: faturamentoNum / 12,
+          mensal_medio: faturamentoNum / 12,
           segregacao: { 
             comercio_percent: percComercioNum, 
-            servico_percent: percServicoNum,
-            comercio_valor: (faturamentoNum * percComercioNum) / 100,
-            servico_valor: (faturamentoNum * percServicoNum) / 100
-          },
-          referencia_aliquotas_calculadas: {
-            anexo_i_efetiva: aliqComercio,
-            anexo_iii_efetiva: aliqServicoIII
+            servico_percent: percServicoNum
           }
         },
-        folha_pagamento: {
-          mensal: parseFloat(folhaPagamento) || 0,
-          anual_12m: folha12mNum,
-          folha_pagamento_prevista: parseFloat(folhaPagamento) || 0, // Exigido pelo prompt
-          fator_r_percentual: faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0
+        fator_r: {
+          sujeito_fator_r: "A definir pela IA com base nos CNAEs",
+          folha_12_meses: folha12mNum,
+          faturamento_12_meses: faturamentoNum,
+          percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0
         },
         custos_operacionais: {
           fixos_mensais: parseFloat(fixosMensais) || 0,
@@ -179,8 +169,6 @@ const Viabilidade = () => {
         }
       },
       societario_trabalhista: {
-        num_socios: parseInt(numSocios) || 1, // Exigido pelo prompt
-        num_funcionarios: parseInt(numFuncionarios) || 0, // Exigido pelo prompt
         pro_labore: {
           declara_prolabore: sociosDeclaramProlabore === 'Sim',
           valor_declarado: parseFloat(valorProlabore) || 0,
@@ -192,6 +180,19 @@ const Viabilidade = () => {
         confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
         retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
         risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+      },
+      engine: {
+        analises_requeridas: [
+          "enquadramento_simples",
+          "calculo_carga_tributaria",
+          "analise_fator_r",
+          "diagnostico_risco",
+          "viabilidade_financeira",
+          "planejamento_tributario"
+        ],
+        output_config: {
+          formato: "relatorio_consultivo"
+        }
       }
     };
   };
