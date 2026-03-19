@@ -21,7 +21,6 @@ import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from '@/components/ViabilityReportPDF';
-import { calculateSimplesNacionalEffectiveRate } from '@/lib/simplesNacional';
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 const naturezasJuridicas = ["Empresário Individual (EI)", "Sociedade Limitada (LTDA)", "Sociedade Limitada Unipessoal (SLU)", "Sociedade Simples", "Não sei / Sugerir"];
@@ -128,15 +127,24 @@ const Viabilidade = () => {
 
     return {
       meta: { webhookUrl, executionMode: environment },
-      agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
-      contexto: { anoBase, objetivo: "Análise de Viabilidade, Planejamento Tributário e Blindagem Patrimonial" },
+      agentName: "Diagnóstico Tributário e Planejamento Empresarial",
+      contexto: { 
+        anoBase, 
+        objetivo: "Análise de Viabilidade, Planejamento Tributário, Blindagem Patrimonial e Orientação Contábil" 
+      },
       empresa: {
         razaoSocial: razaoSocial || "Não Informada",
+        nomeFantasia: razaoSocial || "Não Informada",
         naturezaJuridica: naturezaJuridica || "Não Informada",
         classificacaoFiscal: classificacaoFiscal || "ME",
+        cnpj: localStorage.getItem('jota-cnpj') || "00.000.000/0001-00",
         capitalSocial: parseFloat(capital) || 0,
         numSocios: parseInt(numSocios) || 1,
-        localizacao: { municipio: formatCityName(municipio), estado: estado || "PA" },
+        localizacao: { 
+          municipio: formatCityName(municipio), 
+          estado: estado || "PA",
+          cep: "66910010" 
+        },
         tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
       },
       operacional: {
@@ -144,9 +152,15 @@ const Viabilidade = () => {
           codigo_formatado: c.code.trim(),
           codigo_limpo: c.code.replace(/\D/g, ''),
           descricao: c.description.trim(),
-          tipo: c.isPrimary ? 'Principal' : 'Secundário'
+          tipo: c.isPrimary ? 'Principal' : 'Secundário',
+          obrigações_acessorias: ["Sugerir via IA"],
+          legislacao: ["Sugerir via IA"]
         })),
         descricaoAtividades: atividades || "",
+        percentual_comercio_servico: {
+          comercio: percComercioNum,
+          servico: percServicoNum
+        }
       },
       financeiro: {
         faturamento: {
@@ -157,16 +171,27 @@ const Viabilidade = () => {
             servico_percent: percServicoNum
           }
         },
+        custos_operacionais: {
+          fixos_mensais: parseFloat(fixosMensais) || 0,
+          variaveis_percentual: parseFloat(variaveisPercentual) || 0
+        },
+        folha_pagamento: {
+          mensal_total: parseFloat(folhaPagamento) || 0,
+          pro_labore: parseFloat(valorProlabore) || 0,
+          INSS_IR_recolhido: sociosRecolhemInssIr === 'Sim'
+        },
         fator_r: {
-          sujeito_fator_r: "A definir pela IA com base nos CNAEs",
+          sujeito_fator_r: "A definir pela IA com base nos CNAEs e folha",
           folha_12_meses: folha12mNum,
           faturamento_12_meses: faturamentoNum,
           percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0
         },
-        custos_operacionais: {
-          fixos_mensais: parseFloat(fixosMensais) || 0,
-          variaveis_percentual: parseFloat(variaveisPercentual) || 0
-        }
+        simulacoes_tributarias: [
+          "Comparar Anexo I, III e V do Simples Nacional",
+          "Comparar com Lucro Presumido",
+          "Verificar impacto do fator R",
+          "Simular redução legal de impostos"
+        ]
       },
       societario_trabalhista: {
         pro_labore: {
@@ -174,12 +199,24 @@ const Viabilidade = () => {
           valor_declarado: parseFloat(valorProlabore) || 0,
           recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
         },
-        retira_valores_pf: sociosRetiramValores === 'Sim'
+        retira_valores_pf: sociosRetiramValores === 'Sim',
+        num_empregados: parseInt(numFuncionarios) || 0,
+        contratos: "Todos regulares, sem terceirizações não declaradas"
       },
       conformidade_riscos: {
         confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
         retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
-        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim',
+        riscos_fiscais: [
+          "Multas por não declarar pró-labore",
+          "Autuação por fator R incorreto",
+          "Obrigações acessórias não entregues"
+        ],
+        recomendacoes: [
+          "Separar contas pessoais e da empresa",
+          "Formalizar retiradas de sócios",
+          "Planejamento de folha e pró-labore"
+        ]
       },
       engine: {
         analises_requeridas: [
@@ -188,10 +225,15 @@ const Viabilidade = () => {
           "analise_fator_r",
           "diagnostico_risco",
           "viabilidade_financeira",
-          "planejamento_tributario"
+          "planejamento_tributario",
+          "orientacao_contador",
+          "simulacao_cenarios_tributarios"
         ],
         output_config: {
-          formato: "relatorio_consultivo"
+          formato: "relatorio_consultivo",
+          detalhes_para_contador: true,
+          incluir_legislacao_e_codigos: true,
+          simulacoes_de_reducao: true
         }
       }
     };
