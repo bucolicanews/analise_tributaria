@@ -37,7 +37,6 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       status: "sucesso"
     };
   },
-  // NOVA SKILL: Cálculo de IRPF Pró-labore 2026
   calculate_irpf_prolabore: (args: { valor_pro_labore: number }) => {
     const v = args.valor_pro_labore;
     let imposto = 0;
@@ -69,6 +68,27 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       ano_base: "2026",
       status: "sucesso"
     };
+  },
+  // NOVA SKILL: Cálculo de Lucro Presumido Realista
+  calculate_lucro_presumido: (args: { faturamento_mensal: number; tipo_atividade: 'comercio' | 'servico' }) => {
+    const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
+    const baseCalculo = args.faturamento_mensal * presuncao;
+    
+    const irpj = baseCalculo * 0.15;
+    const csll = baseCalculo * 0.09;
+    const pis = args.faturamento_mensal * 0.0065;
+    const cofins = args.faturamento_mensal * 0.03;
+    
+    return {
+      base_presuncao_percentual: (presuncao * 100) + "%",
+      irpj_valor: irpj,
+      csll_valor: csll,
+      pis_valor: pis,
+      cofins_valor: cofins,
+      total_tributos_federais: irpj + csll + pis + cofins,
+      aliquota_efetiva_federal: ((irpj + csll + pis + cofins) / args.faturamento_mensal) * 100,
+      status: "sucesso"
+    };
   }
 };
 
@@ -90,7 +110,7 @@ export const JOTA_TOOLS_MANIFEST = [
   },
   {
     name: "get_ncm_technical_info",
-    description: "Consulta regras de NCM e Imposto Seletivo.",
+    description: "Consulta regras de NCM e Imposto Seletivo. Use SEMPRE para validar os produtos da lista.",
     parameters: {
       type: "object",
       properties: { ncm: { type: "string" } },
@@ -115,12 +135,21 @@ export const JOTA_TOOLS_MANIFEST = [
     parameters: {
       type: "object",
       properties: {
-        valor_pro_labore: { 
-          type: "number", 
-          description: "O valor bruto mensal do pró-labore do sócio." 
-        }
+        valor_pro_labore: { type: "number" }
       },
       required: ["valor_pro_labore"]
+    }
+  },
+  {
+    name: "calculate_lucro_presumido",
+    description: "Calcula os impostos federais (IRPJ, CSLL, PIS, COFINS) no regime de Lucro Presumido.",
+    parameters: {
+      type: "object",
+      properties: {
+        faturamento_mensal: { type: "number" },
+        tipo_atividade: { type: "string", enum: ["comercio", "servico"] }
+      },
+      required: ["faturamento_mensal", "tipo_atividade"]
     }
   }
 ];
