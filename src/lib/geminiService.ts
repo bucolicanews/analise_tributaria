@@ -17,99 +17,46 @@ export interface AgentConfig {
   order?: number;
 }
 
-// --- SUPER PROMPT CONSOLIDADO (PADRÃO JOTA - 10/10) ---
-
-const SUPER_PROMPT_JOTA = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer 10/10, totalmente operacional.
-
-⛔ REGRAS CRÍTICAS:
-1. NUNCA RESUMA. Detalhe cada cálculo.
-2. USE VALORES REAIS: Se o faturamento é X, calcule o DAS exato em R$.
-3. FOCO EM BELÉM/PA: Use as alíquotas de ISS de Belém (geralmente 5%) e cite a Lei de Uso e Ocupação do Solo de Belém.
-
-ESTRUTURA DO RELATÓRIO:
-
-# RELATÓRIO TÉCNICO DE VIABILIDADE E PLANEJAMENTO TRIBUTÁRIO - JOTA CONTABILIDADE
-
-### 1. VIABILIDADE LOCAL E ZONEAMENTO (FOCO PRÁTICO)
-- Veredito de viabilidade.
-- Validação via 'get_address_by_cep'.
-- **LEGISLAÇÃO**: Cite a Lei Municipal nº 8.655/2008 (Plano Diretor de Belém) ou equivalente para o zoneamento do cliente.
-
-### 2. CALENDÁRIO DE OBRIGAÇÕES E FERRAMENTAS
-- Tabela com: Obrigação, Periodicidade (Mensal/Anual), Prazo (Ex: Dia 20) e Anexo Vinculado (I, III ou V).
-- Ferramentas: Certificado A1, Emissor, Sistemas.
-
-### 3. EVENTOS ESOCIAL E REINF (GUIA PARA O CONTADOR)
-- Detalhamento de S-1200, R-2010, R-2020 e Série R-4000 com exemplos de valores.
-
-### 4. ANÁLISE DE RETENÇÕES E CÓDIGOS FISCAIS INTERESTADUAIS
-- Dispensa de retenção (Art. 191 IN RFB 971/2009).
-- **TABELA DE CÓDIGOS**: Inclua CFOPs de venda interna (5102/5405) e interestadual (6102/6403).
-
-### 5. ENGENHARIA TRIBUTÁRIA E FATOR R (O CORAÇÃO DO RELATÓRIO)
-- **SIMULAÇÃO NUMÉRICA**: Calcule o DAS, INSS Patronal e IRRF sobre Pró-labore.
-- **OTIMIZAÇÃO FATOR R**: Mostre a economia em R$ ao atingir 28% de folha para migrar do Anexo V para o III.
-- **CENÁRIO ALTERNATIVO**: Compare Simples Nacional vs Lucro Presumido.
-
-### 6. PARAMETRIZAÇÃO DE 20 ITENS
-- Tabela: Produto/Serviço, NCM, CSOSN, CFOP, CEST, Classe IBS/CBS e CST PIS/COFINS.
-
-### 7. LICENCIAMENTO E CUSTOS DE ABERTURA
-- Detalhe: Alvará (Siat Belém), AVCB (Bombeiros PA), Vigilância e taxas da JUCEPA.
-
-### 8. MATRIZ DE RISCOS E BLINDAGEM
-- Analise Confusão Patrimonial e Pró-labore.
-- **INDICADORES PARA SÓCIOS**: Tabela comparativa: Receita Bruta | Tributos Totais | Custos Fixos | Lucro Líquido Final.
-
-### 9. CONCLUSÃO VINCULADA E RESPONSABILIDADE.`;
-
-// --- PROMPTS DOS AGENTES ESPECIALISTAS ---
+// --- PROMPTS DOS AGENTES ESPECIALISTAS (DISTRIBUIÇÃO DE CARGA PARA MÁXIMO CONTEXTO) ---
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Localização e Viabilidade de Belém/PA.
-CONTEÚDO OBRIGATÓRIO:
-# 1. RESPOSTA DIRETA À CONSULTA DE VIABILIDADE E ENQUADRAMENTO
+# 1. VIABILIDADE LOCAL E ZONEAMENTO (FOCO PRÁTICO)
 - Veredito imediato.
 - Valide o endereço com 'get_address_by_cep'.
-- Cite a Lei Municipal de Belém nº 8.655/2008 sobre zoneamento e ocupação do solo.`;
+- Cite a Lei Municipal de Belém nº 8.655/2008 e normas de Mosqueiro.`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Conformidade e Calendário Fiscal.
-CONTEÚDO OBRIGATÓRIO:
-# 2. OBRIGAÇÕES E FERRAMENTAS NECESSÁRIAS
+# 2. CALENDÁRIO DE OBRIGAÇÕES E FERRAMENTAS
 - Tabela: Obrigação | Periodicidade | Prazo | Anexo Vinculado.
-# 3. DETALHAMENTO DA EFD-REINF E ESOCIAL
-- Detalhe eventos com exemplos de preenchimento para o contador.
-# 4. ANÁLISE DE RETENÇÃO E CÓDIGOS INTERESTADUAIS
-- Explique a dispensa de retenção.
-- Liste CFOPs para vendas dentro e fora do estado (5xxx e 6xxx).`;
+# 3. EVENTOS ESOCIAL E REINF (GUIA PARA O CONTADOR)
+- Detalhe S-1200, R-2010, R-2020 e Série R-4000 com exemplos práticos.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos e Matemático Tributário.
-CONTEÚDO OBRIGATÓRIO:
-# 5. PROJEÇÃO DE CUSTO OPERACIONAL E FATOR R
-- SIMULAÇÃO REAL: Calcule em R$ o DAS, INSS e IRRF.
-- ANALISADOR FATOR R: Prove a economia exata em R$ ao sair do Anexo V para o III.
+# 4. ENGENHARIA TRIBUTÁRIA E FATOR R (O CORAÇÃO DO RELATÓRIO)
+- SIMULAÇÃO REAL: Calcule em R$ o DAS (Anexo I, III e V), INSS Patronal e IRRF.
+- ANALISADOR FATOR R: Prove a economia exata em R$ ao atingir 28% de folha.
 - COMPARATIVO: Simples vs Lucro Presumido (Impacto Financeiro Anual).
-# 6. PARAMETRIZAÇÃO TÉCNICA: 20 PRODUTOS/SERVIÇOS
-- Tabela completa com NCM, CSOSN, CFOP, CEST e Classe IBS/CBS.`;
+- NUNCA RESUMA OS CÁLCULOS. Mostre a memória de cálculo completa.`;
 
-const PROMPT_AGENTE_4 = `Você é o Agente 4: Gestor de Riscos e Licenciamento Pará.
-CONTEÚDO OBRIGATÓRIO:
-# 7. LICENCIAMENTO ESPECIALIZADO (BELÉM/PA)
+const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização Fiscal.
+# 5. PARAMETRIZAÇÃO TÉCNICA: 20 PRODUTOS/SERVIÇOS
+- Tabela completa: Produto/Serviço, NCM, CSOSN, CFOP (Interno e Interestadual), CEST, Classe IBS/CBS e CST PIS/COFINS.
+- Inclua códigos para venda dentro (5xxx) e fora do estado (6xxx).`;
+
+const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Licenciamento Pará.
+# 6. LICENCIAMENTO ESPECIALIZADO (BELÉM/PA)
 - Detalhe taxas da JUCEPA, Alvará SIAT e Bombeiros PA.
-# 8. EQUIPAMENTOS E COMPETÊNCIAS (NRs).
-# 9. CUSTOS DE ABERTURA E FORMALIZAÇÃO.
-# 10. ANÁLISE DE RISCOS E MATRIZ ESTRUTURADA
+# 7. ANÁLISE DE RISCOS E MATRIZ ESTRUTURADA
 - Foco em Confusão Patrimonial e Pró-labore (Erro, Lei, Punição, Solução).`;
 
-const PROMPT_AGENTE_5 = `Você é o Agente 5: Estrategista de Reforma e Indicadores de Gestão.
-CONTEÚDO OBRIGATÓRIO:
-# 11. IMPACTOS DA REFORMA TRIBUTÁRIA (EC 132/2023)
+const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Blindagem.
+# 8. IMPACTOS DA REFORMA TRIBUTÁRIA (EC 132/2023)
 - Transição 2026-2033.
-# 12. RECOMENDAÇÕES E INDICADORES PARA SÓCIOS
+# 9. RECOMENDAÇÕES E INDICADORES PARA SÓCIOS
 - Tabela de indicadores: Receita vs Tributos vs Custos vs Lucro Líquido.
-- Passos para Blindagem Patrimonial.
-# 13. CONCLUSÕES TÉCNICAS E CLÁUSULA FINAL.`;
+- Passos para Blindagem Patrimonial.`;
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = SUPER_PROMPT_JOTA;
+export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Gere um parecer técnico 10/10, sem resumos, com foco em Belém/PA e simulações em R$.`;
 
 export async function callGeminiAgent(
   systemPrompt: string,
@@ -133,7 +80,7 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Gere o relatório 10/10 com simulações numéricas em R$, códigos fiscais interestaduais e legislação de Belém/PA." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja extremamente detalhado. Use todo o espaço disponível para cálculos e base legal." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }, 
   };
@@ -206,9 +153,10 @@ export function saveAgentsToStorage(agents: AgentConfig[]): void {
 }
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
-  { id: '1', nome: '1. Validador e Localização', order: 1, systemPrompt: PROMPT_AGENTE_1 },
-  { id: '2', nome: '2. Auditor de Conformidade', order: 2, systemPrompt: PROMPT_AGENTE_2 },
-  { id: '3', nome: '3. Planejador e Fator R', order: 3, systemPrompt: PROMPT_AGENTE_3 },
-  { id: '4', nome: '4. Riscos e Licenciamento', order: 4, systemPrompt: PROMPT_AGENTE_4 },
-  { id: '5', nome: '5. Reforma e Blindagem', order: 5, systemPrompt: PROMPT_AGENTE_5 },
+  { id: '1', nome: '1. Localização e Viabilidade', order: 1, systemPrompt: PROMPT_AGENTE_1 },
+  { id: '2', nome: '2. Conformidade e Calendário', order: 2, systemPrompt: PROMPT_AGENTE_2 },
+  { id: '3', nome: '3. Engenharia de Custos (DRE)', order: 3, systemPrompt: PROMPT_AGENTE_3 },
+  { id: '4', nome: '4. Parametrização Fiscal (20 itens)', order: 4, systemPrompt: PROMPT_AGENTE_4 },
+  { id: '5', nome: '5. Riscos e Licenciamento', order: 5, systemPrompt: PROMPT_AGENTE_5 },
+  { id: '6', nome: '6. Reforma e Blindagem', order: 6, systemPrompt: PROMPT_AGENTE_6 },
 ];
