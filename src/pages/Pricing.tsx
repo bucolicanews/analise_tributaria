@@ -74,10 +74,9 @@ const Pricing = () => {
     const percComercioNum = parseFloat(localStorage.getItem('viab-percentComercio') || "100");
     const percServicoNum = parseFloat(localStorage.getItem('viab-percentServico') || "0");
     
-    const folhaNum = params.payroll || 0;
-    const proLaboreNum = parseFloat(localStorage.getItem('viab-valorProlabore') || "0");
-    const folha12Meses = (folhaNum + proLaboreNum) * 12;
-    const percentualFatorR = faturamentoNum > 0 ? (folha12Meses / faturamentoNum) * 100 : 0;
+    // Fator R
+    const folha12mNum = params.payroll12Months || (params.payroll * 12);
+    const percentualFatorR = faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0;
     const fatorROk = percentualFatorR >= 28;
 
     return {
@@ -155,7 +154,7 @@ const Pricing = () => {
         },
         fator_r: {
           sujeito_fator_r: percServicoNum > 0,
-          folha_12_meses: folha12Meses,
+          folha_12_meses: folha12mNum, // ENVIANDO O VALOR EXATO
           faturamento_12_meses: faturamentoNum,
           percentual_atual: percentualFatorR,
           resultado: fatorROk ? "Anexo III" : "Anexo V",
@@ -190,7 +189,7 @@ const Pricing = () => {
         },
         pro_labore: {
           declara_prolabore: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim',
-          valor_declarado: proLaboreNum,
+          valor_declarado: parseFloat(localStorage.getItem('viab-valorProlabore') || "0"),
           valor_estimado: currentMinWage,
           recolhe_inss_ir: localStorage.getItem('viab-sociosRecolhemInssIr') === 'Sim',
           modo_calculo: localStorage.getItem('viab-sociosDeclaramProlabore') === 'Sim' ? 'declarado' : 'estimado_para_simulacao'

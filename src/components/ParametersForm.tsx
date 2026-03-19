@@ -57,6 +57,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [irpjRateLucroReal, setIrpjRateLucroReal] = useState<string>("15");
   const [csllRateLucroReal, setCsllRateLucroReal] = useState<string>("9");
   const [payroll, setPayroll] = useState<string>("6500");
+  const [payroll12Months, setPayroll12Months] = useState<string>("78000"); // Novo campo
   const [inssPatronalRate, setInssPatronalRate] = useState<string>("28.8");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("3000");
   const [lossPercentage, setLossPercentage] = useState<string>("1.5");
@@ -100,6 +101,13 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     if (saved) setTaxPassThrough(parseFloat(saved));
   }, []);
 
+  // Facilidade de UX: Ao atualizar folha mensal, atualiza a de 12 meses (se usuário quiser)
+  const handlePayrollChange = (val: string) => {
+    setPayroll(val);
+    const num = parseFloat(val) || 0;
+    setPayroll12Months((num * 12).toString());
+  };
+
   const applyPreset = (type: 'simples' | 'hibrido' | 'presumido' | 'real') => {
     setLossPercentage("2");
     setTotalStockUnits("4000");
@@ -129,6 +137,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setPercentServico("0");
         setAnexoSimples("Anexo I");
         setPayroll("6500");
+        setPayroll12Months("78000");
         setTaxRegime(TaxRegime.SimplesNacional);
         setGenerateIvaCredit(type === 'hibrido');
         setUsePisCofins(type === 'hibrido');
@@ -141,6 +150,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setPercentComercio("100");
         setPercentServico("0");
         setPayroll("18000");
+        setPayroll12Months("216000");
         setTaxRegime(TaxRegime.LucroPresumido);
         setIrpjRate("1.2");
         setCsllRate("1.08");
@@ -155,6 +165,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
         setPercentComercio("100");
         setPercentServico("0");
         setPayroll("45000");
+        setPayroll12Months("540000");
         setTaxRegime(TaxRegime.LucroReal);
         setIrpjRateLucroReal("15");
         setCsllRateLucroReal("9");
@@ -223,6 +234,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       fixedExpenses,
       variableExpenses,
       payroll: parseFloat(payroll),
+      payroll12Months: parseFloat(payroll12Months),
       inssPatronalRate: parseFloat(inssPatronalRate),
       totalStockUnits: parseInt(totalStockUnits, 10),
       lossPercentage: parseFloat(lossPercentage),
@@ -286,7 +298,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="faturamento12Meses">Faturamento 12 Meses (R$)</Label>
+              <Label htmlFor="faturamento12Meses">Faturamento Últ. 12 Meses (R$)</Label>
               <Input id="faturamento12Meses" type="number" step="0.01" value={faturamento12Meses} onChange={(e) => setFaturamento12Meses(e.target.value)} disabled={disabled} />
             </div>
           </div>
@@ -425,11 +437,12 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       <div className="space-y-6 border-t border-border pt-4">
         <h3 className="font-bold text-lg">5. Custos Fixos Detalhados</h3>
         <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Folha Total (R$)</Label><Input type="number" value={payroll} onChange={(e) => setPayroll(e.target.value)} disabled={disabled} /></div>
+          <div className="space-y-2"><Label>Folha Mensal (R$)</Label><Input type="number" value={payroll} onChange={(e) => handlePayrollChange(e.target.value)} disabled={disabled} /></div>
+          <div className="space-y-2"><Label>Folha 12 Meses p/ Fator R (R$)</Label><Input type="number" value={payroll12Months} onChange={(e) => setPayroll12Months(e.target.value)} disabled={disabled} className="border-primary/50 bg-primary/5" /></div>
           <div className="space-y-2"><Label>Estoque Total (Unid)</Label><Input type="number" value={totalStockUnits} onChange={(e) => setTotalStockUnits(e.target.value)} disabled={disabled} /></div>
         </div>
         <div className="space-y-3">
-          <div className="flex items-center justify-between"><Label>Outros Custos Fixos</Label><Button type="button" size="sm" variant="outline" onClick={() => setFixedExpenses([...fixedExpenses, { name: "", value: 0 }])} disabled={disabled}><Plus className="h-4 w-4" /></Button></div>
+          <div className="flex items-center justify-between"><Label>Outros Custos Fixos (Mensais)</Label><Button type="button" size="sm" variant="outline" onClick={() => setFixedExpenses([...fixedExpenses, { name: "", value: 0 }])} disabled={disabled}><Plus className="h-4 w-4" /></Button></div>
           {fixedExpenses.map((exp, idx) => (
             <div key={idx} className="flex gap-2">
               <Input placeholder="Despesa" value={exp.name} onChange={(e) => { const n = [...fixedExpenses]; n[idx].name = e.target.value; setFixedExpenses(n); }} disabled={disabled} />

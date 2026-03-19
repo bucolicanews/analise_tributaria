@@ -49,6 +49,7 @@ const Viabilidade = () => {
   const [numSocios, setNumSocios] = useState(() => getStored('viab-numSocios', '1'));
   const [numFuncionarios, setNumFuncionarios] = useState(() => getStored('viab-numFuncionarios', '0'));
   const [folhaPagamento, setFolhaPagamento] = useState(() => getStored('viab-folhaPagamento'));
+  const [folha12Meses, setFolha12Meses] = useState(() => getStored('viab-folha12Meses')); // NOVO CAMPO
   const [municipio, setMunicipio] = useState(() => getStored('viab-municipio'));
   const [estado, setEstado] = useState(() => getStored('viab-estado', 'SP'));
   const [tributacaoSugerida, setTributacaoSugerida] = useState(() => getStored('viab-tributacaoSugerida'));
@@ -77,11 +78,17 @@ const Viabilidade = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [executionTime, setExecutionTime] = useState<number | null>(null);
 
+  const handleFolhaMensalChange = (val: string) => {
+    setFolhaPagamento(val);
+    const num = parseFloat(val) || 0;
+    setFolha12Meses((num * 12).toString());
+  };
+
   useEffect(() => {
     const data: Record<string, string> = {
       'viab-razaoSocial': razaoSocial, 'viab-naturezaJuridica': naturezaJuridica, 'viab-classificacaoFiscal': classificacaoFiscal, 'viab-capital': capital,
       'viab-atividades': atividades, 'viab-numSocios': numSocios, 'viab-numFuncionarios': numFuncionarios, 'viab-folhaPagamento': folhaPagamento, 
-      'viab-municipio': municipio, 'viab-estado': estado, 'viab-tributacaoSugerida': tributacaoSugerida, 'viab-businessIdea': businessIdea,
+      'viab-folha12Meses': folha12Meses, 'viab-municipio': municipio, 'viab-estado': estado, 'viab-tributacaoSugerida': tributacaoSugerida, 'viab-businessIdea': businessIdea,
       'viab-anoBase': anoBase, 'viab-faturamentoAnual': faturamentoAnual, 'viab-percentComercio': percentComercio,
       'viab-percentServico': percentServico, 'viab-fixosMensais': fixosMensais, 'viab-variaveisPercentual': variaveisPercentual,
       'viab-aliquotaIss': aliquotaIss, 'viab-aliquotaIcms': aliquotaIcms, 'viab-sociosRetiramValores': sociosRetiramValores, 
@@ -92,7 +99,7 @@ const Viabilidade = () => {
     localStorage.setItem('viab-cnaes', JSON.stringify(cnaes));
     if (aiReport) localStorage.setItem('viab-aiReport', aiReport);
     else localStorage.removeItem('viab-aiReport');
-  }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, aiReport]);
+  }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, folha12Meses, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, aiReport]);
 
   const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }]);
   const removeCnae = (id: string) => { if (cnaes.length > 1) setCnaes(cnaes.filter(c => c.id !== id)); };
@@ -119,11 +126,9 @@ const Viabilidade = () => {
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
     
-    // Fator R Calculations
-    const folhaNum = parseFloat(folhaPagamento) || 0;
-    const proLaboreNum = parseFloat(valorProlabore) || 0;
-    const folha12Meses = (folhaNum + proLaboreNum) * 12;
-    const percentualFatorR = faturamentoNum > 0 ? (folha12Meses / faturamentoNum) * 100 : 0;
+    // Fator R usa a folha de 12 meses direta, e não apenas a mensal multiplicada.
+    const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
+    const percentualFatorR = faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0;
     const fatorROk = percentualFatorR >= 28;
 
     try {
@@ -211,7 +216,7 @@ const Viabilidade = () => {
           },
           fator_r: {
             sujeito_fator_r: percServicoNum > 0,
-            folha_12_meses: folha12Meses,
+            folha_12_meses: folha12mNum, // ENVIANDO O VALOR EXATO
             faturamento_12_meses: faturamentoNum,
             percentual_atual: percentualFatorR,
             resultado: fatorROk ? "Anexo III" : "Anexo V",
@@ -235,11 +240,11 @@ const Viabilidade = () => {
         societario_trabalhista: {
           quadro_pessoal: {
             num_funcionarios: parseInt(numFuncionarios) || 0,
-            folha_salarial_mensal: folhaNum
+            folha_salarial_mensal: parseFloat(folhaPagamento) || 0
           },
           pro_labore: {
             declara_prolabore: sociosDeclaramProlabore === 'Sim',
-            valor_declarado: proLaboreNum,
+            valor_declarado: parseFloat(valorProlabore) || 0,
             valor_estimado: currentMinWage,
             recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
             modo_calculo: sociosDeclaramProlabore === 'Sim' ? 'declarado' : 'estimado_para_simulacao'
@@ -338,7 +343,7 @@ const Viabilidade = () => {
             <CardContent className="pt-6">
               <SectionTitle icon={Gavel} title="Custos Operacionais e Faturamento" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
+                <div className="space-y-2 md:col-span-2"><Label>Faturamento Últ. 12 Meses (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
                 <div className="space-y-2"><Label>Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
@@ -351,7 +356,8 @@ const Viabilidade = () => {
             <CardContent className="pt-6">
               <SectionTitle icon={ShieldQuestion} title="Folha e Sócios" />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2"><Label>Folha Salarial Mensal (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => setFolhaPagamento(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Folha Mensal Estimada (R$)</Label><Input type="number" value={folhaPagamento} onChange={e => handleFolhaMensalChange(e.target.value)} /></div>
+                <div className="space-y-2"><Label>Folha 12 Meses p/ Fator R (R$)</Label><Input type="number" value={folha12Meses} onChange={e => setFolha12Meses(e.target.value)} className="border-primary/50 bg-primary/5" /></div>
                 <div className="space-y-2"><Label>Número de Funcionários</Label><Input type="number" value={numFuncionarios} onChange={e => setNumFuncionarios(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Valor do Pró-labore (R$)</Label><Input type="number" value={valorProlabore} onChange={e => setValorProlabore(e.target.value)} /></div>
                 <div className="space-y-2"><Label>Declaram Pró-labore?</Label><Select value={sociosDeclaramProlabore} onValueChange={setSociosDeclaramProlabore}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{simNao.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}</SelectContent></Select></div>
