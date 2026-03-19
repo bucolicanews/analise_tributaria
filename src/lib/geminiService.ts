@@ -1,4 +1,4 @@
-import { SYSTEM_TOOLS_MANIFEST, loadDynamicSkills, executeSkill } from "./skills/taxSkills";
+import { JOTA_TOOLS_MANIFEST, loadDynamicSkills, executeSkill } from "./skills/taxSkills";
 
 export interface AgentStatus {
   id: string;
@@ -37,7 +37,7 @@ export async function callGeminiAgent(
     parameters: s.parameters
   }));
 
-  const allTools = [...SYSTEM_TOOLS_MANIFEST, ...dynamicManifests];
+  const allTools = [...JOTA_TOOLS_MANIFEST, ...dynamicManifests];
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },

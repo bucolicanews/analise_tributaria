@@ -39,7 +39,10 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
   }
 };
 
-export const SYSTEM_TOOLS_MANIFEST = [
+/**
+ * Manifesto de ferramentas para a IA (Padronizado como JOTA_TOOLS_MANIFEST)
+ */
+export const JOTA_TOOLS_MANIFEST = [
   {
     name: "calculate_simples_nacional",
     description: "Calcula a alíquota efetiva exata do Simples Nacional (LC 123/2006).",
@@ -59,6 +62,18 @@ export const SYSTEM_TOOLS_MANIFEST = [
       type: "object",
       properties: { ncm: { type: "string" } },
       required: ["ncm"]
+    }
+  },
+  {
+    name: "analyze_fator_r",
+    description: "Analisa o Fator R para empresas de serviço.",
+    parameters: {
+      type: "object",
+      properties: {
+        folha_12m: { type: "number" },
+        faturamento_12m: { type: "number" }
+      },
+      required: ["folha_12m", "faturamento_12m"]
     }
   }
 ];
@@ -107,7 +122,6 @@ export async function executeSkill(name: string, args: any): Promise<any> {
 
   if (skill.executionType === 'local_js' && skill.jsCode) {
     try {
-      // Execução segura via Function constructor
       const fn = new Function('args', skill.jsCode);
       return fn(args);
     } catch (e: any) {
