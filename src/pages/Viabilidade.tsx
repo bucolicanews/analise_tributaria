@@ -126,7 +126,6 @@ const Viabilidade = () => {
     
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
     
-    // CÁLCULO TÉCNICO DE REFERÊNCIA (PARA GUIAR A IA)
     const aliqComercio = calculateSimplesNacionalEffectiveRate("Anexo I", faturamentoNum);
     const aliqServicoIII = calculateSimplesNacionalEffectiveRate("Anexo III", faturamentoNum);
 
@@ -155,6 +154,8 @@ const Viabilidade = () => {
       financeiro: {
         faturamento: {
           anual_total: faturamentoNum,
+          faturamento_acumulado_12m: faturamentoNum, // RBT12 exigido pelo prompt
+          faturamento_mensal_estimado: faturamentoNum / 12,
           segregacao: { 
             comercio_percent: percComercioNum, 
             servico_percent: percServicoNum,
@@ -163,13 +164,13 @@ const Viabilidade = () => {
           },
           referencia_aliquotas_calculadas: {
             anexo_i_efetiva: aliqComercio,
-            anexo_iii_efetiva: aliqServicoIII,
-            observacao: "Estes valores foram calculados pelo sistema usando a fórmula oficial da LC 123/2006."
+            anexo_iii_efetiva: aliqServicoIII
           }
         },
         folha_pagamento: {
           mensal: parseFloat(folhaPagamento) || 0,
           anual_12m: folha12mNum,
+          folha_pagamento_prevista: parseFloat(folhaPagamento) || 0, // Exigido pelo prompt
           fator_r_percentual: faturamentoNum > 0 ? (folha12mNum / faturamentoNum) * 100 : 0
         },
         custos_operacionais: {
@@ -178,6 +179,8 @@ const Viabilidade = () => {
         }
       },
       societario_trabalhista: {
+        num_socios: parseInt(numSocios) || 1, // Exigido pelo prompt
+        num_funcionarios: parseInt(numFuncionarios) || 0, // Exigido pelo prompt
         pro_labore: {
           declara_prolabore: sociosDeclaramProlabore === 'Sim',
           valor_declarado: parseFloat(valorProlabore) || 0,
