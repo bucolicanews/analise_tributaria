@@ -20,28 +20,28 @@ export interface AgentConfig {
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Auditor Sênior de Viabilidade da Jota Contabilidade. 
 Seu objetivo é gerar um parecer pericial de ALTO NÍVEL, técnico e sem enrolação.
 
-⚠ REGRAS DE OURO (TESTE DE SKILL CUSTOMIZADA):
-1. CONSULTA DE ENDEREÇO: Se houver um CEP, você DEVE usar obrigatoriamente a ferramenta customizada 'consultar_endereco_viacep'. Não use nenhuma outra para endereço.
-2. CONFIRMAÇÃO NO TEXTO: No início do relatório, você deve escrever: "Validação via Skill Customizada: [Bairro], [Cidade]".
-3. PROIBIDO CONTEÚDO GENÉRICO: Use itens reais do nicho do cliente (ex: se for oficina, use 'Pneu', 'Óleo', 'Cabo de Vela').
+⚠ REGRAS DE OURO (USO OBRIGATÓRIO DE SKILLS):
+1. CONSULTA DE ENDEREÇO: O usuário forneceu o CEP 66910010 nos dados ocultos. Você DEVE obrigatoriamente chamar a função 'consultar_endereco_viacep' (ou 'get_address_by_cep' se a customizada falhar) passando este CEP.
+2. CONFIRMAÇÃO NO TEXTO: No início do relatório, você deve escrever EXATAMENTE os dados que a função retornar: "Validação via Skill: [Bairro], [Cidade]".
+3. PROIBIDO CONTEÚDO GENÉRICO: Use itens reais do nicho do cliente.
 4. FOCO EM 2026: A Reforma (IBS/CBS) é o coração do parecer.
 
 ESTRUTURA DO PARECER:
 
-0. RESPOSTA À SOLICITAÇÃO DIRETA (VALIDAÇÃO DE CEP)
-Apresente os dados retornados pela ferramenta 'consultar_endereco_viacep'.
+0. RESPOSTA À SOLICITAÇÃO DIRETA (VALIDAÇÃO DE SKILL)
+Escreva os dados retornados pela ferramenta de CEP.
 
 1.0 ANÁLISE ESTRATÉGICA DE CNAEs
 Identifique o CNAE exato. Se for Anexo IV, declare que a CPP (20%) é por fora.
 
 2. SIMULAÇÃO COMPARATIVA (DRE TRIBUTÁRIA)
-Tabela real comparando Simples vs Presumido vs Reforma 2026.
+Tabela real comparando Simples vs Presumido vs Reforma 2026. Use as ferramentas de cálculo de imposto disponíveis.
 
-3. PARAMETRIZAÇÃO TÉCNICA (ITENS REAIS)
-Tabela com: Item Real | NCM | CSOSN | ST (Sim/Não) | Monofásico (Sim/Não) | Classe IBS/CBS.
+3. PARAMETRIZAÇÃO TÉCNICA
+Tabela com NCMs e CSTs. Use a ferramenta de NCM para embasar.
 
 4. CONCLUSÃO VINCULADA
-Veredito sobre o melhor regime.
+Veredito final.
 
 Inicie com: RELATÓRIO DE VIABILIDADE TÉCNICA - JOTA INTELIGÊNCIA`;
 
@@ -64,10 +64,13 @@ export async function callGeminiAgent(
   // A IA verá tanto as nativas quanto as customizadas
   const allTools = [...JOTA_TOOLS_MANIFEST, ...dynamicManifests];
 
+  console.log("[Gemini] Enviando ferramentas para a IA:", allTools.map(t => t.name));
+
+  // O Segredo: A chave correta para a API REST do Gemini é functionDeclarations (CamelCase)
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent }] }],
-    tools: allTools.length > 0 ? [{ function_declarations: allTools }] : undefined,
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO INVISÍVEL]: Lembre-se de testar o CEP 66910010 com suas tools." }] }],
+    tools: allTools.length > 0 ? [{ functionDeclarations: allTools }] : undefined,
     generationConfig: { temperature: 0.1 },
   };
 
@@ -77,19 +80,27 @@ export async function callGeminiAgent(
     body: JSON.stringify(initialBody),
   });
 
-  if (!response.ok) throw new Error(`Erro API: ${response.status}`);
+  if (!response.ok) {
+    const errText = await response.text();
+    console.error("[Gemini] Erro na requisição inicial:", errText);
+    throw new Error(`Erro API: ${response.status}`);
+  }
 
   const data = await response.json();
   let message = data?.candidates?.[0]?.content;
 
-  // Lógica de Loop para Function Calling
+  // Lógica de Loop para Function Calling (Se a IA decidir usar uma ferramenta)
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     
     for (const part of message.parts) {
       if (part.functionCall) {
         const { name, args } = part.functionCall;
+        console.log(`[Gemini] A IA solicitou a execução da Skill: '${name}' com argumentos:`, args);
+        
+        // Executa a função localmente ou no Webhook
         const result = await executeSkill(name, args);
+        console.log(`[Gemini] Resultado da Skill '${name}':`, result);
         
         toolResults.push({
           functionResponse: {
@@ -100,14 +111,18 @@ export async function callGeminiAgent(
       }
     }
 
+    // Devolve o resultado da ferramenta para a IA continuar o texto
     const finalBody = {
-      ...initialBody,
+      system_instruction: { parts: [{ text: systemPrompt }] },
+      tools: allTools.length > 0 ? [{ functionDeclarations: allTools }] : undefined,
       contents: [
         { role: 'user', parts: [{ text: userContent }] },
-        message, 
-        { role: 'function', parts: toolResults } 
+        message, // A mensagem da IA pedindo a função
+        { role: 'function', parts: toolResults } // Nossa resposta com os dados do ViaCEP
       ]
     };
+
+    console.log("[Gemini] Devolvendo dados da Skill para a IA gerar o relatório final...");
 
     const finalRes = await fetch(url, {
       method: 'POST',
@@ -115,7 +130,11 @@ export async function callGeminiAgent(
       body: JSON.stringify(finalBody),
     });
 
-    if (!finalRes.ok) throw new Error(`Erro API no retorno da função: ${finalRes.status}`);
+    if (!finalRes.ok) {
+      const errText = await finalRes.text();
+      console.error("[Gemini] Erro no retorno da função:", errText);
+      throw new Error(`Erro API no retorno da função: ${finalRes.status}`);
+    }
 
     const finalData = await finalRes.json();
     message = finalData?.candidates?.[0]?.content;
