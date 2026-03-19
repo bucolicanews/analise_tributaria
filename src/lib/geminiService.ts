@@ -31,34 +31,34 @@ ESTRUTURA OBRIGATÓRIA DO RELATÓRIO (Siga exatamente esta ordem e numeração):
 - Comente sobre zoneamento municipal, licenciamentos necessários para o local e a metodologia de análise baseada nas atividades do cliente.
 
 ### 2. OBRIGAÇÕES E FERRAMENTAS NECESSÁRIAS
-Gere a tabela OBRIGATÓRIA com EXATAMENTE as seguintes colunas (preencha com precisão técnica):
+Gere a tabela OBRIGATÓRIA com EXATAMENTE as seguintes colunas (preencha com precisão técnica e considere o regime atual da empresa):
 | Obrigação | Finalidade | Periodicidade | Prazo | Penalidade | Impacto Fiscal | Empresas Obrigadas | Estados Obrigados/Dispensados | Fato Gerador | Base Legal |
 
 - Inclua na tabela: PGDAS-D, eSocial, DCTFWeb, EFD-Reinf, DEFIS, DESTDA, DIFAL, SPED Fiscal, SPED Contábil, EFD-Contribuições.
 - Liste e detalhe as ferramentas obrigatórias: Certificado Digital A1, Emissor NFS-e ou NF-e, Sistema folha integrado, Sistema fiscal parametrizado (NCM, CFOP, CST, CSOSN), Controle de segregação de receitas.
 
-### 3. DETALHAMENTO DA EFD-REINF
-Analise OBRIGATORIAMENTE os seguintes eventos informando o 'Evento' e o 'Código' de cada um:
-- Série R-2000: Analisar R-2010 (Retenção contribuição previdenciária serviços tomados) e R-2020 (Serviços prestados).
-- Série R-4000: Analisar R-4010 (Pagamentos a PF), R-4020 (Pagamentos a PJ), R-4040 (Pagamentos não identificados) e R-4099 (Fechamento).
+### 3. DETALHAMENTO DA EFD-REINF E ESOCIAL
+Analise OBRIGATORIAMENTE os seguintes eventos informando o 'Evento' e o 'Código' de cada um.
+⚠ ATENÇÃO TÉCNICA: Pró-labore e Folha de Pagamento pertencem OBRIGATORIAMENTE ao eSocial (S-1200/S-1210). 
+- Série R-2000 (EFD-Reinf): Analisar R-2010 (Retenção contribuição previdenciária serviços tomados) e R-2020 (Serviços prestados).
+- Série R-4000 (EFD-Reinf): Analisar R-4010 (Pagamentos a PF - EXCLUSIVO PARA: aluguéis, distribuição de lucros, não usar para pró-labore), R-4020 (Pagamentos a PJ), R-4040 (Pagamentos não identificados) e R-4099 (Fechamento).
 
 ### 4. ANÁLISE DE CENÁRIOS: RETENÇÃO E PRESTAÇÃO DE SERVIÇOS
+⚠ ATENÇÃO TÉCNICA À RETENÇÃO DE INSS (11%): Avalie o regime tributário da empresa. Se for Simples Nacional (Anexo I, II ou III), a empresa em regra É DISPENSADA da retenção de 11% de INSS na prestação de serviço (IN RFB 2110/2022). A retenção aplica-se ao Anexo IV ou Lucro Presumido/Real. NÃO aplique a retenção de 11% de forma cega.
 - CENÁRIO 1 (Apenas Comércio): Se a empresa não tiver CNAE de serviço, afirme categoricamente que não haverá retenção de IR, INSS ou ISS na venda. Detalhe os procedimentos ao TOMAR serviços.
-- CENÁRIO 2 (Serviços): Se tiver CNAE de serviço, analise os procedimentos ao PRESTAR e ao TOMAR serviços.
+- CENÁRIO 2 (Serviços): Se tiver CNAE de serviço, analise os procedimentos ao PRESTAR e ao TOMAR serviços, detalhando as regras de retenção do regime escolhido pela empresa.
 - SIMULAÇÕES EXIGIDAS:
-  a) Prestação de serviço SEM ceder mão de obra vs CEDENDO mão de obra.
+  a) Prestação de serviço SEM ceder mão de obra vs CEDENDO mão de obra (aplicando a regra correta do Simples vs Presumido).
   b) Sócio único prestando serviço (empresa sem empregados), abordando os riscos previdenciários e a "Pejotização" (cite as ações suspensas no STF/ADPFs).
 
-### 5. PROJEÇÃO DE CUSTO OPERACIONAL E OTIMIZAÇÃO
+### 5. PROJEÇÃO DE CUSTO OPERACIONAL E PLANEJAMENTO TRIBUTÁRIO
+A empresa selecionou uma tributação pretendida (ex: Simples Nacional). VOCÊ DEVE INICIAR A ANÁLISE BASEADA NELA.
 🔎 ANÁLISE MATEMÁTICA OBRIGATÓRIA – ALÍQUOTA NOMINAL x EFETIVA
-- Explique claramente que a alíquota nominal não é a aplicada.
-- Demonstre o cálculo (Art. 18 da LC 123/2006): Alíquota Efetiva = (RBT12 × Alíquota Nominal – Parcela a Deduzir) ÷ RBT12. Mostre o cálculo real para a empresa.
+- Explique claramente que a alíquota nominal não é a aplicada. Demonstre o cálculo (Art. 18 da LC 123/2006).
 - Apresente Simulação Anual Projetada e Simulação Mensal.
-- Faça o comparativo financeiro exato com o Lucro Presumido.
-- Analise o Impacto do Anexo IV (CPP fora do DAS e IBS/CBS fora do DAS).
-- Analise o Fator R (folha vs faturamento).
-- Apresente estimativas de: Custo Fixo Mensal, Simulação do DAS, Custo da folha, Custo previdenciário e Margem líquida.
-- Estratégias de Otimização: Pró-labore estratégico, Distribuição de lucros isenta (regras contábeis), Planejamento preventivo, Migração para Lucro Presumido, Teto de R$ 4.800.000, Análise de contratos (Art. 15 da Lei 9.249/95 para presunção de 8%/12%).
+- Analise o Fator R (folha vs faturamento). Apresente o custo da folha e pró-labore.
+⚠ PROVA DE VIABILIDADE (MUDANÇA DE REGIME): Após calcular o regime pretendido (ex: Simples), FAÇA UM COMPARATIVO MATEMÁTICO com o Lucro Presumido. SE o Lucro Presumido (ou outro regime) for financeiramente mais vantajoso, VOCÊ DEVE RECOMENDAR A MUDANÇA, ESPECIFICANDO, PONTUANDO E DEMONSTRANDO MATEMATICAMENTE A ECONOMIA GERADA.
+- Estratégias de Otimização: Pró-labore estratégico, Distribuição de lucros isenta, Análise de contratos (Art. 15 da Lei 9.249/95).
 
 ### 6. PARAMETRIZAÇÃO TÉCNICA: PRODUTOS E SERVIÇOS
 Gere a tabela OBRIGATÓRIA com os 5 produtos ou serviços principais baseados no CNAE da empresa, fornecendo os códigos exatos para o cliente cadastrar no sistema de vendas.
@@ -77,14 +77,14 @@ Estime financeiramente: Junta Comercial, Taxas Municipais, Certificado Digital, 
 ### 10. ANÁLISE DE RISCOS (OPERACIONAL, TRABALHISTA E FISCAL)
 Gere OBRIGATORIAMENTE a Matriz de Riscos em formato de Tabela:
 | Risco Identificado | Base Legal | Grau de Probabilidade (Baixo/Médio/Alto) | Impacto Financeiro Estimado | Impacto Jurídico | Estratégia de Mitigação |
-- A análise DEVE conter: Confusão patrimonial (Art. 50 do Código Civil), Ausência de pró-labore (Art. 12 Lei 8.212/91), Falta de recolhimento de INSS (Art. 31 Lei 8.212/91), Mistura de contas PJ e PF, Retirada informal.
-- Erros a verificar e alertar: CNAE incompatível, falha no Fator R, uso de alíquota nominal errada, falta de segregação de receitas, tratamento de monofásicos, ICMS-ST, ausência de contabilidade formal.
+- A análise DEVE conter: Confusão patrimonial, Ausência de pró-labore, Falta de recolhimento de INSS, Mistura de contas PJ e PF.
+- Erros a verificar e alertar: CNAE incompatível, falha no Fator R, uso de alíquota nominal errada, tratamento de monofásicos, ICMS-ST.
 
 ### 11. RECOMENDAÇÕES ESTRATÉGICAS
 Apresente cenários alternativos de tributação, benefícios fiscais regionais cabíveis e simulações de valores reais de economia fiscal.
 
 ### 12. CONCLUSÃO TÉCNICA E RESPONSABILIDADE
-- Dê o veredito final sobre o enquadramento ideal.
+- Dê o veredito final sobre o enquadramento ideal. Se a mudança de regime for indicada, reforce aqui.
 - Inclua OBRIGATORIAMENTE a cláusula: "A definição do regime tributário deve ser precedida de análise contratual individualizada e simulação fiscal com base na estrutura real de custos da empresa."
 - Liste no rodapé as tabelas de referência utilizadas (ex: Salário Mínimo vigente e Tabela INSS).`;
 
@@ -116,6 +116,7 @@ export async function callGeminiAgent(
   const enableGoogleSearch = localStorage.getItem('jota-gemini-search') === 'true';
   if (enableGoogleSearch && allFunctionTools.length === 0) {
     toolsArray.push({ googleSearch: {} });
+    console.log("[Gemini] Pesquisa Nativa no Google ativada (Sem funções customizadas).");
   } else if (enableGoogleSearch) {
     console.warn("[Gemini] Pesquisa Nativa ignorada para evitar Erro 400. Function Calling tem prioridade.");
   }
@@ -172,7 +173,7 @@ export async function callGeminiAgent(
       ],
       generationConfig: { 
         temperature: 0.1,
-        maxOutputTokens: 8192 // Aplica o limite máximo também no retorno após a ferramenta
+        maxOutputTokens: 8192 
       },
     };
 
