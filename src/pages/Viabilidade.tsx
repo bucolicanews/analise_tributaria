@@ -49,7 +49,7 @@ const Viabilidade = () => {
   const [numSocios, setNumSocios] = useState(() => getStored('viab-numSocios', '1'));
   const [numFuncionarios, setNumFuncionarios] = useState(() => getStored('viab-numFuncionarios', '0'));
   const [folhaPagamento, setFolhaPagamento] = useState(() => getStored('viab-folhaPagamento'));
-  const [folha12Meses, setFolha12Meses] = useState(() => getStored('viab-folha12Meses')); // NOVO CAMPO
+  const [folha12Meses, setFolha12Meses] = useState(() => getStored('viab-folha12Meses'));
   const [municipio, setMunicipio] = useState(() => getStored('viab-municipio'));
   const [estado, setEstado] = useState(() => getStored('viab-estado', 'SP'));
   const [tributacaoSugerida, setTributacaoSugerida] = useState(() => getStored('viab-tributacaoSugerida'));
@@ -126,6 +126,7 @@ const Viabilidade = () => {
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
     
+    // Fator R usa a folha de 12 meses direta, e não apenas a mensal multiplicada.
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
     const percentualFatorR = faturamentoNum > 0 ? parseFloat(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0;
 
@@ -209,15 +210,15 @@ const Viabilidade = () => {
             },
             anexo_simples_sugerido: {
               comercio: percComercioNum > 0 ? "Anexo I" : null,
-              servico: percServicoNum > 0 ? "A definir pela IA (Anexo III, IV ou V conforme CNAE)" : null
+              servico: percServicoNum > 0 ? "Avaliar enquadramento conforme LC 123/2006, Art. 18, § 5º-B a § 5º-I" : null
             }
           },
           fator_r: {
-            sujeito_fator_r: percServicoNum > 0 ? "A definir pela IA com base nos CNAEs de serviço" : false,
+            sujeito_fator_r: percServicoNum > 0 ? "Avaliar se o CNAE está sujeito ao Fator R (LC 123/2006, Art. 18, § 5º-J e § 5º-M)" : false,
             folha_12_meses: folha12mNum,
             faturamento_12_meses: faturamentoNum,
             percentual_atual: percentualFatorR,
-            resultado: percServicoNum > 0 ? "A definir pela IA" : "N/A",
+            resultado: percServicoNum > 0 ? "Aguardando análise da IA sobre o CNAE para definir o Anexo" : "N/A",
             valor_ideal_folha_mensal: faturamentoNum > 0 ? parseFloat(((faturamentoNum * 0.28) / 12).toFixed(2)) : 0
           },
           custos_operacionais: {

@@ -148,15 +148,15 @@ const Pricing = () => {
           },
           anexo_simples_sugerido: {
             comercio: percComercioNum > 0 ? "Anexo I" : null,
-            servico: percServicoNum > 0 ? "A definir pela IA (Anexo III, IV ou V conforme CNAE)" : null
+            servico: percServicoNum > 0 ? "Avaliar enquadramento conforme LC 123/2006, Art. 18, § 5º-B a § 5º-I" : null
           }
         },
         fator_r: {
-          sujeito_fator_r: percServicoNum > 0 ? "A definir pela IA com base nos CNAEs de serviço" : false,
+          sujeito_fator_r: percServicoNum > 0 ? "Avaliar se o CNAE está sujeito ao Fator R (LC 123/2006, Art. 18, § 5º-J e § 5º-M)" : false,
           folha_12_meses: folha12mNum,
           faturamento_12_meses: faturamentoNum,
           percentual_atual: percentualFatorR,
-          resultado: percServicoNum > 0 ? "A definir pela IA" : "N/A",
+          resultado: percServicoNum > 0 ? "Aguardando análise da IA sobre o CNAE para definir o Anexo" : "N/A",
           valor_ideal_folha_mensal: faturamentoNum > 0 ? parseFloat(((faturamentoNum * 0.28) / 12).toFixed(2)) : 0
         },
         custos_operacionais: {
