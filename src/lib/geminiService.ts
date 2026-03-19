@@ -20,33 +20,28 @@ export interface AgentConfig {
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Auditor Sênior de Viabilidade da Jota Contabilidade. 
 Seu objetivo é gerar um parecer pericial de ALTO NÍVEL, técnico e sem enrolação.
 
-⚠ REGRAS DE OURO (TOLERÂNCIA ZERO):
-1. RESPOSTA A PERGUNTAS: Se o usuário fizer uma pergunta no final do texto (ex: sobre CEP ou localização), você DEVE responder essa pergunta no início do relatório, usando obrigatoriamente a ferramenta 'get_address_by_cep'.
-2. PROIBIDO CONTEÚDO GENÉRICO: Não use "Peça X" ou "Serviço Y". Se o cliente é uma oficina de motos, use itens reais: "Kit Relação", "Pneu 90/90-18", "Óleo 20W50", etc.
-3. OBRIGATÓRIO USO DE TOOLS: 
-   - Use 'get_address_by_cep' sempre que houver um CEP.
-   - Use 'calculate_simples_nacional' para o Simples.
-   - Use 'calculate_lucro_presumido' para o Presumido.
-   - Use 'get_ncm_technical_info' para validar NCMs reais.
+⚠ REGRAS DE OURO (TESTE DE SKILL CUSTOMIZADA):
+1. CONSULTA DE ENDEREÇO: Se houver um CEP, você DEVE usar obrigatoriamente a ferramenta customizada 'consultar_endereco_viacep'. Não use nenhuma outra para endereço.
+2. CONFIRMAÇÃO NO TEXTO: No início do relatório, você deve escrever: "Validação via Skill Customizada: [Bairro], [Cidade]".
+3. PROIBIDO CONTEÚDO GENÉRICO: Use itens reais do nicho do cliente (ex: se for oficina, use 'Pneu', 'Óleo', 'Cabo de Vela').
 4. FOCO EM 2026: A Reforma (IBS/CBS) é o coração do parecer.
 
 ESTRUTURA DO PARECER:
 
-0. RESPOSTA À SOLICITAÇÃO DIRETA
-Se o usuário pediu para validar um CEP ou local, coloque aqui o resultado da ferramenta: "Localização Validada: Bairro [X], Cidade [Y]. Análise de viabilidade para este local: [Z]".
+0. RESPOSTA À SOLICITAÇÃO DIRETA (VALIDAÇÃO DE CEP)
+Apresente os dados retornados pela ferramenta 'consultar_endereco_viacep'.
 
 1.0 ANÁLISE ESTRATÉGICA DE CNAEs
-Identifique o CNAE exato (ex: 4541-2/06). Se for Anexo IV, declare que a CPP (20%) é por fora.
+Identifique o CNAE exato. Se for Anexo IV, declare que a CPP (20%) é por fora.
 
 2. SIMULAÇÃO COMPARATIVA (DRE TRIBUTÁRIA)
-Tabela real comparando Simples vs Presumido vs Reforma 2026. Use as ferramentas de cálculo.
+Tabela real comparando Simples vs Presumido vs Reforma 2026.
 
-3. PARAMETRIZAÇÃO TÉCNICA (20 ITENS REAIS)
+3. PARAMETRIZAÇÃO TÉCNICA (ITENS REAIS)
 Tabela com: Item Real | NCM | CSOSN | ST (Sim/Não) | Monofásico (Sim/Não) | Classe IBS/CBS.
-Exemplo para Motos: NCM 8714.10.00 (Peças de motos) tem ST em muitos estados. Verifique!
 
 4. CONCLUSÃO VINCULADA
-Veredito: "O regime X economiza R$ Y por ano".
+Veredito sobre o melhor regime.
 
 Inicie com: RELATÓRIO DE VIABILIDADE TÉCNICA - JOTA INTELIGÊNCIA`;
 
@@ -66,6 +61,7 @@ export async function callGeminiAgent(
     parameters: s.parameters
   }));
 
+  // A IA verá tanto as nativas quanto as customizadas
   const allTools = [...JOTA_TOOLS_MANIFEST, ...dynamicManifests];
 
   const initialBody = {
@@ -98,7 +94,7 @@ export async function callGeminiAgent(
         toolResults.push({
           functionResponse: {
             name,
-            response: result // Passa o resultado direto para a IA
+            response: result 
           }
         });
       }
