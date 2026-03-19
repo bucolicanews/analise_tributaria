@@ -16,12 +16,41 @@ export interface DynamicSkill {
  * Skills nativas do sistema (Lógica de Execução)
  */
 export const SYSTEM_SKILLS: Record<string, Function> = {
+  get_address_by_cep: async (args: { cep: string | number }) => {
+    // Garante que o CEP seja uma string e limpa caracteres
+    const cleanCep = String(args.cep).replace(/\D/g, '');
+    
+    if (cleanCep.length !== 8) {
+      return { error: "CEP inválido. Deve conter 8 dígitos.", status: "erro" };
+    }
+    
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cleanCep}/json/`);
+      const data = await response.json();
+      
+      if (data.erro) {
+        return { error: "CEP não localizado na base dos Correios.", status: "erro" };
+      }
+      
+      // Retorno direto e limpo para a IA
+      return {
+        logradouro: data.logradouro || "Não informado",
+        bairro: data.bairro || "Não informado",
+        cidade: data.localidade,
+        uf: data.uf,
+        cep_consultado: cleanCep,
+        status: "sucesso"
+      };
+    } catch (e) {
+      return { error: "Serviço de consulta de CEP temporariamente indisponível.", status: "erro" };
+    }
+  },
   calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
     const rate = calculateSimplesNacionalEffectiveRate(args.anexo, args.faturamento_12m);
     return { aliquota_efetiva: rate, status: "sucesso" };
   },
   get_ncm_technical_info: (args: { ncm: string }) => {
-    const cleanNcm = args.ncm.replace(/\D/g, '');
+    const cleanNcm = String(args.ncm).replace(/\D/g, '');
     return {
       ncm: cleanNcm,
       incide_imposto_seletivo: checkIfNcmHasSelectiveTax(cleanNcm),
@@ -69,7 +98,6 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       status: "sucesso"
     };
   },
-  // NOVA SKILL: Cálculo de Lucro Presumido Realista
   calculate_lucro_presumido: (args: { faturamento_mensal: number; tipo_atividade: 'comercio' | 'servico' }) => {
     const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
     const baseCalculo = args.faturamento_mensal * presuncao;
@@ -96,6 +124,17 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
  * Manifesto de Ferramentas (O que a IA enxerga)
  */
 export const JOTA_TOOLS_MANIFEST = [
+  {
+    name: "get_address_by_cep",
+    description: "Consulta o endereço completo (bairro, logradouro, cidade) a partir de um CEP. Use sempre que o usuário fornecer um CEP.",
+    parameters: {
+      type: "object",
+      properties: {
+        cep: { type: "string", description: "O CEP com ou sem hífen" }
+      },
+      required: ["cep"]
+    }
+  },
   {
     name: "calculate_simples_nacional",
     description: "Calcula a alíquota efetiva exata do Simples Nacional (LC 123/2006).",
@@ -165,7 +204,7 @@ export const saveDynamicSkills = (skills: DynamicSkill[]) => {
 
 export async function executeSkill(name: string, args: any): Promise<any> {
   if (SYSTEM_SKILLS[name]) {
-    return SYSTEM_SKILLS[name](args);
+    return await SYSTEM_SKILLS[name](args);
   }
 
   const dynamicSkills = loadDynamicSkills();

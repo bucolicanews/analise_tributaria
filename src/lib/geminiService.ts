@@ -86,7 +86,7 @@ export async function callGeminiAgent(
   const data = await response.json();
   let message = data?.candidates?.[0]?.content;
 
-  // Lógica de Loop para Function Calling (Gemini pode pedir várias ferramentas)
+  // Lógica de Loop para Function Calling
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     
@@ -94,10 +94,11 @@ export async function callGeminiAgent(
       if (part.functionCall) {
         const { name, args } = part.functionCall;
         const result = await executeSkill(name, args);
+        
         toolResults.push({
           functionResponse: {
             name,
-            response: { content: result }
+            response: result // Passa o resultado direto para a IA
           }
         });
       }
@@ -107,8 +108,8 @@ export async function callGeminiAgent(
       ...initialBody,
       contents: [
         { role: 'user', parts: [{ text: userContent }] },
-        message,
-        { role: 'function', parts: toolResults }
+        message, 
+        { role: 'function', parts: toolResults } 
       ]
     };
 
@@ -117,6 +118,8 @@ export async function callGeminiAgent(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(finalBody),
     });
+
+    if (!finalRes.ok) throw new Error(`Erro API no retorno da função: ${finalRes.status}`);
 
     const finalData = await finalRes.json();
     message = finalData?.candidates?.[0]?.content;
