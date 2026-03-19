@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -198,7 +199,7 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-50/5">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
                    <div className="space-y-2">
                      <Label>Gemini API Key</Label>
@@ -217,7 +218,7 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-border p-4 bg-indigo-500/5">
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-indigo-50/5">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-semibold flex items-center gap-2"><Bot className="h-5 w-5 text-indigo-500" />Gerenciador de Agentes IA (Timeline)</h3>
                      <div className="flex gap-2">
