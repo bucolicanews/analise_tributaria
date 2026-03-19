@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import { Dialog, DialogContent, DialogTrigger, DialogTitle, DialogDescription, DialogHeader } from "@/components/ui/dialog";
 import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from './ViabilityReportPDF';
+import { ScrollArea } from './ui/scroll-area';
 import QRCode from 'qrcode';
 
 interface AiAnalysisReportProps {
@@ -137,31 +138,34 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
         </div>
       </CardHeader>
       
-      <CardContent className="pt-6 max-h-[500px] overflow-y-auto">
-        <div className="prose prose-sm prose-invert prose-accent max-w-none 
-          prose-headings:text-accent prose-headings:font-bold prose-headings:border-b prose-headings:border-accent/20 prose-headings:pb-2 prose-headings:mt-8
-          prose-p:text-foreground/90 prose-p:leading-relaxed
-          prose-strong:text-accent prose-strong:font-bold
-          prose-table:border prose-table:border-border/50 prose-table:rounded-lg prose-table:overflow-hidden
-          prose-th:bg-accent/20 prose-th:text-accent prose-th:p-3 prose-th:text-xs prose-th:uppercase
-          prose-td:p-3 prose-td:border-t prose-td:border-border/30 prose-td:text-sm">
-          
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {report}
-          </ReactMarkdown>
-          
-        </div>
-
-        <div className="mt-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex gap-3 items-start">
-          <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-          <div>
-            <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Aviso Legal</p>
-            <p className="text-[10px] text-yellow-500/80 leading-tight">
-              Este relatório é gerado por inteligência artificial para fins de simulação. 
-              As interpretações legais podem variar. Consulte seu departamento jurídico antes de qualquer decisão.
-            </p>
+      <CardContent className="p-0">
+        <ScrollArea className="h-[600px] w-full p-6">
+          <div className="prose prose-sm prose-invert prose-accent max-w-none 
+            prose-headings:text-accent prose-headings:font-bold prose-headings:border-b prose-headings:border-accent/20 prose-headings:pb-2 prose-headings:mt-8
+            prose-p:text-foreground/90 prose-p:leading-relaxed
+            prose-strong:text-accent prose-strong:font-bold
+            prose-table:border prose-table:border-border/50 prose-table:rounded-lg prose-table:overflow-hidden
+            prose-th:bg-accent/20 prose-th:text-accent prose-th:p-3 prose-th:text-xs prose-th:uppercase
+            prose-td:p-3 prose-td:border-t prose-td:border-border/30 prose-td:text-sm
+            prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/10 prose-pre:rounded-lg">
+            
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {report}
+            </ReactMarkdown>
+            
           </div>
-        </div>
+
+          <div className="mt-8 p-4 rounded-lg bg-yellow-500/10 border border-yellow-500/30 flex gap-3 items-start mb-6">
+            <AlertCircle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-bold text-yellow-500 uppercase mb-1">Aviso Legal</p>
+              <p className="text-[10px] text-yellow-500/80 leading-tight">
+                Este relatório é gerado por inteligência artificial para fins de simulação. 
+                As interpretações legais podem variar. Consulte seu departamento jurídico antes de qualquer decisão.
+              </p>
+            </div>
+          </div>
+        </ScrollArea>
       </CardContent>
     </Card>
   );
