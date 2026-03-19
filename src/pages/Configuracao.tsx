@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye } from 'lucide-react';
+import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -58,6 +58,13 @@ const Configuracao = () => {
     saveMinimumWages(minimumWages);
     saveDynamicSkills(dynamicSkills);
     toast.success("Configurações salvas com sucesso!");
+  };
+
+  const handleRestoreDefaultPrompt = () => {
+    if (confirm("Deseja restaurar o prompt para o modelo padrão de alto nível? Suas alterações atuais serão perdidas.")) {
+      setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
+      toast.info("Prompt restaurado para o padrão. Não esqueça de salvar.");
+    }
   };
 
   const handleAddSkill = () => {
@@ -122,6 +129,24 @@ const Configuracao = () => {
 
             {autenticado && (
               <>
+                {/* SEÇÃO DO PROMPT - AGORA EM DESTAQUE */}
+                <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
+                   <div className="flex items-center justify-between">
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (System Prompt)</h3>
+                     <Button type="button" variant="outline" size="sm" onClick={handleRestoreDefaultPrompt} className="text-xs">
+                        <RotateCcw className="h-3 w-3 mr-1" /> Restaurar Padrão JOTA
+                     </Button>
+                   </div>
+                   <div className="space-y-2">
+                      <Label className="text-xs text-muted-foreground">Este prompt define o comportamento, o rigor técnico e a estrutura do relatório de viabilidade.</Label>
+                      <Textarea 
+                        className="font-mono text-[11px] h-[400px] bg-background border-indigo-200 focus:border-indigo-500 leading-relaxed" 
+                        value={preAnalysisPrompt} 
+                        onChange={(e) => setPreAnalysisPrompt(e.target.value)} 
+                      />
+                   </div>
+                </div>
+
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
                    <div className="flex items-center justify-between">
                      <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Gerenciador de Habilidades (Skills)</h3>
@@ -184,54 +209,6 @@ const Configuracao = () => {
                    </div>
                 </div>
 
-                {/* DIALOG DE VISUALIZAÇÃO DE SKILL DO SISTEMA */}
-                {viewingSystemSkill && (
-                  <Dialog open={!!viewingSystemSkill} onOpenChange={() => setViewingSystemSkill(null)}>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader><DialogTitle>Manifesto Técnico: {viewingSystemSkill.name}</DialogTitle></DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <p className="text-sm text-muted-foreground">Este é o JSON que descreve a habilidade para a IA. Você pode usar esta estrutura como base para criar Skills dinâmicas.</p>
-                        <div className="bg-black/90 p-4 rounded-lg overflow-x-auto">
-                          <pre className="text-[10px] font-mono text-green-400">{JSON.stringify(viewingSystemSkill, null, 2)}</pre>
-                        </div>
-                      </div>
-                      <DialogFooter><Button type="button" onClick={() => setViewingSystemSkill(null)}>Fechar</Button></DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-
-                {editingSkill && (
-                  <Dialog open={!!editingSkill} onOpenChange={() => setEditingSkill(null)}>
-                    <DialogContent className="max-w-2xl">
-                      <DialogHeader><DialogTitle>Configurar Habilidade (Skill)</DialogTitle></DialogHeader>
-                      <div className="space-y-4 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2"><Label>Nome Técnico (Snake Case)</Label><Input value={editingSkill.name} onChange={e => setEditingSkill({...editingSkill, name: e.target.value})} placeholder="ex: consultar_estoque_externo" /></div>
-                          <div className="space-y-2"><Label>Tipo de Execução</Label>
-                            <Select value={editingSkill.executionType} onValueChange={(v: any) => setEditingSkill({...editingSkill, executionType: v})}>
-                              <SelectTrigger><SelectValue /></SelectTrigger>
-                              <SelectContent><SelectItem value="webhook">Webhook (API Externa)</SelectItem><SelectItem value="local_js">JavaScript Local</SelectItem></SelectContent>
-                            </Select>
-                          </div>
-                        </div>
-                        <div className="space-y-2"><Label>Descrição para a IA (Quando usar?)</Label><Textarea value={editingSkill.description} onChange={e => setEditingSkill({...editingSkill, description: e.target.value})} /></div>
-                        {editingSkill.executionType === 'webhook' ? (
-                          <div className="space-y-2"><Label>URL do Webhook</Label><Input value={editingSkill.webhookUrl} onChange={e => setEditingSkill({...editingSkill, webhookUrl: e.target.value})} placeholder="https://api.terceiro.com/v1/..." /></div>
-                        ) : (
-                          <div className="space-y-2"><Label>Código JavaScript (Recebe 'args', retorna objeto)</Label><Textarea className="font-mono text-xs h-32" value={editingSkill.jsCode} onChange={e => setEditingSkill({...editingSkill, jsCode: e.target.value})} placeholder="return { resultado: args.valor * 2 };" /></div>
-                        )}
-                        <div className="space-y-2">
-                          <Label>Parâmetros (JSON Schema)</Label>
-                          <Textarea className="font-mono text-xs h-32" value={JSON.stringify(editingSkill.parameters, null, 2)} onChange={e => {
-                            try { setEditingSkill({...editingSkill, parameters: JSON.parse(e.target.value)}); } catch(e) {}
-                          }} />
-                        </div>
-                      </div>
-                      <DialogFooter><Button type="button" onClick={handleSaveSkill}>Salvar Habilidade</Button></DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-
                 <div className="space-y-4 rounded-lg border border-border p-4">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><UserCheck className="h-5 w-5 text-muted-foreground" />Responsável Técnico</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -251,7 +228,6 @@ const Configuracao = () => {
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
                    <div className="space-y-2"><Label>Gemini API Key</Label><Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} /></div>
-                   <div className="space-y-2 pt-2 border-t border-blue-500/20"><Label>System Prompt (Pré-Validação)</Label><Textarea className="font-mono text-xs h-32" value={preAnalysisPrompt} onChange={(e) => setPreAnalysisPrompt(e.target.value)} /></div>
                 </div>
               </>
             )}
