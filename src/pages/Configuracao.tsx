@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -110,6 +112,36 @@ const Configuracao = () => {
   const deleteSkill = (id: string) => {
     setDynamicSkills(dynamicSkills.filter(s => s.id !== id));
     toast.info("Skill removida.");
+  };
+
+  // Montagem do Payload de Debug para Visualização
+  const allToolsForDebug = [
+    ...JOTA_TOOLS_MANIFEST, 
+    ...dynamicSkills.filter(s => s.isActive).map(s => ({
+      name: s.name,
+      description: s.description,
+      parameters: s.parameters
+    }))
+  ];
+
+  const businessPayloadMock = {
+    meta: { webhookUrl: webhookTestUrl || "https://sua-url-webhook.com", executionMode: "test" },
+    agentName: "Diagnóstico de Viabilidade e Estruturação de Negócios",
+    contexto: { anoBase: localStorage.getItem('viab-anoBase') || "2025" },
+    empresa: {
+      razaoSocial: razaoSocial || "Não Informada",
+      classificacaoFiscal: localStorage.getItem('viab-classificacaoFiscal') || "ME",
+      localizacao: { municipio: localStorage.getItem('viab-municipio') || "", estado: uf },
+    },
+    operacional: {
+      cnaes: JSON.parse(localStorage.getItem('viab-cnaes') || '[]'),
+      descricaoAtividades: localStorage.getItem('viab-atividades') || "",
+    },
+    financeiro: {
+      faturamento: { anual_total: parseFloat(localStorage.getItem('viab-faturamentoAnual') || "0") },
+      folha_pagamento: { mensal: parseFloat(localStorage.getItem('viab-folhaPagamento') || "0") }
+    },
+    _nota: "Este é um espelho aproximado. Os dados reais são extraídos da tela de Viabilidade na hora do clique."
   };
 
   return (
@@ -348,6 +380,50 @@ const Configuracao = () => {
                    <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Gemini)</h3>
                    <div className="space-y-2"><Label>Gemini API Key</Label><Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} /></div>
                 </div>
+
+                {/* NOVA SEÇÃO: DEBUG & PAYLOADS (ACCORDION) */}
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-muted/10">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <Code className="h-5 w-5 text-muted-foreground" />
+                    Modo Desenvolvedor: Visualizar Payloads JSON
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Clique nos botões abaixo para expandir e analisar como o sistema formata os dados antes de enviá-los para a IA (Gemini) ou para o Webhook (n8n).
+                  </p>
+                  
+                  <Accordion type="single" collapsible className="w-full">
+                    <AccordionItem value="gemini-payload">
+                      <AccordionTrigger className="text-sm font-bold">1. Payload do Google Gemini (Estrutura de Tools & Function Calling)</AccordionTrigger>
+                      <AccordionContent>
+                        <ScrollArea className="h-96 w-full rounded-md border bg-black p-4">
+                          <pre className="text-[10px] text-green-400 font-mono whitespace-pre-wrap">
+{JSON.stringify({
+  system_instruction: { parts: [{ text: preAnalysisPrompt.substring(0, 100) + "... [texto truncado para visualização]" }] },
+  contents: [{ role: 'user', parts: [{ text: "{ ... JSON DE NEGÓCIO INSERIDO AQUI ... }" }] }],
+  tools: [{ 
+    functionDeclarations: allToolsForDebug 
+  }],
+  generationConfig: { temperature: 0.1 },
+}, null, 2)}
+                          </pre>
+                        </ScrollArea>
+                      </AccordionContent>
+                    </AccordionItem>
+                    
+                    <AccordionItem value="business-payload">
+                      <AccordionTrigger className="text-sm font-bold">2. Payload de Negócio (JSON enviado no Webhook ou dentro do Gemini)</AccordionTrigger>
+                      <AccordionContent>
+                        <ScrollArea className="h-96 w-full rounded-md border bg-black p-4">
+                          <pre className="text-[10px] text-blue-400 font-mono whitespace-pre-wrap">
+{JSON.stringify(businessPayloadMock, null, 2)}
+                          </pre>
+                        </ScrollArea>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
+                </div>
+                {/* FIM DA SEÇÃO DE DEBUG */}
+
               </>
             )}
 
