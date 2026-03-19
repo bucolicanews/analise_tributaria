@@ -48,7 +48,7 @@ export async function callGeminiAgent(
   apiKey: string
 ): Promise<string> {
   if (!apiKey || apiKey.trim() === '') {
-    throw new Error('Chave API Gemini não configurada.');
+    throw new Error('Chave API Gemini não configurada. Configure na página de Configurações.');
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
@@ -65,11 +65,22 @@ export async function callGeminiAgent(
     body: JSON.stringify(body),
   });
 
-  if (!response.ok) throw new Error(`Gemini API Error: ${response.status}`);
+  if (!response.ok) {
+    let errorMsg = `Gemini API Error: ${response.status}`;
+    try {
+      const errorData = await response.json();
+      if (errorData.error && errorData.error.message) {
+        errorMsg += ` - ${errorData.error.message}`;
+      }
+    } catch (e) {
+      // Falha ao fazer parse do erro, ignora
+    }
+    throw new Error(errorMsg);
+  }
 
   const data = await response.json();
   const parts = data?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts) || parts.length === 0) throw new Error('Sem conteúdo na resposta.');
+  if (!Array.isArray(parts) || parts.length === 0) throw new Error('Sem conteúdo na resposta da IA.');
 
   return parts.map((p: any) => (p.text || '').trim()).join('\n\n');
 }
