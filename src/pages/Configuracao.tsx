@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
-  Wrench, Play, Lock, Book, Upload, Loader2, Eraser 
+  Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -37,6 +38,8 @@ const Configuracao = () => {
   const [activeSkillIdForUpload, setActiveSkillIdForUpload] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [isTestingSkill, setIsTestingSkill] = useState<string | null>(null);
+  const [importJson, setImportJson] = useState('');
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
 
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || '');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || '');
@@ -57,7 +60,6 @@ const Configuracao = () => {
   const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
 
-  // SISTEMA DE AUTO-SAVE (Persistência em tempo real)
   useEffect(() => {
     localStorage.setItem('jota-razaoSocial', razaoSocial);
     localStorage.setItem('jota-cnpj', cnpj);
@@ -82,6 +84,26 @@ const Configuracao = () => {
     enableGoogleSearch, preAnalysisPrompt, agents, 
     inssTables, irpfTables, minimumWages, dynamicSkills
   ]);
+
+  const handleImportSkill = () => {
+    try {
+      const skillData = JSON.parse(importJson);
+      if (!skillData.name || !skillData.executionType) throw new Error("Campos obrigatórios ausentes.");
+      
+      const newSkill: DynamicSkill = {
+        ...skillData,
+        id: Date.now().toString(),
+        isActive: true
+      };
+      
+      setDynamicSkills([...dynamicSkills, newSkill]);
+      setImportJson('');
+      setIsImportDialogOpen(false);
+      toast.success("Skill importada com sucesso!");
+    } catch (e: any) {
+      toast.error("Erro no JSON: " + e.message);
+    }
+  };
 
   const cleanTextNoise = (text: string): string => {
     return text
@@ -205,7 +227,7 @@ const Configuracao = () => {
       jsCode: '// Código JS\nreturn { status: "sucesso" };'
     };
     setDynamicSkills([...dynamicSkills, newSkill]);
-    toast.success("Nova Skill criada! Lembre-se de configurar o nome técnico.");
+    toast.success("Nova Skill criada!");
   };
 
   const updateSkill = (id: string, field: keyof DynamicSkill, value: any) => {
@@ -247,11 +269,37 @@ const Configuracao = () => {
                  <div className="flex items-center justify-between">
                    <div className="space-y-1">
                      <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas</h3>
-                     <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos. As alterações são salvas automaticamente.</p>
+                     <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos.</p>
                    </div>
-                   <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={addSkill}>
-                     <Plus className="h-4 w-4 mr-2" /> Nova Skill
-                   </Button>
+                   <div className="flex gap-2">
+                     <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
+                       <DialogTrigger asChild>
+                         <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600">
+                           <Download className="h-4 w-4 mr-2" /> Importar JSON
+                         </Button>
+                       </DialogTrigger>
+                       <DialogContent className="sm:max-w-lg">
+                         <DialogHeader>
+                           <DialogTitle>Importar Skill via JSON</DialogTitle>
+                           <DialogDescription>Cole o objeto JSON da skill abaixo para importá-la instantaneamente.</DialogDescription>
+                         </DialogHeader>
+                         <Textarea 
+                           placeholder='{ "name": "minha_skill", "executionType": "local_js", ... }' 
+                           className="font-mono text-xs h-64"
+                           value={importJson}
+                           onChange={e => setImportJson(e.target.value)}
+                         />
+                         <DialogFooter>
+                           <Button variant="outline" onClick={() => setIsImportDialogOpen(false)}>Cancelar</Button>
+                           <Button onClick={handleImportSkill} className="bg-emerald-600 text-white">Importar Agora</Button>
+                         </DialogFooter>
+                       </DialogContent>
+                     </Dialog>
+
+                     <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={addSkill}>
+                       <Plus className="h-4 w-4 mr-2" /> Nova Skill
+                     </Button>
+                   </div>
                  </div>
 
                  <Accordion type="multiple" className="w-full space-y-2">
@@ -345,6 +393,63 @@ const Configuracao = () => {
                      </AccordionItem>
                    ))}
                  </Accordion>
+
+                 <div className="pt-4 flex justify-center">
+                   <Dialog>
+                     <DialogTrigger asChild>
+                       <Button variant="ghost" size="sm" className="text-emerald-600 hover:bg-emerald-50">
+                         <BookOpen className="h-4 w-4 mr-2" /> Guia de Construção e Padrão JSON
+                       </Button>
+                     </DialogTrigger>
+                     <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
+                       <DialogHeader>
+                         <DialogTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-emerald-600" /> Manual de Criação de Skills</DialogTitle>
+                         <DialogDescription>Aprenda a estruturar ferramentas para que a IA possa executar tarefas complexas.</DialogDescription>
+                       </DialogHeader>
+                       
+                       <div className="space-y-6 py-4 text-sm">
+                         <section className="space-y-2">
+                           <h4 className="font-bold text-emerald-700">1. Tipos de Execução</h4>
+                           <ul className="list-disc pl-5 space-y-1">
+                             <li><strong>JavaScript Local:</strong> Executa código no navegador. Tem acesso ao objeto <code className="bg-muted px-1">args</code> (enviado pela IA) e <code className="bg-muted px-1">helpers</code> (funções de cálculo do sistema).</li>
+                             <li><strong>Webhook (n8n):</strong> Envia os dados para uma URL externa e aguarda a resposta. Ideal para integrações com APIs ou bancos de dados.</li>
+                             <li><strong>Base de Conhecimento:</strong> Texto estático que a IA consulta para responder perguntas específicas.</li>
+                             <li><strong>Navegação Web:</strong> Extrai texto de qualquer site público. Use o Seletor CSS para pegar apenas o conteúdo relevante.</li>
+                           </ul>
+                         </section>
+
+                         <section className="space-y-2">
+                           <h4 className="font-bold text-emerald-700">2. Padrão JSON para Importação</h4>
+                           <p className="text-xs text-muted-foreground">Você pode copiar este modelo e adaptar os campos:</p>
+                           <pre className="bg-slate-950 text-emerald-400 p-4 rounded-lg text-[10px] overflow-x-auto">
+{`{
+  "name": "nome_da_skill",
+  "description": "Explique para a IA quando usar esta ferramenta",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "parametro1": { "type": "string", "description": "O que é este dado" }
+    },
+    "required": ["parametro1"]
+  },
+  "executionType": "local_js",
+  "jsCode": "return { resultado: args.parametro1 };"
+}`}
+                           </pre>
+                         </section>
+
+                         <section className="space-y-2">
+                           <h4 className="font-bold text-emerald-700">3. Dicas de Ouro</h4>
+                           <ul className="list-disc pl-5 space-y-1">
+                             <li><strong>Nome Técnico:</strong> Use apenas letras minúsculas e sublinhados (ex: <code className="bg-muted px-1">consultar_estoque</code>).</li>
+                             <li><strong>Descrição:</strong> Seja muito claro. A IA decide usar a skill baseada apenas neste texto.</li>
+                             <li><strong>Segurança:</strong> O código JS roda em um ambiente isolado, mas evite loops infinitos.</li>
+                           </ul>
+                         </section>
+                       </div>
+                     </DialogContent>
+                   </Dialog>
+                 </div>
               </div>
 
               <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
