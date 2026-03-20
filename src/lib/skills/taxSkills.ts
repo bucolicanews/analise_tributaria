@@ -119,7 +119,7 @@ return {
   {
     id: 'sys-3',
     name: 'calcular_pro_labore_liquido',
-    description: 'Calcula o valor líquido do pró-labore aplicando INSS (11%) e IRPF (Tabela 2026).',
+    description: 'Calcula o valor líquido do pró-labore aplicando INSS (11%) e IRPF (Lei 15.270/2025 - Tabela 2026).',
     parameters: {
       type: 'object',
       properties: { valor_bruto: { type: 'number' } },
@@ -128,19 +128,51 @@ return {
     executionType: 'local_js',
     isActive: true,
     jsCode: `
-const valor = args.valor_bruto;
-const inss = valor * 0.11;
-const baseIR = valor - inss;
-let aliq = 0, ded = 0;
+const bruto = args.valor_bruto;
+const inss = bruto * 0.11;
 
-if (baseIR <= 2428.80) { aliq = 0; }
-else if (baseIR <= 2826.65) { aliq = 0.075; ded = 182.16; }
-else if (baseIR <= 3751.05) { aliq = 0.15; ded = 394.16; }
-else if (baseIR <= 4664.68) { aliq = 0.225; ded = 675.49; }
-else { aliq = 0.275; ded = 908.73; }
+// 1. Desconto Simplificado Mensal (25% da faixa isenta: 25% de 2428,80 = 607,20)
+const descontoSimplificado = 607.20;
 
-const ir = Math.max(0, (baseIR * aliq) - ded);
-return { bruto: valor, inss, base_ir: baseIR, ir, liquido: valor - inss - ir };
+// A fonte pagadora deve considerar o que for mais vantajoso para o contribuinte
+const deducaoEfetiva = Math.max(inss, descontoSimplificado);
+const baseIR = Math.max(0, bruto - deducaoEfetiva);
+
+// 2. Tabela Progressiva 2026
+let aliq = 0, parcelaDeduzir = 0;
+if (baseIR <= 2428.80) { aliq = 0; parcelaDeduzir = 0; }
+else if (baseIR <= 2826.65) { aliq = 0.075; parcelaDeduzir = 182.16; }
+else if (baseIR <= 3751.05) { aliq = 0.15; parcelaDeduzir = 394.16; }
+else if (baseIR <= 4664.68) { aliq = 0.225; parcelaDeduzir = 675.49; }
+else { aliq = 0.275; parcelaDeduzir = 908.73; }
+
+const impostoCalculado = Math.max(0, (baseIR * aliq) - parcelaDeduzir);
+
+// 3. Redução do Imposto (Art. 3º-A da Lei 9.250/95 com redação da Lei 15.270/2025)
+let valorReducao = 0;
+if (bruto <= 5000.00) {
+  // Redução limitada ao valor do imposto, até o teto de 312,89
+  valorReducao = Math.min(impostoCalculado, 312.89);
+} else if (bruto <= 7350.00) {
+  // Fórmula: R$ 978,62 – (0,133145 x rendimentos tributáveis)
+  valorReducao = Math.max(0, 978.62 - (0.133145 * bruto));
+} else {
+  valorReducao = 0;
+}
+
+const irFinal = Math.max(0, impostoCalculado - valorReducao);
+
+return { 
+  bruto, 
+  inss, 
+  deducao_utilizada: deducaoEfetiva === inss ? "INSS (Dedução Legal)" : "Desconto Simplificado (R$ 607,20)",
+  base_ir: baseIR, 
+  imposto_tabela: impostoCalculado,
+  reducao_lei_15270: valorReducao,
+  ir_final: irFinal, 
+  liquido: bruto - inss - irFinal,
+  lei: "Lei 15.270/2025 (Vigência 2026)"
+};
     `
   },
   {
