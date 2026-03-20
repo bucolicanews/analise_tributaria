@@ -200,15 +200,25 @@ const Configuracao = () => {
                      </div>
                      <div className="space-y-2">
                        <Label>Modelo da IA</Label>
-                       <Select value={geminiModel} onValueChange={setGeminiModel}>
-                         <SelectTrigger><SelectValue /></SelectTrigger>
-                         <SelectContent>
-                           <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
-                           <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro Experimental (Mais Inteligente)</SelectItem>
-                           <SelectItem value="gemini-1.5-pro-002">Gemini 1.5 Pro</SelectItem>
-                           <SelectItem value="gemini-1.5-flash-002">Gemini 1.5 Flash</SelectItem>
-                         </SelectContent>
-                       </Select>
+                       <div className="space-y-2">
+                         <Select value={geminiModel} onValueChange={setGeminiModel}>
+                           <SelectTrigger><SelectValue /></SelectTrigger>
+                           <SelectContent>
+                             <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</SelectItem>
+                             <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável)</SelectItem>
+                             <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
+                             <SelectItem value="custom">Outro (Digitar ID abaixo)</SelectItem>
+                           </SelectContent>
+                         </Select>
+                         {geminiModel === 'custom' || !['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'].includes(geminiModel) ? (
+                           <Input 
+                             placeholder="Ex: gemini-2.0-pro-exp-02-05" 
+                             value={geminiModel === 'custom' ? '' : geminiModel} 
+                             onChange={(e) => setGeminiModel(e.target.value)}
+                             className="h-8 text-xs font-mono"
+                           />
+                         ) : null}
+                       </div>
                      </div>
                      <div className="space-y-2">
                        <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding</Label>
