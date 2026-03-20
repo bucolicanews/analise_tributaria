@@ -14,7 +14,13 @@ export interface DynamicSkill {
 }
 
 /**
- * SKILLS PADRÃO (Agora como strings de código para serem editáveis)
+ * Manifesto de Ferramentas Estáticas (Mantido vazio para compatibilidade, 
+ * pois agora as ferramentas são carregadas via loadDynamicSkills)
+ */
+export const JOTA_TOOLS_MANIFEST: any[] = [];
+
+/**
+ * SKILLS PADRÃO (Editáveis na interface)
  */
 export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
@@ -132,7 +138,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
   const skill = dynamicSkills.find(s => s.name === name);
 
   if (!skill || !skill.isActive) {
-    return { error: `Skill '${name}' não encontrada ou inativa.` };
+    return { error: `Skill '\${name}' não encontrada ou inativa.` };
   }
   
   if (skill.executionType === 'knowledge_base') {
@@ -148,7 +154,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       });
       return await res.json();
     } catch (e: any) {
-      return { error: `Falha no Webhook: \${e.message}` };
+      return { error: \`Falha no Webhook: \${e.message}\` };
     }
   }
 
@@ -165,7 +171,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       const fn = new AsyncFunction('args', 'helpers', skill.jsCode);
       return await fn(args, helpers);
     } catch (e: any) {
-      return { error: `Erro no JS da Skill: \${e.message}` };
+      return { error: \`Erro no JS da Skill: \${e.message}\` };
     }
   }
 
