@@ -90,8 +90,10 @@ const Viabilidade = () => {
   const handleFolhaMensalChange = (val: string) => {
     setFolhaPagamento(val);
     const num = parseFloat(val) || 0;
-    setFolha12Meses((num * 12).toString());
+    setPayroll12Months((num * 12).toString());
   };
+
+  const setPayroll12Months = (val: string) => setFolha12Meses(val);
 
   useEffect(() => {
     const data: Record<string, string> = {
@@ -146,16 +148,13 @@ const Viabilidade = () => {
       },
       empresa: {
         razaoSocial: razaoSocial || "Não Informada",
-        nomeFantasia: razaoSocial || "Não Informada",
         naturezaJuridica: naturezaJuridica || "Não Informada",
         classificacaoFiscal: classificacaoFiscal || "ME",
-        cnpj: localStorage.getItem('jota-cnpj') || "00.000.000/0001-00",
         capitalSocial: parseFloat(capital) || 0,
         numSocios: parseInt(numSocios) || 1,
         localizacao: { 
           municipio: formatCityName(municipio), 
-          estado: estado || "PA",
-          cep: "66910010" 
+          estado: estado || "PA"
         },
         tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
       },
@@ -187,11 +186,6 @@ const Viabilidade = () => {
           fixos_mensais: parseFloat(fixosMensais) || 0,
           variaveis_percentual: parseFloat(variaveisPercentual) || 0
         },
-        folha_pagamento: {
-          mensal_total: parseFloat(folhaPagamento) || 0,
-          pro_labore: parseFloat(valorProlabore) || 0,
-          INSS_IR_recolhido: sociosRecolhemInssIr === 'Sim'
-        },
         fator_r: {
           folha_12_meses: folha12mNum,
           faturamento_12_meses: faturamentoNum,
@@ -199,18 +193,30 @@ const Viabilidade = () => {
         }
       },
       societario_trabalhista: {
+        quadro_pessoal: {
+          num_funcionarios: parseInt(numFuncionarios) || 0,
+          folha_salarial_mensal: parseFloat(folhaPagamento) || 0
+        },
         pro_labore: {
           declara_prolabore: sociosDeclaramProlabore === 'Sim',
           valor_declarado: parseFloat(valorProlabore) || 0,
           recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
         },
-        retira_valores_pf: sociosRetiramValores === 'Sim',
-        num_empregados: parseInt(numFuncionarios) || 0
+        retira_valores_pf: sociosRetiramValores === 'Sim'
       },
       conformidade_riscos: {
-        confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
-        retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
-        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+        respostas_originais: {
+          recebe_vendas_conta_pf: recebeContaPF,
+          mistura_patrimonial_declarada: mesmaContaSocios,
+          socios_retiram_lucros: sociosRetiramValores,
+          declara_prolabore: sociosDeclaramProlabore,
+          recolhe_inss_ir_socio: sociosRecolhemInssIr
+        },
+        alertas_criticos: {
+          confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
+          retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
+          risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
+        }
       }
     };
   };
@@ -232,7 +238,6 @@ const Viabilidade = () => {
       await new Promise(r => setTimeout(r, 800));
       setProgressStep('analyzing');
       
-      // Criamos um contexto textual muito forte para a IA não ignorar os CNAEs
       const cnaeContext = payload.operacional.cnaes.map(c => `CNAE ${c.tipo}: ${c.codigo_formatado} - ${c.descricao}`).join('\n');
       const userPrompt = `DADOS DO CLIENTE PARA ANÁLISE:\n\nCONTEXTO OPERACIONAL:\n${cnaeContext}\n\nDESCRIÇÃO DE ATIVIDADES:\n${payload.operacional.descricaoAtividades}\n\nJSON COMPLETO:\n${JSON.stringify(payload, null, 2)}`;
 

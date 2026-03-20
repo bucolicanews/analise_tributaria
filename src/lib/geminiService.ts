@@ -34,6 +34,10 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 
 # 1. ANÁLISE DE CNAEs E OPERAÇÃO
+- Analise cada CNAE informado individualmente.
+- Indique o enquadramento de cada um no Simples Nacional (Anexo I, II, III, IV ou V).
+- Explique a segregação de receitas se houver CNAEs de anexos diferentes.
+
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
 # 1.2 RETENÇÃO DE INSS E ISS
 # 1.3 DETALHAMENTO EFD-REINF
@@ -43,7 +47,12 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 5. LICENCIAMENTO REGIONAL (BELÉM/PA OU INFORMADO)
 # 6. NORMAS E EQUIPAMENTOS
 # 7. INVESTIMENTO DE ABERTURA
-# 8. MATRIZ DE RISCOS (PREVENÇÃO)
+
+# 8. MATRIZ DE RISCOS E CONFORMIDADE (ANÁLISE CRÍTICA)
+- Analise as respostas do cliente sobre: Mistura Patrimonial, Recebimento em Conta PF e Retirada de Lucros.
+- Se houver "Mistura Patrimonial: Sim" ou "Recebe na conta PF: Sim", emita um ALERTA VERMELHO sobre desconsideração da personalidade jurídica.
+- Sugira correções imediatas para blindagem patrimonial dos sócios.
+
 # 9. IMPACTO DA REFORMA (EC 132)
 # 10. RESPOSTA À PERGUNTA DO USUÁRIO
 # 11. METODOLOGIA DE ANÁLISE
@@ -54,25 +63,8 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 16. TABELAS 2026 (Salário Mínimo e INSS)
 
 # 17. OBRIGAÇÕES DA EMPRESA COM A PRÓPRIA EMPRESA (GOVERNANÇA)
-- Detalhe a rotina interna obrigatória:
-- Guarda de XMLs (Compras, Vendas, CT-e, NFS-e) por 5 anos + ano corrente (Art. 195 CTN).
-- Controle de estoque rigoroso (Inventário anual, registro de perdas e devoluções).
-- Cadastro correto de produtos (NCM, CEST, CST) para evitar multas.
-- Separação absoluta entre contas PF e PJ (Princípio da Entidade).
-- Controle financeiro diário (Fluxo de caixa e conciliação bancária).
-
 # 18. OBRIGAÇÕES DA EMPRESA COM A CONTABILIDADE
-- Fluxo de informações mensais:
-- Envio de todos os XMLs e extratos bancários/cartão/PIX até o dia 5 de cada mês.
-- Informações de folha (faltas, horas extras, atestados) até o dia 20.
-- Manifestação de notas fiscais no portal nacional para evitar notas frias e fraudes.
-- Comunicação prévia de operações especiais (importação, compra de veículos ou máquinas).
-
 # 19. OBRIGAÇÕES DA EMPRESA COM O FISCO (CONFORMIDADE)
-- Resumo das obrigações acessórias conforme o regime sugerido:
-- Simples Nacional: PGDAS-D mensal e DEFIS anual.
-- Lucro Presumido/Real: DCTF, EFD Contribuições, SPED Fiscal, SPED Contábil, ECF, Reinf.
-- Alerta crítico sobre multas pesadas por atraso na entrega dessas declarações.
 
 ---
 VEREDITO PRÁTICO FINAL:
@@ -81,32 +73,28 @@ VEREDITO PRÁTICO FINAL:
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em Viabilidade e CNAEs.
 🚨 REGRAS: ZERO TABELAS.
 - Execute requisitos 1, 5, 11 e 14.
-- Detalhe a segregação real entre Indústria, Comércio e Serviço.`;
+- Analise cada CNAE individualmente e seu enquadramento no Simples.`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações e Compliance.
 🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 1.3, 2, 13 e 19 (Obrigações com o Fisco).
-- Detalhe a Série R-4000 da Reinf e as multas por atraso de declarações.`;
+- Execute requisitos 1.3, 2, 13 e 19.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos e Matemática.
 🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 1.1, 3 e 16.
-- FAÇA A CONTA: Compare Simples vs Presumido em R$ usando os dados do JSON.`;
+- Execute requisitos 1.1, 3 e 16.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização.
 🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 4 e 6.
-- Liste 20 itens ESPECÍFICOS DO SETOR com NCM, CEST e CSOSN.`;
+- Execute requisitos 4 e 6.`;
 
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Governança.
 🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 7, 8, 15, 17 (Governança Interna) e 18 (Relação com Contador).
-- Foque na separação PF/PJ e no fluxo de documentos.`;
+- Execute requisitos 7, 8, 15, 17 e 18.
+- Analise profundamente os riscos de mistura patrimonial e conta PF informados no JSON.`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
 🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 9, 10 e 12.
-- Dê o VEREDITO FINAL: "O regime ideal é X com economia de R$ Y".`;
+- Execute requisitos 9, 10 e 12.`;
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   { id: '1', nome: '1. Viabilidade e CNAEs', order: 1, systemPrompt: PROMPT_AGENTE_1 },
@@ -137,7 +125,7 @@ export async function callGeminiAgent(
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ 
       role: 'user', 
-      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: VOCÊ DEVE CHEGAR ATÉ O ITEM 19. NÃO PULE AS SEÇÕES DE GOVERNANÇA (17, 18, 19). NÃO USE TABELAS." }] 
+      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: ANALISE OS CNAES UM A UM. ANALISE OS RISCOS DE MISTURA PATRIMONIAL E CONTA PF. NÃO USE TABELAS." }] 
     }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
