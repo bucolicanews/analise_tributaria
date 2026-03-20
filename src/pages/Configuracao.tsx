@@ -237,52 +237,85 @@ const Configuracao = () => {
                     <Dialog>
                       <DialogTrigger asChild>
                         <Button variant="outline" size="sm" className="w-full border-indigo-500/30 text-indigo-600 hover:bg-indigo-500/10">
-                          <BookOpen className="h-4 w-4 mr-2" /> Abrir Manual Técnico de Engenharia de Prompts (Variáveis / JSON)
+                          <BookOpen className="h-4 w-4 mr-2" /> Abrir Manual Técnico de Engenharia de Prompts (Dicionário de Variáveis)
                         </Button>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
                         <DialogHeader>
-                          <DialogTitle className="flex items-center gap-2 text-indigo-600"><Terminal className="h-5 w-5" /> Manual Técnico de Engenharia de Prompts</DialogTitle>
-                          <DialogDescription>Guia de variáveis disponíveis no payload e estrutura de importação.</DialogDescription>
+                          <DialogTitle className="flex items-center gap-2 text-indigo-600"><Terminal className="h-5 w-5" /> Manual Técnico: Dicionário de Dados para Prompts</DialogTitle>
+                          <DialogDescription>Lista completa de caminhos JSON que você pode usar para instruir a IA.</DialogDescription>
                         </DialogHeader>
                         
-                        <div className="space-y-6 py-4">
-                          <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1">1. Variáveis de Contexto (JSON Payload)</h4>
-                            <p className="text-xs text-muted-foreground">A IA recebe um objeto global. Você pode instruí-la a ler caminhos específicos:</p>
-                            <ul className="list-disc pl-4 space-y-2 text-[11px]">
-                              <li><strong>empresa.razaoSocial:</strong> Nome da empresa ou projeto.</li>
-                              <li><strong>empresa.naturezaJuridica:</strong> SLU, LTDA, EI, etc.</li>
-                              <li><strong>operacional.cnaes:</strong> Lista de objetos com <code className="bg-muted px-1">codigo_formatado</code> e <code className="bg-muted px-1">descricao</code>.</li>
-                              <li><strong>financeiro.faturamento.anual_total:</strong> Valor bruto anual para enquadramento.</li>
-                              <li><strong>financeiro.fator_r.percentual_atual:</strong> Cálculo automático da relação Folha/Faturamento.</li>
-                              <li><strong>societario_trabalhista.pro_labore.valor_declarado:</strong> Valor do pró-labore informado.</li>
-                              <li><strong>conformidade_riscos.alertas_criticos:</strong> Booleanos sobre confusão patrimonial e riscos previdenciários.</li>
-                            </ul>
+                        <div className="space-y-8 py-4">
+                          {/* GRUPO 1: EMPRESA */}
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">1. Dados da Empresa (Objeto: empresa)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.razaoSocial</code> <span className="text-muted-foreground italic">Nome da empresa</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.naturezaJuridica</code> <span className="text-muted-foreground italic">SLU, LTDA, EI...</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.classificacaoFiscal</code> <span className="text-muted-foreground italic">ME ou EPP</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.capitalSocial</code> <span className="text-muted-foreground italic">Valor em R$</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.numSocios</code> <span className="text-muted-foreground italic">Quantidade</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.localizacao.municipio</code> <span className="text-muted-foreground italic">Cidade</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.localizacao.estado</code> <span className="text-muted-foreground italic">UF (ex: PA)</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.tributacaoPretendida</code> <span className="text-muted-foreground italic">Regime escolhido</span></div>
+                            </div>
                           </section>
 
-                          <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1">2. Exemplo de Instrução de Cálculo</h4>
-                            <p className="text-xs text-muted-foreground">Como pedir para a IA realizar análises baseadas nos dados:</p>
-                            <pre className="bg-slate-950 text-indigo-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
-{`"Analise o campo financeiro.fator_r.percentual_atual. 
-Se for menor que 28%, explique que a empresa está no Anexo V 
-e sugira aumentar o societario_trabalhista.pro_labore.valor_declarado 
-para atingir a economia do Anexo III."`}
-                            </pre>
+                          {/* GRUPO 2: OPERACIONAL */}
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">2. Operacional e CNAEs (Objeto: operacional)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.cnaes</code> <span className="text-muted-foreground italic">Lista de objetos CNAE</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.descricaoAtividades</code> <span className="text-muted-foreground italic">Texto livre</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.percentual_comercio_industria_servico.comercio</code> <span className="text-muted-foreground italic">% de Comércio</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.percentual_comercio_industria_servico.servico</code> <span className="text-muted-foreground italic">% de Serviço</span></div>
+                            </div>
                           </section>
 
-                          <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1">3. Estrutura JSON para Importação/Exportação</h4>
-                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar seus especialistas:</p>
-                            <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
-{`{
-  "title": "Consultor de Blindagem Patrimonial",
-  "role": "Advogado Tributarista Sênior",
-  "content": "Você é um especialista em proteção de bens... Analise os riscos de confusão patrimonial informados no JSON.",
-  "isActive": true
-}`}
-                            </pre>
+                          {/* GRUPO 3: FINANCEIRO */}
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">3. Financeiro e Fator R (Objeto: financeiro)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.faturamento.anual_total</code> <span className="text-muted-foreground italic">Receita Bruta Anual</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.faturamento.mensal_medio</code> <span className="text-muted-foreground italic">Média mensal</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.custos_operacionais.fixos_mensais</code> <span className="text-muted-foreground italic">Despesas fixas</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.fator_r.folha_12_meses</code> <span className="text-muted-foreground italic">Soma folha 1 ano</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.fator_r.percentual_atual</code> <span className="text-muted-foreground italic">Relação Folha/Fat</span></div>
+                            </div>
+                          </section>
+
+                          {/* GRUPO 4: SOCIETÁRIO */}
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">4. Societário e Trabalhista (Objeto: societario_trabalhista)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.quadro_pessoal.num_funcionarios</code> <span className="text-muted-foreground italic">Qtd funcionários</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.pro_labore.valor_declarado</code> <span className="text-muted-foreground italic">Valor do Pró-labore</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.pro_labore.declara_prolabore</code> <span className="text-muted-foreground italic">Booleano (true/false)</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.retira_valores_pf</code> <span className="text-muted-foreground italic">Booleano</span></div>
+                            </div>
+                          </section>
+
+                          {/* GRUPO 5: RISCOS */}
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">5. Conformidade e Riscos (Objeto: conformidade_riscos)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.confusao_patrimonial</code> <span className="text-muted-foreground italic">Risco de mistura PF/PJ</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.retirada_informal</code> <span className="text-muted-foreground italic">Risco fiscal retirada</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.risco_previdenciario</code> <span className="text-muted-foreground italic">Risco falta de INSS</span></div>
+                            </div>
+                          </section>
+
+                          {/* EXEMPLO PRÁTICO */}
+                          <section className="space-y-3 pt-4">
+                            <h4 className="font-bold text-sm text-orange-600 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Exemplo de Instrução no Prompt</h4>
+                            <div className="bg-slate-950 p-4 rounded-lg border border-indigo-900/50">
+                              <p className="text-[11px] text-indigo-300 font-mono leading-relaxed">
+                                "Analise o campo <span className="text-white font-bold">financeiro.fator_r.percentual_atual</span>. <br/>
+                                Se o valor for menor que 28, alerte o usuário que ele está no Anexo V do Simples Nacional. <br/>
+                                Sugira aumentar o <span className="text-white font-bold">societario_trabalhista.pro_labore.valor_declarado</span> para atingir a economia do Anexo III."
+                              </p>
+                            </div>
                           </section>
                         </div>
                       </DialogContent>
