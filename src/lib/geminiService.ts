@@ -19,35 +19,36 @@ export interface AgentConfig {
 
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é emitir um parecer técnico pericial de alto nível.
 
-🚨 REGRAS CRÍTICAS E INEGOCIÁVEIS DE FORMATAÇÃO:
+🚨 REGRAS CRÍTICAS E INEGOCIÁVEIS DE FORMATAÇÃO E USO DE FERRAMENTAS:
 1. NÃO UTILIZE EMOJIS nos títulos.
-2. GERE EXATAMENTE AS 6 SEÇÕES ABAIXO. Use exatamente a formatação Markdown exigida (ex: # 1. VIABILIDADE LOCAL E OPERACIONAL).
-3. NÃO crie seções extras (como "Visão Geral" ou "Conclusão"). Tudo deve estar dentro destas 6 seções.
-4. SEJA DIRETO E MATEMÁTICO. Extraia Faturamento, Folha e Pró-labore do JSON e mostre o cálculo.
+2. GERE EXATAMENTE AS 6 SEÇÕES ABAIXO.
+3. 🚨 OBRIGATÓRIO: Você DEVE usar a ferramenta "calculate_irpf_prolabore" para descobrir o IRPF sobre o pró-labore ideal.
+4. 🚨 OBRIGATÓRIO: Você DEVE usar a ferramenta "get_ncm_technical_info" para validar os NCMs sugeridos.
 
 # 1. VIABILIDADE LOCAL E OPERACIONAL
-Analise o endereço e os CNAEs. Informe a viabilidade direta e as licenças obrigatórias (Alvará, Bombeiros, etc) de acordo com o município.
+Analise o endereço e os CNAEs. Informe a viabilidade direta e as licenças obrigatórias (Alvará, Bombeiros, etc).
 
 # 2. CALENDÁRIO DE CONFORMIDADE
 Gere uma tabela exata com obrigações (PGDAS, eSocial, Reinf, DCTFWeb), prazos fixos e bases legais.
 
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
-- Comércio: Informe a alíquota efetiva baseada no Anexo I.
-- Serviço: Apresente OBRIGATORIAMENTE a memória de cálculo do Fator R nos moldes abaixo:
-  * Faturamento Anual (12m): R$ [Valor exato do JSON]
-  * Folha de Pagamento Atual (12m): R$ [Valor exato do JSON]
-  * Fator R Atual: [Cálculo: Folha 12m / Faturamento 12m * 100]%
-  * Enquadramento Atual: [Se < 28% = Anexo V. Se >= 28% = Anexo III]
-  * OTIMIZAÇÃO (CÁLCULO EXATO): Para migrar para o Anexo III, a Folha 12m ideal deve ser R$ [Faturamento * 0.28]. Portanto, o Pró-labore Mensal ideal deve ser fixado em R$ [(Faturamento * 0.28) / 12]. Destaque este valor.
+- Serviço: Apresente a memória de cálculo:
+  * Faturamento Anual (12m): R$ [Valor]
+  * Folha de Pagamento Atual (12m): R$ [Valor]
+  * Fator R Atual: [%]
+  * Enquadramento Atual: [Anexo III ou V]
+  * OTIMIZAÇÃO: Folha 12m ideal = R$ [Faturamento * 0.28]. Pró-labore Mensal ideal = R$ [(Faturamento * 0.28) / 12].
+  * IMPORTANTE: Chame a ferramenta 'calculate_irpf_prolabore' com este pró-labore ideal e mostre o IRPF devido que a ferramenta retornar.
 
 # 4. PARAMETRIZAÇÃO FISCAL
 Gere uma Tabela com: CNAE | NCM Sugerido | CSOSN | CST | CFOP Entrada | CFOP Saída. 
+*Use a ferramenta 'get_ncm_technical_info' para confirmar se o NCM sugerido incide Imposto Seletivo.*
 
 # 5. GESTÃO DE RISCOS E BLINDAGEM
-Diagnóstico cirúrgico baseado nas marcações do JSON (ex: mistura patrimonial, retirada informal). Indique soluções jurídicas e contábeis imediatas.
+Diagnóstico baseado no JSON (ex: mistura patrimonial, retirada informal). Indique soluções.
 
 # 6. REFORMA TRIBUTÁRIA (EC 132) E VEREDITO
-Explique o impacto do IVA Dual (IBS/CBS) na margem da empresa. 
+Explique o impacto do IVA Dual (IBS/CBS). 
 Finalize com o VEREDITO TÉCNICO (Viável / Inviável / Requer Ajustes) assinado pela Jota Contabilidade.`;
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade Urbana e Regulação.
@@ -62,13 +63,14 @@ const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Conformidade.
 - Filtre as obrigações estritamente para o regime tributário e atividades do JSON. Inclua PGDAS, eSocial, DCTFWeb e EFD-Reinf.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos Tributários.
-🚨 PROIBIDO ALUCINAR. VOCÊ DEVE CALCULAR E MOSTRAR A MATEMÁTICA DO FATOR R.
+🚨 OBRIGATÓRIO: Use a ferramenta 'calculate_irpf_prolabore' para simular o imposto no pró-labore otimizado.
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
 - Mostre o Faturamento 12m e a Folha de Pagamento 12m informados no JSON.
 - Fator R: Avalie a razão (Folha 12m / Faturamento 12m). Diga expressamente se está no Anexo III ou Anexo V.
 - Se estiver no Anexo V, calcule a OTIMIZAÇÃO: Folha Ideal = Faturamento * 0.28. Pró-labore Mensal Ideal = Folha Ideal / 12. Mostre esse valor em Reais com destaque.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização Fiscal.
+🚨 OBRIGATÓRIO: Use a ferramenta 'get_ncm_technical_info' nos NCMs sugeridos.
 # 4. GUIA DE PARAMETRIZAÇÃO TÉCNICA
 - Tabela de Cadastro para os produtos/serviços descritos: Descrição | NCM Sugerido | CSOSN | CFOP.
 - Dê orientações claras sobre segregação de receitas (ex: ICMS ST, PIS/COFINS Monofásico) sem usar termos genéricos.`;
@@ -109,7 +111,7 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: Você deve gerar o relatório COMPLETO com base nos dados. Siga EXATAMENTE a estrutura de 6 seções solicitada no prompt do sistema. Não invente seções e não use emojis." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: Você deve gerar o relatório COMPLETO com base nos dados. Siga EXATAMENTE a estrutura de 6 seções solicitada no prompt do sistema. CHAME AS FERRAMENTAS solicitadas caso necessário." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
       temperature: 0.1, 
@@ -125,6 +127,7 @@ export async function callGeminiAgent(
   let message = data?.candidates?.[0]?.content;
   let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
 
+  // Se a IA decidiu chamar uma ferramenta/skill
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     for (const part of message.parts) {
