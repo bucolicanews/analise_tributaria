@@ -30,6 +30,7 @@ export const ChatInterface = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastHeightRef = useRef<number>(0);
 
@@ -107,7 +108,9 @@ export const ChatInterface = () => {
   };
 
   const updateSessionTitle = (id: string, newTitle: string) => {
-    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
+    setSessions(prev => prev.map(s => {
+      if (s.id === id ? { ...s, title: newTitle } : s));
+    }));
   };
 
   useLayoutEffect(() => {
@@ -140,10 +143,17 @@ export const ChatInterface = () => {
     }
   }, [input]);
 
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  // Lógica de rolagem automática aprimorada
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
+  };
+
+  useEffect(() => {
+    // Pequeno delay para garantir que o conteúdo do Markdown foi renderizado
+    const timer = setTimeout(scrollToBottom, 100);
+    return () => clearTimeout(timer);
   }, [messages, isLoading, activeTool]);
 
   const filteredSkills = availableSkills.filter(s => 
@@ -278,7 +288,7 @@ export const ChatInterface = () => {
 
         <CardContent className="flex-1 overflow-hidden p-0 flex flex-col relative">
           <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
-            <div className="space-y-6 max-w-4xl mx-auto">
+            <div className="space-y-6 max-w-4xl mx-auto pb-4">
               {messages.length === 0 && (
                 <div className="flex flex-col items-center justify-center h-64 text-center space-y-4 opacity-50">
                   <Sparkles className="h-12 w-12 text-primary" />
@@ -340,6 +350,9 @@ export const ChatInterface = () => {
                   </div>
                 </div>
               )}
+              
+              {/* Marcador de fim de conversa para rolagem automática */}
+              <div ref={messagesEndRef} className="h-px w-full" />
             </div>
           </ScrollArea>
 
