@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Bot, User, Send, Loader2, Wrench, Trash2, Sparkles, CheckCircle2, Terminal } from 'lucide-react';
+import { Bot, User, Send, Loader2, Wrench, Trash2, Sparkles, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ChatMessage, sendChatMessage } from '@/lib/geminiService';
@@ -11,8 +11,13 @@ import { loadDynamicSkills, DynamicSkill } from '@/lib/skills/taxSkills';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from './ui/badge';
+import { ChatSidebar, ChatSession } from './ChatSidebar';
+
+const STORAGE_KEY = 'jota-chat-sessions';
 
 export const ChatInterface = () => {
+  const [sessions, setSessions] = useState<ChatSession[]>([]);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -20,7 +25,6 @@ export const ChatInterface = () => {
   const [availableSkills, setAvailableSkills] = useState<DynamicSkill[]>([]);
   const [isManuallyResized, setIsManuallyResized] = useState(false);
   
-  // Estados para o menu de menção (@)
   const [showMentionMenu, setShowMentionMenu] = useState(false);
   const [mentionFilter, setMentionFilter] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -31,18 +35,80 @@ export const ChatInterface = () => {
 
   const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-  const refreshSkills = () => {
+  // Carregar sessões do localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      setSessions(parsed);
+      if (parsed.length > 0) {
+        loadSession(parsed[0].id);
+      } else {
+        createNewChat();
+      }
+    } else {
+      createNewChat();
+    }
+    
     const skills = loadDynamicSkills().filter(s => s.isActive);
     setAvailableSkills(skills);
-  };
-
-  useEffect(() => {
-    refreshSkills();
-    window.addEventListener('focus', refreshSkills);
-    return () => window.removeEventListener('focus', refreshSkills);
   }, []);
 
-  // Efeito para auto-redimensionar a textarea conforme o texto aumenta
+  // Salvar mensagens da sessão ativa sempre que mudarem
+  useEffect(() => {
+    if (activeSessionId && messages.length > 0) {
+      localStorage.setItem(`jota-chat-msg-${activeSessionId}`, JSON.stringify(messages));
+      
+      // Atualizar título da sessão se for a primeira mensagem
+      setSessions(prev => prev.map(s => {
+        if (s.id === activeSessionId && s.title === 'Nova Conversa' && messages.length > 0) {
+          const firstUserMsg = messages.find(m => m.role === 'user');
+          if (firstUserMsg) {
+            const text = firstUserMsg.parts[0].text;
+            return { ...s, title: text.substring(0, 30) + (text.length > 30 ? '...' : '') };
+          }
+        }
+        return s;
+      }));
+    }
+  }, [messages, activeSessionId]);
+
+  // Persistir lista de sessões
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
+  }, [sessions]);
+
+  const createNewChat = () => {
+    const newId = Date.now().toString();
+    const newSession: ChatSession = {
+      id: newId,
+      title: 'Nova Conversa',
+      createdAt: Date.now(),
+    };
+    setSessions(prev => [newSession, ...prev]);
+    setActiveSessionId(newId);
+    setMessages([]);
+  };
+
+  const loadSession = (id: string) => {
+    setActiveSessionId(id);
+    const savedMsgs = localStorage.getItem(`jota-chat-msg-${id}`);
+    setMessages(savedMsgs ? JSON.parse(savedMsgs) : []);
+  };
+
+  const deleteSession = (id: string) => {
+    setSessions(prev => prev.filter(s => s.id !== id));
+    localStorage.removeItem(`jota-chat-msg-${id}`);
+    if (activeSessionId === id) {
+      const remaining = sessions.filter(s => s.id !== id);
+      if (remaining.length > 0) {
+        loadSession(remaining[0].id);
+      } else {
+        createNewChat();
+      }
+    }
+  };
+
   useLayoutEffect(() => {
     if (inputRef.current && !isManuallyResized) {
       inputRef.current.style.height = 'inherit';
@@ -53,22 +119,18 @@ export const ChatInterface = () => {
     }
   }, [input, isManuallyResized]);
 
-  // Detectar redimensionamento manual real
   useEffect(() => {
     const textarea = inputRef.current;
     if (!textarea) return;
-
     const observer = new ResizeObserver(() => {
       if (textarea.offsetHeight !== lastHeightRef.current && lastHeightRef.current !== 0) {
         setIsManuallyResized(true);
       }
     });
-
     observer.observe(textarea);
     return () => observer.disconnect();
   }, []);
 
-  // Resetar o redimensionamento manual quando o input for limpo
   useEffect(() => {
     if (input === '' && inputRef.current) {
       setIsManuallyResized(false);
@@ -107,7 +169,6 @@ export const ChatInterface = () => {
         }
       }
     }
-    
     setShowMentionMenu(false);
   };
 
@@ -116,11 +177,9 @@ export const ChatInterface = () => {
     const textBeforeCursor = input.substring(0, cursorPosition);
     const textAfterCursor = input.substring(cursorPosition);
     const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
-
     const newValue = input.substring(0, lastAtSymbol) + `@${skillName} ` + textAfterCursor;
     setInput(newValue);
     setShowMentionMenu(false);
-    
     setTimeout(() => {
       inputRef.current?.focus();
       const newPos = lastAtSymbol + skillName.length + 2;
@@ -138,9 +197,7 @@ export const ChatInterface = () => {
         setSelectedIndex(prev => (prev - 1 + filteredSkills.length) % filteredSkills.length);
       } else if (e.key === 'Enter' || e.key === 'Tab') {
         e.preventDefault();
-        if (filteredSkills[selectedIndex]) {
-          insertSkill(filteredSkills[selectedIndex].name);
-        }
+        if (filteredSkills[selectedIndex]) insertSkill(filteredSkills[selectedIndex].name);
       } else if (e.key === 'Escape') {
         setShowMentionMenu(false);
       }
@@ -159,7 +216,6 @@ export const ChatInterface = () => {
 
     const userMsg: ChatMessage = { role: 'user', parts: [{ text: input }] };
     const newHistory = [...messages, userMsg];
-    
     setMessages(newHistory);
     setInput('');
     setIsLoading(true);
@@ -169,7 +225,6 @@ export const ChatInterface = () => {
       const responseText = await sendChatMessage(newHistory, apiKey, (toolName) => {
         setActiveTool(toolName);
       });
-
       setMessages(prev => [...prev, { role: 'model', parts: [{ text: responseText }] }]);
     } catch (error: any) {
       toast.error("Erro no chat: " + error.message);
@@ -179,163 +234,164 @@ export const ChatInterface = () => {
     }
   };
 
-  const clearChat = () => {
-    if (confirm("Deseja limpar o histórico do chat?")) {
-      setMessages([]);
-    }
-  };
-
   return (
-    <Card className="flex flex-col h-[calc(100vh-200px)] shadow-elegant border-primary/20 relative overflow-visible">
-      <CardHeader className="border-b border-border/50 bg-muted/20 py-3 flex flex-row items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-2 bg-primary/10 rounded-full">
-            <Bot className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-sm font-bold">Consultor JOTA AI</CardTitle>
-            <p className="text-[10px] text-muted-foreground">Conectado às suas Skills e Ferramentas</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-4">
-          {availableSkills.length > 0 && (
-            <div className="hidden md:flex items-center gap-1.5">
-              <span className="text-[9px] font-bold text-muted-foreground uppercase">Skills Ativas:</span>
-              <div className="flex gap-1">
-                {availableSkills.map(s => (
-                  <Badge key={s.id} variant="outline" className="text-[8px] py-0 h-4 bg-emerald-500/5 text-emerald-600 border-emerald-500/20">
-                    {s.name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-          <Button variant="ghost" size="icon" onClick={clearChat} title="Limpar Chat">
-            <Trash2 className="h-4 w-4 text-muted-foreground" />
-          </Button>
-        </div>
-      </CardHeader>
+    <Card className="flex h-[calc(100vh-200px)] shadow-elegant border-primary/20 relative overflow-hidden">
+      <ChatSidebar 
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSelectSession={loadSession}
+        onNewChat={createNewChat}
+        onDeleteSession={deleteSession}
+      />
 
-      <CardContent className="flex-1 overflow-hidden p-0 flex flex-col relative">
-        <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
-          <div className="space-y-6 max-w-4xl mx-auto">
-            {messages.length === 0 && (
-              <div className="flex flex-col items-center justify-center h-64 text-center space-y-4 opacity-50">
-                <Sparkles className="h-12 w-12 text-primary" />
-                <div>
-                  <p className="font-bold">Como posso ajudar hoje?</p>
-                  <p className="text-xs">Você pode me perguntar sobre cálculos, endereços ou análises tributárias.</p>
-                  <p className="text-[10px] mt-2 text-primary font-medium">
-                    Dica: Digite <span className="font-bold">@</span> para listar suas ferramentas.
-                  </p>
+      <div className="flex-1 flex flex-col bg-background">
+        <CardHeader className="border-b border-border/50 bg-muted/20 py-3 flex flex-row items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-2 bg-primary/10 rounded-full">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-sm font-bold">
+                {sessions.find(s => s.id === activeSessionId)?.title || 'Consultor JOTA AI'}
+              </CardTitle>
+              <p className="text-[10px] text-muted-foreground">Conectado às suas Skills e Ferramentas</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            {availableSkills.length > 0 && (
+              <div className="hidden md:flex items-center gap-1.5">
+                <span className="text-[9px] font-bold text-muted-foreground uppercase">Skills Ativas:</span>
+                <div className="flex gap-1">
+                  {availableSkills.slice(0, 3).map(s => (
+                    <Badge key={s.id} variant="outline" className="text-[8px] py-0 h-4 bg-emerald-500/5 text-emerald-600 border-emerald-500/20">
+                      {s.name}
+                    </Badge>
+                  ))}
+                  {availableSkills.length > 3 && <span className="text-[8px] text-muted-foreground">+{availableSkills.length - 3}</span>}
                 </div>
               </div>
             )}
+          </div>
+        </CardHeader>
 
-            {messages.filter(m => m.role !== 'function').map((msg, idx) => (
-              <div key={idx} className={cn(
-                "flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
-                msg.role === 'user' ? "flex-row-reverse" : "flex-row"
-              )}>
-                <div className={cn(
-                  "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
-                  msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted border border-border"
-                )}>
-                  {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
-                </div>
-                <div className={cn(
-                  "max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm",
-                  msg.role === 'user' 
-                    ? "bg-primary text-primary-foreground rounded-tr-none" 
-                    : "bg-card border border-border rounded-tl-none"
-                )}>
-                  <div className="prose prose-sm prose-invert max-w-none break-words">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {msg.parts[0].text}
-                    </ReactMarkdown>
+        <CardContent className="flex-1 overflow-hidden p-0 flex flex-col relative">
+          <ScrollArea className="flex-1 p-4" viewportRef={scrollRef}>
+            <div className="space-y-6 max-w-4xl mx-auto">
+              {messages.length === 0 && (
+                <div className="flex flex-col items-center justify-center h-64 text-center space-y-4 opacity-50">
+                  <Sparkles className="h-12 w-12 text-primary" />
+                  <div>
+                    <p className="font-bold">Como posso ajudar hoje?</p>
+                    <p className="text-xs">Inicie uma nova conversa técnica ou selecione uma anterior.</p>
+                    <p className="text-[10px] mt-2 text-primary font-medium">
+                      Dica: Digite <span className="font-bold">@</span> para listar suas ferramentas.
+                    </p>
                   </div>
                 </div>
-              </div>
-            ))}
+              )}
 
-            {activeTool && (
-              <div className="flex gap-3 animate-pulse">
-                <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
-                  <Wrench className="h-4 w-4 text-emerald-500" />
-                </div>
-                <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-4 py-2 text-[10px] font-mono text-emerald-600">
-                  Usando ferramenta: <span className="font-bold">{activeTool}</span>...
-                </div>
-              </div>
-            )}
-
-            {isLoading && !activeTool && (
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-border">
-                  <Bot className="h-4 w-4 text-primary animate-bounce" />
-                </div>
-                <div className="bg-muted/30 rounded-2xl px-4 py-2 flex items-center gap-2">
-                  <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">Processando...</span>
-                </div>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
-
-        <div className="p-4 border-t border-border/50 bg-muted/10 relative overflow-visible">
-          {showMentionMenu && filteredSkills.length > 0 && (
-            <div className="absolute bottom-full left-4 mb-2 w-72 bg-card border border-border rounded-lg shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-bottom-2">
-              <div className="bg-muted/80 px-3 py-2 border-b border-border flex items-center gap-2">
-                <Terminal className="h-3 w-3 text-primary" />
-                <span className="text-[10px] font-bold uppercase text-muted-foreground">Minhas Ferramentas</span>
-              </div>
-              <div className="max-h-60 overflow-y-auto">
-                {filteredSkills.map((skill, idx) => (
-                  <div
-                    key={skill.id}
-                    className={cn(
-                      "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors",
-                      idx === selectedIndex ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/30 border-l-4 border-transparent"
-                    )}
-                    onClick={() => insertSkill(skill.name)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-foreground">{skill.name}</span>
-                      <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Skill</Badge>
+              {messages.filter(m => m.role !== 'function').map((msg, idx) => (
+                <div key={idx} className={cn(
+                  "flex gap-3 animate-in fade-in slide-in-from-bottom-2 duration-300",
+                  msg.role === 'user' ? "flex-row-reverse" : "flex-row"
+                )}>
+                  <div className={cn(
+                    "w-8 h-8 rounded-full flex items-center justify-center shrink-0",
+                    msg.role === 'user' ? "bg-primary text-primary-foreground" : "bg-muted border border-border"
+                  )}>
+                    {msg.role === 'user' ? <User className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
+                  </div>
+                  <div className={cn(
+                    "max-w-[80%] rounded-2xl px-4 py-2 text-sm shadow-sm",
+                    msg.role === 'user' 
+                      ? "bg-primary text-primary-foreground rounded-tr-none" 
+                      : "bg-card border border-border rounded-tl-none"
+                  )}>
+                    <div className="prose prose-sm prose-invert max-w-none break-words">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {msg.parts[0].text}
+                      </ReactMarkdown>
                     </div>
-                    <p className="text-[10px] text-muted-foreground line-clamp-1">{skill.description}</p>
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              ))}
 
-          <div className="max-w-4xl mx-auto flex items-end gap-2">
-            <Textarea
-              ref={inputRef}
-              placeholder="Digite sua dúvida técnica ou use @ para chamar uma Skill..."
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              className="flex-1 bg-background min-h-[44px] max-h-[600px] resize-y py-3 px-4 text-base overflow-y-auto transition-[height] duration-100"
-              disabled={isLoading}
-              autoComplete="off"
-              rows={1}
-            />
-            <Button 
-              onClick={handleSend} 
-              disabled={isLoading || !input.trim()} 
-              className="bg-primary hover:bg-primary/90 h-11 w-11 p-0 shrink-0 mb-0.5"
-            >
-              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
-            </Button>
+              {activeTool && (
+                <div className="flex gap-3 animate-pulse">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center border border-emerald-500/30">
+                    <Wrench className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-2xl px-4 py-2 text-[10px] font-mono text-emerald-600">
+                    Usando ferramenta: <span className="font-bold">{activeTool}</span>...
+                  </div>
+                </div>
+              )}
+
+              {isLoading && !activeTool && (
+                <div className="flex gap-3">
+                  <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center border border-border">
+                    <Bot className="h-4 w-4 text-primary animate-bounce" />
+                  </div>
+                  <div className="bg-muted/30 rounded-2xl px-4 py-2 flex items-center gap-2">
+                    <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Processando...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="p-4 border-t border-border/50 bg-muted/10 relative overflow-visible">
+            {showMentionMenu && filteredSkills.length > 0 && (
+              <div className="absolute bottom-full left-4 mb-2 w-72 bg-card border border-border rounded-lg shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-bottom-2">
+                <div className="bg-muted/80 px-3 py-2 border-b border-border flex items-center gap-2">
+                  <Terminal className="h-3 w-3 text-primary" />
+                  <span className="text-[10px] font-bold uppercase text-muted-foreground">Minhas Ferramentas</span>
+                </div>
+                <div className="max-h-60 overflow-y-auto">
+                  {filteredSkills.map((skill, idx) => (
+                    <div
+                      key={skill.id}
+                      className={cn(
+                        "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors",
+                        idx === selectedIndex ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/30 border-l-4 border-transparent"
+                      )}
+                      onClick={() => insertSkill(skill.name)}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">{skill.name}</span>
+                        <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Skill</Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground line-clamp-1">{skill.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="max-w-4xl mx-auto flex items-end gap-2">
+              <Textarea
+                ref={inputRef}
+                placeholder="Digite sua dúvida técnica ou use @ para chamar uma Skill..."
+                value={input}
+                onChange={handleInputChange}
+                onKeyDown={handleKeyDown}
+                className="flex-1 bg-background min-h-[44px] max-h-[600px] resize-y py-3 px-4 text-base overflow-y-auto transition-[height] duration-100"
+                disabled={isLoading}
+                autoComplete="off"
+                rows={1}
+              />
+              <Button 
+                onClick={handleSend} 
+                disabled={isLoading || !input.trim()} 
+                className="bg-primary hover:bg-primary/90 h-11 w-11 p-0 shrink-0 mb-0.5"
+              >
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+              </Button>
+            </div>
           </div>
-          <p className="text-[9px] text-center text-muted-foreground mt-2">
-            O Consultor JOTA AI utiliza suas Skills configuradas para fornecer respostas precisas.
-          </p>
-        </div>
-      </CardContent>
+        </CardContent>
+      </div>
     </Card>
   );
 };
