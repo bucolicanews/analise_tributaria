@@ -317,6 +317,20 @@ const Configuracao = () => {
                               </p>
                             </div>
                           </section>
+
+                          {/* ESTRUTURA JSON PARA IMPORTAÇÃO */}
+                          <section className="space-y-3 pt-4">
+                            <h4 className="font-bold text-sm text-emerald-600 flex items-center gap-2"><Download className="h-4 w-4" /> Estrutura JSON para Importação/Exportação</h4>
+                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de seus especialistas:</p>
+                            <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`{
+  "title": "Consultor de Blindagem Patrimonial",
+  "role": "Advogado Tributarista Sênior",
+  "content": "Você é um especialista em proteção de bens... Analise os riscos de confusão patrimonial informados no JSON.",
+  "isActive": true
+}`}
+                            </pre>
+                          </section>
                         </div>
                       </DialogContent>
                     </Dialog>
