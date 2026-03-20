@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,7 @@ export const ChatInterface = () => {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const lastHeightRef = useRef<number>(0);
 
   const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
@@ -42,19 +43,37 @@ export const ChatInterface = () => {
   }, []);
 
   // Efeito para auto-redimensionar a textarea conforme o texto aumenta
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (inputRef.current && !isManuallyResized) {
-      inputRef.current.style.height = 'auto';
-      const newHeight = Math.max(44, Math.min(inputRef.current.scrollHeight, 500));
+      inputRef.current.style.height = 'inherit';
+      const scrollHeight = inputRef.current.scrollHeight;
+      const newHeight = Math.max(44, Math.min(scrollHeight, 600));
       inputRef.current.style.height = `${newHeight}px`;
+      lastHeightRef.current = newHeight;
     }
   }, [input, isManuallyResized]);
+
+  // Detectar redimensionamento manual real
+  useEffect(() => {
+    const textarea = inputRef.current;
+    if (!textarea) return;
+
+    const observer = new ResizeObserver(() => {
+      if (textarea.offsetHeight !== lastHeightRef.current && lastHeightRef.current !== 0) {
+        setIsManuallyResized(true);
+      }
+    });
+
+    observer.observe(textarea);
+    return () => observer.disconnect();
+  }, []);
 
   // Resetar o redimensionamento manual quando o input for limpo
   useEffect(() => {
     if (input === '' && inputRef.current) {
       setIsManuallyResized(false);
       inputRef.current.style.height = '44px';
+      lastHeightRef.current = 44;
     }
   }, [input]);
 
@@ -299,8 +318,7 @@ export const ChatInterface = () => {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              onMouseDown={() => setIsManuallyResized(true)}
-              className="flex-1 bg-background min-h-[44px] max-h-[500px] resize-y py-3 px-4 text-base overflow-y-auto"
+              className="flex-1 bg-background min-h-[44px] max-h-[600px] resize-y py-3 px-4 text-base overflow-y-auto transition-[height] duration-100"
               disabled={isLoading}
               autoComplete="off"
               rows={1}
