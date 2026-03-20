@@ -18,6 +18,7 @@ export const ChatInterface = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [availableSkills, setAvailableSkills] = useState<DynamicSkill[]>([]);
+  const [isManuallyResized, setIsManuallyResized] = useState(false);
   
   // Estados para o menu de menção (@)
   const [showMentionMenu, setShowMentionMenu] = useState(false);
@@ -42,10 +43,18 @@ export const ChatInterface = () => {
 
   // Efeito para auto-redimensionar a textarea conforme o texto aumenta
   useEffect(() => {
-    if (inputRef.current) {
+    if (inputRef.current && !isManuallyResized) {
       inputRef.current.style.height = 'auto';
-      const newHeight = Math.min(inputRef.current.scrollHeight, 500);
+      const newHeight = Math.max(44, Math.min(inputRef.current.scrollHeight, 500));
       inputRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input, isManuallyResized]);
+
+  // Resetar o redimensionamento manual quando o input for limpo
+  useEffect(() => {
+    if (input === '' && inputRef.current) {
+      setIsManuallyResized(false);
+      inputRef.current.style.height = '44px';
     }
   }, [input]);
 
@@ -290,7 +299,8 @@ export const ChatInterface = () => {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-background min-h-[44px] max-h-[500px] resize-none py-3 px-4 text-base overflow-y-auto"
+              onMouseDown={() => setIsManuallyResized(true)}
+              className="flex-1 bg-background min-h-[44px] max-h-[500px] resize-y py-3 px-4 text-base overflow-y-auto"
               disabled={isLoading}
               autoComplete="off"
               rows={1}
