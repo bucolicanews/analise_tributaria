@@ -45,7 +45,6 @@ const Configuracao = () => {
   const [importPromptJson, setImportPromptJson] = useState('');
   const [isImportPromptDialogOpen, setIsImportPromptDialogOpen] = useState(false);
 
-  // Estados dos campos restaurados
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || '');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || '');
   const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('jota-razaoSocial') || '');
@@ -287,20 +286,74 @@ const Configuracao = () => {
                    </div>
                  </div>
 
-                 {/* INSTRUÇÕES PARA SKILLS */}
-                 <Alert className="bg-emerald-950/40 border-emerald-500/30 text-emerald-200">
-                   <Cpu className="h-4 w-4 text-emerald-400" />
-                   <AlertTitle className="text-xs font-bold uppercase">Manual da Skill (JavaScript Local)</AlertTitle>
-                   <AlertDescription className="text-[11px] leading-relaxed space-y-2">
-                     <p>Ao usar o tipo <strong>JavaScript Local</strong>, seu código tem acesso a:</p>
-                     <ul className="list-disc pl-4 space-y-1 font-mono text-[10px] text-emerald-300">
-                       <li><strong>args:</strong> Objeto contendo os parâmetros enviados pela IA (definidos no JSON de parâmetros).</li>
-                       <li><strong>helpers:</strong> Funções internas como <code className="text-white">calculateSimplesNacionalEffectiveRate(anexo, rbt12)</code>.</li>
-                       <li><strong>fetch:</strong> Você pode fazer requisições HTTP externas (APIs).</li>
-                     </ul>
-                     <p>O código deve sempre retornar um objeto ou valor (ex: <code className="text-white">return &#123; resultado: args.valor * 2 &#125;;</code>).</p>
-                   </AlertDescription>
-                 </Alert>
+                 {/* INSTRUÇÕES PARA SKILLS COM BOTÃO DE MANUAL TÉCNICO */}
+                 <div className="space-y-3">
+                    <Alert className="bg-emerald-950/40 border-emerald-500/30 text-emerald-200">
+                      <Cpu className="h-4 w-4 text-emerald-400" />
+                      <AlertTitle className="text-xs font-bold uppercase">O que são Skills?</AlertTitle>
+                      <AlertDescription className="text-[11px] leading-relaxed">
+                        As Skills permitem que a IA execute ações reais, como consultar APIs, rodar códigos JavaScript ou acessar sua base de conhecimento. Use o símbolo <strong>@</strong> no chat para invocar uma ferramenta manualmente.
+                      </AlertDescription>
+                    </Alert>
+
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
+                          <BookOpen className="h-4 w-4 mr-2" /> Abrir Manual Técnico de Skills (JSON / Tags / JS)
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-emerald-600"><Terminal className="h-5 w-5" /> Manual Técnico de Desenvolvimento de Skills</DialogTitle>
+                          <DialogDescription>Guia completo para estruturar JSON, seletores de Web Scraping e lógica JavaScript.</DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-6 py-4">
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">1. Estrutura do Parâmetro JSON (Schema)</h4>
+                            <p className="text-xs text-muted-foreground">Define quais dados a IA deve coletar do usuário antes de chamar a skill.</p>
+                            <pre className="bg-slate-950 text-blue-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`{
+  "type": "object",
+  "properties": {
+    "cnpj": { "type": "string", "description": "CNPJ da empresa para consulta" },
+    "ano": { "type": "number", "description": "Ano base do cálculo" }
+  },
+  "required": ["cnpj"]
+}`}
+                            </pre>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">2. Web Scraping (Tags e Seletores)</h4>
+                            <p className="text-xs text-muted-foreground">Use seletores CSS para extrair dados de sites públicos. Exemplos comuns:</p>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                              <li><code className="bg-muted px-1">article</code>: Captura o conteúdo principal de blogs.</li>
+                              <li><code className="bg-muted px-1">.conteudo-post</code>: Captura classes específicas de texto.</li>
+                              <li><code className="bg-muted px-1">table.tabela-taxas</code>: Captura tabelas de dados técnicos.</li>
+                              <li><code className="bg-muted px-1">#main-content</code>: Captura o ID principal da página.</li>
+                            </ul>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">3. Contexto de Execução JavaScript</h4>
+                            <p className="text-xs text-muted-foreground">Seu código roda em um ambiente isolado com acesso a:</p>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                              <li><strong>args:</strong> Objeto com os valores preenchidos pela IA.</li>
+                              <li><strong>helpers:</strong> Funções internas (ex: <code className="bg-muted px-1">calculateSimplesNacionalEffectiveRate</code>).</li>
+                              <li><strong>fetch:</strong> Para chamadas de API externas.</li>
+                            </ul>
+                            <pre className="bg-slate-950 text-emerald-400 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`// Exemplo de código JS
+const res = await fetch('https://api.exemplo.com/data/' + args.cnpj);
+const data = await res.json();
+return { status: "sucesso", resultado: data.valor };`}
+                            </pre>
+                          </section>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                 </div>
 
                  <Accordion type="multiple" className="w-full space-y-2">
                    {dynamicSkills.map((skill) => (
