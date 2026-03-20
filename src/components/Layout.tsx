@@ -53,7 +53,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="border-b border-border bg-gradient-primary">
-        <div className="container mx-auto px-4 py-4">
+        <div className="max-w-[1600px] mx-auto px-4 py-4">
           <div className="flex flex-col sm:flex-row items-center sm:justify-between gap-3">
             <div className="flex items-center text-center sm:text-left gap-3">
               <div className="rounded-lg bg-black/30 p-2 backdrop-blur">
@@ -109,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
         </div>
       </header>
       <nav className="border-b border-border bg-card shadow-sm sticky top-0 z-50">
-        <div className="container mx-auto px-4 flex space-x-2 overflow-x-auto no-scrollbar py-2">
+        <div className="max-w-[1600px] mx-auto px-4 flex space-x-2 overflow-x-auto no-scrollbar py-2">
           {navItems.map((item) => (
             <Link key={item.to} to={item.to}>
               <Button
@@ -143,11 +143,11 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           </Link>
         </div>
       </nav>
-      <main className="flex-grow">
+      <main className="flex-grow max-w-[1600px] mx-auto w-full">
         {children}
       </main>
       <footer className="border-t border-border bg-card py-4 text-center text-sm text-muted-foreground">
-        <div className="container mx-auto px-4">Desenvolvido por Jota Empresas</div>
+        <div className="max-w-[1600px] mx-auto px-4">Desenvolvido por Jota Empresas</div>
       </footer>
     </div>
   );
