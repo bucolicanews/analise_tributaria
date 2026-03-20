@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, User, Send, Loader2, Wrench, Trash2, Sparkles, CheckCircle2, Terminal } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
@@ -25,11 +25,10 @@ export const ChatInterface = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-  // Carrega as skills sempre que o componente monta ou ganha foco
   const refreshSkills = () => {
     const skills = loadDynamicSkills().filter(s => s.isActive);
     setAvailableSkills(skills);
@@ -51,22 +50,19 @@ export const ChatInterface = () => {
     s.name.toLowerCase().includes(mentionFilter.toLowerCase())
   );
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const cursorPosition = e.target.selectionStart || 0;
     setInput(value);
 
-    // Lógica para detectar o @
     const textBeforeCursor = value.substring(0, cursorPosition);
     const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
 
-    // Só ativa se o @ for o início do texto ou precedido por um espaço
     if (lastAtSymbol !== -1) {
       const charBeforeAt = textBeforeCursor[lastAtSymbol - 1];
-      if (lastAtSymbol === 0 || charBeforeAt === ' ') {
+      if (lastAtSymbol === 0 || charBeforeAt === ' ' || charBeforeAt === '\n') {
         const query = textBeforeCursor.substring(lastAtSymbol + 1);
-        // Verifica se não há espaços entre o @ e o cursor
-        if (!query.includes(' ')) {
+        if (!query.includes(' ') && !query.includes('\n')) {
           setMentionFilter(query);
           setShowMentionMenu(true);
           setSelectedIndex(0);
@@ -88,7 +84,6 @@ export const ChatInterface = () => {
     setInput(newValue);
     setShowMentionMenu(false);
     
-    // Devolve o foco para o input
     setTimeout(() => {
       inputRef.current?.focus();
       const newPos = lastAtSymbol + skillName.length + 2;
@@ -217,7 +212,7 @@ export const ChatInterface = () => {
                     ? "bg-primary text-primary-foreground rounded-tr-none" 
                     : "bg-card border border-border rounded-tl-none"
                 )}>
-                  <div className="prose prose-sm prose-invert max-w-none">
+                  <div className="prose prose-sm prose-invert max-w-none break-words">
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>
                       {msg.parts[0].text}
                     </ReactMarkdown>
@@ -252,7 +247,6 @@ export const ChatInterface = () => {
         </ScrollArea>
 
         <div className="p-4 border-t border-border/50 bg-muted/10 relative overflow-visible">
-          {/* Menu de Menção (@) - Posicionado acima do input */}
           {showMentionMenu && filteredSkills.length > 0 && (
             <div className="absolute bottom-full left-4 mb-2 w-72 bg-card border border-border rounded-lg shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-bottom-2">
               <div className="bg-muted/80 px-3 py-2 border-b border-border flex items-center gap-2">
@@ -280,18 +274,22 @@ export const ChatInterface = () => {
             </div>
           )}
 
-          <div className="max-w-4xl mx-auto flex gap-2">
-            <Input
+          <div className="max-w-4xl mx-auto flex items-end gap-2">
+            <Textarea
               ref={inputRef}
               placeholder="Digite sua dúvida técnica ou use @ para chamar uma Skill..."
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-background"
+              className="flex-1 bg-background min-h-[40px] max-h-[200px] resize-none py-2"
               disabled={isLoading}
               autoComplete="off"
             />
-            <Button onClick={handleSend} disabled={isLoading || !input.trim()} className="bg-primary hover:bg-primary/90">
+            <Button 
+              onClick={handleSend} 
+              disabled={isLoading || !input.trim()} 
+              className="bg-primary hover:bg-primary/90 h-10 w-10 p-0 shrink-0"
+            >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
             </Button>
           </div>
