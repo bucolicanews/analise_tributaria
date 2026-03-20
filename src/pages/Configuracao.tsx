@@ -224,22 +224,70 @@ const Configuracao = () => {
                    </div>
                  </div>
 
-                 {/* INSTRUÇÕES PARA PROMPTS */}
-                 <Alert className="bg-indigo-950/40 border-indigo-500/30 text-indigo-200">
-                   <HelpCircle className="h-4 w-4 text-indigo-400" />
-                   <AlertTitle className="text-xs font-bold uppercase">Manual do Prompt (Variáveis Disponíveis)</AlertTitle>
-                   <AlertDescription className="text-[11px] leading-relaxed space-y-2">
-                     <p>Ao criar um prompt para a página de <strong>Viabilidade</strong>, você pode assumir que a IA receberá um JSON estruturado contendo:</p>
-                     <ul className="list-disc pl-4 space-y-1 font-mono text-[10px] text-indigo-300">
-                       <li><strong>empresa:</strong> razaoSocial, naturezaJuridica, capitalSocial, localizacao (municipio/estado).</li>
-                       <li><strong>operacional:</strong> cnaes (lista com código e descrição), descricaoAtividades.</li>
-                       <li><strong>financeiro:</strong> faturamento (anual, mensal, segregacao), custos_operacionais (fixos/variaveis).</li>
-                       <li><strong>societario_trabalhista:</strong> quadro_pessoal, pro_labore (valor, se recolhe INSS/IR).</li>
-                       <li><strong>conformidade_riscos:</strong> respostas sobre mistura patrimonial e recebimento em conta PF.</li>
-                     </ul>
-                     <p>Use estas informações para pedir cálculos específicos (ex: "Calcule o Fator R usando financeiro.faturamento e societario.pro_labore").</p>
-                   </AlertDescription>
-                 </Alert>
+                 {/* INSTRUÇÕES PARA PROMPTS COM BOTÃO DE MANUAL TÉCNICO */}
+                 <div className="space-y-3">
+                    <Alert className="bg-indigo-950/40 border-indigo-500/30 text-indigo-200">
+                      <HelpCircle className="h-4 w-4 text-indigo-400" />
+                      <AlertTitle className="text-xs font-bold uppercase">O que são Prompts de Sistema?</AlertTitle>
+                      <AlertDescription className="text-[11px] leading-relaxed">
+                        Os Prompts definem a "personalidade" e as regras de análise da IA. Eles recebem automaticamente todo o contexto do formulário de viabilidade em formato JSON.
+                      </AlertDescription>
+                    </Alert>
+
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full border-indigo-500/30 text-indigo-600 hover:bg-indigo-500/10">
+                          <BookOpen className="h-4 w-4 mr-2" /> Abrir Manual Técnico de Engenharia de Prompts (Variáveis / JSON)
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-indigo-600"><Terminal className="h-5 w-5" /> Manual Técnico de Engenharia de Prompts</DialogTitle>
+                          <DialogDescription>Guia de variáveis disponíveis no payload e estrutura de importação.</DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-6 py-4">
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">1. Variáveis de Contexto (JSON Payload)</h4>
+                            <p className="text-xs text-muted-foreground">A IA recebe um objeto global. Você pode instruí-la a ler caminhos específicos:</p>
+                            <ul className="list-disc pl-4 space-y-2 text-[11px]">
+                              <li><strong>empresa.razaoSocial:</strong> Nome da empresa ou projeto.</li>
+                              <li><strong>empresa.naturezaJuridica:</strong> SLU, LTDA, EI, etc.</li>
+                              <li><strong>operacional.cnaes:</strong> Lista de objetos com <code className="bg-muted px-1">codigo_formatado</code> e <code className="bg-muted px-1">descricao</code>.</li>
+                              <li><strong>financeiro.faturamento.anual_total:</strong> Valor bruto anual para enquadramento.</li>
+                              <li><strong>financeiro.fator_r.percentual_atual:</strong> Cálculo automático da relação Folha/Faturamento.</li>
+                              <li><strong>societario_trabalhista.pro_labore.valor_declarado:</strong> Valor do pró-labore informado.</li>
+                              <li><strong>conformidade_riscos.alertas_criticos:</strong> Booleanos sobre confusão patrimonial e riscos previdenciários.</li>
+                            </ul>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">2. Exemplo de Instrução de Cálculo</h4>
+                            <p className="text-xs text-muted-foreground">Como pedir para a IA realizar análises baseadas nos dados:</p>
+                            <pre className="bg-slate-950 text-indigo-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`"Analise o campo financeiro.fator_r.percentual_atual. 
+Se for menor que 28%, explique que a empresa está no Anexo V 
+e sugira aumentar o societario_trabalhista.pro_labore.valor_declarado 
+para atingir a economia do Anexo III."`}
+                            </pre>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">3. Estrutura JSON para Importação/Exportação</h4>
+                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar seus especialistas:</p>
+                            <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`{
+  "title": "Consultor de Blindagem Patrimonial",
+  "role": "Advogado Tributarista Sênior",
+  "content": "Você é um especialista em proteção de bens... Analise os riscos de confusão patrimonial informados no JSON.",
+  "isActive": true
+}`}
+                            </pre>
+                          </section>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                 </div>
 
                  <Accordion type="multiple" className="w-full space-y-2">
                    {prompts.map((prompt) => (
