@@ -59,6 +59,30 @@ const Configuracao = () => {
   
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
 
+  // Função para limpar ruídos de texto (linhas vazias ou apenas com vírgulas)
+  const cleanTextNoise = (text: string): string => {
+    return text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => {
+        // Remove linhas que não contêm letras ou números (apenas vírgulas, pontos ou espaços)
+        const hasContent = /[a-zA-Z0-9]/.test(line);
+        return hasContent;
+      })
+      .join('\n');
+  };
+
+  const handleManualCleanNoise = (skillId: string) => {
+    setDynamicSkills(prev => prev.map(s => {
+      if (s.id === skillId && s.knowledgeBaseText) {
+        const cleaned = cleanTextNoise(s.knowledgeBaseText);
+        toast.success("Ruídos removidos com sucesso!");
+        return { ...s, knowledgeBaseText: cleaned };
+      }
+      return s;
+    }));
+  };
+
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     localStorage.setItem('jota-razaoSocial', razaoSocial);
@@ -122,10 +146,13 @@ const Configuracao = () => {
       }
 
       if (extractedText.trim()) {
+        // Aplica a limpeza de ruídos automaticamente na importação
+        const cleanedText = cleanTextNoise(extractedText);
+        
         setDynamicSkills(prev => prev.map(s => 
-          s.id === activeSkillIdForUpload ? { ...s, knowledgeBaseText: extractedText } : s
+          s.id === activeSkillIdForUpload ? { ...s, knowledgeBaseText: cleanedText } : s
         ));
-        toast.success("Conteúdo extraído com sucesso!", { id: toastId });
+        toast.success("Conteúdo extraído e limpo com sucesso!", { id: toastId });
       } else {
         toast.error("O arquivo parece estar vazio ou não contém texto legível.", { id: toastId });
       }
@@ -272,11 +299,21 @@ const Configuracao = () => {
                                      type="button" 
                                      variant="outline" 
                                      size="sm" 
+                                     className="h-7 text-[10px] border-orange-200 text-orange-600 hover:bg-orange-50"
+                                     onClick={() => handleManualCleanNoise(skill.id)}
+                                   >
+                                     <Eraser className="h-3 w-3 mr-1" />
+                                     Limpar Ruídos
+                                   </Button>
+                                   <Button 
+                                     type="button" 
+                                     variant="outline" 
+                                     size="sm" 
                                      className="h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
                                      onClick={() => updateSkill(skill.id, 'knowledgeBaseText', '')}
                                    >
                                      <Trash2 className="h-3 w-3 mr-1" />
-                                     Limpar Conteúdo
+                                     Apagar Tudo
                                    </Button>
                                    <Button 
                                      type="button" 
