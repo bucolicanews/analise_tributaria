@@ -313,13 +313,20 @@ const Configuracao = () => {
                             <h4 className="font-bold text-sm border-b pb-1">1. Estrutura do Parâmetro JSON (Schema)</h4>
                             <p className="text-xs text-muted-foreground">Define quais dados a IA deve coletar do usuário antes de chamar a skill.</p>
                             <pre className="bg-slate-950 text-blue-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
-{`{
+{`// Exemplo: Skill de Consulta de NCM
+{
   "type": "object",
   "properties": {
-    "cnpj": { "type": "string", "description": "CNPJ da empresa para consulta" },
-    "ano": { "type": "number", "description": "Ano base do cálculo" }
+    "ncm": { 
+      "type": "string", 
+      "description": "Código NCM (8 dígitos) para consulta de alíquotas" 
+    },
+    "ano": { 
+      "type": "number", 
+      "description": "Ano base do cálculo (ex: 2025)" 
+    }
   },
-  "required": ["cnpj"]
+  "required": ["ncm"]
 }`}
                             </pre>
                           </section>
@@ -328,12 +335,12 @@ const Configuracao = () => {
                             <h4 className="font-bold text-sm border-b pb-1">2. Web Scraping (Tags e Seletores)</h4>
                             <p className="text-xs text-muted-foreground">Use seletores CSS para extrair dados de sites públicos. Exemplos comuns:</p>
                             <ul className="list-disc pl-4 space-y-1 text-[11px]">
-                              <li><code className="bg-muted px-1">article</code>: Captura o conteúdo principal de blogs.</li>
-                              <li><code className="bg-muted px-1">.conteudo-post</code>: Captura classes específicas de texto.</li>
-                              <li><code className="bg-muted px-1">table.tabela-taxas</code>: Captura tabelas de dados técnicos.</li>
-                              <li><code className="bg-muted px-1">#main-content</code>: Captura o ID principal da página.</li>
-                              <li><code className="bg-muted px-1">#parent-fieldname-text</code>: Seletor comum em portais do Governo (Planalto).</li>
-                              <li><code className="bg-muted px-1">#content-core</code>: Seletor de conteúdo central em portais públicos.</li>
+                              <li><code className="bg-muted px-1">article</code>: Captura o conteúdo principal de blogs e notícias.</li>
+                              <li><code className="bg-muted px-1">.conteudo-post</code>: Captura classes específicas de texto em portais WordPress.</li>
+                              <li><code className="bg-muted px-1">table.tabela-taxas</code>: Captura tabelas de dados técnicos específicos.</li>
+                              <li><code className="bg-muted px-1">#main-content</code>: Captura o ID principal da página (comum em sites institucionais).</li>
+                              <li><code className="bg-muted px-1">#parent-fieldname-text</code>: Seletor padrão para o corpo de leis no portal do **Planalto**.</li>
+                              <li><code className="bg-muted px-1">#content-core</code>: Seletor de conteúdo central em portais do **Governo Federal**.</li>
                             </ul>
                           </section>
 
@@ -341,28 +348,39 @@ const Configuracao = () => {
                             <h4 className="font-bold text-sm border-b pb-1">3. Contexto de Execução JavaScript</h4>
                             <p className="text-xs text-muted-foreground">Seu código roda em um ambiente isolado com acesso a:</p>
                             <ul className="list-disc pl-4 space-y-1 text-[11px]">
-                              <li><strong>args:</strong> Objeto com os valores preenchidos pela IA.</li>
+                              <li><strong>args:</strong> Objeto com os valores preenchidos pela IA (ex: <code className="bg-muted px-1">args.ncm</code>).</li>
                               <li><strong>helpers:</strong> Funções internas (ex: <code className="bg-muted px-1">calculateSimplesNacionalEffectiveRate</code>).</li>
-                              <li><strong>fetch:</strong> Para chamadas de API externas.</li>
+                              <li><strong>fetch:</strong> Para chamadas de API externas (ViaCEP, APIs de tributos, etc).</li>
                             </ul>
                             <pre className="bg-slate-950 text-emerald-400 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
-{`// Exemplo de código JS
-const res = await fetch('https://api.exemplo.com/data/' + args.cnpj);
-const data = await res.json();
-return { status: "sucesso", resultado: data.valor };`}
+{`// Exemplo: Cálculo de Pró-labore Líquido
+const bruto = args.valor_bruto;
+const inss = bruto * 0.11;
+const baseIR = bruto - inss;
+// ... lógica de cálculo de IR ...
+return { 
+  status: "sucesso", 
+  bruto: bruto, 
+  inss: inss, 
+  liquido: bruto - inss - ir 
+};`}
                             </pre>
                           </section>
 
                           <section className="space-y-2">
                             <h4 className="font-bold text-sm border-b pb-1">4. Estrutura JSON para Importação/Exportação</h4>
-                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de suas ferramentas:</p>
+                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de suas ferramentas completas:</p>
                             <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
 {`{
-  "name": "nome_da_ferramenta",
-  "description": "O que a ferramenta faz",
-  "parameters": { "type": "object", "properties": {} },
+  "name": "calculadora_irpf_2026",
+  "description": "Calcula o IR sobre o pró-labore conforme Lei 15.270/2025",
+  "parameters": { 
+    "type": "object", 
+    "properties": { "valor_bruto": { "type": "number" } },
+    "required": ["valor_bruto"]
+  },
   "executionType": "local_js",
-  "jsCode": "return { status: 'ok' };",
+  "jsCode": "const bruto = args.valor_bruto; ... return { liquido: x };",
   "isActive": true
 }`}
                             </pre>
