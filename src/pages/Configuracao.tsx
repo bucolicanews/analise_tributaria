@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book } from 'lucide-react';
+import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book, Upload, Loader2 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
@@ -17,11 +16,19 @@ import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Configuração do worker do PDF.js via CDN para evitar problemas de build
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
 const Configuracao = () => {
   const { autenticado } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [activeSkillIdForUpload, setActiveSkillIdForUpload] = useState<string | null>(null);
+  const [isExtracting, setIsExtracting] = useState(false);
+
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || '');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || '');
   const [razaoSocial, setRazaoSocial] = useState(localStorage.getItem('jota-razaoSocial') || '');
@@ -41,7 +48,6 @@ const Configuracao = () => {
   const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
   
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
-  const [testResult, setTestResult] = useState<any>(null);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,13 +70,53 @@ const Configuracao = () => {
     toast.success("Configurações salvas com sucesso!");
   };
 
-  const handleRestoreDefaultJota = () => {
-    if (confirm("Deseja restaurar o padrão JOTA? Isso resetará o Super Prompt, os Agentes e as Skills.")) {
-      setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
-      setAgents(DEFAULT_AGENTS);
-      setDynamicSkills(DEFAULT_DYNAMIC_SKILLS);
-      toast.info("Padrão JOTA restaurado. Salve para confirmar.");
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !activeSkillIdForUpload) return;
+
+    setIsExtracting(true);
+    const toastId = toast.loading(`Extraindo conteúdo de ${file.name}...`);
+
+    try {
+      let extractedText = "";
+
+      if (file.type === "application/pdf") {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const strings = content.items.map((item: any) => item.str);
+          fullText += strings.join(" ") + "\n";
+        }
+        extractedText = fullText;
+      } else {
+        // TXT, XML, JSON, etc.
+        extractedText = await file.text();
+      }
+
+      if (extractedText.trim()) {
+        setDynamicSkills(prev => prev.map(s => 
+          s.id === activeSkillIdForUpload ? { ...s, knowledgeBaseText: extractedText } : s
+        ));
+        toast.success("Conteúdo extraído com sucesso!", { id: toastId });
+      } else {
+        toast.error("O arquivo parece estar vazio ou não contém texto legível.", { id: toastId });
+      }
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Erro ao processar arquivo: " + error.message, { id: toastId });
+    } finally {
+      setIsExtracting(false);
+      setActiveSkillIdForUpload(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
+  };
+
+  const triggerFileUpload = (skillId: string) => {
+    setActiveSkillIdForUpload(skillId);
+    fileInputRef.current?.click();
   };
 
   const updateAgent = (id: string, field: keyof AgentConfig, value: string) => {
@@ -103,25 +149,29 @@ const Configuracao = () => {
     setDynamicSkills(dynamicSkills.map(s => s.id === id ? { ...s, [field]: value } : s));
   };
 
-  const handleTestSkill = async (skill: DynamicSkill) => {
-    toast.info(`Testando skill: ${skill.name}...`);
-    try {
-      const mockArgs: any = {};
-      if (skill.name === 'consultar_endereco_viacep') mockArgs.cep = '66910010';
-      const result = await executeSkill(skill.name, mockArgs);
-      setTestResult({ skill: skill.name, result });
-    } catch (e: any) {
-      setTestResult({ skill: skill.name, error: e.message });
-    }
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
+      {/* Input de arquivo oculto para importação de Skills */}
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        className="hidden" 
+        accept=".pdf,.txt,.xml,.json" 
+        onChange={handleFileUpload} 
+      />
+
       <form onSubmit={handleSave}>
         <Card className="shadow-card">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle>
-            <Button type="button" variant="outline" size="sm" onClick={handleRestoreDefaultJota} className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+            <Button type="button" variant="outline" size="sm" onClick={() => {
+              if (confirm("Deseja restaurar o padrão JOTA?")) {
+                setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
+                setAgents(DEFAULT_AGENTS);
+                setDynamicSkills(DEFAULT_DYNAMIC_SKILLS);
+                toast.info("Padrão JOTA restaurado. Salve para confirmar.");
+              }
+            }} className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50">
               <RotateCcw className="h-3 w-3 mr-1" /> Restaurar Padrão JOTA
             </Button>
           </CardHeader>
@@ -141,8 +191,8 @@ const Configuracao = () => {
                 <div className="space-y-4 rounded-lg border border-emerald-500/30 p-4 bg-emerald-500/5">
                    <div className="flex items-center justify-between">
                      <div className="space-y-1">
-                       <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas (Controle Total)</h3>
-                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou bases de conhecimento (PDF/Texto).</p>
+                       <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas</h3>
+                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos (PDF/XML/TXT).</p>
                      </div>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={addSkill}>
                        <Plus className="h-4 w-4 mr-2" /> Nova Skill
@@ -174,7 +224,7 @@ const Configuracao = () => {
                                  <SelectContent>
                                    <SelectItem value="local_js">JavaScript Local</SelectItem>
                                    <SelectItem value="webhook">Webhook (n8n)</SelectItem>
-                                   <SelectItem value="knowledge_base">Base de Conhecimento (PDF/Texto)</SelectItem>
+                                   <SelectItem value="knowledge_base">Base de Conhecimento (Arquivo/Texto)</SelectItem>
                                  </SelectContent>
                                </Select>
                              </div>
@@ -185,16 +235,29 @@ const Configuracao = () => {
                            </div>
 
                            <div className="space-y-2">
-                             <Label>Descrição para a IA (Quando ela deve usar isso?)</Label>
+                             <Label>Descrição para a IA</Label>
                              <Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} />
                            </div>
 
                            {skill.executionType === 'knowledge_base' ? (
-                             <div className="space-y-2">
-                               <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base (Cole o texto do PDF/XML aqui)</Label>
+                             <div className="space-y-3">
+                               <div className="flex items-center justify-between">
+                                 <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base</Label>
+                                 <Button 
+                                   type="button" 
+                                   variant="outline" 
+                                   size="sm" 
+                                   className="h-7 text-[10px] border-blue-200 text-blue-600"
+                                   onClick={() => triggerFileUpload(skill.id)}
+                                   disabled={isExtracting}
+                                 >
+                                   {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                                   Importar PDF/XML/TXT
+                                 </Button>
+                               </div>
                                <Textarea 
                                  className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" 
-                                 placeholder="Cole aqui o conteúdo extraído do seu arquivo..."
+                                 placeholder="Cole o texto ou use o botão de importar acima..."
                                  value={skill.knowledgeBaseText || ''} 
                                  onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} 
                                />
@@ -202,7 +265,7 @@ const Configuracao = () => {
                            ) : (
                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                <div className="space-y-2">
-                                 <Label className="flex items-center gap-2">Parâmetros JSON (Manifesto)</Label>
+                                 <Label>Parâmetros JSON</Label>
                                  <Textarea 
                                    className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" 
                                    value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} 
@@ -216,12 +279,11 @@ const Configuracao = () => {
                                    }} 
                                  />
                                </div>
-
                                {skill.executionType === 'local_js' && (
                                  <div className="space-y-2">
-                                   <Label className="flex items-center gap-2 text-emerald-600"><Code className="h-3 w-3" /> Código JavaScript (Async)</Label>
+                                   <Label className="text-emerald-600">Código JavaScript</Label>
                                    <Textarea 
-                                     className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400 leading-relaxed" 
+                                     className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" 
                                      value={skill.jsCode || ''} 
                                      onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} 
                                    />
@@ -231,9 +293,6 @@ const Configuracao = () => {
                            )}
 
                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                             <Button type="button" variant="outline" size="sm" className="text-emerald-600" onClick={() => handleTestSkill(skill)}>
-                               <Play className="h-3 w-3 mr-2" /> Testar Skill
-                             </Button>
                              <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
                                <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
                              </Button>
@@ -246,13 +305,11 @@ const Configuracao = () => {
 
                 <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
                    <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (Super Prompt)</h3>
-                   <div className="space-y-2">
-                      <Textarea 
-                        className="font-mono text-[11px] h-[250px] bg-background border-indigo-200 focus:border-indigo-500 leading-relaxed" 
-                        value={preAnalysisPrompt} 
-                        onChange={(e) => setPreAnalysisPrompt(e.target.value)} 
-                      />
-                   </div>
+                   <Textarea 
+                     className="font-mono text-[11px] h-[250px] bg-background border-indigo-200" 
+                     value={preAnalysisPrompt} 
+                     onChange={(e) => setPreAnalysisPrompt(e.target.value)} 
+                   />
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
@@ -260,7 +317,6 @@ const Configuracao = () => {
                      <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas</h3>
                      <Button type="button" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
                    </div>
-                   
                    <Accordion type="multiple" className="w-full space-y-2">
                      {agents.sort((a,b) => (a.order||0)-(b.order||0)).map((agent) => (
                        <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4">
@@ -272,49 +328,29 @@ const Configuracao = () => {
                          </AccordionTrigger>
                          <AccordionContent className="pt-2 pb-4 space-y-4">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                             <div className="space-y-2">
-                               <Label>Nome do Agente</Label>
-                               <Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} />
-                             </div>
-                             <div className="space-y-2">
-                               <Label>Webhook Opcional (n8n)</Label>
-                               <Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} />
-                             </div>
+                             <div className="space-y-2"><Label>Nome do Agente</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
+                             <div className="space-y-2"><Label>Webhook Opcional</Label><Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} /></div>
                            </div>
-                           <div className="space-y-2">
-                             <Label>System Prompt do Agente</Label>
-                             <Textarea 
-                               className="font-mono text-xs h-32" 
-                               value={agent.systemPrompt} 
-                               onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} 
-                             />
-                           </div>
-                           <div className="flex justify-end">
-                             <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => deleteAgent(agent.id)}>
-                               <Trash2 className="h-4 w-4 mr-2" /> Remover Agente
-                             </Button>
-                           </div>
+                           <div className="space-y-2"><Label>System Prompt</Label><Textarea className="font-mono text-xs h-32" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} /></div>
+                           <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => deleteAgent(agent.id)}><Trash2 className="h-4 w-4 mr-2" /> Remover Agente</Button></div>
                          </AccordionContent>
                        </AccordionItem>
                      ))}
                    </Accordion>
                 </div>
 
-                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
-                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Google Gemini)</h3>
+                <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-50/5">
+                   <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local</h3>
                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                     <div className="space-y-2">
-                       <Label>Gemini API Key</Label>
-                       <Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
-                     </div>
+                     <div className="space-y-2"><Label>Gemini API Key</Label><Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} /></div>
                      <div className="space-y-2">
                        <Label>Modelo da IA</Label>
                        <Select value={geminiModel} onValueChange={setGeminiModel}>
                          <SelectTrigger><SelectValue /></SelectTrigger>
                          <SelectContent>
-                           <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro (Experimental)</SelectItem>
-                           <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</SelectItem>
-                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável)</SelectItem>
+                           <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro</SelectItem>
+                           <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash</SelectItem>
+                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro</SelectItem>
                          </SelectContent>
                        </Select>
                      </div>
@@ -332,10 +368,7 @@ const Configuracao = () => {
               <div className="p-12 text-center border-2 border-dashed rounded-lg bg-muted/20">
                 <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-lg font-bold">Acesso Restrito</h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">
-                  As configurações avançadas de IA, Agentes e Skills estão protegidas. 
-                  Clique em <strong>"Acesso Completo"</strong> no topo da página e insira a senha para editar.
-                </p>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">As configurações avançadas de IA estão protegidas. Clique em "Acesso Completo" no topo da página.</p>
               </div>
             )}
 
