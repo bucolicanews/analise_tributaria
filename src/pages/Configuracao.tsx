@@ -32,6 +32,7 @@ const Configuracao = () => {
   const [contadorCrc, setContadorCrc] = useState(localStorage.getItem('jota-contador-crc') || '');
   
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
+  const [geminiModel, setGeminiModel] = useState(localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash');
   const [enableGoogleSearch, setEnableGoogleSearch] = useState(localStorage.getItem('jota-gemini-search') === 'true');
   const [preAnalysisPrompt, setPreAnalysisPrompt] = useState(localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT);
 
@@ -55,6 +56,7 @@ const Configuracao = () => {
     localStorage.setItem('jota-contador-nome', contadorNome);
     localStorage.setItem('jota-contador-crc', contadorCrc);
     localStorage.setItem('jota-gemini-key', geminiKey);
+    localStorage.setItem('jota-gemini-model', geminiModel);
     localStorage.setItem('jota-gemini-search', enableGoogleSearch.toString());
     localStorage.setItem('jota-pre-analysis-prompt', preAnalysisPrompt);
     saveAgentsToStorage(agents);
@@ -191,13 +193,25 @@ const Configuracao = () => {
 
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
                    <h3 className="text-lg font-semibold flex items-center gap-2"><KeyRound className="h-5 w-5 text-blue-500" />Configurações da IA Local (Google Gemini)</h3>
-                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                      <div className="space-y-2">
                        <Label>Gemini API Key</Label>
                        <Input type="password" value={geminiKey} onChange={(e) => setGeminiKey(e.target.value)} />
                      </div>
                      <div className="space-y-2">
-                       <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding: Google Search Nativo</Label>
+                       <Label>Modelo da IA</Label>
+                       <Select value={geminiModel} onValueChange={setGeminiModel}>
+                         <SelectTrigger><SelectValue /></SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Mais Rápido)</SelectItem>
+                           <SelectItem value="gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental (Mais Inteligente)</SelectItem>
+                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável e Robusto)</SelectItem>
+                           <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash (Básico)</SelectItem>
+                         </SelectContent>
+                       </Select>
+                     </div>
+                     <div className="space-y-2">
+                       <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding</Label>
                        <div className="flex items-center justify-between p-2 border border-blue-500/30 rounded bg-blue-500/10">
                          <span className="text-xs text-blue-800">Permitir pesquisa na internet em tempo real</span>
                          <Switch checked={enableGoogleSearch} onCheckedChange={setEnableGoogleSearch} />

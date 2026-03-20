@@ -103,7 +103,10 @@ export async function callGeminiAgent(
   apiKey: string
 ): Promise<string> {
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  
+  // Lê o modelo do localStorage, ou usa flash como padrão
+  const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
