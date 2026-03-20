@@ -17,7 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
-import { JOTA_TOOLS_MANIFEST, DynamicSkill, loadDynamicSkills, saveDynamicSkills } from '@/lib/skills/taxSkills';
+import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS } from '@/lib/skills/taxSkills';
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
@@ -65,9 +65,10 @@ const Configuracao = () => {
   };
 
   const handleRestoreDefaultJota = () => {
-    if (confirm("Deseja restaurar o padrão JOTA? Isso resetará o Super Prompt e os 6 Agentes Especialistas.")) {
+    if (confirm("Deseja restaurar o padrão JOTA? Isso resetará o Super Prompt, os Agentes e as Skills.")) {
       setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
       setAgents(DEFAULT_AGENTS);
+      setDynamicSkills(DEFAULT_DYNAMIC_SKILLS);
       toast.info("Padrão JOTA restaurado. Salve para confirmar.");
     }
   };
@@ -82,7 +83,7 @@ const Configuracao = () => {
 
   const addAgent = () => {
     const newId = (agents.length + 1).toString();
-    setAgents([...agents, { id: newId, nome: `Novo Agente ${newId}`, systemPrompt: '', order: agents.length + 1 }]);
+    setAgents([...agents, { id: newId, nome: `Novo Agente \${newId}`, systemPrompt: '', order: agents.length + 1 }]);
   };
 
   const addSkill = () => {
@@ -92,7 +93,8 @@ const Configuracao = () => {
       description: 'Descrição da skill',
       parameters: { type: 'object', properties: { arg1: { type: 'string' } } },
       executionType: 'local_js',
-      isActive: true
+      isActive: true,
+      jsCode: '// Escreva seu código aqui\nreturn { status: "sucesso" };'
     };
     setDynamicSkills([...dynamicSkills, newSkill]);
   };
@@ -181,98 +183,107 @@ const Configuracao = () => {
                    </Accordion>
                 </div>
 
-                {/* SEÇÃO DE SKILLS DINÂMICAS */}
+                {/* SEÇÃO DE SKILLS DINÂMICAS EDITÁVEIS */}
                 <div className="space-y-4 rounded-lg border border-emerald-500/30 p-4 bg-emerald-500/5">
                    <div className="flex items-center justify-between">
-                     <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills Dinâmicas (Ferramentas da IA)</h3>
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas (Controle Total)</h3>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={addSkill}>
                        <Plus className="h-4 w-4 mr-2" /> Nova Skill
                      </Button>
                    </div>
 
-                   <div className="grid grid-cols-1 gap-4">
-                     <div className="p-3 rounded border bg-background">
-                       <Label className="text-[10px] uppercase font-bold text-muted-foreground mb-2 block">Skills Nativas (Sistema)</Label>
-                       <div className="flex flex-wrap gap-2">
-                         {JOTA_TOOLS_MANIFEST.map(tool => (
-                           <Badge key={tool.name} variant="secondary" className="font-mono text-[10px] py-1">
-                             {tool.name}
-                           </Badge>
-                         ))}
-                       </div>
-                     </div>
-
-                     <Accordion type="multiple" className="w-full space-y-2">
-                       {dynamicSkills.map((skill) => (
-                         <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4">
-                           <AccordionTrigger className="hover:no-underline py-3">
-                             <div className="flex items-center gap-3">
-                               <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
-                                 {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                               </div>
-                               <span className="font-bold text-sm">{skill.name}</span>
-                               {!skill.isActive && <Badge variant="outline" className="text-[8px]">INATIVA</Badge>}
+                   <Accordion type="multiple" className="w-full space-y-2">
+                     {dynamicSkills.map((skill) => (
+                       <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4">
+                         <AccordionTrigger className="hover:no-underline py-3">
+                           <div className="flex items-center gap-3">
+                             <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
+                               {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                              </div>
-                           </AccordionTrigger>
-                           <AccordionContent className="pt-2 pb-4 space-y-4">
-                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                               <div className="space-y-2">
-                                 <Label>Nome Técnico (snake_case)</Label>
-                                 <Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} />
-                               </div>
-                               <div className="space-y-2">
-                                 <Label>Tipo de Execução</Label>
-                                 <Select value={skill.executionType} onValueChange={v => updateSkill(skill.id, 'executionType', v)}>
-                                   <SelectTrigger><SelectValue /></SelectTrigger>
-                                   <SelectContent>
-                                     <SelectItem value="local_js">JavaScript Local</SelectItem>
-                                     <SelectItem value="webhook">Webhook (API Externa)</SelectItem>
-                                     <SelectItem value="knowledge_base">Base de Conhecimento (RAG)</SelectItem>
-                                   </SelectContent>
-                                 </Select>
-                               </div>
-                               <div className="flex items-center gap-2 pt-6">
-                                 <Switch checked={skill.isActive} onCheckedChange={v => updateSkill(skill.id, 'isActive', v)} />
-                                 <Label>Ativa</Label>
-                               </div>
-                             </div>
-
+                             <span className="font-bold text-sm">{skill.name}</span>
+                             {!skill.isActive && <Badge variant="outline" className="text-[8px]">INATIVA</Badge>}
+                             {skill.id.startsWith('sys-') && <Badge variant="secondary" className="text-[8px] bg-blue-100 text-blue-700">SISTEMA</Badge>}
+                           </div>
+                         </AccordionTrigger>
+                         <AccordionContent className="pt-2 pb-4 space-y-4">
+                           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                              <div className="space-y-2">
-                               <Label>Descrição para a IA (Quando usar esta ferramenta?)</Label>
-                               <Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} />
+                               <Label>Nome Técnico (snake_case)</Label>
+                               <Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} />
                              </div>
-
-                             {skill.executionType === 'webhook' && (
-                               <div className="space-y-2">
-                                 <Label>URL do Webhook</Label>
-                                 <Input placeholder="https://..." value={skill.webhookUrl || ''} onChange={e => updateSkill(skill.id, 'webhookUrl', e.target.value)} />
-                               </div>
-                             )}
-
-                             {skill.executionType === 'local_js' && (
-                               <div className="space-y-2">
-                                 <Label>Código JavaScript (Async)</Label>
-                                 <Textarea className="font-mono text-xs h-32 bg-slate-950 text-emerald-400" value={skill.jsCode || ''} onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} />
-                               </div>
-                             )}
-
-                             {skill.executionType === 'knowledge_base' && (
-                               <div className="space-y-2">
-                                 <Label>Conteúdo da Base de Conhecimento</Label>
-                                 <Textarea className="text-xs h-32" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
-                               </div>
-                             )}
-
-                             <div className="flex justify-end">
-                               <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
-                                 <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
-                               </Button>
+                             <div className="space-y-2">
+                               <Label>Tipo de Execução</Label>
+                               <Select value={skill.executionType} onValueChange={v => updateSkill(skill.id, 'executionType', v)}>
+                                 <SelectTrigger><SelectValue /></SelectTrigger>
+                                 <SelectContent>
+                                   <SelectItem value="local_js">JavaScript Local</SelectItem>
+                                   <SelectItem value="webhook">Webhook (API Externa)</SelectItem>
+                                   <SelectItem value="knowledge_base">Base de Conhecimento (RAG)</SelectItem>
+                                 </SelectContent>
+                               </Select>
                              </div>
-                           </AccordionContent>
-                         </AccordionItem>
-                       ))}
-                     </Accordion>
-                   </div>
+                             <div className="flex items-center gap-2 pt-6">
+                               <Switch checked={skill.isActive} onCheckedChange={v => updateSkill(skill.id, 'isActive', v)} />
+                               <Label>Ativa</Label>
+                             </div>
+                           </div>
+
+                           <div className="space-y-2">
+                             <Label>Descrição para a IA (O que esta ferramenta faz?)</Label>
+                             <Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} />
+                           </div>
+
+                           <div className="space-y-2">
+                             <Label className="flex items-center gap-2">Parâmetros JSON (Manifesto da Ferramenta)</Label>
+                             <Textarea 
+                               className="font-mono text-[10px] h-24 bg-slate-900 text-blue-300" 
+                               value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} 
+                               onChange={e => {
+                                 try {
+                                   const parsed = JSON.parse(e.target.value);
+                                   updateSkill(skill.id, 'parameters', parsed);
+                                 } catch (err) {
+                                   updateSkill(skill.id, 'parameters', e.target.value);
+                                 }
+                               }} 
+                             />
+                           </div>
+
+                           {skill.executionType === 'local_js' && (
+                             <div className="space-y-2">
+                               <Label className="flex items-center gap-2 text-emerald-600"><Code className="h-3 w-3" /> Código JavaScript (Async)</Label>
+                               <Textarea 
+                                 className="font-mono text-[11px] h-64 bg-slate-950 text-emerald-400 leading-relaxed" 
+                                 value={skill.jsCode || ''} 
+                                 onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} 
+                               />
+                               <p className="text-[9px] text-muted-foreground italic">Disponível: args (parâmetros), helpers (funções do sistema).</p>
+                             </div>
+                           )}
+
+                           {skill.executionType === 'webhook' && (
+                             <div className="space-y-2">
+                               <Label>URL do Webhook</Label>
+                               <Input placeholder="https://..." value={skill.webhookUrl || ''} onChange={e => updateSkill(skill.id, 'webhookUrl', e.target.value)} />
+                             </div>
+                           )}
+
+                           {skill.executionType === 'knowledge_base' && (
+                             <div className="space-y-2">
+                               <Label>Conteúdo da Base de Conhecimento</Label>
+                               <Textarea className="text-xs h-32" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
+                             </div>
+                           )}
+
+                           <div className="flex justify-end">
+                             <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
+                               <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
+                             </Button>
+                           </div>
+                         </AccordionContent>
+                       </AccordionItem>
+                     ))}
+                   </Accordion>
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-border p-4 bg-blue-500/5">
