@@ -17,52 +17,54 @@ export interface AgentConfig {
   order?: number;
 }
 
-// --- PROMPTS ESTABILIZADOS (ANTI-LOOP / NÍVEL 10/10) ---
+export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer técnico pericial de alto nível (10/10).
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer técnico pericial de alto nível.
-
-DIRETRIZES DE ESTABILIDADE:
-1. Seja denso e técnico, mas evite repetições desnecessárias.
-2. Use tabelas curtas e objetivas para cálculos.
-3. FOCO EM BELÉM/PA: Use alíquota de ISS de 5% (Lei Municipal nº 8.655/2008).
+DIRETRIZES DE CÁLCULO:
+1. SIMPLES NACIONAL: Use sempre a fórmula da Alíquota Efetiva: [(RBT12 * Aliq. Nominal) - Parcela Deduzir] / RBT12.
+2. FATOR R: Verifique se (Folha 12m / Faturamento 12m) >= 0.28. Se sim, Anexo III. Se não, Anexo V.
+3. BELÉM/PA: ISS fixo de 5% para serviços não retidos.
 
 ESTRUTURA DO PARECER:
 # RELATÓRIO TÉCNICO DE VIABILIDADE
-1. VIABILIDADE LOCAL: Veredito sobre o endereço e zoneamento.
-2. ENGENHARIA TRIBUTÁRIA: Simulação de DAS (Anexo I, III e V) e Fator R.
-3. PARAMETRIZAÇÃO: Sugestão de NCM e CSOSN para os itens principais.
-4. RISCOS E BLINDAGEM: Diagnóstico de confusão patrimonial.`;
+1. VIABILIDADE LOCAL: Endereço e Zoneamento.
+2. ENGENHARIA TRIBUTÁRIA: Tabelas comparativas de Anexos e Lucro Presumido.
+3. PARAMETRIZAÇÃO: NCM, CSOSN e CFOP sugeridos.
+4. RISCOS E BLINDAGEM: Diagnóstico de confusão patrimonial e retiradas.`;
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade Urbana (Belém/PA).
 # 1. VIABILIDADE LOCAL E ZONEAMENTO
 - Valide o endereço com 'get_address_by_cep'.
-- Analise a compatibilidade com o Plano Diretor de Belém (Lei 8.655/2008).`;
+- Analise a compatibilidade das atividades (CNAEs) com o zoneamento de Belém.
+- Cite a necessidade de Viabilidade na JUCEPA e Alvará de Funcionamento.`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Conformidade e Calendário.
 # 2. CALENDÁRIO DE OBRIGAÇÕES
-- Tabela objetiva: Obrigação | Prazo | Base Legal.
-- Foco em PGDAS, eSocial e EFD-Reinf.`;
+- Tabela: Obrigação | Frequência | Prazo (Dia Útil) | Base Legal.
+- Inclua PGDAS, eSocial, DCTFWeb e EFD-Reinf.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos Tributários.
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
-- Calcule o DAS (Anexo I, III e V) em R$ com base no faturamento informado.
-- Demonstre o cálculo do Fator R (Folha/Faturamento) e a economia gerada.
-- Compare com o Lucro Presumido de forma tabular.`;
+- Realize o cálculo matemático exato do Simples Nacional.
+- Demonstre a memória de cálculo da Alíquota Efetiva para cada Anexo aplicável.
+- Calcule o ponto de equilíbrio do Fator R (quanto de Pró-labore é necessário para economizar imposto).
+- Compare o total anual de impostos com o Lucro Presumido.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização Fiscal.
 # 4. GUIA DE PARAMETRIZAÇÃO TÉCNICA
-- Tabela: Item | NCM | CSOSN | CFOP | Classe IBS/CBS.
-- Limite-se aos 10 itens mais relevantes para evitar cortes no texto.`;
+- Tabela de Cadastro: Produto/Serviço | NCM | CSOSN (Simples) | CST (Presumido) | CFOP.
+- Explique a segregação de receitas para produtos com Substituição Tributária (ST).`;
 
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Licenciamento.
 # 5. LICENCIAMENTO E RISCOS OPERACIONAIS
-- Detalhe Alvará SIAT Belém e Bombeiros PA.
-- Analise riscos de confusão patrimonial (PF vs PJ).`;
+- Detalhe o processo de licenciamento (Bombeiros, Vigilância, Meio Ambiente).
+- Alerte sobre os riscos de manter contas PF e PJ misturadas.
+- Explique a importância da SLU para proteção patrimonial.`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Blindagem.
 # 6. REFORMA TRIBUTÁRIA E INDICADORES
-- Projete o impacto do IBS/CBS (EC 132/2023).
-- Tabela de indicadores financeiros sugeridos para os sócios.`;
+- Projete o impacto da transição para o IBS/CBS (EC 132/2023).
+- Sugira indicadores de performance (Margem Líquida, Markup, Prazo Médio).
+- Conclua com o "Veredito de Viabilidade" (Viável / Viável com Ressalvas / Inviável).`;
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   { id: '1', nome: '1. Viabilidade Local', order: 1, systemPrompt: PROMPT_AGENTE_1 },
@@ -89,11 +91,11 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja técnico, use tabelas limpas e evite repetições de caracteres." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja técnico, use tabelas limpas e evite repetições de caracteres. Use a fórmula de alíquota efetiva para cálculos tributários." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
       temperature: 0.1, 
-      maxOutputTokens: 4096, // Reduzido para garantir estabilidade por agente
+      maxOutputTokens: 4096,
       topP: 0.8,
       topK: 40
     }, 
