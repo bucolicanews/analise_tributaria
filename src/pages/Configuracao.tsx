@@ -42,9 +42,6 @@ const Configuracao = () => {
   const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
   
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
-  const [editingSkill, setEditingSkill] = useState<Partial<DynamicSkill> | null>(null);
-  const [viewingSystemSkill, setViewingSystemSkill] = useState<any | null>(null);
-  const [importJson, setImportJson] = useState('');
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,29 +85,6 @@ const Configuracao = () => {
     setAgents([...agents, { id: newId, nome: `Novo Agente ${newId}`, systemPrompt: '', order: agents.length + 1 }]);
   };
 
-  const handleAddSkill = () => {
-    setEditingSkill({
-      id: `skill-${Date.now()}`,
-      name: 'nova_habilidade',
-      description: 'Descrição detalhada...',
-      parameters: { type: "object", properties: { termo_busca: { type: "string" } } },
-      executionType: 'knowledge_base',
-      isActive: true,
-      knowledgeBaseText: '',
-      jsCode: '// args contém os parâmetros\nreturn { status: "sucesso", dados: args };'
-    });
-  };
-
-  const handleSaveSkill = () => {
-    if (!editingSkill?.name) return toast.error("Nome é obrigatório.");
-    const newSkills = [...dynamicSkills];
-    const index = newSkills.findIndex(s => s.id === editingSkill.id);
-    if (index >= 0) newSkills[index] = editingSkill as DynamicSkill;
-    else newSkills.push(editingSkill as DynamicSkill);
-    setDynamicSkills(newSkills);
-    setEditingSkill(null);
-  };
-
   return (
     <div className="container mx-auto px-4 py-8">
       <form onSubmit={handleSave}>
@@ -118,7 +92,7 @@ const Configuracao = () => {
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={handleRestoreDefaultJota} className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50">
-              <RotateCcw className="h-3 w-3 mr-1" /> Restaurar Padrão JOTA (10/10)
+              <RotateCcw className="h-3 w-3 mr-1" /> Restaurar Padrão JOTA
             </Button>
           </CardHeader>
           <CardContent className="space-y-8">
@@ -137,7 +111,7 @@ const Configuracao = () => {
                 <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
                    <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (Super Prompt)</h3>
                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Este prompt é usado na Pré-Análise e como base para o Diagnóstico Oficial.</Label>
+                      <Label className="text-xs text-muted-foreground">Este prompt é usado na Pré-Análise. Proíbe tabelas e força listas.</Label>
                       <Textarea 
                         className="font-mono text-[11px] h-[250px] bg-background border-indigo-200 focus:border-indigo-500 leading-relaxed" 
                         value={preAnalysisPrompt} 
@@ -148,7 +122,7 @@ const Configuracao = () => {
 
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
                    <div className="flex items-center justify-between">
-                     <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas (Diagnóstico em Cadeia)</h3>
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas</h3>
                      <Button type="button" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
                    </div>
                    
@@ -204,15 +178,15 @@ const Configuracao = () => {
                          <Select value={geminiModel} onValueChange={setGeminiModel}>
                            <SelectTrigger><SelectValue /></SelectTrigger>
                            <SelectContent>
+                             <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro (Experimental)</SelectItem>
                              <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</SelectItem>
                              <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável)</SelectItem>
-                             <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash</SelectItem>
                              <SelectItem value="custom">Outro (Digitar ID abaixo)</SelectItem>
                            </SelectContent>
                          </Select>
-                         {geminiModel === 'custom' || !['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash'].includes(geminiModel) ? (
+                         {geminiModel === 'custom' || !['gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro'].includes(geminiModel) ? (
                            <Input 
-                             placeholder="Ex: gemini-2.0-pro-exp-02-05" 
+                             placeholder="Ex: gemini-3.1-pro-preview" 
                              value={geminiModel === 'custom' ? '' : geminiModel} 
                              onChange={(e) => setGeminiModel(e.target.value)}
                              className="h-8 text-xs font-mono"
@@ -223,7 +197,7 @@ const Configuracao = () => {
                      <div className="space-y-2">
                        <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding</Label>
                        <div className="flex items-center justify-between p-2 border border-blue-500/30 rounded bg-blue-500/10">
-                         <span className="text-xs text-blue-800">Permitir pesquisa na internet em tempo real</span>
+                         <span className="text-xs text-blue-800">Pesquisa na internet</span>
                          <Switch checked={enableGoogleSearch} onCheckedChange={setEnableGoogleSearch} />
                        </div>
                      </div>

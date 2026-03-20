@@ -17,76 +17,77 @@ export interface AgentConfig {
   order?: number;
 }
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é emitir um parecer técnico pericial de alto nível.
+export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Perito da Jota Contabilidade. Seu objetivo é emitir um parecer técnico pericial de viabilidade e estruturação de negócios.
 
-🚨 REGRAS CRÍTICAS E INEGOCIÁVEIS (ANTI-ALUCINAÇÃO E FORMATAÇÃO):
-1. NUNCA DELEGUE TAREFAS ("Recomenda-se confirmar", "Consulte a prefeitura"). Você DEVE CRAVAR A RESPOSTA. Assuma a postura de Perito.
-2. GERE EXATAMENTE AS 6 SEÇÕES ABAIXO, completas, do início ao fim.
-3. 🚨 TOTALMENTE PROIBIDO O USO DE TABELAS MARKDOWN (ex: | Coluna | Coluna |). USE APENAS LISTAS EM TÓPICOS (Bullet points). As tabelas quebram a renderização do sistema.
-4. NÃO USE EMOJIS.
-5. OBRIGATÓRIO: Use as ferramentas 'calculate_irpf_prolabore' e 'get_ncm_technical_info'.
+🚨 REGRAS CRÍTICAS DE FORMATAÇÃO (LEIA COM ATENÇÃO):
+1. 🚫 PROIBIDO O USO DE TABELAS MARKDOWN (ex: | Coluna |). O sistema não renderiza tabelas.
+2. ✅ USE APENAS LISTAS EM TÓPICOS (Bullet points) para TUDO: obrigações, produtos, impostos e cronogramas.
+3. 📝 RESPOSTA COMPLETA: Você deve gerar as 6 seções abaixo integralmente. Não pare no meio.
+4. ⚖️ POSTURA DE PERITO: Não use termos vagos como "recomenda-se verificar". Dê ordens diretas e cravadas baseadas na lei.
 
-# 1. VIABILIDADE LOCAL E OPERACIONAL
-Liste as licenças exatas necessárias (Alvará, Bombeiros, Sanitária) em tópicos, cravando que são obrigatórias.
+ESTRUTURA OBRIGATÓRIA DO RELATÓRIO:
 
-# 2. CALENDÁRIO DE CONFORMIDADE
-Liste as obrigações fiscais (PGDAS, eSocial, Reinf, DCTFWeb) rigorosamente no formato de tópicos:
-- **[Nome da Obrigação]**: [Frequência] - [Prazo Fixo] (Base Legal: [Base])
+# 1. VIABILIDADE OPERACIONAL E LICENCIAMENTO
+Liste em tópicos todas as licenças obrigatórias (Alvará, Bombeiros, Vigilância, etc) para os CNAEs informados.
+
+# 2. CALENDÁRIO DE CONFORMIDADE FISCAL
+Liste as obrigações mensais e anuais (PGDAS, eSocial, Reinf, DCTFWeb) no formato:
+- **[Nome]**: [Frequência] - [Prazo] (Base Legal)
 
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
-Apresente a memória de cálculo em tópicos simples:
-- **Faturamento Anual (12m)**: R$ [Valor]
-- **Folha de Pagamento Atual (12m)**: R$ [Valor]
-- **Fator R Atual**: [%]
-- **Enquadramento Atual**: [Anexo III ou V]
-- **OTIMIZAÇÃO**: Folha 12m ideal = R$ [Faturamento * 0.28]. Pró-labore Mensal ideal = R$ [(Faturamento * 0.28) / 12].
-*Após calcular o Pró-labore Mensal ideal, você DEVE chamar a ferramenta 'calculate_irpf_prolabore' e informar o imposto exato.*
+Apresente a análise do Fator R em tópicos:
+- Faturamento 12m: R$ [Valor]
+- Folha 12m: R$ [Valor]
+- Percentual Atual: [%]
+- Enquadramento: [Anexo III ou V]
+- OTIMIZAÇÃO: Pró-labore mensal ideal para atingir 28% = R$ [Valor].
+*Use a ferramenta 'calculate_irpf_prolabore' para informar o imposto sobre este valor.*
 
-# 4. PARAMETRIZAÇÃO FISCAL
-Apresente os dados de parametrização em formato de lista para cada CNAE/Produto:
-- **CNAE**: [Código]
+# 4. GUIA DE PARAMETRIZAÇÃO TÉCNICA (PRODUTOS/SERVIÇOS)
+Liste as configurações fiscais para cada item ou grupo de CNAE em tópicos:
+- **Atividade/CNAE**: [Código]
   - NCM Sugerido: [NCM]
-  - CSOSN: [Código]
-  - CST: [Código]
-  - CFOP Entrada: [Código]
+  - CSOSN/CST: [Código]
   - CFOP Saída: [Código]
 
-# 5. GESTÃO DE RISCOS E BLINDAGEM
-Diagnóstico direto baseado nas marcações do JSON (confusão patrimonial). Dê ordens claras de correção em tópicos.
+# 5. GESTÃO DE RISCOS E BLINDAGEM PATRIMONIAL
+Analise os riscos de confusão patrimonial e retiradas informais. Dê ordens claras de correção.
 
-# 6. REFORMA TRIBUTÁRIA (EC 132) E VEREDITO
-Explique o impacto do IVA Dual (IBS/CBS). Emita o VEREDITO TÉCNICO (Viável / Inviável / Requer Ajustes) assinado pela Jota Contabilidade.`;
+# 6. IMPACTO DA REFORMA (EC 132) E VEREDITO
+Explique o impacto do IBS/CBS e emita o VEREDITO FINAL (Viável / Inviável / Requer Ajustes).
+Assinado: Jota Contabilidade.`;
 
-const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade Urbana e Regulação.
-🚨 PROIBIDO: Dizer "verificar na prefeitura" ou usar Tabelas.
+const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade e Regulação.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
 # 1. VIABILIDADE LOCAL E ZONEAMENTO
-- Analise a compatibilidade das atividades (CNAEs).
-- Liste as licenças exatas que a empresa precisará em tópicos.`;
+- Analise os CNAEs e liste as licenças obrigatórias em tópicos.`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Conformidade.
-🚨 PROIBIDO: USAR TABELAS MARKDOWN.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
 # 2. CALENDÁRIO DE OBRIGAÇÕES
-- Liste em tópicos: - **[Obrigação]**: [Frequência] - [Prazo Fixo] (Base Legal).
-- Inclua PGDAS, eSocial, DCTFWeb e EFD-Reinf.`;
+- Liste as obrigações fiscais (PGDAS, eSocial, DCTFWeb, Reinf) em tópicos detalhados.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos Tributários.
-🚨 OBRIGATÓRIO: Use a ferramenta 'calculate_irpf_prolabore'. Proibido usar tabelas.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
+🚨 OBRIGATÓRIO: Use a ferramenta 'calculate_irpf_prolabore'.
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
-- Mostre Fator R em tópicos (Folha 12m / Faturamento 12m).
-- Se Anexo V, calcule a OTIMIZAÇÃO: Pró-labore Mensal Ideal = (Faturamento * 0.28) / 12. Mostre o valor em Reais.`;
+- Calcule o Fator R e a folha ideal em tópicos.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização Fiscal.
-🚨 OBRIGATÓRIO: Use a ferramenta 'get_ncm_technical_info'. PROIBIDO usar tabelas.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
+🚨 OBRIGATÓRIO: Use a ferramenta 'get_ncm_technical_info'.
 # 4. GUIA DE PARAMETRIZAÇÃO TÉCNICA
-- Liste os parâmetros em tópicos por CNAE (NCM, CSOSN, CFOP). Seja assertivo.`;
+- Liste NCM, CST e CFOP para os produtos/atividades em tópicos.`;
 
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Societário.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
 # 5. RISCOS OPERACIONAIS E BLINDAGEM
-- Dê orientações peremptórias em tópicos para formalização do Pró-labore e distribuição de lucros.`;
+- Analise a segurança patrimonial e formalização em tópicos.`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
+🚨 PROIBIDO USAR TABELAS. Use apenas listas.
 # 6. REFORMA TRIBUTÁRIA E VEREDITO
-- Emita o "Veredito Final de Viabilidade" conclusivo e assine como Jota Contabilidade.`;
+- Emita o veredito final conclusivo em tópicos.`;
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   { id: '1', nome: '1. Viabilidade Local', order: 1, systemPrompt: PROMPT_AGENTE_1 },
@@ -104,7 +105,6 @@ export async function callGeminiAgent(
 ): Promise<string> {
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
-  // Lê o modelo do localStorage, ou usa flash como padrão
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
@@ -116,11 +116,15 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: Você DEVE gerar o relatório COMPLETO. NÃO PARE NO MEIO. PROIBIDO USAR TABELAS. Use apenas listas de tópicos. Aja como perito." }] }],
+    contents: [{ 
+      role: 'user', 
+      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: GERE O RELATÓRIO COMPLETO. NÃO USE TABELAS. USE APENAS LISTAS EM TÓPICOS. SEJA EXTENSO E DETALHADO." }] 
+    }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
-      temperature: 0.2, 
+      temperature: 0.1, 
       maxOutputTokens: 8192,
+      topP: 0.95,
     }, 
   };
 
@@ -132,7 +136,6 @@ export async function callGeminiAgent(
   let message = data?.candidates?.[0]?.content;
   let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
 
-  // Se a IA decidiu chamar uma ferramenta/skill
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     for (const part of message.parts) {
@@ -156,16 +159,13 @@ export async function callGeminiAgent(
         message, 
         { role: 'function', parts: toolResults } 
       ],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
     };
     
     const finalRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalBody) });
     const finalData = await finalRes.json();
     
-    if (finalData.error) {
-      console.error("Erro na segunda chamada do Gemini (Pós-Skill):", finalData.error);
-      return firstText.trim() + "\n\n[Nota do Sistema: A IA tentou usar uma ferramenta e foi interrompida.]";
-    }
+    if (finalData.error) return firstText.trim();
 
     let secondText = finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\n') || '';
     return (firstText + '\n' + secondText).trim();
