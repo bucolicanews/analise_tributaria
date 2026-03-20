@@ -414,7 +414,17 @@ const Configuracao = () => {
                              <li><strong>JavaScript Local:</strong> Executa código no navegador. Tem acesso ao objeto <code className="bg-muted px-1">args</code> (enviado pela IA) e <code className="bg-muted px-1">helpers</code> (funções de cálculo do sistema).</li>
                              <li><strong>Webhook (n8n):</strong> Envia os dados para uma URL externa e aguarda a resposta. Ideal para integrações com APIs ou bancos de dados.</li>
                              <li><strong>Base de Conhecimento:</strong> Texto estático que a IA consulta para responder perguntas específicas.</li>
-                             <li><strong>Navegação Web:</strong> Extrai texto de qualquer site público. Use o Seletor CSS para pegar apenas o conteúdo relevante.</li>
+                             <li>
+                               <strong>Navegação Web:</strong> Extrai texto de qualquer site público.
+                               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                                 <p className="text-xs font-bold text-blue-700 flex items-center gap-1">
+                                   <Zap className="h-3 w-3" /> Dica para Sites do Governo:
+                                 </p>
+                                 <p className="text-[11px] text-blue-600 mt-1">
+                                   Portais como gov.br, Receita Federal e Portal da NF-e usam o padrão Plone. Para extrair apenas o texto principal desses sites, use os seletores: <code className="bg-blue-100 px-1">#parent-fieldname-text, #content-core</code>.
+                                 </p>
+                               </div>
+                             </li>
                            </ul>
                          </section>
 
