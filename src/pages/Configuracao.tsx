@@ -318,25 +318,16 @@ const Configuracao = () => {
 
                          <div className="space-y-2"><Label>Descrição para a IA</Label><Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} /></div>
 
-                         {skill.suggestedInstruction && (
-                           <div className="space-y-2">
-                             <Label className="text-primary flex items-center gap-2"><Lightbulb className="h-3 w-3" /> Instrução Sugerida para o Agente</Label>
-                             <div className="p-3 rounded-md bg-primary/5 border border-primary/20 relative group">
-                               <p className="text-xs text-foreground/80 pr-8">{skill.suggestedInstruction}</p>
-                               <Button 
-                                 size="icon" 
-                                 variant="ghost" 
-                                 className="h-6 w-6 absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                                 onClick={() => {
-                                   navigator.clipboard.writeText(skill.suggestedInstruction || '');
-                                   toast.success("Instrução copiada!");
-                                 }}
-                               >
-                                 <Copy className="h-3 w-3" />
-                               </Button>
-                             </div>
-                           </div>
-                         )}
+                         <div className="space-y-2">
+                           <Label className="text-primary flex items-center gap-2"><Lightbulb className="h-3 w-3" /> Instrução de Uso (Prompt)</Label>
+                           <Textarea 
+                             placeholder="Descreva para o Agente como e quando usar esta skill. Ex: 'Sempre que o usuário fornecer um CEP, utilize a ferramenta #consultar_endereco_viacep para validar os dados.'"
+                             value={skill.suggestedInstruction || ''} 
+                             onChange={e => updateSkill(skill.id, 'suggestedInstruction', e.target.value)}
+                             className="text-xs h-20 bg-primary/5 border-primary/20"
+                           />
+                           <p className="text-[10px] text-muted-foreground italic">Dica: Copie este texto para o 'System Prompt' do seu Agente para que ele saiba utilizar esta ferramenta.</p>
+                         </div>
 
                          {skill.executionType === 'knowledge_base' ? (
                            <div className="space-y-3">
