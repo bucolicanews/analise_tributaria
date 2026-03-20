@@ -162,7 +162,7 @@ export async function callGeminiAgent(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
@@ -174,7 +174,7 @@ export async function callGeminiAgent(
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ 
       role: 'user', 
-      parts: [{ text: userContent + "\\n\\n[INSTRUÇÃO CRÍTICA]: USE APENAS OS CNAES E DADOS DO CLIENTE ACIMA. NÃO CITE OFICINAS OU OUTROS SETORES. NÃO USE TABELAS." }] 
+      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: USE APENAS OS CNAES E DADOS DO CLIENTE ACIMA. NÃO CITE OFICINAS OU OUTROS SETORES. NÃO USE TABELAS." }] 
     }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
@@ -187,10 +187,10 @@ export async function callGeminiAgent(
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
   const data = await response.json();
   
-  if (data.error) throw new Error(\`Erro API Gemini: \${data.error.message}\`);
+  if (data.error) throw new Error(`Erro API Gemini: ${data.error.message}`);
   
   let message = data?.candidates?.[0]?.content;
-  let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\\n') || '';
+  let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
 
   if (message?.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
@@ -223,15 +223,15 @@ export async function callGeminiAgent(
     
     if (finalData.error) return firstText.trim();
 
-    let secondText = finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\\n') || '';
-    return (firstText + '\\n' + secondText).trim();
+    let secondText = finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\n') || '';
+    return (firstText + '\n' + secondText).trim();
   }
   
   return firstText.trim();
 }
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
-  if (!agent.webhookUrl) throw new Error(\`Webhook não configurado.\`);
+  if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
   const response = await fetch(agent.webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentName: agent.nome, data: JSON.parse(userContent), previousReports }) });
   const data = await response.json();
   return data.report || data.output || "Erro no processamento.";
