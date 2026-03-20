@@ -16,10 +16,13 @@ import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
-import * as pdfjsLib from 'pdfjs-dist';
 
-// Configuração do worker do PDF.js via CDN para evitar problemas de build
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+// Importação correta do PDF.js para o Vite
+import * as pdfjsLib from 'pdfjs-dist';
+import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
+
+// Configura o worker usando o arquivo local da node_modules via Vite
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
@@ -82,7 +85,9 @@ const Configuracao = () => {
 
       if (file.type === "application/pdf") {
         const arrayBuffer = await file.arrayBuffer();
-        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        const pdf = await loadingTask.promise;
+        
         let fullText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
@@ -92,7 +97,6 @@ const Configuracao = () => {
         }
         extractedText = fullText;
       } else {
-        // TXT, XML, JSON, etc.
         extractedText = await file.text();
       }
 
@@ -105,7 +109,7 @@ const Configuracao = () => {
         toast.error("O arquivo parece estar vazio ou não contém texto legível.", { id: toastId });
       }
     } catch (error: any) {
-      console.error(error);
+      console.error("Erro na extração:", error);
       toast.error("Erro ao processar arquivo: " + error.message, { id: toastId });
     } finally {
       setIsExtracting(false);
@@ -151,7 +155,6 @@ const Configuracao = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Input de arquivo oculto para importação de Skills */}
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -257,7 +260,7 @@ const Configuracao = () => {
                                </div>
                                <Textarea 
                                  className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" 
-                                 placeholder="Cole o texto ou use o botão de importar acima..."
+                                 placeholder="Conteúdo extraído aparecerá aqui..."
                                  value={skill.knowledgeBaseText || ''} 
                                  onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} 
                                />
