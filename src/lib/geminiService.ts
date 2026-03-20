@@ -158,9 +158,18 @@ export async function sendChatMessage(
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
   const toolsArray = dynamicManifests.length > 0 ? [{ functionDeclarations: dynamicManifests }] : undefined;
 
+  // Criamos uma lista textual das skills para o prompt do sistema
+  const skillsList = dynamicSkills.map(s => `- ${s.name}: ${s.description}`).join('\n');
+
   const systemPrompt = `Você é o Assistente Inteligente da Jota Contabilidade. 
-  Você tem acesso a ferramentas especializadas para cálculos tributários, consultas de CEP e análise de mercado.
-  Sempre que precisar de um dado preciso (como cálculo de imposto ou endereço), use a ferramenta correspondente.
+  Você tem acesso a ferramentas especializadas (Skills) configuradas pelo usuário.
+  
+  FERRAMENTAS DISPONÍVEIS:
+  ${skillsList || "Nenhuma ferramenta configurada no momento."}
+
+  Sempre que o usuário perguntar algo relacionado a estas ferramentas, você DEVE chamá-las. 
+  Por exemplo, se houver uma ferramenta de "tabela_cClassTrib", chame-a para obter os dados antes de responder.
+  
   Responda de forma profissional, clara e técnica. Use Markdown para formatar suas respostas.`;
 
   const body = {
