@@ -125,7 +125,7 @@ export async function callGeminiAgent(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
@@ -146,7 +146,7 @@ export async function callGeminiAgent(
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
   const data = await response.json();
   
-  if (data.error) throw new Error(`Erro API Gemini: \${data.error.message}`);
+  if (data.error) throw new Error(`Erro API Gemini: ${data.error.message}`);
   
   let message = data?.candidates?.[0]?.content;
   if (!message) return "Sem resposta da IA.";
@@ -189,19 +189,19 @@ export async function sendChatMessage(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
   const toolsArray = dynamicManifests.length > 0 ? [{ functionDeclarations: dynamicManifests }] : undefined;
 
-  const skillsList = dynamicSkills.map(s => `- \${s.name}: \${s.description}`).join('\n');
+  const skillsList = dynamicSkills.map(s => `- ${s.name}: ${s.description}`).join('\n');
 
   const systemPrompt = `Você é o Assistente Inteligente da Jota Contabilidade. 
   Você tem acesso a ferramentas especializadas (Skills) configuradas pelo usuário.
   
   FERRAMENTAS DISPONÍVEIS:
-  \${skillsList || "Nenhuma ferramenta configurada no momento."}
+  ${skillsList || "Nenhuma ferramenta configurada no momento."}
 
   Sempre que o usuário perguntar algo relacionado a estas ferramentas, você DEVE chamá-las. 
   Por exemplo, se houver uma ferramenta de "tabela_cClassTrib", chame-a para obter os dados antes de responder.
@@ -242,7 +242,7 @@ export async function sendChatMessage(
 }
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
-  if (!agent.webhookUrl) throw new Error(\`Webhook não configurado.\`);
+  if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
   const response = await fetch(agent.webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentName: agent.nome, data: JSON.parse(userContent), previousReports }) });
   const data = await response.json();
   return data.report || data.output || "Erro no processamento.";
