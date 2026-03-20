@@ -22,6 +22,21 @@ export interface ChatMessage {
   parts: any[];
 }
 
+export const DEFAULT_AGENTS: AgentConfig[] = [
+  {
+    id: 'agent-1',
+    nome: 'Perito Tributário Sênior',
+    systemPrompt: 'Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é realizar auditorias profundas e encontrar economias fiscais.',
+    order: 1
+  },
+  {
+    id: 'agent-2',
+    nome: 'Analista de Viabilidade',
+    systemPrompt: 'Você é um Analista de Viabilidade especializado em novos negócios e enquadramento no Simples Nacional.',
+    order: 2
+  }
+];
+
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é entregar um MANUAL DE ESTRUTURAÇÃO FISCAL E VIABILIDADE (Nível 10/10).
 
 INICIE COM: “Parecer técnico-contábil estratégico, com visão preventiva, fiscalizatória, pericial e de planejamento tributário estruturado”
@@ -129,7 +144,6 @@ export async function callGeminiAgent(
   return message.parts?.map((p: any) => p.text || '').join('\n') || '';
 }
 
-// NOVA FUNÇÃO: Chat Interativo com Memória e Skills
 export async function sendChatMessage(
   history: ChatMessage[],
   apiKey: string,
@@ -176,7 +190,6 @@ export async function sendChatMessage(
       }
     }
 
-    // Envia o resultado da função de volta para a IA gerar o texto final
     const updatedHistory = [...history, message, { role: 'function', parts: toolResults }];
     return sendChatMessage(updatedHistory, apiKey, onToolCall);
   }
@@ -193,7 +206,7 @@ export async function callAgentWebhook(agent: AgentConfig, userContent: string, 
 
 export function loadAgentsFromStorage(): AgentConfig[] {
   const raw = localStorage.getItem('jota-agentes');
-  return raw ? JSON.parse(raw) : [];
+  return raw ? JSON.parse(raw) : DEFAULT_AGENTS;
 }
 
 export function saveAgentsToStorage(agents: AgentConfig[]): void {
