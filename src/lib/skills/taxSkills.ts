@@ -230,7 +230,6 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
 
         if (!html || html.trim().length === 0) throw new Error("Conteúdo vazio retornado.");
 
-        // USANDO DOMPARSER PARA EXTRAÇÃO PRECISA
         const parser = new DOMParser();
         const doc = parser.parseFromString(html, 'text/html');
         
@@ -243,17 +242,23 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
           }
         }
 
-        // Remove scripts e estilos do elemento alvo
-        const scripts = targetElement.querySelectorAll('script, style, nav, footer, header');
-        scripts.forEach(s => s.remove());
+        // Limpeza agressiva de ruídos comuns
+        const noiseSelectors = 'script, style, nav, footer, header, .menu, .sidebar, #header, #footer, .breadcrumb, .social-share';
+        const noise = targetElement.querySelectorAll(noiseSelectors);
+        noise.forEach(n => n.remove());
 
-        const cleanText = targetElement.textContent || "";
-        const formattedText = cleanText.replace(/\s+/g, ' ').trim();
+        // Extração preservando quebras de linha
+        const rawText = (targetElement as HTMLElement).innerText || targetElement.textContent || "";
+        const cleanText = rawText
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .join('\n');
         
         return { 
           status: "sucesso", 
           url: targetUrl, 
-          conteudo: formattedText.substring(0, 8000) 
+          conteudo: cleanText.substring(0, 12000) 
         };
       } catch (e: any) {
         lastError = e.message;
