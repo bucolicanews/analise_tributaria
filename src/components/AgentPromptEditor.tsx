@@ -140,7 +140,7 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
         />
 
         {menu && filteredItems.length > 0 && (
-          <div className="absolute z-[999] top-full left-0 mt-1 w-80 bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+          <div className="absolute z-[999] bottom-full left-0 mb-2 w-80 bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2">
             <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
               <Terminal className="h-3 w-3 text-primary" />
               <span className="text-[9px] font-bold uppercase text-muted-foreground">
