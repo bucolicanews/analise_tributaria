@@ -204,9 +204,9 @@ const Configuracao = () => {
                          <SelectTrigger><SelectValue /></SelectTrigger>
                          <SelectContent>
                            <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Mais Rápido)</SelectItem>
-                           <SelectItem value="gemini-2.0-pro-exp">Gemini 2.0 Pro Experimental (Mais Inteligente)</SelectItem>
-                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável e Robusto)</SelectItem>
-                           <SelectItem value="gemini-1.5-flash">Gemini 1.5 Flash (Básico)</SelectItem>
+                           <SelectItem value="gemini-2.0-pro-exp-0205">Gemini 2.0 Pro Experimental (Mais Inteligente)</SelectItem>
+                           <SelectItem value="gemini-1.5-pro-latest">Gemini 1.5 Pro (Estável e Robusto)</SelectItem>
+                           <SelectItem value="gemini-1.5-flash-latest">Gemini 1.5 Flash (Básico)</SelectItem>
                          </SelectContent>
                        </Select>
                      </div>
