@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock } from 'lucide-react';
+import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -108,19 +108,6 @@ const Configuracao = () => {
     try {
       const mockArgs: any = {};
       if (skill.name === 'consultar_endereco_viacep') mockArgs.cep = '66910010';
-      
-      // Suporte para múltiplos nomes de skills de comparação tributária
-      if (skill.name === 'comparar_regimes_tributarios' || skill.name === 'calcular_presumido') {
-        mockArgs.faturamento_mensal = 20000;
-        mockArgs.faturamento_12m = 240000;
-        mockArgs.tipo_atividade = 'comercio';
-        mockArgs.folha_12m = 20000;
-        mockArgs.icms_percentual = 0.19;
-        mockArgs.icms_isento = false;
-      }
-      
-      if (skill.name === 'calcular_pro_labore_liquido') mockArgs.valor_bruto = 5000;
-
       const result = await executeSkill(skill.name, mockArgs);
       setTestResult({ skill: skill.name, result });
     } catch (e: any) {
@@ -155,7 +142,7 @@ const Configuracao = () => {
                    <div className="flex items-center justify-between">
                      <div className="space-y-1">
                        <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas (Controle Total)</h3>
-                       <p className="text-xs text-emerald-700/70">Edite o código JavaScript e o manifesto JSON de todas as ferramentas da IA.</p>
+                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou bases de conhecimento (PDF/Texto).</p>
                      </div>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={addSkill}>
                        <Plus className="h-4 w-4 mr-2" /> Nova Skill
@@ -168,11 +155,10 @@ const Configuracao = () => {
                          <AccordionTrigger className="hover:no-underline py-3">
                            <div className="flex items-center gap-3">
                              <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
-                               {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                               {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : <Book className="h-4 w-4" />}
                              </div>
                              <span className="font-bold text-sm">{skill.name}</span>
                              {!skill.isActive && <Badge variant="outline" className="text-[8px]">INATIVA</Badge>}
-                             {skill.id.startsWith('sys-') && <Badge variant="secondary" className="text-[8px] bg-blue-100 text-blue-700">SISTEMA</Badge>}
                            </div>
                          </AccordionTrigger>
                          <AccordionContent className="pt-2 pb-4 space-y-4">
@@ -187,8 +173,8 @@ const Configuracao = () => {
                                  <SelectTrigger><SelectValue /></SelectTrigger>
                                  <SelectContent>
                                    <SelectItem value="local_js">JavaScript Local</SelectItem>
-                                   <SelectItem value="webhook">Webhook (API Externa)</SelectItem>
-                                   <SelectItem value="knowledge_base">Base de Conhecimento (RAG)</SelectItem>
+                                   <SelectItem value="webhook">Webhook (n8n)</SelectItem>
+                                   <SelectItem value="knowledge_base">Base de Conhecimento (PDF/Texto)</SelectItem>
                                  </SelectContent>
                                </Select>
                              </div>
@@ -199,55 +185,55 @@ const Configuracao = () => {
                            </div>
 
                            <div className="space-y-2">
-                             <Label>Descrição para a IA (O que esta ferramenta faz?)</Label>
+                             <Label>Descrição para a IA (Quando ela deve usar isso?)</Label>
                              <Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} />
                            </div>
 
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                           {skill.executionType === 'knowledge_base' ? (
                              <div className="space-y-2">
-                               <Label className="flex items-center gap-2">Parâmetros JSON (Manifesto)</Label>
+                               <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base (Cole o texto do PDF/XML aqui)</Label>
                                <Textarea 
-                                 className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" 
-                                 value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} 
-                                 onChange={e => {
-                                   try {
-                                     const parsed = JSON.parse(e.target.value);
-                                     updateSkill(skill.id, 'parameters', parsed);
-                                   } catch (err) {
-                                     updateSkill(skill.id, 'parameters', e.target.value);
-                                   }
-                                 }} 
+                                 className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" 
+                                 placeholder="Cole aqui o conteúdo extraído do seu arquivo..."
+                                 value={skill.knowledgeBaseText || ''} 
+                                 onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} 
                                />
                              </div>
-
-                             {skill.executionType === 'local_js' && (
+                           ) : (
+                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                                <div className="space-y-2">
-                                 <Label className="flex items-center gap-2 text-emerald-600"><Code className="h-3 w-3" /> Código JavaScript (Async)</Label>
+                                 <Label className="flex items-center gap-2">Parâmetros JSON (Manifesto)</Label>
                                  <Textarea 
-                                   className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400 leading-relaxed" 
-                                   value={skill.jsCode || ''} 
-                                   onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} 
+                                   className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" 
+                                   value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} 
+                                   onChange={e => {
+                                     try {
+                                       const parsed = JSON.parse(e.target.value);
+                                       updateSkill(skill.id, 'parameters', parsed);
+                                     } catch (err) {
+                                       updateSkill(skill.id, 'parameters', e.target.value);
+                                     }
+                                   }} 
                                  />
                                </div>
-                             )}
-                           </div>
 
-                           <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                             <div className="flex gap-2">
-                               <Button type="button" variant="outline" size="sm" className="text-emerald-600" onClick={() => handleTestSkill(skill)}>
-                                 <Play className="h-3 w-3 mr-2" /> Testar Skill
-                               </Button>
-                               {testResult && testResult.skill === skill.name && (
-                                 <Dialog open={!!testResult} onOpenChange={() => setTestResult(null)}>
-                                   <DialogContent className="max-w-2xl">
-                                     <DialogHeader><DialogTitle>Resultado do Teste: {skill.name}</DialogTitle></DialogHeader>
-                                     <pre className="bg-slate-950 text-emerald-400 p-4 rounded-md overflow-auto max-h-96 text-xs font-mono">
-                                       {JSON.stringify(testResult.result || testResult.error, null, 2)}
-                                     </pre>
-                                   </DialogContent>
-                                 </Dialog>
+                               {skill.executionType === 'local_js' && (
+                                 <div className="space-y-2">
+                                   <Label className="flex items-center gap-2 text-emerald-600"><Code className="h-3 w-3" /> Código JavaScript (Async)</Label>
+                                   <Textarea 
+                                     className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400 leading-relaxed" 
+                                     value={skill.jsCode || ''} 
+                                     onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} 
+                                   />
+                                 </div>
                                )}
                              </div>
+                           )}
+
+                           <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                             <Button type="button" variant="outline" size="sm" className="text-emerald-600" onClick={() => handleTestSkill(skill)}>
+                               <Play className="h-3 w-3 mr-2" /> Testar Skill
+                             </Button>
                              <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
                                <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
                              </Button>
@@ -261,7 +247,6 @@ const Configuracao = () => {
                 <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
                    <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (Super Prompt)</h3>
                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Este prompt é usado na Pré-Análise. Proíbe tabelas e força listas.</Label>
                       <Textarea 
                         className="font-mono text-[11px] h-[250px] bg-background border-indigo-200 focus:border-indigo-500 leading-relaxed" 
                         value={preAnalysisPrompt} 
@@ -324,25 +309,14 @@ const Configuracao = () => {
                      </div>
                      <div className="space-y-2">
                        <Label>Modelo da IA</Label>
-                       <div className="space-y-2">
-                         <Select value={geminiModel} onValueChange={setGeminiModel}>
-                           <SelectTrigger><SelectValue /></SelectTrigger>
-                           <SelectContent>
-                             <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro (Experimental)</SelectItem>
-                             <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</SelectItem>
-                             <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável)</SelectItem>
-                             <SelectItem value="custom">Outro (Digitar ID abaixo)</SelectItem>
-                           </SelectContent>
-                         </Select>
-                         {geminiModel === 'custom' || !['gemini-2.0-pro-exp-02-05', 'gemini-2.0-flash', 'gemini-1.5-pro'].includes(geminiModel) ? (
-                           <Input 
-                             placeholder="Ex: gemini-3.1-pro-preview" 
-                             value={geminiModel === 'custom' ? '' : geminiModel} 
-                             onChange={(e) => setGeminiModel(e.target.value)}
-                             className="h-8 text-xs font-mono"
-                           />
-                         ) : null}
-                       </div>
+                       <Select value={geminiModel} onValueChange={setGeminiModel}>
+                         <SelectTrigger><SelectValue /></SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="gemini-2.0-pro-exp-02-05">Gemini 2.0 Pro (Experimental)</SelectItem>
+                           <SelectItem value="gemini-2.0-flash">Gemini 2.0 Flash (Recomendado)</SelectItem>
+                           <SelectItem value="gemini-1.5-pro">Gemini 1.5 Pro (Estável)</SelectItem>
+                         </SelectContent>
+                       </Select>
                      </div>
                      <div className="space-y-2">
                        <Label className="flex items-center gap-2"><Search className="h-4 w-4 text-blue-500" /> Grounding</Label>
