@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Terminal, Cpu } from 'lucide-react';
+import { Terminal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const PROMPT_VARIABLES = [
@@ -41,7 +41,6 @@ export const PromptSystemEditor: React.FC<PromptSystemEditorProps> = ({ value, o
   const [showMenu, setShowMenu] = useState(false);
   const [filter, setFilter] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -82,14 +81,6 @@ export const PromptSystemEditor: React.FC<PromptSystemEditorProps> = ({ value, o
           setFilter(query);
           setShowMenu(true);
           setSelectedIndex(0);
-          
-          // Tenta posicionar o menu próximo ao cursor (aproximação simples)
-          const lines = textBefore.split('\n');
-          const currentLine = lines.length;
-          setMenuPosition({ 
-            top: currentLine * 20, 
-            left: Math.min(lines[lines.length - 1].length * 8, 300) 
-          });
           return;
         }
       }
@@ -130,32 +121,31 @@ export const PromptSystemEditor: React.FC<PromptSystemEditorProps> = ({ value, o
 
       {showMenu && filteredVars.length > 0 && (
         <div 
-          className="absolute z-50 w-80 bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2"
+          className="absolute z-[100] w-full max-w-[320px] bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2"
           style={{ 
-            bottom: '100%', 
+            bottom: '20px', // Posiciona dentro da área visível do textarea
             left: '10px',
-            marginBottom: '8px'
           }}
         >
-          <div className="bg-muted/80 px-3 py-2 border-b border-border flex items-center gap-2">
+          <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
             <Terminal className="h-3 w-3 text-primary" />
-            <span className="text-[10px] font-bold uppercase text-muted-foreground">Dicionário de Variáveis</span>
+            <span className="text-[9px] font-bold uppercase text-muted-foreground">Variáveis de Contexto</span>
           </div>
-          <div className="max-h-60 overflow-y-auto">
+          <div className="max-h-48 overflow-y-auto bg-background/95 backdrop-blur-sm">
             {filteredVars.map((v, idx) => (
               <div
                 key={v.name}
                 className={cn(
-                  "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors",
-                  idx === selectedIndex ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/30 border-l-4 border-transparent"
+                  "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors border-l-4",
+                  idx === selectedIndex ? "bg-primary/20 border-primary" : "hover:bg-muted/50 border-transparent"
                 )}
                 onClick={() => insertVariable(v.name)}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-foreground">{v.name}</span>
+                  <span className="text-[11px] font-bold text-foreground">{v.name}</span>
                   <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Var</Badge>
                 </div>
-                <p className="text-[10px] text-muted-foreground line-clamp-1">{v.desc}</p>
+                <p className="text-[9px] text-muted-foreground line-clamp-1">{v.desc}</p>
               </div>
             ))}
           </div>
