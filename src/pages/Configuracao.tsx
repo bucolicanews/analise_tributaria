@@ -23,6 +23,7 @@ import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
+import { AgentPromptEditor } from '@/components/AgentPromptEditor';
 
 import * as pdfjsLib from 'pdfjs-dist';
 
@@ -527,7 +528,15 @@ return {
                            <div className="space-y-2"><Label>Nome</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Webhook n8n</Label><Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} /></div>
                          </div>
-                         <div className="space-y-2"><Label>System Prompt</Label><Textarea className="font-mono text-xs h-32 bg-slate-950 text-primary border-primary/30" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} /></div>
+                         <div className="space-y-2">
+                           <Label>System Prompt</Label>
+                           <AgentPromptEditor 
+                             value={agent.systemPrompt} 
+                             onChange={(val) => updateAgent(agent.id, 'systemPrompt', val)}
+                             prompts={prompts}
+                             skills={dynamicSkills}
+                           />
+                         </div>
                          <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setAgents(agents.filter(a => a.id !== agent.id))}><Trash2 className="h-4 w-4 mr-2" /> Remover</Button></div>
                        </AccordionContent>
                      </AccordionItem>
