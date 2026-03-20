@@ -108,9 +108,9 @@ export const ChatInterface = () => {
   };
 
   const updateSessionTitle = (id: string, newTitle: string) => {
-    setSessions(prev => prev.map(s => {
-      if (s.id === id ? { ...s, title: newTitle } : s));
-    }));
+    setSessions(prev => prev.map(s => 
+      s.id === id ? { ...s, title: newTitle } : s
+    ));
   };
 
   useLayoutEffect(() => {
