@@ -23,6 +23,7 @@ import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
+import { PromptSystemEditor } from '@/components/PromptSystemEditor';
 
 import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
@@ -353,7 +354,10 @@ const Configuracao = () => {
                          </div>
                          <div className="space-y-2">
                            <Label className="text-indigo-600">Instruções de Sistema</Label>
-                           <Textarea className="font-mono text-[11px] h-64 bg-slate-950 text-indigo-300 border-indigo-900/50" value={prompt.content} onChange={e => updatePrompt(prompt.id, 'content', e.target.value)} />
+                           <PromptSystemEditor 
+                             value={prompt.content} 
+                             onChange={v => updatePrompt(prompt.id, 'content', v)} 
+                           />
                          </div>
                          <div className="flex justify-between items-center pt-2 border-t border-border/50">
                            <div className="flex items-center gap-2"><Switch checked={prompt.isActive} onCheckedChange={v => updatePrompt(prompt.id, 'isActive', v)} /><Label>Ativo</Label></div>
