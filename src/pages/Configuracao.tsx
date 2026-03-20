@@ -3,7 +3,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
-  Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote
+  Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote,
+  Lightbulb,
+  Terminal
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage, PromptConfig, loadPromptsFromStorage, savePromptsToStorage, DEFAULT_PROMPTS } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -328,6 +331,14 @@ const Configuracao = () => {
                    </div>
                  </div>
 
+                 <Alert className="bg-indigo-500/10 border-indigo-500/20 text-indigo-700">
+                   <Lightbulb className="h-4 w-4 text-indigo-600" />
+                   <AlertTitle className="text-xs font-bold uppercase">Como funcionam os Prompts?</AlertTitle>
+                   <AlertDescription className="text-[11px] leading-relaxed">
+                     Crie personas especializadas para diferentes tipos de análise. O prompt selecionado na página de <strong>Viabilidade</strong> será enviado como instrução de sistema para a IA, definindo o tom, as regras fiscais e a estrutura do relatório final.
+                   </AlertDescription>
+                 </Alert>
+
                  <Accordion type="multiple" className="w-full space-y-2">
                    {prompts.map((prompt) => (
                      <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4">
@@ -401,6 +412,14 @@ const Configuracao = () => {
                      </Button>
                    </div>
                  </div>
+
+                 <Alert className="bg-emerald-500/10 border-emerald-500/20 text-emerald-700">
+                   <Terminal className="h-4 w-4 text-emerald-600" />
+                   <AlertTitle className="text-xs font-bold uppercase">O que são Skills?</AlertTitle>
+                   <AlertDescription className="text-[11px] leading-relaxed">
+                     As Skills permitem que a IA execute ações reais, como consultar APIs, rodar códigos JavaScript ou acessar sua base de conhecimento. Use o símbolo <strong>@</strong> no chat para invocar uma ferramenta manualmente ou deixe a IA decidir quando usá-la.
+                   </AlertDescription>
+                 </Alert>
 
                  <Accordion type="multiple" className="w-full space-y-2">
                    {dynamicSkills.map((skill) => (
