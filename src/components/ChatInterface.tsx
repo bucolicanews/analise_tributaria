@@ -281,16 +281,16 @@ export const ChatInterface = () => {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-background min-h-[40px] max-h-[200px] resize-none py-2"
+              className="flex-1 bg-background min-h-[120px] max-h-[400px] resize-none py-3 px-4 text-base"
               disabled={isLoading}
               autoComplete="off"
             />
             <Button 
               onClick={handleSend} 
               disabled={isLoading || !input.trim()} 
-              className="bg-primary hover:bg-primary/90 h-10 w-10 p-0 shrink-0"
+              className="bg-primary hover:bg-primary/90 h-12 w-12 p-0 shrink-0 mb-1"
             >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
           </div>
           <p className="text-[9px] text-center text-muted-foreground mt-2">
