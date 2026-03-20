@@ -441,6 +441,16 @@ return {
 }`}
                             </pre>
                           </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1 text-emerald-600">5. Instrução Sugerida para o Agente</h4>
+                            <p className="text-xs text-muted-foreground">Este texto orienta a IA sobre como e quando utilizar a ferramenta. É o que será inserido no Agente ao usar o atalho #.</p>
+                            <div className="bg-slate-950 p-3 rounded-md border border-emerald-900/50">
+                              <p className="text-[11px] text-emerald-300 font-mono leading-relaxed">
+                                "Você tem acesso à ferramenta #comparar_regimes_tributarios. Utilize-a obrigatoriamente para realizar simulações matemáticas precisas entre Simples Nacional e Lucro Presumido, garantindo que os valores em R$ sejam exatos e baseados no faturamento informado."
+                              </p>
+                            </div>
+                          </section>
                         </div>
                       </DialogContent>
                     </Dialog>
