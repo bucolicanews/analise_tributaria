@@ -48,8 +48,8 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
           display: s.name, 
           typeLabel: 'Skill', 
           icon: Wrench,
-          // Passamos a instrução sugerida para ser usada no insertItem
-          contentToInsert: s.suggestedInstruction || `#${s.name}`
+          // Formato solicitado: NOME DA SKILL: INSTRUÇÃO
+          contentToInsert: `${s.name}: ${s.suggestedInstruction || ''}`
         }));
     } else {
       const filteredPrompts = prompts.filter(p => p.title.toLowerCase().includes(filter)).map(p => ({ ...p, display: p.title, typeLabel: 'Prompt', icon: MessageSquareQuote, contentToInsert: p.content }));
