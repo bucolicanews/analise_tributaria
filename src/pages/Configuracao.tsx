@@ -352,6 +352,21 @@ const data = await res.json();
 return { status: "sucesso", resultado: data.valor };`}
                             </pre>
                           </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">4. Estrutura JSON para Importação/Exportação</h4>
+                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de suas ferramentas:</p>
+                            <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`{
+  "name": "nome_da_ferramenta",
+  "description": "O que a ferramenta faz",
+  "parameters": { "type": "object", "properties": {} },
+  "executionType": "local_js",
+  "jsCode": "return { status: 'ok' };",
+  "isActive": true
+}`}
+                            </pre>
+                          </section>
                         </div>
                       </DialogContent>
                     </Dialog>
