@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, AlertCircle, X, Clock, FileCheck, Loader2 } from 'lucide-react';
+import { Bot, AlertCircle, X, Clock, FileCheck, Loader2, Copy, Check } from 'lucide-react';
 import { Button } from './ui/button';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -9,6 +9,7 @@ import { PDFViewer, PDFDownloadLink } from '@react-pdf/renderer';
 import { ViabilityReportPDF } from './ViabilityReportPDF';
 import { ScrollArea } from './ui/scroll-area';
 import QRCode from 'qrcode';
+import { toast } from 'sonner';
 
 interface AiAnalysisReportProps {
   report: string;
@@ -29,6 +30,7 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
 }) => {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   
   const jotaRazaoSocial = localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade';
   const contadorNome = localStorage.getItem('jota-contador-nome') || '';
@@ -46,6 +48,13 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
       .then(url => setQrCodeUrl(url))
       .catch(() => setQrCodeUrl('fallback'));
   }, []);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(report);
+    setCopied(true);
+    toast.success("Conteúdo copiado para a área de transferência!");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <Card className="shadow-elegant border-accent/50 bg-accent/5 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
@@ -68,7 +77,16 @@ export const AiAnalysisReport: React.FC<AiAnalysisReportProps> = ({
           </div>
         </div>
         <div className="flex gap-2">
-          
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleCopy}
+            className="border-accent/30 text-accent hover:bg-accent/10"
+          >
+            {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+            {copied ? "Copiado!" : "Copiar Texto"}
+          </Button>
+
           <Dialog open={isPdfDialogOpen} onOpenChange={setIsPdfDialogOpen}>
             <DialogTrigger asChild>
               <Button variant="default" size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">

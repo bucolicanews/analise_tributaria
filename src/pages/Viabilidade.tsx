@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown, Copy, Check } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { AnalysisProgress, ProgressStep } from '@/components/AnalysisProgress';
 import { getInssTables } from '@/lib/tax/inssData';
@@ -84,6 +84,7 @@ const Viabilidade = () => {
 
   const [isPreAnalyzing, setIsPreAnalyzing] = useState(false);
   const [preAnalysisReport, setPreAnalysisReport] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const handleFolhaMensalChange = (val: string) => {
     setFolhaPagamento(val);
@@ -116,6 +117,15 @@ const Viabilidade = () => {
       if (field === 'isPrimary' && value === true) return { ...c, isPrimary: false };
       return c;
     }));
+  };
+
+  const handleCopy = () => {
+    if (preAnalysisReport) {
+      navigator.clipboard.writeText(preAnalysisReport);
+      setCopied(true);
+      toast.success("Conteúdo copiado!");
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const buildPayload = (environment: 'test' | 'production', webhookUrl: string) => {
@@ -335,6 +345,16 @@ const Viabilidade = () => {
                   <DialogDescription>Análise técnica preliminar baseada nos dados informados.</DialogDescription>
                 </div>
                 <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleCopy}
+                    className="border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
+                    {copied ? "Copiado!" : "Copiar Texto"}
+                  </Button>
+
                   <PDFDownloadLink 
                     document={
                       <ViabilityReportPDF 
