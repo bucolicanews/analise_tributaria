@@ -4,7 +4,7 @@ import {
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
   Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote,
-  Lightbulb, Terminal, Cpu, HelpCircle
+  Lightbulb, Terminal, Cpu, HelpCircle, Database, ShieldAlert
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -17,6 +17,7 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentConfig, loadAgentsFromStorage, saveAgentsToStorage, PromptConfig, loadPromptsFromStorage, savePromptsToStorage, DEFAULT_PROMPTS, DEFAULT_AGENTS } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -246,44 +247,102 @@ const Configuracao = () => {
           <HelpCircle className="h-4 w-4 mr-2" /> Instruções
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-indigo-600">
-            <Lightbulb className="h-5 w-5" /> Guia de Treinamento de Prompts
-          </DialogTitle>
-          <DialogDescription>
-            Aprenda a estruturar os cérebros da sua IA usando variáveis de contexto.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="p-4 rounded-lg bg-muted/50 border border-border">
-            <h4 className="font-bold text-sm mb-2">O que são Prompts de Sistema?</h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              São as instruções mestre que definem a personalidade, o conhecimento e as regras que a IA deve seguir ao analisar os dados do cliente.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h4 className="font-bold text-sm">Modelo Sugerido:</h4>
-            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-indigo-400 border border-indigo-900/50">
-              "Você é um [PERSONA]. Sua missão é analisar os dados de @empresa.razaoSocial e fornecer um relatório sobre [OBJETIVO]. Siga as regras: 1. [REGRA 1]..."
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
+        <div className="p-6 border-b border-border bg-muted/20">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-indigo-600">
+              <MessageSquareQuote className="h-6 w-6" /> Manual de Engenharia de Prompts JOTA
+            </DialogTitle>
+            <DialogDescription>
+              Guia completo para estruturar os cérebros da sua IA usando variáveis de contexto dinâmicas.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
+        
+        <ScrollArea className="flex-1 p-6">
+          <div className="space-y-8 pb-6">
+            {/* SEÇÃO 1: CONCEITO */}
+            <div className="space-y-3">
+              <h4 className="font-bold text-sm flex items-center gap-2 text-foreground">
+                <Lightbulb className="h-4 w-4 text-yellow-500" /> O que são Prompts de Sistema?
+              </h4>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                São as instruções mestre que definem a personalidade, o conhecimento e as regras que a IA deve seguir. 
+                No Sistema JOTA, os prompts são alimentados automaticamente com um **JSON de Contexto** contendo todos os dados que o usuário preencheu no formulário de viabilidade.
+              </p>
+            </div>
+
+            {/* SEÇÃO 2: DICIONÁRIO DE VARIÁVEIS */}
+            <div className="space-y-4">
+              <h4 className="font-bold text-sm flex items-center gap-2 text-foreground">
+                <Database className="h-4 w-4 text-indigo-500" /> Dicionário de Variáveis de Contexto
+              </h4>
+              <p className="text-[10px] text-muted-foreground italic">
+                Use estas variáveis com o símbolo **@** para que a IA leia os dados reais do cliente.
+              </p>
+              
+              <div className="rounded-lg border border-border overflow-hidden">
+                <table className="w-full text-[10px] text-left border-collapse">
+                  <thead className="bg-muted/50 border-b border-border">
+                    <tr>
+                      <th className="p-2 font-bold text-muted-foreground uppercase">Variável</th>
+                      <th className="p-2 font-bold text-muted-foreground uppercase">O que ela entrega à IA</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.razaoSocial</td><td className="p-2">Nome da empresa ou projeto informado.</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.naturezaJuridica</td><td className="p-2">SLU, LTDA, EI, etc.</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.tributacaoPretendida</td><td className="p-2">Regime escolhido (Simples, Presumido, etc).</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@operacional.cnaes</td><td className="p-2">Lista completa de CNAEs (Código + Descrição).</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@financeiro.faturamento.anual_total</td><td className="p-2">Valor total da receita bruta anual.</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@financeiro.fator_r.percentual_atual</td><td className="p-2">Relação Folha/Faturamento para cálculo do Anexo III/V.</td></tr>
+                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@conformidade_riscos.alertas_criticos</td><td className="p-2">Status de riscos (Confusão Patrimonial, Retirada Informal).</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* SEÇÃO 3: MODELO E EXEMPLO */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h4 className="font-bold text-sm text-foreground">Modelo Sugerido:</h4>
+                <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-indigo-400 border border-indigo-900/50 h-32">
+                  "Você é um [PERSONA]. Sua missão é analisar os dados de @empresa.razaoSocial e fornecer um relatório sobre [OBJETIVO]. Siga as regras: 1. [REGRA 1]..."
+                </div>
+              </div>
+              <div className="space-y-2">
+                <h4 className="font-bold text-sm text-foreground">Exemplo Prático:</h4>
+                <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50 h-32">
+                  "Você é o Perito da Jota. Analise o faturamento de @financeiro.faturamento.anual_total e verifique se o enquadramento em @empresa.tributacaoPretendida é viável."
+                </div>
+              </div>
+            </div>
+
+            {/* SEÇÃO 4: ALERTAS */}
+            <div className="space-y-3">
+              <Alert className="bg-red-500/5 border-red-500/20">
+                <ShieldAlert className="h-4 w-4 text-red-500" />
+                <AlertTitle className="text-xs font-bold text-red-600">Regra de Ouro: Integridade de Dados</AlertTitle>
+                <AlertDescription className="text-[10px] text-red-700/80">
+                  Sempre instrua a IA a **não inventar dados**. Se uma variável estiver vazia no JSON, ela deve informar que o dado não foi fornecido pelo cliente.
+                </AlertDescription>
+              </Alert>
+
+              <Alert className="bg-primary/5 border-primary/20">
+                <Info className="h-4 w-4 text-primary" />
+                <AlertTitle className="text-xs font-bold">Dica de Produtividade</AlertTitle>
+                <AlertDescription className="text-[10px]">
+                  Use o menu de atalho digitando **@** dentro do editor de prompts para inserir variáveis rapidamente sem precisar decorar os nomes técnicos.
+                </AlertDescription>
+              </Alert>
             </div>
           </div>
-
-          <div className="space-y-2">
-            <h4 className="font-bold text-sm">Exemplo Prático:</h4>
-            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50">
-              "Você é o Perito da Jota. Analise o faturamento de @financeiro.faturamento.anual_total e verifique se o enquadramento em @emp.tributacaoPretendida é viável."
-            </div>
-          </div>
-
-          <Alert className="bg-primary/5 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertTitle className="text-xs font-bold">Dica de Ouro</AlertTitle>
-            <AlertDescription className="text-[10px]">
-              Use o símbolo **@** para abrir o menu de variáveis automáticas. Isso permite que o prompt seja dinâmico para cada cliente.
-            </AlertDescription>
-          </Alert>
+        </ScrollArea>
+        
+        <div className="p-4 border-t border-border bg-muted/20 flex justify-end">
+          <DialogTrigger asChild>
+            <Button variant="secondary" size="sm">Fechar Manual</Button>
+          </DialogTrigger>
         </div>
       </DialogContent>
     </Dialog>
