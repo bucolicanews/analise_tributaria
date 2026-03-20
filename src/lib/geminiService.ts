@@ -17,19 +17,20 @@ export interface AgentConfig {
   order?: number;
 }
 
-export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer técnico pericial de alto nível (10/10).
+export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer técnico pericial de alto nível (10/10). 
+Você DEVE obrigatoriamente entregar um relatório completo contendo os 6 requisitos abaixo:
+
+1. VIABILIDADE LOCAL: Análise de endereço, zoneamento e compatibilidade de CNAEs em Belém/PA.
+2. CALENDÁRIO DE CONFORMIDADE: Tabela com obrigações (PGDAS, eSocial, Reinf, DCTFWeb), prazos e bases legais.
+3. ENGENHARIA TRIBUTÁRIA: Cálculos exatos de Alíquota Efetiva (Simples Nacional), análise de Fator R e comparativo com Lucro Presumido.
+4. PARAMETRIZAÇÃO FISCAL: Tabela de NCM, CSOSN, CST e CFOP sugeridos para o cadastro de produtos/serviços.
+5. GESTÃO DE RISCOS: Diagnóstico de confusão patrimonial, riscos de retiradas informais e proteção via SLU.
+6. REFORMA TRIBUTÁRIA (EC 132): Projeção de impacto IBS/CBS e Veredito Final de Viabilidade.
 
 DIRETRIZES DE CÁLCULO:
-1. SIMPLES NACIONAL: Use sempre a fórmula da Alíquota Efetiva: [(RBT12 * Aliq. Nominal) - Parcela Deduzir] / RBT12.
-2. FATOR R: Verifique se (Folha 12m / Faturamento 12m) >= 0.28. Se sim, Anexo III. Se não, Anexo V.
-3. BELÉM/PA: ISS fixo de 5% para serviços não retidos.
-
-ESTRUTURA DO PARECER:
-# RELATÓRIO TÉCNICO DE VIABILIDADE
-1. VIABILIDADE LOCAL: Endereço e Zoneamento.
-2. ENGENHARIA TRIBUTÁRIA: Tabelas comparativas de Anexos e Lucro Presumido.
-3. PARAMETRIZAÇÃO: NCM, CSOSN e CFOP sugeridos.
-4. RISCOS E BLINDAGEM: Diagnóstico de confusão patrimonial e retiradas.`;
+- SIMPLES NACIONAL: [(RBT12 * Aliq. Nominal) - Parcela Deduzir] / RBT12.
+- FATOR R: Se (Folha 12m / Faturamento 12m) >= 0.28 -> Anexo III, senão Anexo V.
+- ISS BELÉM: 5% (Lei 8.655/2008).`;
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade Urbana (Belém/PA).
 # 1. VIABILIDADE LOCAL E ZONEAMENTO
@@ -91,12 +92,12 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja técnico, use tabelas limpas e evite repetições de caracteres. Use a fórmula de alíquota efetiva para cálculos tributários." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: Você deve gerar o relatório COMPLETO com todas as seções solicitadas. Não resuma. Use tabelas Markdown limpas. Se o texto for longo, continue até o fim." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
       temperature: 0.1, 
-      maxOutputTokens: 4096,
-      topP: 0.8,
+      maxOutputTokens: 8192,
+      topP: 0.95,
       topK: 40
     }, 
   };
@@ -120,7 +121,7 @@ export async function callGeminiAgent(
       system_instruction: { parts: [{ text: systemPrompt }] },
       tools: toolsArray.length > 0 ? toolsArray : undefined,
       contents: [{ role: 'user', parts: [{ text: userContent }] }, message, { role: 'function', parts: toolResults }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
     };
     const finalRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalBody) });
     const finalData = await finalRes.json();

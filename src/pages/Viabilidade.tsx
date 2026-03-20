@@ -108,7 +108,7 @@ const Viabilidade = () => {
     else localStorage.removeItem('viab-aiReport');
   }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, folha12Meses, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, aiReport]);
 
-  const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: false }]);
+  const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: true }]);
   const removeCnae = (id: string) => { if (cnaes.length > 1) setCnaes(cnaes.filter(c => c.id !== id)); };
   const updateCnae = (id: string, field: keyof CnaeEntry, value: any) => {
     setCnaes(cnaes.map(c => {
