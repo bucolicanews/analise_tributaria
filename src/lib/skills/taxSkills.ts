@@ -14,8 +14,7 @@ export interface DynamicSkill {
 }
 
 /**
- * Manifesto de Ferramentas Estáticas (Mantido vazio para compatibilidade, 
- * pois agora as ferramentas são carregadas via loadDynamicSkills)
+ * Manifesto de Ferramentas Estáticas (Mantido vazio para compatibilidade)
  */
 export const JOTA_TOOLS_MANIFEST: any[] = [];
 
@@ -34,17 +33,7 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
     },
     executionType: 'local_js',
     isActive: true,
-    jsCode: `
-const cleanCep = String(args.cep).replace(/\\D/g, '');
-if (cleanCep.length !== 8) return { error: "CEP inválido" };
-try {
-  const response = await fetch(\`https://viacep.com.br/ws/\${cleanCep}/json/\`);
-  const data = await response.json();
-  return data.erro ? { error: "CEP não localizado" } : data;
-} catch (e) {
-  return { error: "Falha no serviço de CEP" };
-}
-    `
+    jsCode: "const cleanCep = String(args.cep).replace(/\\D/g, '');\nif (cleanCep.length !== 8) return { error: 'CEP inválido' };\ntry {\n  const response = await fetch('https://viacep.com.br/ws/' + cleanCep + '/json/');\n  const data = await response.json();\n  return data.erro ? { error: 'CEP não localizado' } : data;\n} catch (e) {\n  return { error: 'Falha no serviço de CEP' };\n}"
   },
   {
     id: 'sys-2',
@@ -64,39 +53,7 @@ try {
     },
     executionType: 'local_js',
     isActive: true,
-    jsCode: `
-// A. Fator R
-const r = args.faturamento_12m > 0 ? (args.folha_12m / args.faturamento_12m) : 0;
-const anexoServico = r >= 0.28 ? "Anexo III" : "Anexo V";
-const anexoFinal = args.tipo_atividade === 'comercio' ? "Anexo I" : anexoServico;
-
-// B. Simples Nacional (Usando helper do sistema)
-const efetivaSimples = helpers.calculateSimplesNacionalEffectiveRate(anexoFinal, args.faturamento_12m);
-const impostoSimples = args.faturamento_mensal * (efetivaSimples / 100);
-
-// C. Lucro Presumido
-const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
-const basePresumido = args.faturamento_mensal * presuncao;
-const irpjBase = basePresumido * 0.15;
-const adicionalIrpj = basePresumido > 20000 ? (basePresumido - 20000) * 0.10 : 0;
-const csll = basePresumido * 0.09;
-const pis = args.faturamento_mensal * 0.0065;
-const cofins = args.faturamento_mensal * 0.03;
-const icms = args.tipo_atividade === 'comercio' ? args.faturamento_mensal * (args.icms_percentual || 0.18) : 0;
-const iss = args.tipo_atividade === 'servico' ? args.faturamento_mensal * (args.iss_percentual || 0.05) : 0;
-
-const totalPresumido = irpjBase + adicionalIrpj + csll + pis + cofins + icms + iss;
-
-return {
-  fator_r: { valor: (r * 100).toFixed(2) + "%", anexo: anexoFinal },
-  simples: { aliquota: efetivaSimples.toFixed(2) + "%", valor: impostoSimples },
-  presumido: { aliquota: ((totalPresumido / args.faturamento_mensal) * 100).toFixed(2) + "%", valor: totalPresumido },
-  veredito: { 
-    melhor_regime: impostoSimples < totalPresumido ? "Simples Nacional" : "Lucro Presumido",
-    economia: Math.abs(impostoSimples - totalPresumido)
-  }
-};
-    `
+    jsCode: "// A. Fator R\nconst r = args.faturamento_12m > 0 ? (args.folha_12m / args.faturamento_12m) : 0;\nconst anexoServico = r >= 0.28 ? 'Anexo III' : 'Anexo V';\nconst anexoFinal = args.tipo_atividade === 'comercio' ? 'Anexo I' : anexoServico;\n\n// B. Simples Nacional\nconst efetivaSimples = helpers.calculateSimplesNacionalEffectiveRate(anexoFinal, args.faturamento_12m);\nconst impostoSimples = args.faturamento_mensal * (efetivaSimples / 100);\n\n// C. Lucro Presumido\nconst presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;\nconst basePresumido = args.faturamento_mensal * presuncao;\nconst irpjBase = basePresumido * 0.15;\nconst adicionalIrpj = basePresumido > 20000 ? (basePresumido - 20000) * 0.10 : 0;\nconst csll = basePresumido * 0.09;\nconst pis = args.faturamento_mensal * 0.0065;\nconst cofins = args.faturamento_mensal * 0.03;\nconst icms = args.tipo_atividade === 'comercio' ? args.faturamento_mensal * (args.icms_percentual || 0.18) : 0;\nconst iss = args.tipo_atividade === 'servico' ? args.faturamento_mensal * (args.iss_percentual || 0.05) : 0;\n\nconst totalPresumido = irpjBase + adicionalIrpj + csll + pis + cofins + icms + iss;\n\nreturn {\n  fator_r: { valor: (r * 100).toFixed(2) + '%', anexo: anexoFinal },\n  simples: { aliquota: efetivaSimples.toFixed(2) + '%', valor: impostoSimples },\n  presumido: { aliquota: ((totalPresumido / args.faturamento_mensal) * 100).toFixed(2) + '%', valor: totalPresumido },\n  veredito: { \n    melhor_regime: impostoSimples < totalPresumido ? 'Simples Nacional' : 'Lucro Presumido',\n    economia: Math.abs(impostoSimples - totalPresumido)\n  }\n};"
   },
   {
     id: 'sys-3',
@@ -109,18 +66,7 @@ return {
     },
     executionType: 'local_js',
     isActive: true,
-    jsCode: `
-const inss = args.valor_bruto * 0.11;
-const baseIR = args.valor_bruto - inss;
-let aliq = 0, ded = 0;
-if (baseIR > 4664.68) { aliq = 0.275; ded = 908.73; }
-else if (baseIR > 3751.05) { aliq = 0.225; ded = 675.49; }
-else if (baseIR > 2826.65) { aliq = 0.15; ded = 394.16; }
-else if (baseIR > 2428.80) { aliq = 0.075; ded = 182.16; }
-
-const ir = Math.max(0, (baseIR * aliq) - ded);
-return { bruto: args.valor_bruto, inss, ir, liquido: args.valor_bruto - inss - ir };
-    `
+    jsCode: "const inss = args.valor_bruto * 0.11;\nconst baseIR = args.valor_bruto - inss;\nlet aliq = 0, ded = 0;\nif (baseIR > 4664.68) { aliq = 0.275; ded = 908.73; }\nelse if (baseIR > 3751.05) { aliq = 0.225; ded = 675.49; }\nelse if (baseIR > 2826.65) { aliq = 0.15; ded = 394.16; }\nelse if (baseIR > 2428.80) { aliq = 0.075; ded = 182.16; }\n\nconst ir = Math.max(0, (baseIR * aliq) - ded);\nreturn { bruto: args.valor_bruto, inss, ir, liquido: args.valor_bruto - inss - ir };"
   }
 ];
 
@@ -138,7 +84,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
   const skill = dynamicSkills.find(s => s.name === name);
 
   if (!skill || !skill.isActive) {
-    return { error: `Skill '\${name}' não encontrada ou inativa.` };
+    return { error: "Skill '" + name + "' não encontrada ou inativa." };
   }
   
   if (skill.executionType === 'knowledge_base') {
@@ -154,13 +100,12 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       });
       return await res.json();
     } catch (e: any) {
-      return { error: \`Falha no Webhook: \${e.message}\` };
+      return { error: "Falha no Webhook: " + e.message };
     }
   }
 
   if (skill.executionType === 'local_js' && skill.jsCode) {
     try {
-      // Helpers injetados para facilitar o acesso a dados do sistema
       const helpers = { 
         calculateSimplesNacionalEffectiveRate, 
         findCClassByNcm, 
@@ -171,7 +116,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       const fn = new AsyncFunction('args', 'helpers', skill.jsCode);
       return await fn(args, helpers);
     } catch (e: any) {
-      return { error: \`Erro no JS da Skill: \${e.message}\` };
+      return { error: "Erro no JS da Skill: " + e.message };
     }
   }
 
