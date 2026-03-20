@@ -25,7 +25,7 @@ import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKI
 import * as pdfjsLib from 'pdfjs-dist';
 import * as XLSX from 'xlsx';
 
-// Configuração do worker do PDF.js usando a versão local do pacote
+// Configuração do worker do PDF.js
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
   import.meta.url
@@ -60,15 +60,14 @@ const Configuracao = () => {
   
   const [dynamicSkills, setDynamicSkills] = useState<DynamicSkill[]>(() => loadDynamicSkills());
 
-  // Função para limpar ruídos de texto (linhas vazias ou apenas com vírgulas)
+  // Função para limpar ruídos de texto
   const cleanTextNoise = (text: string): string => {
     return text
       .split('\n')
       .map(line => line.trim())
       .filter(line => {
-        // Remove linhas que não contêm letras ou números (apenas vírgulas, pontos ou espaços)
-        const hasContent = /[a-zA-Z0-9]/.test(line);
-        return hasContent;
+        // Remove linhas que não contêm letras ou números
+        return /[a-zA-Z0-9]/.test(line);
       })
       .join('\n');
   };
@@ -88,22 +87,14 @@ const Configuracao = () => {
     setIsTestingSkill(skill.id);
     const toastId = toast.loading(`Testando skill: ${skill.name}...`);
     try {
-      // Para teste, usamos parâmetros vazios ou padrão. Passamos dynamicSkills para testar sem salvar.
-      const testArgs = skill.parameters?.properties ? {} : {};
-      const result = await executeSkill(skill.name, testArgs, dynamicSkills);
-      
-      console.log(`Resultado do teste (${skill.name}):`, result);
-      
+      const result = await executeSkill(skill.name, {}, dynamicSkills);
       if (result.error) {
         toast.error(`Erro no teste: ${result.error}`, { id: toastId });
       } else {
-        toast.success("Teste concluído! Verifique o console para o log completo.", { 
-          id: toastId,
-          description: "A Skill retornou dados com sucesso."
-        });
+        toast.success("Teste concluído com sucesso!", { id: toastId });
       }
     } catch (err: any) {
-      toast.error(`Falha crítica no teste: ${err.message}`, { id: toastId });
+      toast.error(`Falha no teste: ${err.message}`, { id: toastId });
     } finally {
       setIsTestingSkill(null);
     }
@@ -145,25 +136,21 @@ const Configuracao = () => {
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
-        
         let fullText = "";
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
-          const strings = content.items.map((item: any) => item.str);
-          fullText += strings.join(" ") + "\n";
+          fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
         }
         extractedText = fullText;
       } 
       else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        
         let fullSheetText = "";
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName];
-          const csv = XLSX.utils.sheet_to_csv(worksheet);
-          fullSheetText += `--- PLANILHA: ${sheetName} ---\n${csv}\n\n`;
+          fullSheetText += `--- PLANILHA: ${sheetName} ---\n${XLSX.utils.sheet_to_csv(worksheet)}\n\n`;
         });
         extractedText = fullSheetText;
       }
@@ -172,18 +159,13 @@ const Configuracao = () => {
       }
 
       if (extractedText.trim()) {
-        // Aplica a limpeza de ruídos automaticamente na importação
         const cleanedText = cleanTextNoise(extractedText);
-        
         setDynamicSkills(prev => prev.map(s => 
           s.id === activeSkillIdForUpload ? { ...s, knowledgeBaseText: cleanedText } : s
         ));
-        toast.success("Conteúdo extraído e limpo com sucesso!", { id: toastId });
-      } else {
-        toast.error("O arquivo parece estar vazio ou não contém texto legível.", { id: toastId });
+        toast.success("Conteúdo extraído e limpo!", { id: toastId });
       }
     } catch (error: any) {
-      console.error("Erro na extração:", error);
       toast.error("Erro ao processar arquivo: " + error.message, { id: toastId });
     } finally {
       setIsExtracting(false);
@@ -218,7 +200,7 @@ const Configuracao = () => {
       parameters: { type: 'object', properties: { arg1: { type: 'string' } } },
       executionType: 'local_js',
       isActive: true,
-      jsCode: '// Escreva seu código aqui\nreturn { status: "sucesso" };'
+      jsCode: '// Código JS\nreturn { status: "sucesso" };'
     };
     setDynamicSkills([...dynamicSkills, newSkill]);
   };
@@ -229,13 +211,7 @@ const Configuracao = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        className="hidden" 
-        accept=".pdf,.txt,.xml,.json,.xlsx,.xls,.csv" 
-        onChange={handleFileUpload} 
-      />
+      <input type="file" ref={fileInputRef} className="hidden" accept=".pdf,.txt,.xml,.json,.xlsx,.xls,.csv" onChange={handleFileUpload} />
 
       <form onSubmit={handleSave}>
         <Card className="shadow-card">
@@ -246,9 +222,9 @@ const Configuracao = () => {
                 setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
                 setAgents(DEFAULT_AGENTS);
                 setDynamicSkills(DEFAULT_DYNAMIC_SKILLS);
-                toast.info("Padrão JOTA restaurado. Salve para confirmar.");
+                toast.info("Padrão JOTA restaurado.");
               }
-            }} className="text-xs text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+            }} className="text-xs text-indigo-600 border-indigo-200">
               <RotateCcw className="h-3 w-3 mr-1" /> Restaurar Padrão JOTA
             </Button>
           </CardHeader>
@@ -269,9 +245,9 @@ const Configuracao = () => {
                    <div className="flex items-center justify-between">
                      <div className="space-y-1">
                        <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas</h3>
-                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos (PDF/Excel/XML/TXT).</p>
+                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos.</p>
                      </div>
-                     <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={addSkill}>
+                     <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={addSkill}>
                        <Plus className="h-4 w-4 mr-2" /> Nova Skill
                      </Button>
                    </div>
@@ -285,15 +261,11 @@ const Configuracao = () => {
                                {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : skill.executionType === 'web_scraping' ? <Search className="h-4 w-4" /> : <Book className="h-4 w-4" />}
                              </div>
                              <span className="font-bold text-sm">{skill.name}</span>
-                             {!skill.isActive && <Badge variant="outline" className="text-[8px]">INATIVA</Badge>}
                            </div>
                          </AccordionTrigger>
                          <AccordionContent className="pt-2 pb-4 space-y-4">
                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                             <div className="space-y-2">
-                               <Label>Nome Técnico (snake_case)</Label>
-                               <Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} />
-                             </div>
+                             <div className="space-y-2"><Label>Nome Técnico</Label><Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} /></div>
                              <div className="space-y-2">
                                <Label>Tipo de Execução</Label>
                                <Select value={skill.executionType} onValueChange={v => updateSkill(skill.id, 'executionType', v)}>
@@ -301,132 +273,52 @@ const Configuracao = () => {
                                  <SelectContent>
                                    <SelectItem value="local_js">JavaScript Local</SelectItem>
                                    <SelectItem value="webhook">Webhook (n8n)</SelectItem>
-                                   <SelectItem value="knowledge_base">Base de Conhecimento (Arquivo/Texto)</SelectItem>
-                                   <SelectItem value="web_scraping">Navegação Web (Scraping)</SelectItem>
+                                   <SelectItem value="knowledge_base">Base de Conhecimento</SelectItem>
+                                   <SelectItem value="web_scraping">Navegação Web</SelectItem>
                                  </SelectContent>
                                </Select>
                              </div>
-                             <div className="flex items-center gap-2 pt-6">
-                               <Switch checked={skill.isActive} onCheckedChange={v => updateSkill(skill.id, 'isActive', v)} />
-                               <Label>Ativa</Label>
-                             </div>
+                             <div className="flex items-center gap-2 pt-6"><Switch checked={skill.isActive} onCheckedChange={v => updateSkill(skill.id, 'isActive', v)} /><Label>Ativa</Label></div>
                            </div>
 
-                           <div className="space-y-2">
-                             <Label>Descrição para a IA</Label>
-                             <Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} />
-                           </div>
+                           <div className="space-y-2"><Label>Descrição para a IA</Label><Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} /></div>
 
                            {skill.executionType === 'knowledge_base' ? (
                              <div className="space-y-3">
                                <div className="flex items-center justify-between">
                                  <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base</Label>
                                  <div className="flex gap-2">
-                                   <Button 
-                                     type="button" 
-                                     variant="outline" 
-                                     size="sm" 
-                                     className="h-7 text-[10px] border-orange-200 text-orange-600 hover:bg-orange-50"
-                                     onClick={() => handleManualCleanNoise(skill.id)}
-                                   >
-                                     <Eraser className="h-3 w-3 mr-1" />
-                                     Limpar Ruídos
+                                   <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-orange-200 text-orange-600" onClick={() => handleManualCleanNoise(skill.id)}>
+                                     <Eraser className="h-3 w-3 mr-1" /> Limpar Ruídos
                                    </Button>
-                                   <Button 
-                                     type="button" 
-                                     variant="outline" 
-                                     size="sm" 
-                                     className="h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
-                                     onClick={() => updateSkill(skill.id, 'knowledgeBaseText', '')}
-                                   >
-                                     <Trash2 className="h-3 w-3 mr-1" />
-                                     Apagar Tudo
+                                   <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-red-200 text-red-600" onClick={() => updateSkill(skill.id, 'knowledgeBaseText', '')}>
+                                     <Trash2 className="h-3 w-3 mr-1" /> Apagar Tudo
                                    </Button>
-                                   <Button 
-                                     type="button" 
-                                     variant="outline" 
-                                     size="sm" 
-                                     className="h-7 text-[10px] border-blue-200 text-blue-600"
-                                     onClick={() => triggerFileUpload(skill.id)}
-                                     disabled={isExtracting}
-                                   >
-                                     {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
-                                     Importar PDF/Excel/XML/TXT
+                                   <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-blue-200 text-blue-600" onClick={() => triggerFileUpload(skill.id)} disabled={isExtracting}>
+                                     {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />} Importar Arquivo
                                    </Button>
                                  </div>
                                </div>
-                               <Textarea 
-                                 className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" 
-                                 placeholder="Conteúdo extraído aparecerá aqui..."
-                                 value={skill.knowledgeBaseText || ''} 
-                                 onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} 
-                               />
+                               <Textarea className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
                              </div>
                            ) : skill.executionType === 'web_scraping' ? (
                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                 <Label>URL Alvo</Label>
-                                 <Input 
-                                   placeholder="https://exemplo.com.br" 
-                                   value={skill.url || ''} 
-                                   onChange={e => updateSkill(skill.id, 'url', e.target.value)} 
-                                 />
-                               </div>
-                               <div className="space-y-2">
-                                 <Label>Seletor CSS Opcional (ex: .titulo, h1)</Label>
-                                 <Input 
-                                   placeholder="Deixe vazio para extrair todo o texto" 
-                                   value={skill.selector || ''} 
-                                   onChange={e => updateSkill(skill.id, 'selector', e.target.value)} 
-                                 />
-                               </div>
+                               <div className="space-y-2"><Label>URL Alvo</Label><Input placeholder="https://..." value={skill.url || ''} onChange={e => updateSkill(skill.id, 'url', e.target.value)} /></div>
+                               <div className="space-y-2"><Label>Seletor CSS Opcional</Label><Input placeholder="Ex: #main-content" value={skill.selector || ''} onChange={e => updateSkill(skill.id, 'selector', e.target.value)} /></div>
                              </div>
                            ) : (
                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                               <div className="space-y-2">
-                                 <Label>Parâmetros JSON</Label>
-                                 <Textarea 
-                                   className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" 
-                                   value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} 
-                                   onChange={e => {
-                                     try {
-                                       const parsed = JSON.parse(e.target.value);
-                                       updateSkill(skill.id, 'parameters', parsed);
-                                     } catch (err) {
-                                       updateSkill(skill.id, 'parameters', e.target.value);
-                                     }
-                                   }} 
-                                 />
-                               </div>
-                               {skill.executionType === 'local_js' && (
-                                 <div className="space-y-2">
-                                   <Label className="text-emerald-600">Código JavaScript</Label>
-                                   <Textarea 
-                                     className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" 
-                                     value={skill.jsCode || ''} 
-                                     onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} 
-                                   />
-                                 </div>
-                               )}
+                               <div className="space-y-2"><Label>Parâmetros JSON</Label><Textarea className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} onChange={e => { try { updateSkill(skill.id, 'parameters', JSON.parse(e.target.value)); } catch (err) { updateSkill(skill.id, 'parameters', e.target.value); } }} /></div>
+                               {skill.executionType === 'local_js' && <div className="space-y-2"><Label className="text-emerald-600">Código JavaScript</Label><Textarea className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" value={skill.jsCode || ''} onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} /></div>}
                              </div>
                            )}
 
                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
                              <div className="flex gap-2">
-                               <Button 
-                                 type="button" 
-                                 variant="outline" 
-                                 size="sm" 
-                                 className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
-                                 onClick={() => handleTestSkill(skill)}
-                                 disabled={isTestingSkill === skill.id}
-                               >
-                                 {isTestingSkill === skill.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                                 Testar Skill
+                               <Button type="button" variant="outline" size="sm" className="text-emerald-600 border-emerald-200" onClick={() => handleTestSkill(skill)} disabled={isTestingSkill === skill.id}>
+                                 {isTestingSkill === skill.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />} Testar Skill
                                </Button>
-                               <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
-                                 <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
-                               </Button>
+                               <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}><Trash2 className="h-4 w-4 mr-2" /> Remover Skill</Button>
                              </div>
                            </div>
                          </AccordionContent>
@@ -437,27 +329,15 @@ const Configuracao = () => {
 
                 <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
                    <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (Super Prompt)</h3>
-                   <Textarea 
-                     className="font-mono text-[11px] h-[250px] bg-background border-indigo-200" 
-                     value={preAnalysisPrompt} 
-                     onChange={(e) => setPreAnalysisPrompt(e.target.value)} 
-                   />
+                   <Textarea className="font-mono text-[11px] h-[250px] bg-background border-indigo-200" value={preAnalysisPrompt} onChange={(e) => setPreAnalysisPrompt(e.target.value)} />
                 </div>
 
                 <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
-                   <div className="flex items-center justify-between">
-                     <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas</h3>
-                     <Button type="button" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
-                   </div>
+                   <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas</h3><Button type="button" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></div>
                    <Accordion type="multiple" className="w-full space-y-2">
                      {agents.sort((a,b) => (a.order||0)-(b.order||0)).map((agent) => (
                        <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4">
-                         <AccordionTrigger className="hover:no-underline py-3">
-                           <div className="flex items-center gap-3">
-                             <Badge variant="outline" className="font-mono">{agent.order}</Badge>
-                             <span className="font-bold text-sm">{agent.nome}</span>
-                           </div>
-                         </AccordionTrigger>
+                         <AccordionTrigger className="hover:no-underline py-3"><div className="flex items-center gap-3"><Badge variant="outline" className="font-mono">{agent.order}</Badge><span className="font-bold text-sm">{agent.nome}</span></div></AccordionTrigger>
                          <AccordionContent className="pt-2 pb-4 space-y-4">
                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="space-y-2"><Label>Nome do Agente</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
@@ -500,7 +380,7 @@ const Configuracao = () => {
               <div className="p-12 text-center border-2 border-dashed rounded-lg bg-muted/20">
                 <Lock className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
                 <h3 className="text-lg font-bold">Acesso Restrito</h3>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">As configurações avançadas de IA estão protegidas. Clique em "Acesso Completo" no topo da página.</p>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mt-2">As configurações avançadas de IA estão protegidas.</p>
               </div>
             )}
 
