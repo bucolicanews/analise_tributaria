@@ -34,13 +34,13 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
   {
     id: 'agent-1',
     nome: 'Perito Tributário Sênior',
-    systemPrompt: 'Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é realizar auditorias profundas e encontrar economias fiscais.',
+    systemPrompt: 'Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é realizar auditorias profundas e encontrar economias fiscais. Utilize a skill #comparar_regimes_tributarios para validações matemáticas.',
     order: 1
   },
   {
     id: 'agent-2',
     nome: 'Analista de Viabilidade',
-    systemPrompt: 'Você é um Analista de Viabilidade especializado em novos negócios e enquadramento no Simples Nacional.',
+    systemPrompt: 'Você é um Analista de Viabilidade especializado em novos negócios e enquadramento no Simples Nacional. Foque na análise de CNAEs e riscos operacionais.',
     order: 2
   }
 ];
@@ -53,7 +53,7 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 
 🚨 REGRAS DE OURO (PROIBIDO FALHAR):
 1. 🚫 ZERO TABELAS. Use listas aninhadas com tópicos claros e negritos estratégicos.
-2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados no JSON. Calcule o valor exato em R$ do imposto mensal no Simples Nacional vs Lucro Presumido.
+2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados no JSON. Calcule o valor exato em R$ do imposto mensal no Simples Nacional vs Lucro Presumido. Utilize a ferramenta #comparar_regimes_tributarios para garantir a precisão.
 3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS) de serviço (NFS-e municipal).
 4. 📦 ICMS-ST E CEST: Analise a Substituição Tributária. Explique a segregação no PGDAS.
 5. 📑 INTEGRIDADE: Você DEVE obrigatoriamente listar todos os 19 itens abaixo. Não pule nenhum.
@@ -125,7 +125,7 @@ export async function callGeminiAgent(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
@@ -146,7 +146,7 @@ export async function callGeminiAgent(
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
   const data = await response.json();
   
-  if (data.error) throw new Error(`Erro API Gemini: ${data.error.message}`);
+  if (data.error) throw new Error(`Erro API Gemini: \${data.error.message}`);
   
   let message = data?.candidates?.[0]?.content;
   if (!message) return "Sem resposta da IA.";
@@ -189,20 +189,19 @@ export async function sendChatMessage(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
   const toolsArray = dynamicManifests.length > 0 ? [{ functionDeclarations: dynamicManifests }] : undefined;
 
-  // Criamos uma lista textual das skills para o prompt do sistema
-  const skillsList = dynamicSkills.map(s => `- ${s.name}: ${s.description}`).join('\n');
+  const skillsList = dynamicSkills.map(s => `- \${s.name}: \${s.description}`).join('\n');
 
   const systemPrompt = `Você é o Assistente Inteligente da Jota Contabilidade. 
   Você tem acesso a ferramentas especializadas (Skills) configuradas pelo usuário.
   
   FERRAMENTAS DISPONÍVEIS:
-  ${skillsList || "Nenhuma ferramenta configurada no momento."}
+  \${skillsList || "Nenhuma ferramenta configurada no momento."}
 
   Sempre que o usuário perguntar algo relacionado a estas ferramentas, você DEVE chamá-las. 
   Por exemplo, se houver uma ferramenta de "tabela_cClassTrib", chame-a para obter os dados antes de responder.
@@ -224,7 +223,6 @@ export async function sendChatMessage(
   const message = data?.candidates?.[0]?.content;
   if (!message) return "Desculpe, não consegui processar sua mensagem.";
 
-  // Se a IA chamou uma função
   if (message.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     for (const part of message.parts) {
@@ -244,7 +242,7 @@ export async function sendChatMessage(
 }
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
-  if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
+  if (!agent.webhookUrl) throw new Error(\`Webhook não configurado.\`);
   const response = await fetch(agent.webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentName: agent.nome, data: JSON.parse(userContent), previousReports }) });
   const data = await response.json();
   return data.report || data.output || "Erro no processamento.";
