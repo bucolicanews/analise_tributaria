@@ -29,9 +29,16 @@ export const ChatInterface = () => {
 
   const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-  useEffect(() => {
+  // Carrega as skills sempre que o componente monta ou ganha foco
+  const refreshSkills = () => {
     const skills = loadDynamicSkills().filter(s => s.isActive);
     setAvailableSkills(skills);
+  };
+
+  useEffect(() => {
+    refreshSkills();
+    window.addEventListener('focus', refreshSkills);
+    return () => window.removeEventListener('focus', refreshSkills);
   }, []);
 
   useEffect(() => {
@@ -53,14 +60,18 @@ export const ChatInterface = () => {
     const textBeforeCursor = value.substring(0, cursorPosition);
     const lastAtSymbol = textBeforeCursor.lastIndexOf('@');
 
+    // Só ativa se o @ for o início do texto ou precedido por um espaço
     if (lastAtSymbol !== -1) {
-      const query = textBeforeCursor.substring(lastAtSymbol + 1);
-      // Verifica se não há espaços entre o @ e o cursor
-      if (!query.includes(' ')) {
-        setMentionFilter(query);
-        setShowMentionMenu(true);
-        setSelectedIndex(0);
-        return;
+      const charBeforeAt = textBeforeCursor[lastAtSymbol - 1];
+      if (lastAtSymbol === 0 || charBeforeAt === ' ') {
+        const query = textBeforeCursor.substring(lastAtSymbol + 1);
+        // Verifica se não há espaços entre o @ e o cursor
+        if (!query.includes(' ')) {
+          setMentionFilter(query);
+          setShowMentionMenu(true);
+          setSelectedIndex(0);
+          return;
+        }
       }
     }
     
@@ -86,7 +97,7 @@ export const ChatInterface = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (showMentionMenu) {
+    if (showMentionMenu && filteredSkills.length > 0) {
       if (e.key === 'ArrowDown') {
         e.preventDefault();
         setSelectedIndex(prev => (prev + 1) % filteredSkills.length);
@@ -143,7 +154,7 @@ export const ChatInterface = () => {
   };
 
   return (
-    <Card className="flex flex-col h-[calc(100vh-200px)] shadow-elegant border-primary/20 relative">
+    <Card className="flex flex-col h-[calc(100vh-200px)] shadow-elegant border-primary/20 relative overflow-visible">
       <CardHeader className="border-b border-border/50 bg-muted/20 py-3 flex flex-row items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="p-2 bg-primary/10 rounded-full">
@@ -240,35 +251,35 @@ export const ChatInterface = () => {
           </div>
         </ScrollArea>
 
-        {/* Menu de Menção (@) */}
-        {showMentionMenu && filteredSkills.length > 0 && (
-          <div className="absolute bottom-full left-4 mb-2 w-72 bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 animate-in slide-in-from-bottom-2">
-            <div className="bg-muted/50 px-3 py-2 border-b border-border flex items-center gap-2">
-              <Terminal className="h-3 w-3 text-primary" />
-              <span className="text-[10px] font-bold uppercase text-muted-foreground">Minhas Ferramentas</span>
-            </div>
-            <div className="max-h-60 overflow-y-auto">
-              {filteredSkills.map((skill, idx) => (
-                <div
-                  key={skill.id}
-                  className={cn(
-                    "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors",
-                    idx === selectedIndex ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/30 border-l-4 border-transparent"
-                  )}
-                  onClick={() => insertSkill(skill.name)}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-foreground">{skill.name}</span>
-                    <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Skill</Badge>
+        <div className="p-4 border-t border-border/50 bg-muted/10 relative overflow-visible">
+          {/* Menu de Menção (@) - Posicionado acima do input */}
+          {showMentionMenu && filteredSkills.length > 0 && (
+            <div className="absolute bottom-full left-4 mb-2 w-72 bg-card border border-border rounded-lg shadow-2xl overflow-hidden z-[100] animate-in slide-in-from-bottom-2">
+              <div className="bg-muted/80 px-3 py-2 border-b border-border flex items-center gap-2">
+                <Terminal className="h-3 w-3 text-primary" />
+                <span className="text-[10px] font-bold uppercase text-muted-foreground">Minhas Ferramentas</span>
+              </div>
+              <div className="max-h-60 overflow-y-auto">
+                {filteredSkills.map((skill, idx) => (
+                  <div
+                    key={skill.id}
+                    className={cn(
+                      "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors",
+                      idx === selectedIndex ? "bg-primary/10 border-l-4 border-primary" : "hover:bg-muted/30 border-l-4 border-transparent"
+                    )}
+                    onClick={() => insertSkill(skill.name)}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-foreground">{skill.name}</span>
+                      <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Skill</Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground line-clamp-1">{skill.description}</p>
                   </div>
-                  <p className="text-[10px] text-muted-foreground line-clamp-1">{skill.description}</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        <div className="p-4 border-t border-border/50 bg-muted/10">
           <div className="max-w-4xl mx-auto flex gap-2">
             <Input
               ref={inputRef}
