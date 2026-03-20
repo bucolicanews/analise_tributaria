@@ -38,6 +38,7 @@ const Configuracao = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeSkillIdForUpload, setActiveSkillIdForUpload] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isTestingSkill, setIsTestingSkill] = useState<string | null>(null);
 
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || '');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || '');
@@ -81,6 +82,31 @@ const Configuracao = () => {
       }
       return s;
     }));
+  };
+
+  const handleTestSkill = async (skill: DynamicSkill) => {
+    setIsTestingSkill(skill.id);
+    const toastId = toast.loading(`Testando skill: ${skill.name}...`);
+    try {
+      // Para teste, usamos parâmetros vazios ou padrão
+      const testArgs = skill.parameters?.properties ? {} : {};
+      const result = await executeSkill(skill.name, testArgs);
+      
+      console.log(`Resultado do teste (${skill.name}):`, result);
+      
+      if (result.error) {
+        toast.error(`Erro no teste: ${result.error}`, { id: toastId });
+      } else {
+        toast.success("Teste concluído! Verifique o console para o log completo.", { 
+          id: toastId,
+          description: "A Skill retornou dados com sucesso."
+        });
+      }
+    } catch (err: any) {
+      toast.error(`Falha crítica no teste: ${err.message}`, { id: toastId });
+    } finally {
+      setIsTestingSkill(null);
+    }
   };
 
   const handleSave = (e: React.FormEvent) => {
@@ -386,9 +412,22 @@ const Configuracao = () => {
                            )}
 
                            <div className="flex justify-between items-center pt-2 border-t border-border/50">
-                             <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
-                               <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
-                             </Button>
+                             <div className="flex gap-2">
+                               <Button 
+                                 type="button" 
+                                 variant="outline" 
+                                 size="sm" 
+                                 className="text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                                 onClick={() => handleTestSkill(skill)}
+                                 disabled={isTestingSkill === skill.id}
+                               >
+                                 {isTestingSkill === skill.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                                 Testar Skill
+                               </Button>
+                               <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}>
+                                 <Trash2 className="h-4 w-4 mr-2" /> Remover Skill
+                               </Button>
+                             </div>
                            </div>
                          </AccordionContent>
                        </AccordionItem>
