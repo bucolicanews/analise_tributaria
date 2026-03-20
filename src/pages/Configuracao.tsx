@@ -92,6 +92,16 @@ const Configuracao = () => {
         toast.error(`Erro no teste: ${result.error}`, { id: toastId });
       } else {
         toast.success("Teste concluído com sucesso!", { id: toastId });
+        
+        // Se for navegação web, salva o conteúdo extraído no campo de texto para visualização
+        if (skill.executionType === 'web_scraping') {
+          const extractedContent = result.conteudo || (result.dados_extraidos ? result.dados_extraidos.join('\n') : "");
+          if (extractedContent) {
+            setDynamicSkills(prev => prev.map(s => 
+              s.id === skill.id ? { ...s, knowledgeBaseText: extractedContent } : s
+            ));
+          }
+        }
       }
     } catch (err: any) {
       toast.error(`Falha no teste: ${err.message}`, { id: toastId });
@@ -302,9 +312,28 @@ const Configuracao = () => {
                                <Textarea className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
                              </div>
                            ) : skill.executionType === 'web_scraping' ? (
-                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                               <div className="space-y-2"><Label>URL Alvo</Label><Input placeholder="https://..." value={skill.url || ''} onChange={e => updateSkill(skill.id, 'url', e.target.value)} /></div>
-                               <div className="space-y-2"><Label>Seletor CSS Opcional</Label><Input placeholder="Ex: #main-content" value={skill.selector || ''} onChange={e => updateSkill(skill.id, 'selector', e.target.value)} /></div>
+                             <div className="space-y-4">
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                 <div className="space-y-2"><Label>URL Alvo</Label><Input placeholder="https://..." value={skill.url || ''} onChange={e => updateSkill(skill.id, 'url', e.target.value)} /></div>
+                                 <div className="space-y-2"><Label>Seletor CSS Opcional</Label><Input placeholder="Ex: #main-content" value={skill.selector || ''} onChange={e => updateSkill(skill.id, 'selector', e.target.value)} /></div>
+                               </div>
+                               
+                               {skill.knowledgeBaseText && (
+                                 <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
+                                   <div className="flex items-center justify-between">
+                                     <Label className="flex items-center gap-2 text-emerald-600"><Search className="h-3 w-3" /> Resultado da Última Extração</Label>
+                                     <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-orange-200 text-orange-600" onClick={() => handleManualCleanNoise(skill.id)}>
+                                       <Eraser className="h-3 w-3 mr-1" /> Limpar Ruídos
+                                     </Button>
+                                   </div>
+                                   <Textarea 
+                                     readOnly 
+                                     className="font-sans text-xs h-48 bg-emerald-50/10 border-emerald-200/50" 
+                                     value={skill.knowledgeBaseText} 
+                                   />
+                                   <p className="text-[10px] text-muted-foreground italic">Este é o texto que a IA receberá ao executar esta skill.</p>
+                                 </div>
+                               )}
                              </div>
                            ) : (
                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
