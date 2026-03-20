@@ -1,6 +1,10 @@
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book, Upload, Loader2, Eraser } from 'lucide-center';
+import { 
+  Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
+  Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
+  Wrench, Play, Lock, Book, Upload, Loader2, Eraser 
+} from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
