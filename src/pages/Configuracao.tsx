@@ -105,6 +105,22 @@ const Configuracao = () => {
     }
   };
 
+  const handleDownloadSkill = (skill: DynamicSkill) => {
+    // Remove o ID interno para que o arquivo seja um "template" limpo
+    const { id, ...exportData } = skill;
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `skill_${skill.name}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Arquivo skill_${skill.name}.json gerado!`);
+  };
+
   const cleanTextNoise = (text: string): string => {
     return text
       .split('\n')
@@ -385,6 +401,9 @@ const Configuracao = () => {
                            <div className="flex gap-2">
                              <Button type="button" variant="outline" size="sm" className="text-emerald-600 border-emerald-200" onClick={() => handleTestSkill(skill)} disabled={isTestingSkill === skill.id}>
                                {isTestingSkill === skill.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Play className="h-4 w-4 mr-2" />} Testar Skill
+                             </Button>
+                             <Button type="button" variant="outline" size="sm" className="text-blue-600 border-blue-200" onClick={() => handleDownloadSkill(skill)}>
+                               <Download className="h-4 w-4 mr-2" /> Baixar JSON
                              </Button>
                              <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setDynamicSkills(dynamicSkills.filter(s => s.id !== skill.id))}><Trash2 className="h-4 w-4 mr-2" /> Remover Skill</Button>
                            </div>
