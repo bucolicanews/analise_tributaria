@@ -25,74 +25,33 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 
 🚨 REGRAS DE OURO (PROIBIDO FALHAR):
 1. 🚫 ZERO TABELAS. Use listas aninhadas com tópicos claros e negritos estratégicos.
-2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados no JSON. Calcule o valor exato em R$ do imposto mensal no Simples Nacional vs Lucro Presumido (incluindo ICMS e ISS estimados para a região).
-3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS) de serviço (NFS-e municipal). Se o cliente for indústria, aplique as regras do IPI e Anexo II.
-4. 📦 ICMS-ST E CEST: Analise a Substituição Tributária para o setor do cliente. Explique detalhadamente que no Simples Nacional, a receita de produtos com ST deve ser segregada no PGDAS para não pagar ICMS em duplicidade.
-5. 🧠 VEREDITO PRÁTICO: O relatório deve terminar com uma decisão clara e destacada: "O regime ideal para você hoje é X por causa da economia real de R$ Y".
+2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados no JSON. Calcule o valor exato em R$ do imposto mensal no Simples Nacional vs Lucro Presumido.
+3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS) de serviço (NFS-e municipal).
+4. 📦 ICMS-ST E CEST: Analise a Substituição Tributária. Explique a segregação no PGDAS.
+5. 📑 INTEGRIDADE: Você DEVE obrigatoriamente listar todos os 19 itens abaixo. Não pule nenhum.
+6. 🧠 VEREDITO FINAL: O relatório deve terminar APÓS O ITEM 19 com uma decisão clara: "O regime ideal para você hoje é X por causa da economia real de R$ Y".
 
-ESTRUTURA DETALHADA DO MANUAL (19 REQUISITOS):
+ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 
 # 1. ANÁLISE DE CNAEs E OPERAÇÃO
-- Segregação de Receitas: Explique como separar Venda (Anexo I), Indústria (Anexo II) e Serviço (Anexo III/V) na prática operacional.
-- Documentação Fiscal: Detalhe o uso de NF-e para mercadorias/produtos e NFS-e para mão de obra/serviços.
-- Base legal: Art. 18 da Lei Complementar 123/06.
-
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
-- Explique a Contribuição Previdenciária Patronal (CPP) dentro do DAS (Anexos I, II, III, V) vs Fora do DAS (Anexo IV).
-- Detalhe o custo real da folha (INSS Patronal 20% + RAT + Terceiros) se a atividade principal for do Anexo IV ou Lucro Presumido.
-
 # 1.2 RETENÇÃO DE INSS E ISS
-- Analise a regra de retenção de 11% (INSS) e Retenção de ISS na fonte conforme a legislação de Belém/PA (ou cidade informada). Esclareça se a atividade do cliente sofre ou não essas retenções.
-
 # 1.3 DETALHAMENTO EFD-REINF
-- Guia prático da Série R-4000 para retenções de serviços tomados (IR, CSLL, PIS, COFINS). Explique a importância do cruzamento de dados.
-
 # 2. CALENDÁRIO DE OBRIGAÇÕES (O QUE ENTREGAR)
-- Liste: PGDAS-D, eSocial, DCTFWeb, EFD-Reinf, DEFIS. Explique o fato gerador e os prazos fatais de cada uma.
-
 # 3. PROJEÇÃO MATEMÁTICA COMPARATIVA (O CORAÇÃO)
-- CÁLCULO SIMPLES NACIONAL: Aplique a alíquota efetiva real (RBT12) sobre o faturamento informado.
-- CÁLCULO LUCRO PRESUMIDO: Simule (Federal 5,93% + ISS + ICMS - Créditos estimados de entrada).
-- RESULTADO COMPARATIVO: "Economia estimada de R$ X por mês no regime Y".
-
 # 4. GUIA DE PARAMETRIZAÇÃO (20 ITENS DO SETOR)
-- Liste 20 itens específicos do setor do cliente com: NCM, CEST (se houver ST), CSOSN (500 para ST, 102 para tributado) e cClassTrib (Reforma).
-
 # 5. LICENCIAMENTO REGIONAL (BELÉM/PA OU INFORMADO)
-- Detalhe as exigências da SEFA (Inscrição Estadual), PMB (Alvará/ISS), Vigilância Sanitária e Corpo de Bombeiros para o setor específico.
-
 # 6. NORMAS E EQUIPAMENTOS
-- Cite as NRs (Normas Regulamentadoras) de segurança do trabalho aplicáveis e sistemas de gestão necessários para a operação.
-
 # 7. INVESTIMENTO DE ABERTURA
-- Estimativa de taxas da Junta Comercial, Certificado Digital A1 e honorários profissionais de legalização.
-
 # 8. MATRIZ DE RISCOS (PREVENÇÃO)
-- Analise: Risco de confusão patrimonial, falta de segregação de ST (bitributação) e passivo de Fator R (se aplicável).
-
 # 9. IMPACTO DA REFORMA (EC 132)
-- Explique como a transição para o IBS/CBS afetará o preço de venda e a manutenção da competitividade do Simples Nacional.
-
 # 10. RESPOSTA À PERGUNTA DO USUÁRIO
-- Resposta técnica direta, fundamentada na legislação, para a dúvida específica enviada.
-
 # 11. METODOLOGIA DE ANÁLISE
-- Descreva a base normativa utilizada e as premissas de cálculo adotadas.
-
 # 12. CONCLUSÃO E PLANO DE AÇÃO
-- Recomendação final do regime e os 3 primeiros passos práticos para a estruturação.
-
 # 13. LIMITAÇÃO DE RESPONSABILIDADE
-- Texto padrão delimitando que o parecer baseia-se nos dados fornecidos e na lei atual.
-
 # 14. FUNDAMENTAÇÃO PERICIAL
-- Aplicação dos princípios contábeis e normas brasileiras de contabilidade (NBC).
-
 # 15. CLÁUSULA DE REVISÃO CONTRATUAL
-- Alerta sobre a necessidade de revisão periódica conforme o crescimento do faturamento.
-
-# 16. TABELAS 2026
-- Apresente o Salário Mínimo 2026 e a Tabela de Contribuição do INSS 2026 em formato de lista.
+# 16. TABELAS 2026 (Salário Mínimo e INSS)
 
 # 17. OBRIGAÇÕES DA EMPRESA COM A PRÓPRIA EMPRESA (GOVERNANÇA)
 - Detalhe a rotina interna obrigatória:
@@ -113,43 +72,41 @@ ESTRUTURA DETALHADA DO MANUAL (19 REQUISITOS):
 - Resumo das obrigações acessórias conforme o regime sugerido:
 - Simples Nacional: PGDAS-D mensal e DEFIS anual.
 - Lucro Presumido/Real: DCTF, EFD Contribuições, SPED Fiscal, SPED Contábil, ECF, Reinf.
-- Alerta crítico sobre multas pesadas por atraso na entrega dessas declarações.`;
+- Alerta crítico sobre multas pesadas por atraso na entrega dessas declarações.
 
-const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em Viabilidade e CNAEs. Sua missão é a análise estrutural do negócio.
-🚨 REGRAS: ZERO TABELAS. Use apenas os CNAEs do JSON.
-- Execute com rigor os requisitos 1 (Análise de CNAEs), 5 (Licenciamento Regional), 11 (Metodologia) e 14 (Fundamentação Pericial).
-- Detalhe a segregação real entre Indústria (Anexo II), Comércio (Anexo I) e Serviço (Anexo III/V).
-- Explique as exigências da SEFA, Prefeitura e Bombeiros para a localização informada.`;
+---
+VEREDITO PRÁTICO FINAL:
+[Sua decisão técnica aqui]`;
 
-const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações e Reinf. Sua missão é garantir o compliance fiscal.
+const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em Viabilidade e CNAEs.
 🚨 REGRAS: ZERO TABELAS.
-- Execute com rigor os requisitos 1.3 (EFD-Reinf), 2 (Calendário de Obrigações), 13 (Limitação) e 19 (Obrigações com o Fisco).
-- Detalhe a Série R-4000 da Reinf para retenções de serviços.
-- Liste todas as declarações acessórias (PGDAS, DCTF, SPED) com seus fatos geradores e riscos de multas pesadas.`;
+- Execute requisitos 1, 5, 11 e 14.
+- Detalhe a segregação real entre Indústria, Comércio e Serviço.`;
 
-const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos e Matemática Tributária. Sua missão é o cálculo real.
-🚨 REGRAS: ZERO TABELAS. Use os números do JSON.
-- Execute com rigor os requisitos 1.1 (CPP), 3 (Projeção Matemática) e 16 (Tabelas 2026).
-- FAÇA A CONTA: Calcule o imposto exato em R$ no Simples Nacional (usando RBT12) vs Lucro Presumido.
-- Detalhe o custo do INSS Patronal (20% + RAT + Terceiros) fora do DAS se aplicável.`;
-
-const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização e Itens. Sua missão é o cadastro técnico.
+const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações e Compliance.
 🚨 REGRAS: ZERO TABELAS.
-- Execute com rigor os requisitos 4 (Guia de 20 Itens) e 6 (Normas e Equipamentos).
-- Liste 20 itens ESPECÍFICOS DO SETOR DO CLIENTE com NCM, CEST, CSOSN e cClassTrib da Reforma.
-- Detalhe as NRs de segurança e sistemas de gestão necessários para a operação.`;
+- Execute requisitos 1.3, 2, 13 e 19 (Obrigações com o Fisco).
+- Detalhe a Série R-4000 da Reinf e as multas por atraso de declarações.`;
 
-const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Governança Interna. Sua missão é a blindagem do negócio.
+const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos e Matemática.
 🚨 REGRAS: ZERO TABELAS.
-- Execute com rigor os requisitos 1.2 (Retenções), 7 (Investimento), 8 (Matriz de Riscos), 15 (Revisão), 17 (Governança Interna) e 18 (Relação com Contador).
-- Foque na separação absoluta PF/PJ e no fluxo mensal de documentos.
-- Analise os riscos de bitributação por falta de segregação de ST.`;
+- Execute requisitos 1.1, 3 e 16.
+- FAÇA A CONTA: Compare Simples vs Presumido em R$ usando os dados do JSON.`;
 
-const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito Final. Sua missão é a decisão executiva.
+const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização.
 🚨 REGRAS: ZERO TABELAS.
-- Execute com rigor os requisitos 9 (Impacto da Reforma), 10 (Resposta ao Usuário) e 12 (Conclusão e Plano de Ação).
-- Explique como o IBS/CBS mudará o jogo para o cliente.
-- Dê o VEREDITO FINAL: "O regime ideal é X com economia de R$ Y". Liste os 3 primeiros passos práticos.`;
+- Execute requisitos 4 e 6.
+- Liste 20 itens ESPECÍFICOS DO SETOR com NCM, CEST e CSOSN.`;
+
+const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Governança.
+🚨 REGRAS: ZERO TABELAS.
+- Execute requisitos 7, 8, 15, 17 (Governança Interna) e 18 (Relação com Contador).
+- Foque na separação PF/PJ e no fluxo de documentos.`;
+
+const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
+🚨 REGRAS: ZERO TABELAS.
+- Execute requisitos 9, 10 e 12.
+- Dê o VEREDITO FINAL: "O regime ideal é X com economia de R$ Y".`;
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   { id: '1', nome: '1. Viabilidade e CNAEs', order: 1, systemPrompt: PROMPT_AGENTE_1 },
@@ -180,7 +137,7 @@ export async function callGeminiAgent(
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ 
       role: 'user', 
-      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: USE APENAS OS CNAES E DADOS DO CLIENTE ACIMA. NÃO CITE OFICINAS OU OUTROS SETORES. NÃO USE TABELAS." }] 
+      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: VOCÊ DEVE CHEGAR ATÉ O ITEM 19. NÃO PULE AS SEÇÕES DE GOVERNANÇA (17, 18, 19). NÃO USE TABELAS." }] 
     }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 
