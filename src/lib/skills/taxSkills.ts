@@ -196,7 +196,6 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
     return { error: "Skill '" + name + "' não encontrada." };
   }
 
-  // Se for um teste manual (skillsOverride presente), ignoramos o check de isActive para permitir testar antes de ativar
   if (!skillsOverride && !skill.isActive) {
     return { error: "Skill '" + name + "' está inativa." };
   }
@@ -206,30 +205,47 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
   }
 
   if (skill.executionType === 'web_scraping' && skill.url) {
-    try {
-      const targetUrl = skill.url;
-      const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
-      const response = await fetch(proxyUrl);
-      const data = await response.json();
-      const html = data.contents;
+    const targetUrl = skill.url;
+    // Lista de proxies para tentar em sequência
+    const proxies = [
+      (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`
+    ];
 
-      if (skill.selector) {
-        const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
-        const matches = html.match(regex) || [];
-        const results = matches.map((m: string) => m.replace(/<[^>]+>/g, '').trim());
-        return { status: "sucesso", url: targetUrl, dados_extraidos: results.slice(0, 20) };
+    let lastError = "";
+    
+    for (const getProxyUrl of proxies) {
+      try {
+        const response = await fetch(getProxyUrl(targetUrl));
+        if (!response.ok) throw new Error(`Status: ${response.status}`);
+        
+        const data = await response.json();
+        // AllOrigins retorna em .contents, corsproxy.io retorna o texto direto ou json
+        const html = data.contents || (typeof data === 'string' ? data : JSON.stringify(data));
+
+        if (!html) throw new Error("Conteúdo vazio retornado pelo proxy.");
+
+        if (skill.selector) {
+          const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
+          const matches = html.match(regex) || [];
+          const results = matches.map((m: string) => m.replace(/<[^>]+>/g, '').trim());
+          return { status: "sucesso", url: targetUrl, dados_extraidos: results.slice(0, 20) };
+        }
+
+        const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+                              .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
+                              .replace(/<[^>]+>/g, ' ')
+                              .replace(/\s+/g, ' ')
+                              .trim();
+        
+        return { status: "sucesso", url: targetUrl, conteudo: cleanText.substring(0, 5000) };
+      } catch (e: any) {
+        lastError = e.message;
+        continue; // Tenta o próximo proxy
       }
-
-      const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-                            .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
-                            .replace(/<[^>]+>/g, ' ')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-      
-      return { status: "sucesso", url: targetUrl, conteudo: cleanText.substring(0, 5000) };
-    } catch (e: any) {
-      return { error: "Falha na navegação web: " + e.message };
     }
+
+    return { error: `Falha na navegação web após tentar múltiplos proxies. Último erro: ${lastError}. Verifique se a URL está correta e acessível publicamente.` };
   }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
