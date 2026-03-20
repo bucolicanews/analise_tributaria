@@ -4,7 +4,7 @@ import {
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
   Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote,
-  Lightbulb, Terminal, Cpu, HelpCircle, Database, ShieldAlert
+  Lightbulb, Terminal, Cpu, HelpCircle
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -17,18 +17,14 @@ import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentConfig, loadAgentsFromStorage, saveAgentsToStorage, PromptConfig, loadPromptsFromStorage, savePromptsToStorage, DEFAULT_PROMPTS, DEFAULT_AGENTS } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
-import { PromptSystemEditor } from '@/components/PromptSystemEditor';
-import { AgentPromptEditor } from '@/components/AgentPromptEditor';
 
 import * as pdfjsLib from 'pdfjs-dist';
-import * as XLSX from 'xlsx';
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
@@ -177,177 +173,6 @@ const Configuracao = () => {
   const addPrompt = () => setPrompts([...prompts, { id: Date.now().toString(), title: 'Novo Prompt', role: 'Especialista', content: '', isActive: true }]);
   const addSkill = () => setDynamicSkills([...dynamicSkills, { id: Date.now().toString(), name: 'nova_skill', description: 'Descrição', parameters: { type: 'object', properties: {} }, executionType: 'local_js', isActive: true, jsCode: 'return { status: "ok" };' }]);
 
-  const handleManualCleanNoise = (id: string) => {
-    const skill = dynamicSkills.find(s => s.id === id);
-    if (!skill || !skill.knowledgeBaseText) return;
-    
-    const cleaned = skill.knowledgeBaseText
-      .replace(/\s+/g, ' ')
-      .replace(/[^\x20-\x7E\u00A0-\u00FF]/g, '')
-      .trim();
-      
-    updateSkill(id, 'knowledgeBaseText', cleaned);
-    toast.success("Ruídos removidos!");
-  };
-
-  const SkillInstructionsModal = () => (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline" className="border-orange-200 text-orange-600 bg-orange-50/50 hover:bg-orange-50">
-          <HelpCircle className="h-4 w-4 mr-2" /> Instruções
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-orange-600">
-            <Lightbulb className="h-5 w-5" /> Guia de Treinamento de Skills
-          </DialogTitle>
-          <DialogDescription>
-            Aprenda a usar o campo "Instrução de Uso (Prompt)" para ensinar seus Agentes.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          <div className="p-4 rounded-lg bg-muted/50 border border-border">
-            <h4 className="font-bold text-sm mb-2">O que é a Instrução de Uso?</h4>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              É o "manual" que a IA lê para saber que esta ferramenta existe. Sem uma boa instrução, a IA pode ignorar a Skill mesmo que ela seja necessária.
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <h4 className="font-bold text-sm">Modelo Sugerido:</h4>
-            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-emerald-400 border border-emerald-900/50">
-              "Você tem acesso à ferramenta #nome_da_skill. Utilize-a obrigatoriamente sempre que [CONDIÇÃO]. Ela serve para [OBJETIVO] e retorna [RESULTADO]."
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <h4 className="font-bold text-sm">Exemplo Prático:</h4>
-            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50">
-              "Você tem acesso à ferramenta #consultar_viacep. Utilize-a para validar o endereço sempre que o usuário fornecer um CEP. Não tente adivinhar o endereço, use a skill."
-            </div>
-          </div>
-
-          <Alert className="bg-primary/5 border-primary/20">
-            <Info className="h-4 w-4 text-primary" />
-            <AlertTitle className="text-xs font-bold">Dica de Ouro</AlertTitle>
-            <AlertDescription className="text-[10px]">
-              Após escrever a instrução na Skill, **copie e cole** esse mesmo texto no "System Prompt" do seu Agente. Isso reforça o comportamento da IA.
-            </AlertDescription>
-          </Alert>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
-  const PromptInstructionsModal = () => (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50">
-          <HelpCircle className="h-4 w-4 mr-2" /> Instruções
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col p-0">
-        <div className="p-6 border-b border-border bg-muted/20">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-indigo-600">
-              <MessageSquareQuote className="h-6 w-6" /> Manual de Engenharia de Prompts JOTA
-            </DialogTitle>
-            <DialogDescription>
-              Guia completo para estruturar os cérebros da sua IA usando variáveis de contexto dinâmicas.
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-        
-        <ScrollArea className="flex-1 p-6">
-          <div className="space-y-8 pb-6">
-            {/* SEÇÃO 1: CONCEITO */}
-            <div className="space-y-3">
-              <h4 className="font-bold text-sm flex items-center gap-2 text-foreground">
-                <Lightbulb className="h-4 w-4 text-yellow-500" /> O que são Prompts de Sistema?
-              </h4>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                São as instruções mestre que definem a personalidade, o conhecimento e as regras que a IA deve seguir. 
-                No Sistema JOTA, os prompts são alimentados automaticamente com um **JSON de Contexto** contendo todos os dados que o usuário preencheu no formulário de viabilidade.
-              </p>
-            </div>
-
-            {/* SEÇÃO 2: DICIONÁRIO DE VARIÁVEIS */}
-            <div className="space-y-4">
-              <h4 className="font-bold text-sm flex items-center gap-2 text-foreground">
-                <Database className="h-4 w-4 text-indigo-500" /> Dicionário de Variáveis de Contexto
-              </h4>
-              <p className="text-[10px] text-muted-foreground italic">
-                Use estas variáveis com o símbolo **@** para que a IA leia os dados reais do cliente.
-              </p>
-              
-              <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full text-[10px] text-left border-collapse">
-                  <thead className="bg-muted/50 border-b border-border">
-                    <tr>
-                      <th className="p-2 font-bold text-muted-foreground uppercase">Variável</th>
-                      <th className="p-2 font-bold text-muted-foreground uppercase">O que ela entrega à IA</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.razaoSocial</td><td className="p-2">Nome da empresa ou projeto informado.</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.naturezaJuridica</td><td className="p-2">SLU, LTDA, EI, etc.</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@empresa.tributacaoPretendida</td><td className="p-2">Regime escolhido (Simples, Presumido, etc).</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@operacional.cnaes</td><td className="p-2">Lista completa de CNAEs (Código + Descrição).</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@financeiro.faturamento.anual_total</td><td className="p-2">Valor total da receita bruta anual.</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@financeiro.fator_r.percentual_atual</td><td className="p-2">Relação Folha/Faturamento para cálculo do Anexo III/V.</td></tr>
-                    <tr className="hover:bg-muted/20"><td className="p-2 font-mono text-indigo-600 font-bold">@conformidade_riscos.alertas_criticos</td><td className="p-2">Status de riscos (Confusão Patrimonial, Retirada Informal).</td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* SEÇÃO 3: MODELO E EXEMPLO */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-foreground">Modelo Sugerido:</h4>
-                <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-indigo-400 border border-indigo-900/50 h-32">
-                  "Você é um [PERSONA]. Sua missão é analisar os dados de @empresa.razaoSocial e fornecer um relatório sobre [OBJETIVO]. Siga as regras: 1. [REGRA 1]..."
-                </div>
-              </div>
-              <div className="space-y-2">
-                <h4 className="font-bold text-sm text-foreground">Exemplo Prático:</h4>
-                <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50 h-32">
-                  "Você é o Perito da Jota. Analise o faturamento de @financeiro.faturamento.anual_total e verifique se o enquadramento em @empresa.tributacaoPretendida é viável."
-                </div>
-              </div>
-            </div>
-
-            {/* SEÇÃO 4: ALERTAS */}
-            <div className="space-y-3">
-              <Alert className="bg-red-500/5 border-red-500/20">
-                <ShieldAlert className="h-4 w-4 text-red-500" />
-                <AlertTitle className="text-xs font-bold text-red-600">Regra de Ouro: Integridade de Dados</AlertTitle>
-                <AlertDescription className="text-[10px] text-red-700/80">
-                  Sempre instrua a IA a **não inventar dados**. Se uma variável estiver vazia no JSON, ela deve informar que o dado não foi fornecido pelo cliente.
-                </AlertDescription>
-              </Alert>
-
-              <Alert className="bg-primary/5 border-primary/20">
-                <Info className="h-4 w-4 text-primary" />
-                <AlertTitle className="text-xs font-bold">Dica de Produtividade</AlertTitle>
-                <AlertDescription className="text-[10px]">
-                  Use o menu de atalho digitando **@** dentro do editor de prompts para inserir variáveis rapidamente sem precisar decorar os nomes técnicos.
-                </AlertDescription>
-              </Alert>
-            </div>
-          </div>
-        </ScrollArea>
-        
-        <div className="p-4 border-t border-border bg-muted/20 flex justify-end">
-          <DialogTrigger asChild>
-            <Button variant="secondary" size="sm">Fechar Manual</Button>
-          </DialogTrigger>
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-
   return (
     <div className="container mx-auto px-4 py-8">
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
@@ -380,7 +205,6 @@ const Configuracao = () => {
                <div className="space-y-2"><Label>Webhook Ambiente TESTE</Label><Input value={webhookTestUrl} onChange={(e) => setWebhookTestUrl(e.target.value)} placeholder="https://n8n.seu-servidor.com/webhook-test/..." /></div>
                <div className="space-y-2"><Label>Webhook Ambiente PRODUÇÃO</Label><Input value={webhookProdUrl} onChange={(e) => setWebhookProdUrl(e.target.value)} placeholder="https://n8n.seu-servidor.com/webhook/..." /></div>
              </div>
-             <p className="text-[10px] text-muted-foreground italic">Estes webhooks são usados pelos botões de "Auditoria IA" e "Diagnóstico Oficial".</p>
           </div>
 
           {autenticado ? (
@@ -393,15 +217,97 @@ const Configuracao = () => {
                      <p className="text-xs text-indigo-700/70">Gerencie os cérebros e personas da sua IA.</p>
                    </div>
                    <div className="flex gap-2">
-                     <PromptInstructionsModal />
                      <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={() => setIsImportPromptDialogOpen(true)}><Download className="h-4 w-4 mr-2" /> Importar</Button>
                      <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={addPrompt}><Plus className="h-4 w-4 mr-2" /> Novo Prompt</Button>
                    </div>
                  </div>
 
+                 <div className="space-y-3">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full border-indigo-500/30 text-indigo-600 hover:bg-indigo-500/10">
+                          <BookOpen className="h-4 w-4 mr-2" /> Manual Técnico: Dicionário de Dados para Prompts
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-5xl max-h-[85vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-indigo-600"><Terminal className="h-5 w-5" /> Manual Técnico: Dicionário de Dados para Prompts</DialogTitle>
+                          <DialogDescription>Lista completa de caminhos JSON que você pode usar para instruir a IA.</DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-8 py-4">
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">1. DADOS DA EMPRESA (OBJETO: EMPRESA)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.razaoSocial</code> <span className="text-muted-foreground italic">Nome da empresa</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.naturezaJuridica</code> <span className="text-muted-foreground italic">SLU, LTDA, EI...</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.classificacaoFiscal</code> <span className="text-muted-foreground italic">ME ou EPP</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.capitalSocial</code> <span className="text-muted-foreground italic">Valor em R$</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.numSocios</code> <span className="text-muted-foreground italic">Quantidade</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.localizacao.municipio</code> <span className="text-muted-foreground italic">Cidade</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.localizacao.estado</code> <span className="text-muted-foreground italic">UF (ex: PA)</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>empresa.tributacaoPretendida</code> <span className="text-muted-foreground italic">Regime escolhido</span></div>
+                            </div>
+                          </section>
+
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">2. OPERACIONAL E CNAES (OBJETO: OPERACIONAL)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.cnaes</code> <span className="text-muted-foreground italic">Lista de objetos CNAE</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.descricaoAtividades</code> <span className="text-muted-foreground italic">Texto livre</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.percentual_comercio_industria_servico.comercio</code> <span className="text-muted-foreground italic">% de Comércio</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>operacional.percentual_comercio_industria_servico.servico</code> <span className="text-muted-foreground italic">% de Serviço</span></div>
+                            </div>
+                          </section>
+
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">3. FINANCEIRO E FATOR R (OBJETO: FINANCEIRO)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.faturamento.anual_total</code> <span className="text-muted-foreground italic">Receita Bruta Anual</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.faturamento.mensal_medio</code> <span className="text-muted-foreground italic">Média mensal</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.custos_operacionais.fixos_mensais</code> <span className="text-muted-foreground italic">Despesas fixas</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.fator_r.folha_12_meses</code> <span className="text-muted-foreground italic">Soma folha 1 ano</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>financeiro.fator_r.percentual_atual</code> <span className="text-muted-foreground italic">Relação Folha/Fat</span></div>
+                            </div>
+                          </section>
+
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">4. SOCIETÁRIO E TRABALHISTA (OBJETO: SOCIETARIO_TRABALHISTA)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.quadro_pessoal.num_funcionarios</code> <span className="text-muted-foreground italic">Qtd funcionários</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.pro_labore.valor_declarado</code> <span className="text-muted-foreground italic">Valor do Pró-labore</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.pro_labore.declara_prolabore</code> <span className="text-muted-foreground italic">Booleano (true/false)</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>societario_trabalhista.retira_valores_pf</code> <span className="text-muted-foreground italic">Booleano</span></div>
+                            </div>
+                          </section>
+
+                          <section className="space-y-3">
+                            <h4 className="font-bold text-sm border-b border-indigo-100 pb-1 text-indigo-700 uppercase tracking-wider">5. CONFORMIDADE E RISCOS (OBJETO: CONFORMIDADE_RISCOS)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-2 text-[11px]">
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.confusao_patrimonial</code> <span className="text-muted-foreground italic">Risco de mistura PF/PJ</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.retirada_informal</code> <span className="text-muted-foreground italic">Risco fiscal retirada</span></div>
+                              <div className="flex justify-between border-b border-muted py-1"><code>conformidade_riscos.alertas_criticos.risco_previdenciario</code> <span className="text-muted-foreground italic">Risco falta de INSS</span></div>
+                            </div>
+                          </section>
+
+                          <section className="space-y-3 pt-4">
+                            <h4 className="font-bold text-sm text-orange-600 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Exemplo de Instrução no Prompt</h4>
+                            <div className="bg-slate-950 p-4 rounded-lg border border-indigo-900/50">
+                              <p className="text-[11px] text-indigo-300 font-mono leading-relaxed">
+                                "Analise o campo <span className="text-white font-bold">financeiro.fator_r.percentual_atual</span>. <br/>
+                                Se o valor for menor que 28, alerte o usuário que ele está no Anexo V do Simples Nacional. <br/>
+                                Sugira aumentar o <span className="text-white font-bold">societario_trabalhista.pro_labore.valor_declarado</span> para atingir a economia do Anexo III."
+                              </p>
+                            </div>
+                          </section>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                 </div>
+
                  <Accordion type="multiple" className="w-full space-y-2">
                    {prompts.map((prompt) => (
-                     <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4 !overflow-visible">
+                     <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4">
                        <AccordionTrigger className="hover:no-underline py-3">
                          <div className="flex items-center gap-3">
                            <div className={prompt.isActive ? "text-indigo-500" : "text-muted-foreground"}><Bot className="h-4 w-4" /></div>
@@ -409,17 +315,14 @@ const Configuracao = () => {
                            <Badge variant="outline" className="text-[10px] opacity-70">{prompt.role}</Badge>
                          </div>
                        </AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
+                       <AccordionContent className="pt-2 pb-4 space-y-4">
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Título</Label><Input value={prompt.title} onChange={e => updatePrompt(prompt.id, 'title', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Persona</Label><Input value={prompt.role} onChange={e => updatePrompt(prompt.id, 'role', e.target.value)} /></div>
                          </div>
                          <div className="space-y-2">
                            <Label className="text-indigo-600">Instruções de Sistema</Label>
-                           <PromptSystemEditor 
-                             value={prompt.content} 
-                             onChange={v => updatePrompt(prompt.id, 'content', v)} 
-                           />
+                           <Textarea className="font-mono text-[11px] h-64 bg-slate-950 text-indigo-300 border-indigo-900/50" value={prompt.content} onChange={e => updatePrompt(prompt.id, 'content', e.target.value)} />
                          </div>
                          <div className="flex justify-between items-center pt-2 border-t border-border/50">
                            <div className="flex items-center gap-2"><Switch checked={prompt.isActive} onCheckedChange={v => updatePrompt(prompt.id, 'isActive', v)} /><Label>Ativo</Label></div>
@@ -442,15 +345,109 @@ const Configuracao = () => {
                      <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos.</p>
                    </div>
                    <div className="flex gap-2">
-                     <SkillInstructionsModal />
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={() => setIsImportDialogOpen(true)}><Download className="h-4 w-4 mr-2" /> Importar</Button>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={addSkill}><Plus className="h-4 w-4 mr-2" /> Nova Skill</Button>
                    </div>
                  </div>
 
+                 <div className="space-y-3">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" className="w-full border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10">
+                          <BookOpen className="h-4 w-4 mr-2" /> Manual Técnico de Desenvolvimento de Skills
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle className="flex items-center gap-2 text-emerald-600"><Terminal className="h-5 w-5" /> Manual Técnico de Desenvolvimento de Skills</DialogTitle>
+                          <DialogDescription>Guia completo para estruturar JSON, seletores de Web Scraping e lógica JavaScript.</DialogDescription>
+                        </DialogHeader>
+                        
+                        <div className="space-y-6 py-4">
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">1. Estrutura do Parâmetro JSON (Schema)</h4>
+                            <p className="text-xs text-muted-foreground">Define quais dados a IA deve coletar do usuário antes de chamar a skill.</p>
+                            <pre className="bg-slate-950 text-blue-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`// Exemplo: Skill de Consulta de NCM
+{
+  "type": "object",
+  "properties": {
+    "ncm": { 
+      "type": "string", 
+      "description": "Código NCM (8 dígitos) para consulta de alíquotas" 
+    },
+    "ano": { 
+      "type": "number", 
+      "description": "Ano base do cálculo (ex: 2025)" 
+    }
+  },
+  "required": ["ncm"]
+}`}
+                            </pre>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">2. Web Scraping (Tags e Seletores)</h4>
+                            <p className="text-xs text-muted-foreground">Use seletores CSS para extrair dados de sites públicos. Exemplos comuns:</p>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                              <li><code className="bg-muted px-1">article</code>: Captura o conteúdo principal de blogs e notícias.</li>
+                              <li><code className="bg-muted px-1">.conteudo-post</code>: Captura classes específicas de texto em portais WordPress.</li>
+                              <li><code className="bg-muted px-1">table.tabela-taxas</code>: Captura tabelas de dados técnicos específicos.</li>
+                              <li><code className="bg-muted px-1">#main-content</code>: Captura o ID principal da página (comum em sites institucionais).</li>
+                              <li><code className="bg-muted px-1">#parent-fieldname-text</code>: Seletor padrão para o corpo de leis no portal do **Planalto**.</li>
+                              <li><code className="bg-muted px-1">#content-core</code>: Seletor de conteúdo central em portais do **Governo Federal**.</li>
+                            </ul>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">3. Contexto de Execução JavaScript</h4>
+                            <p className="text-xs text-muted-foreground">Seu código roda em um ambiente isolado com acesso a:</p>
+                            <ul className="list-disc pl-4 space-y-1 text-[11px]">
+                              <li><strong>args:</strong> Objeto com os valores preenchidos pela IA (ex: <code className="bg-muted px-1">args.ncm</code>).</li>
+                              <li><strong>helpers:</strong> Funções internas (ex: <code className="bg-muted px-1">calculateSimplesNacionalEffectiveRate</code>).</li>
+                              <li><strong>fetch:</strong> Para chamadas de API externas (ViaCEP, APIs de tributos, etc).</li>
+                            </ul>
+                            <pre className="bg-slate-950 text-emerald-400 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`// Exemplo: Cálculo de Pró-labore Líquido
+const bruto = args.valor_bruto;
+const inss = bruto * 0.11;
+const baseIR = bruto - inss;
+// ... lógica de cálculo de IR ...
+return { 
+  status: "sucesso", 
+  bruto: bruto, 
+  inss: inss, 
+  liquido: bruto - inss - ir 
+};`}
+                            </pre>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">4. Estrutura JSON para Importação/Exportação</h4>
+                            <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de suas ferramentas completas:</p>
+                            <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
+{`{
+  "name": "calculadora_irpf_2026",
+  "description": "Calcula o IR sobre o pró-labore conforme Lei 15.270/2025",
+  "parameters": { 
+    "type": "object", 
+    "properties": { "valor_bruto": { "type": "number" } },
+    "required": ["valor_bruto"]
+  },
+  "executionType": "local_js",
+  "jsCode": "const bruto = args.valor_bruto; ... return { liquido: x };",
+  "isActive": true
+}`}
+                            </pre>
+                          </section>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
+                 </div>
+
                  <Accordion type="multiple" className="w-full space-y-2">
                    {dynamicSkills.map((skill) => (
-                     <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4 !overflow-visible">
+                     <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4">
                        <AccordionTrigger className="hover:no-underline py-3">
                          <div className="flex items-center gap-3">
                            <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
@@ -459,7 +456,7 @@ const Configuracao = () => {
                            <span className="font-bold text-sm">{skill.name}</span>
                          </div>
                        </AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
+                       <AccordionContent className="pt-2 pb-4 space-y-4">
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                            <div className="space-y-2"><Label>Nome Técnico</Label><Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} /></div>
                            <div className="space-y-2">
@@ -479,23 +476,11 @@ const Configuracao = () => {
 
                          <div className="space-y-2"><Label>Descrição para a IA</Label><Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} /></div>
 
-                         <div className="space-y-2">
-                           <Label className="text-primary flex items-center gap-2"><Lightbulb className="h-3 w-3" /> Instrução de Uso (Prompt)</Label>
-                           <Textarea 
-                             placeholder="Descreva para o Agente como e quando usar esta skill. Ex: 'Sempre que o usuário fornecer um CEP, utilize a ferramenta #consultar_endereco_viacep para validar os dados.'"
-                             value={skill.suggestedInstruction || ''} 
-                             onChange={e => updateSkill(skill.id, 'suggestedInstruction', e.target.value)}
-                             className="text-xs h-20 bg-primary/5 border-primary/20"
-                           />
-                           <p className="text-[10px] text-muted-foreground italic">Dica: Copie este texto para o 'System Prompt' do seu Agente para que ele saiba utilizar esta ferramenta.</p>
-                         </div>
-
                          {skill.executionType === 'knowledge_base' ? (
                            <div className="space-y-3">
                              <div className="flex items-center justify-between">
                                <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base</Label>
                                <div className="flex gap-2">
-                                 <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-orange-200 text-orange-600" onClick={() => handleManualCleanNoise(skill.id)}><Eraser className="h-3 w-3 mr-1" /> Limpar Ruídos</Button>
                                  <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-blue-200 text-blue-600" onClick={() => { setActiveSkillIdForUpload(skill.id); fileInputRef.current?.click(); }} disabled={isExtracting}>{isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />} Importar Arquivo</Button>
                                </div>
                              </div>
@@ -525,22 +510,14 @@ const Configuracao = () => {
                  <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas (Timeline)</h3><Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1 }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></div>
                  <Accordion type="multiple" className="w-full space-y-2">
                    {agents.sort((a,b) => (a.order||0)-(b.order||0)).map((agent) => (
-                     <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4 !overflow-visible">
+                     <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4">
                        <AccordionTrigger className="hover:no-underline py-3"><div className="flex items-center gap-3"><Badge variant="outline" className="font-mono">{agent.order}</Badge><span className="font-bold text-sm">{agent.nome}</span></div></AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
+                       <AccordionContent className="pt-2 pb-4 space-y-4">
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Nome</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Webhook n8n</Label><Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} /></div>
                          </div>
-                         <div className="space-y-2">
-                           <Label>System Prompt (Instruções do Agente)</Label>
-                           <AgentPromptEditor 
-                             value={agent.systemPrompt} 
-                             onChange={e => updateAgent(agent.id, 'systemPrompt', e)} 
-                             prompts={prompts}
-                             skills={dynamicSkills}
-                           />
-                         </div>
+                         <div className="space-y-2"><Label>System Prompt</Label><Textarea className="font-mono text-xs h-32 bg-slate-950 text-primary border-primary/30" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} /></div>
                          <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => setAgents(agents.filter(a => a.id !== agent.id))}><Trash2 className="h-4 w-4 mr-2" /> Remover</Button></div>
                        </AccordionContent>
                      </AccordionItem>
