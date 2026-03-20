@@ -15,12 +15,8 @@ export interface DynamicSkill {
 
 export const JOTA_TOOLS_MANIFEST: any[] = [];
 
-// Definição segura do construtor de funções assíncronas
 const AsyncFunction = (async () => {}).constructor as any;
 
-/**
- * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA - AS 3 ESSENCIAIS
- */
 export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
     id: 'sys-1',
@@ -64,7 +60,6 @@ const tipo = args.tipo_atividade || "comercio";
 
 if (faturamento <= 0) return { error: "Faturamento inválido" };
 
-// --- 1. SIMPLES NACIONAL ---
 let anexo = "Anexo I";
 if (tipo === 'servico') {
   const r = folha12m / faturamento12m;
@@ -76,18 +71,12 @@ if (tipo === 'servico') {
 const efetivaSimples = helpers.calculateSimplesNacionalEffectiveRate(anexo, faturamento12m);
 let impostoSimples = faturamento * (efetivaSimples / 100);
 
-// Ajuste Simples para ST/Isenção (Segregação de Receita)
 if (args.icms_st || args.icms_isento) {
-  // No Simples, se for ST ou Isento, removemos o percentual de ICMS do DAS (aprox 34% do valor da faixa)
   impostoSimples = impostoSimples * 0.66; 
 }
 
-// --- 2. LUCRO PRESUMIDO ---
-// Presunção IRPJ: Comércio/Indústria 8%, Serviço 32%
 const presuncaoIRPJ = (tipo === 'comercio' || tipo === 'industria') ? 0.08 : 0.32;
 const baseIRPJ = faturamento * presuncaoIRPJ;
-
-// Presunção CSLL: Indústria 12%, Comércio 12%, Serviço 32%
 const presuncaoCSLL = (tipo === 'comercio' || tipo === 'industria') ? 0.12 : 0.32;
 const baseCSLL = faturamento * presuncaoCSLL;
 
@@ -96,7 +85,6 @@ const adicional = baseIRPJ > 20000 ? (baseIRPJ - 20000) * 0.10 : 0;
 const csll = baseCSLL * 0.09;
 const pis = faturamento * 0.0065;
 const cofins = faturamento * 0.03;
-
 const icms = (tipo !== 'servico' && !args.icms_isento && !args.icms_st) ? faturamento * (args.icms_percentual || 0.17) : 0;
 const iss = tipo === 'servico' ? faturamento * (args.iss_percentual || 0.05) : 0;
 
@@ -152,6 +140,41 @@ else { aliq = 0.275; ded = 908.73; }
 const ir = Math.max(0, (baseIR * aliq) - ded);
 return { bruto: valor, inss, base_ir: baseIR, ir, liquido: valor - inss - ir };
     `
+  },
+  {
+    id: 'sys-4',
+    name: 'consultar_portal_nfe',
+    description: 'Busca os últimos Informes Técnicos e novidades diretamente no Portal Nacional da NF-e.',
+    parameters: {
+      type: 'object',
+      properties: {
+        termo_busca: { type: 'string', description: 'Opcional: termo para filtrar os informes (ex: 2024.001)' }
+      }
+    },
+    executionType: 'local_js',
+    isActive: true,
+    jsCode: `
+try {
+  const targetUrl = 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=hXzemuyNHW4=';
+  const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+  
+  const response = await fetch(proxyUrl);
+  const data = await response.json();
+  const html = data.contents;
+  
+  // Extração simples via Regex (já que não temos DOMParser completo no ambiente de sandbox da skill)
+  const matches = html.match(/<span id="[^"]+" class="tituloConteudo">([^<]+)<\\/span>/g) || [];
+  const results = matches.map(m => m.replace(/<[^>]+>/g, '').trim()).slice(0, 10);
+  
+  return {
+    fonte: targetUrl,
+    ultimos_informes: results,
+    aviso: "Para detalhes completos, a IA deve usar a busca do Google (Grounding) ou você deve configurar um Webhook no n8n para extrair o conteúdo dos PDFs."
+  };
+} catch (e) {
+  return { error: "Erro ao acessar o portal: " + e.message };
+}
+    `
   }
 ];
 
@@ -199,9 +222,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       
       let codeToExecute = skill.jsCode.trim();
       
-      // Se o código começa com "async function" ou "function", tentamos extrair o corpo ou avisar
       if (codeToExecute.startsWith('async function') || codeToExecute.startsWith('function')) {
-          // Tenta extrair o que está entre as primeiras chaves { e a última }
           const firstBrace = codeToExecute.indexOf('{');
           const lastBrace = codeToExecute.lastIndexOf('}');
           if (firstBrace !== -1 && lastBrace !== -1) {
