@@ -17,52 +17,52 @@ export interface AgentConfig {
   order?: number;
 }
 
-// --- PROMPTS ESTABILIZADOS (NÍVEL 10/10 SEM LOOPS) ---
+// --- PROMPTS ESTABILIZADOS (ANTI-LOOP / NÍVEL 10/10) ---
 
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Consultor Master da Jota Contabilidade. Seu objetivo é um parecer técnico pericial de alto nível.
 
 DIRETRIZES DE ESTABILIDADE:
-1. Apresente cálculos matemáticos de forma clara e estruturada.
-2. Use valores reais baseados nos dados fornecidos.
+1. Seja denso e técnico, mas evite repetições desnecessárias.
+2. Use tabelas curtas e objetivas para cálculos.
 3. FOCO EM BELÉM/PA: Use alíquota de ISS de 5% (Lei Municipal nº 8.655/2008).
 
 ESTRUTURA DO PARECER:
 # RELATÓRIO TÉCNICO DE VIABILIDADE
 1. VIABILIDADE LOCAL: Veredito sobre o endereço e zoneamento.
-2. ENGENHARIA TRIBUTÁRIA: Simulação de DAS (Anexo I, III e V) e impacto do Fator R.
-3. PARAMETRIZAÇÃO: Sugestão de NCM, CSOSN e CFOP para os principais itens.
-4. RISCOS E BLINDAGEM: Diagnóstico de confusão patrimonial e recomendações aos sócios.`;
+2. ENGENHARIA TRIBUTÁRIA: Simulação de DAS (Anexo I, III e V) e Fator R.
+3. PARAMETRIZAÇÃO: Sugestão de NCM e CSOSN para os itens principais.
+4. RISCOS E BLINDAGEM: Diagnóstico de confusão patrimonial.`;
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Especialista em Viabilidade Urbana (Belém/PA).
 # 1. VIABILIDADE LOCAL E ZONEAMENTO
-- Valide o endereço usando a ferramenta 'get_address_by_cep'.
-- Analise a compatibilidade da atividade com o Plano Diretor de Belém (Lei 8.655/2008).`;
+- Valide o endereço com 'get_address_by_cep'.
+- Analise a compatibilidade com o Plano Diretor de Belém (Lei 8.655/2008).`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Conformidade e Calendário.
 # 2. CALENDÁRIO DE OBRIGAÇÕES
-- Liste as obrigações mensais e anuais (DAS, PGDAS, DEFIS, eSocial, DCTFWeb).
-- Explique a importância da Série R-4000 da EFD-Reinf para o negócio.`;
+- Tabela objetiva: Obrigação | Prazo | Base Legal.
+- Foco em PGDAS, eSocial e EFD-Reinf.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos Tributários.
 # 3. ENGENHARIA TRIBUTÁRIA E FATOR R
-- Realize a simulação do Simples Nacional (Anexos I, III e V) em valores monetários (R$).
-- Demonstre matematicamente o benefício do Fator R (28%) para a redução da carga tributária.
-- Compare com o Lucro Presumido para validar a melhor opção.`;
+- Calcule o DAS (Anexo I, III e V) em R$ com base no faturamento informado.
+- Demonstre o cálculo do Fator R (Folha/Faturamento) e a economia gerada.
+- Compare com o Lucro Presumido de forma tabular.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização Fiscal.
 # 4. GUIA DE PARAMETRIZAÇÃO TÉCNICA
-- Forneça uma tabela com: Produto/Serviço, NCM, CSOSN, CFOP (Interno/Interestadual) e CST PIS/COFINS.
-- Foque nos itens de maior relevância para o setor de motocicletas.`;
+- Tabela: Item | NCM | CSOSN | CFOP | Classe IBS/CBS.
+- Limite-se aos 10 itens mais relevantes para evitar cortes no texto.`;
 
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Licenciamento.
 # 5. LICENCIAMENTO E RISCOS OPERACIONAIS
-- Detalhe o processo de Alvará no SIAT Belém e licenciamento dos Bombeiros PA.
-- Analise riscos de confusão patrimonial e retiradas informais de lucro.`;
+- Detalhe Alvará SIAT Belém e Bombeiros PA.
+- Analise riscos de confusão patrimonial (PF vs PJ).`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Blindagem.
 # 6. REFORMA TRIBUTÁRIA E INDICADORES
-- Projete o impacto da transição para o IBS/CBS (EC 132/2023).
-- Apresente uma tabela de indicadores financeiros sugeridos para os sócios.`;
+- Projete o impacto do IBS/CBS (EC 132/2023).
+- Tabela de indicadores financeiros sugeridos para os sócios.`;
 
 export const DEFAULT_AGENTS: AgentConfig[] = [
   { id: '1', nome: '1. Viabilidade Local', order: 1, systemPrompt: PROMPT_AGENTE_1 },
@@ -89,9 +89,14 @@ export async function callGeminiAgent(
 
   const initialBody = {
     system_instruction: { parts: [{ text: systemPrompt }] },
-    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja técnico e preciso. Evite repetições de caracteres ou tabelas infinitas." }] }],
+    contents: [{ role: 'user', parts: [{ text: userContent + "\n\n[INSTRUÇÃO]: Seja técnico, use tabelas limpas e evite repetições de caracteres." }] }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
-    generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }, 
+    generationConfig: { 
+      temperature: 0.1, 
+      maxOutputTokens: 4096, // Reduzido para garantir estabilidade por agente
+      topP: 0.8,
+      topK: 40
+    }, 
   };
 
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
@@ -113,7 +118,7 @@ export async function callGeminiAgent(
       system_instruction: { parts: [{ text: systemPrompt }] },
       tools: toolsArray.length > 0 ? toolsArray : undefined,
       contents: [{ role: 'user', parts: [{ text: userContent }] }, message, { role: 'function', parts: toolResults }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 8192 },
+      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
     };
     const finalRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalBody) });
     const finalData = await finalRes.json();
