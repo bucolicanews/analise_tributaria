@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book, Upload, Loader2 } from 'lucide-react';
+import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock, Book, Upload, Loader2, Eraser } from 'lucide-center';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -108,14 +108,12 @@ const Configuracao = () => {
         let fullSheetText = "";
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName];
-          // Converte para CSV para manter a estrutura de dados legível para a IA
           const csv = XLSX.utils.sheet_to_csv(worksheet);
           fullSheetText += `--- PLANILHA: ${sheetName} ---\n${csv}\n\n`;
         });
         extractedText = fullSheetText;
       }
       else {
-        // TXT, XML, JSON, etc.
         extractedText = await file.text();
       }
 
@@ -265,17 +263,29 @@ const Configuracao = () => {
                              <div className="space-y-3">
                                <div className="flex items-center justify-between">
                                  <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base</Label>
-                                 <Button 
-                                   type="button" 
-                                   variant="outline" 
-                                   size="sm" 
-                                   className="h-7 text-[10px] border-blue-200 text-blue-600"
-                                   onClick={() => triggerFileUpload(skill.id)}
-                                   disabled={isExtracting}
-                                 >
-                                   {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
-                                   Importar PDF/Excel/XML/TXT
-                                 </Button>
+                                 <div className="flex gap-2">
+                                   <Button 
+                                     type="button" 
+                                     variant="outline" 
+                                     size="sm" 
+                                     className="h-7 text-[10px] border-red-200 text-red-600 hover:bg-red-50"
+                                     onClick={() => updateSkill(skill.id, 'knowledgeBaseText', '')}
+                                   >
+                                     <Trash2 className="h-3 w-3 mr-1" />
+                                     Limpar Conteúdo
+                                   </Button>
+                                   <Button 
+                                     type="button" 
+                                     variant="outline" 
+                                     size="sm" 
+                                     className="h-7 text-[10px] border-blue-200 text-blue-600"
+                                     onClick={() => triggerFileUpload(skill.id)}
+                                     disabled={isExtracting}
+                                   >
+                                     {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
+                                     Importar PDF/Excel/XML/TXT
+                                   </Button>
+                                 </div>
                                </div>
                                <Textarea 
                                  className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" 
