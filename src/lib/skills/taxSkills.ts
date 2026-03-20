@@ -15,6 +15,9 @@ export interface DynamicSkill {
 
 export const JOTA_TOOLS_MANIFEST: any[] = [];
 
+// Definição segura do construtor de funções assíncronas
+const AsyncFunction = (async () => {}).constructor as any;
+
 /**
  * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA - SOMENTE AS 3 ESSENCIAIS
  */
@@ -160,7 +163,7 @@ export async function executeSkill(name: string, args: any): Promise<any> {
         checkIfNcmHasSelectiveTax 
       };
       
-      const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
+      // Uso seguro do construtor dinâmico
       const fn = new AsyncFunction('args', 'helpers', skill.jsCode);
       return await fn(args, helpers);
     } catch (e: any) {

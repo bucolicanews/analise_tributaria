@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Webhook, Building, UserCheck, KeyRound, Bot, Trash2, Plus, Save, History, Zap, CheckCircle, Code, Globe, Download, Upload as UploadIcon, Edit3, X, Eye, RotateCcw, Info, Search, FileText, ChevronDown, ChevronUp, Wrench, Play } from 'lucide-react';
+import { Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, Code, Globe, RotateCcw, Search, FileText, ChevronDown, Wrench, Play, Lock } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
@@ -107,16 +106,15 @@ const Configuracao = () => {
   const handleTestSkill = async (skill: DynamicSkill) => {
     toast.info(`Testando skill: ${skill.name}...`);
     try {
-      // Simula argumentos padrão para teste
       const mockArgs: any = {};
-      if (skill.name === 'get_address_by_cep') mockArgs.cep = '66910010';
-      if (skill.name === 'compare_tax_regimes') {
+      if (skill.name === 'consultar_endereco_viacep') mockArgs.cep = '66910010';
+      if (skill.name === 'comparar_regimes_tributarios') {
         mockArgs.faturamento_mensal = 20000;
         mockArgs.faturamento_12m = 240000;
         mockArgs.tipo_atividade = 'comercio';
         mockArgs.folha_12m = 20000;
       }
-      if (skill.name === 'calculate_pro_labore_net') mockArgs.valor_bruto = 5000;
+      if (skill.name === 'calcular_pro_labore_liquido') mockArgs.valor_bruto = 5000;
 
       const result = await executeSkill(skill.name, mockArgs);
       setTestResult({ skill: skill.name, result });
@@ -148,7 +146,6 @@ const Configuracao = () => {
 
             {autenticado ? (
               <>
-                {/* SEÇÃO DE SKILLS DINÂMICAS EDITÁVEIS */}
                 <div className="space-y-4 rounded-lg border border-emerald-500/30 p-4 bg-emerald-500/5">
                    <div className="flex items-center justify-between">
                      <div className="space-y-1">
