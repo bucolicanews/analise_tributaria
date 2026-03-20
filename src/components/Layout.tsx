@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Upload, BarChart3, Settings, Tags, TrendingUp, ShieldCheck, Sparkles, Lock, Unlock, LogOut, Home } from 'lucide-react';
+import { Upload, BarChart3, Settings, Tags, TrendingUp, ShieldCheck, Sparkles, Lock, Unlock, LogOut, Home, MessageSquare } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
@@ -19,6 +19,7 @@ const publicNavItems = [
 ];
 
 const privateNavItems = [
+  { to: '/chat', label: 'Chat Inteligente', icon: MessageSquare },
   { to: '/new-business', label: 'Análise de Viabilidade', icon: Sparkles },
   { to: '/comparison', label: 'Comparativo de Regimes', icon: BarChart3 },
   { to: '/impact', label: 'Análise de Impacto', icon: TrendingUp },

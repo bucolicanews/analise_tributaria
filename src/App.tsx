@@ -11,6 +11,7 @@ import ImpactAnalysis from "./pages/ImpactAnalysis";
 import ProductList from "./pages/ProductList";
 import Configuracao from "./pages/Configuracao";
 import Viabilidade from "./pages/Viabilidade";
+import Chat from "./pages/Chat";
 import NotFound from "./pages/NotFound";
 import { Layout } from "./components/Layout";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -28,9 +29,10 @@ const AppRoutes = () => (
       <Route path="/" element={<Index />} />
       <Route path="/precificacao" element={<Pricing />} />
       <Route path="/products" element={<ProductList />} />
-      <Route path="/configuracao" element={<Configuracao />} />
-      <Route path="/comparison" element={<RotaProtegida><Comparison /></RotaProtegida>} />
       <Route path="/audit" element={<Audit />} />
+      <Route path="/configuracao" element={<Configuracao />} />
+      <Route path="/chat" element={<RotaProtegida><Chat /></RotaProtegida>} />
+      <Route path="/comparison" element={<RotaProtegida><Comparison /></RotaProtegida>} />
       <Route path="/impact" element={<RotaProtegida><ImpactAnalysis /></RotaProtegida>} />
       <Route path="/new-business" element={<RotaProtegida><Viabilidade /></RotaProtegida>} />
       <Route path="*" element={<NotFound />} />

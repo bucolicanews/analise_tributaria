@@ -17,6 +17,11 @@ export interface AgentConfig {
   order?: number;
 }
 
+export interface ChatMessage {
+  role: 'user' | 'model' | 'function';
+  parts: any[];
+}
+
 export const DEFAULT_PRE_ANALYSIS_PROMPT = `Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é entregar um MANUAL DE ESTRUTURAÇÃO FISCAL E VIABILIDADE (Nível 10/10).
 
 INICIE COM: “Parecer técnico-contábil estratégico, com visão preventiva, fiscalizatória, pericial e de planejamento tributário estruturado”
@@ -34,10 +39,6 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 
 # 1. ANÁLISE DE CNAEs E OPERAÇÃO
-- Analise cada CNAE informado individualmente.
-- Indique o enquadramento de cada um no Simples Nacional (Anexo I, II, III, IV ou V).
-- Explique a segregação de receitas se houver CNAEs de anexos diferentes.
-
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
 # 1.2 RETENÇÃO DE INSS E ISS
 # 1.3 DETALHAMENTO EFD-REINF
@@ -47,12 +48,7 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 5. LICENCIAMENTO REGIONAL (BELÉM/PA OU INFORMADO)
 # 6. NORMAS E EQUIPAMENTOS
 # 7. INVESTIMENTO DE ABERTURA
-
 # 8. MATRIZ DE RISCOS E CONFORMIDADE (ANÁLISE CRÍTICA)
-- Analise as respostas do cliente sobre: Mistura Patrimonial, Recebimento em Conta PF e Retirada de Lucros.
-- Se houver "Mistura Patrimonial: Sim" ou "Recebe na conta PF: Sim", emita um ALERTA VERMELHO sobre desconsideração da personalidade jurídica.
-- Sugira correções imediatas para blindagem patrimonial dos sócios.
-
 # 9. IMPACTO DA REFORMA (EC 132)
 # 10. RESPOSTA À PERGUNTA DO USUÁRIO
 # 11. METODOLOGIA DE ANÁLISE
@@ -61,49 +57,13 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 14. FUNDAMENTAÇÃO PERICIAL
 # 15. CLÁUSULA DE REVISÃO CONTRATUAL
 # 16. TABELAS 2026 (Salário Mínimo e INSS)
-
 # 17. OBRIGAÇÕES DA EMPRESA COM A PRÓPRIA EMPRESA (GOVERNANÇA)
-# 18. OBRIGAÇÕES DA EMPRESA COM A CONTABILIDADE
+# 18. OBRIGAÇÕES DA EMPRESA COM a CONTABILIDADE
 # 19. OBRIGAÇÕES DA EMPRESA COM O FISCO (CONFORMIDADE)
 
 ---
 VEREDITO PRÁTICO FINAL:
 [Sua decisão técnica aqui]`;
-
-const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em Viabilidade e CNAEs.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 1, 5, 11 e 14.
-- Analise cada CNAE individualmente e seu enquadramento no Simples.`;
-
-const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações e Compliance.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 1.3, 2, 13 e 19.`;
-
-const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos e Matemática.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 1.1, 3 e 16.`;
-
-const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Parametrização.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 4 e 6.`;
-
-const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Governança.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 7, 8, 15, 17 e 18.
-- Analise profundamente os riscos de mistura patrimonial e conta PF informados no JSON.`;
-
-const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
-🚨 REGRAS: ZERO TABELAS.
-- Execute requisitos 9, 10 e 12.`;
-
-export const DEFAULT_AGENTS: AgentConfig[] = [
-  { id: '1', nome: '1. Viabilidade e CNAEs', order: 1, systemPrompt: PROMPT_AGENTE_1 },
-  { id: '2', nome: '2. Obrigações e Reinf', order: 2, systemPrompt: PROMPT_AGENTE_2 },
-  { id: '3', nome: '3. Engenharia de Custos', order: 3, systemPrompt: PROMPT_AGENTE_3 },
-  { id: '4', nome: '4. Parametrização e Itens', order: 4, systemPrompt: PROMPT_AGENTE_4 },
-  { id: '5', nome: '5. Riscos e Governança', order: 5, systemPrompt: PROMPT_AGENTE_5 },
-  { id: '6', nome: '6. Reforma e Veredito', order: 6, systemPrompt: PROMPT_AGENTE_6 },
-];
 
 export async function callGeminiAgent(
   systemPrompt: string,
@@ -125,14 +85,10 @@ export async function callGeminiAgent(
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ 
       role: 'user', 
-      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: ANALISE OS CNAES UM A UM. ANALISE OS RISCOS DE MISTURA PATRIMONIAL E CONTA PF. NÃO USE TABELAS." }] 
+      parts: [{ text: userContent }] 
     }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
-    generationConfig: { 
-      temperature: 0.1, 
-      maxOutputTokens: 8192,
-      topP: 0.95,
-    }, 
+    generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }, 
   };
 
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
@@ -141,20 +97,16 @@ export async function callGeminiAgent(
   if (data.error) throw new Error(`Erro API Gemini: ${data.error.message}`);
   
   let message = data?.candidates?.[0]?.content;
-  let firstText = message?.parts?.filter((p: any) => p.text).map((p: any) => p.text).join('\n') || '';
+  if (!message) return "Sem resposta da IA.";
 
-  if (message?.parts?.some((p: any) => p.functionCall)) {
+  // Loop de execução de ferramentas
+  if (message.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     for (const part of message.parts) {
       if (part.functionCall) {
         const { name, args } = part.functionCall;
         const result = await executeSkill(name, args);
-        toolResults.push({ 
-          functionResponse: { 
-            name, 
-            response: { result } 
-          } 
-        });
+        toolResults.push({ functionResponse: { name, response: { result } } });
       }
     }
     
@@ -171,14 +123,65 @@ export async function callGeminiAgent(
     
     const finalRes = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finalBody) });
     const finalData = await finalRes.json();
-    
-    if (finalData.error) return firstText.trim();
-
-    let secondText = finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\n') || '';
-    return (firstText + '\n' + secondText).trim();
+    return finalData?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || '').join('\n') || '';
   }
   
-  return firstText.trim();
+  return message.parts?.map((p: any) => p.text || '').join('\n') || '';
+}
+
+// NOVA FUNÇÃO: Chat Interativo com Memória e Skills
+export async function sendChatMessage(
+  history: ChatMessage[],
+  apiKey: string,
+  onToolCall?: (toolName: string) => void
+): Promise<string> {
+  if (!apiKey) throw new Error('Chave API Gemini não configurada.');
+  
+  const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  
+  const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
+  const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
+  const toolsArray = dynamicManifests.length > 0 ? [{ functionDeclarations: dynamicManifests }] : undefined;
+
+  const systemPrompt = `Você é o Assistente Inteligente da Jota Contabilidade. 
+  Você tem acesso a ferramentas especializadas para cálculos tributários, consultas de CEP e análise de mercado.
+  Sempre que precisar de um dado preciso (como cálculo de imposto ou endereço), use a ferramenta correspondente.
+  Responda de forma profissional, clara e técnica. Use Markdown para formatar suas respostas.`;
+
+  const body = {
+    system_instruction: { parts: [{ text: systemPrompt }] },
+    contents: history,
+    tools: toolsArray,
+    generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+  };
+
+  const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data = await response.json();
+  
+  if (data.error) throw new Error(data.error.message);
+  
+  const message = data?.candidates?.[0]?.content;
+  if (!message) return "Desculpe, não consegui processar sua mensagem.";
+
+  // Se a IA chamou uma função
+  if (message.parts?.some((p: any) => p.functionCall)) {
+    const toolResults: any[] = [];
+    for (const part of message.parts) {
+      if (part.functionCall) {
+        const { name, args } = part.functionCall;
+        if (onToolCall) onToolCall(name);
+        const result = await executeSkill(name, args);
+        toolResults.push({ functionResponse: { name, response: { result } } });
+      }
+    }
+
+    // Envia o resultado da função de volta para a IA gerar o texto final
+    const updatedHistory = [...history, message, { role: 'function', parts: toolResults }];
+    return sendChatMessage(updatedHistory, apiKey, onToolCall);
+  }
+
+  return message.parts?.map((p: any) => p.text || '').join('\n') || '';
 }
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
@@ -190,7 +193,7 @@ export async function callAgentWebhook(agent: AgentConfig, userContent: string, 
 
 export function loadAgentsFromStorage(): AgentConfig[] {
   const raw = localStorage.getItem('jota-agentes');
-  return raw ? JSON.parse(raw) : DEFAULT_AGENTS;
+  return raw ? JSON.parse(raw) : [];
 }
 
 export function saveAgentsToStorage(agents: AgentConfig[]): void {
