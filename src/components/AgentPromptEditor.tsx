@@ -41,10 +41,19 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
     const filter = menu.filter.toLowerCase();
     
     if (menu.type === 'skill') {
-      return skills.filter(s => s.name.toLowerCase().includes(filter)).map(s => ({ ...s, display: s.name, typeLabel: 'Skill', icon: Wrench }));
+      return skills
+        .filter(s => s.name.toLowerCase().includes(filter))
+        .map(s => ({ 
+          ...s, 
+          display: s.name, 
+          typeLabel: 'Skill', 
+          icon: Wrench,
+          // Passamos a instrução sugerida para ser usada no insertItem
+          contentToInsert: s.suggestedInstruction || `#${s.name}`
+        }));
     } else {
-      const filteredPrompts = prompts.filter(p => p.title.toLowerCase().includes(filter)).map(p => ({ ...p, display: p.title, typeLabel: 'Prompt', icon: MessageSquareQuote }));
-      const filteredVars = CONTEXT_VARIABLES.filter(v => v.name.toLowerCase().includes(filter)).map(v => ({ ...v, display: v.name, typeLabel: 'Variável', icon: Database }));
+      const filteredPrompts = prompts.filter(p => p.title.toLowerCase().includes(filter)).map(p => ({ ...p, display: p.title, typeLabel: 'Prompt', icon: MessageSquareQuote, contentToInsert: p.content }));
+      const filteredVars = CONTEXT_VARIABLES.filter(v => v.name.toLowerCase().includes(filter)).map(v => ({ ...v, display: v.name, typeLabel: 'Variável', icon: Database, contentToInsert: v.name }));
       return [...filteredPrompts, ...filteredVars];
     }
   };
@@ -81,10 +90,7 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
     const textAfter = value.substring(cursor);
     const lastTrigger = Math.max(textBefore.lastIndexOf('@'), textBefore.lastIndexOf('#'));
     
-    let contentToInsert = "";
-    if (item.typeLabel === 'Prompt') contentToInsert = item.content;
-    else if (item.typeLabel === 'Variável') contentToInsert = item.name;
-    else contentToInsert = item.name;
+    const contentToInsert = item.contentToInsert || "";
     
     const newValue = value.substring(0, lastTrigger) + contentToInsert + " " + textAfter;
     onChange(newValue);

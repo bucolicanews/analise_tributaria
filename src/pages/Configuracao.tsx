@@ -476,6 +476,16 @@ return {
 
                          <div className="space-y-2"><Label>Descrição para a IA</Label><Input value={skill.description} onChange={e => updateSkill(skill.id, 'description', e.target.value)} /></div>
 
+                         <div className="space-y-2">
+                           <Label className="text-emerald-600">Instrução Sugerida para o Agente</Label>
+                           <Textarea 
+                             placeholder="Ex: Você tem acesso à ferramenta #nome_da_skill. Utilize-a para..."
+                             value={skill.suggestedInstruction || ''} 
+                             onChange={e => updateSkill(skill.id, 'suggestedInstruction', e.target.value)}
+                             className="text-xs h-20"
+                           />
+                         </div>
+
                          {skill.executionType === 'knowledge_base' ? (
                            <div className="space-y-3">
                              <div className="flex items-center justify-between">
