@@ -26,23 +26,23 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 🚨 REGRAS DE OURO (PROIBIDO FALHAR):
 1. 🚫 ZERO TABELAS. Use listas aninhadas com tópicos claros.
 2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados. Calcule o valor em R$ do imposto mensal no Simples vs Lucro Presumido (incluindo ICMS e ISS estimados).
-3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS) de serviço (NFS-e municipal). Não sugira CFOP para serviço puro.
-4. 📦 ICMS-ST E CEST: Para motopeças/peças, analise a Substituição Tributária. Explique que no Simples, a receita de ST deve ser segregada para não pagar ICMS em duplicidade.
+3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS), indústria (Anexo II) e serviço (NFS-e municipal).
+4. 📦 ICMS-ST E CEST: Para granjas, motopeças ou indústrias, analise a Substituição Tributária. Explique que no Simples, a receita de ST deve ser segregada para não pagar ICMS em duplicidade.
 5. 🧠 VEREDITO PRÁTICO: O relatório deve terminar com uma decisão clara: "O regime ideal para você hoje é X por causa da economia de R$ Y".
 
 ESTRUTURA DO MANUAL (16 REQUISITOS):
 
 # 1. ANÁLISE DE CNAEs E OPERAÇÃO
-- Segregação de Receitas: Como separar Venda (Anexo I) de Serviço (Anexo III/V) na prática.
-- Documentação: Uso de NF-e para peças e NFS-e para mão de obra.
+- Segregação de Receitas: Como separar Venda (Anexo I), Indústria (Anexo II) e Serviço (Anexo III/V) na prática.
+- Documentação: Uso de NF-e para produtos e NFS-e para mão de obra.
 - Base legal: Art. 18 LC 123/06.
 
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
-- Explique a CPP dentro do DAS (Anexos I, III) vs Fora do DAS (Anexo IV).
+- Explique a CPP dentro do DAS (Anexos I, II, III) vs Fora do DAS (Anexo IV).
 - Detalhe o custo real da folha (INSS Patronal 20% + RAT) se aplicável.
 
 # 1.2 RETENÇÃO DE INSS E ISS
-- Regra dos 11% (INSS) e Retenção de ISS. Esclareça que oficinas mecânicas geralmente NÃO sofrem retenção de INSS por não ser cessão de mão de obra.
+- Regra dos 11% (INSS) e Retenção de ISS. Esclareça as dispensas para atividades rurais ou industriais se houver.
 
 # 1.3 DETALHAMENTO EFD-REINF
 - Guia prático da Série R-4000 para retenções de serviços tomados.
@@ -51,7 +51,7 @@ ESTRUTURA DO MANUAL (16 REQUISITOS):
 - PGDAS-D, eSocial, DCTFWeb, Reinf, DEFIS. Fato gerador e prazos.
 
 # 3. PROJEÇÃO MATEMÁTICA COMPARATIVA (O CORAÇÃO)
-- CÁLCULO SIMPLES: Alíquota efetiva real sobre o faturamento informado.
+- CÁLCULO SIMPLES: Alíquota efetiva real sobre o faturamento informado (Anexo I, II, III ou V).
 - CÁLCULO PRESUMIDO: (Federal 5,93% + ISS 5% + ICMS 18% - Créditos estimados).
 - RESULTADO: "Economia estimada de R$ X por mês no regime Y".
 
@@ -97,7 +97,7 @@ ESTRUTURA DO MANUAL (16 REQUISITOS):
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em CNAEs e Operação.
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 1, 5 e 11.
-- Foque na segregação real: Peças (ICMS) vs Mão de Obra (ISS).
+- Foque na segregação real: Indústria (Anexo II), Peças (ICMS) vs Mão de Obra (ISS).
 - Detalhe licenciamento para a cidade informada.`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações.
@@ -108,7 +108,7 @@ const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações.
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos (O Matemático).
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 1.1, 3 e 16.
-- FAÇA A CONTA: Compare Simples vs Presumido (incluindo ICMS/ISS).
+- FAÇA A CONTA: Compare Simples (Anexo I, II, III ou V) vs Presumido.
 - Calcule o pró-labore exato para o Fator R se houver serviço Anexo V.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Itens e ST.
@@ -119,7 +119,7 @@ const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Itens e ST.
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Retenções.
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 1.2, 7, 8 e 15.
-- Esclareça a dispensa de retenção de INSS para oficinas mecânicas.`;
+- Esclareça as regras de retenção para indústrias e granjas.`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
 🚨 PROIBIDO TABELAS.

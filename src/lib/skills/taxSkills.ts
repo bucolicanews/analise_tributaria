@@ -38,14 +38,14 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
     id: 'sys-2',
     name: 'comparar_regimes_tributarios',
-    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo Fator R.',
+    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo Fator R e Indústria.',
     parameters: {
       type: 'object',
       properties: {
         faturamento_mensal: { type: 'number' },
         faturamento_12m: { type: 'number' },
         folha_12m: { type: 'number' },
-        tipo_atividade: { type: 'string', enum: ['comercio', 'servico'] },
+        tipo_atividade: { type: 'string', enum: ['comercio', 'servico', 'industria'] },
         icms_percentual: { type: 'number', description: 'Ex: 0.12 para 12%' },
         iss_percentual: { type: 'number', description: 'Ex: 0.05 para 5%' }
       },
@@ -54,14 +54,18 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
     executionType: 'local_js',
     isActive: true,
     jsCode: `
-// 1. CÁLCULO FATOR R
+// 1. CÁLCULO FATOR R (Apenas para serviços específicos)
 const r = args.folha_12m / args.faturamento_12m;
 const anexoCalculado = r >= 0.28 ? "Anexo III" : "Anexo V";
-const anexoFinal = args.tipo_atividade === 'comercio' ? "Anexo I" : anexoCalculado;
+
+let anexoFinal = "Anexo I";
+if (args.tipo_atividade === 'servico') anexoFinal = anexoCalculado;
+else if (args.tipo_atividade === 'industria') anexoFinal = "Anexo II";
 
 // 2. SIMPLES NACIONAL
 const tabelaSimples = {
   "Anexo I": { aliquota: 0.073, deducao: 5940 },
+  "Anexo II": { aliquota: 0.078, deducao: 5940 },
   "Anexo III": { aliquota: 0.06, deducao: 0 },
   "Anexo V": { aliquota: 0.155, deducao: 6250 }
 };
@@ -70,14 +74,20 @@ const efetivaSimples = ((args.faturamento_12m * t.aliquota) - t.deducao) / args.
 const impostoSimples = args.faturamento_mensal * efetivaSimples;
 
 // 3. LUCRO PRESUMIDO
-const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
-const basePresumido = args.faturamento_mensal * presuncao;
-const irpj = basePresumido * 0.15;
-const adicionalIrpj = basePresumido > 20000 ? (basePresumido - 20000) * 0.10 : 0;
-const csll = basePresumido * 0.09;
+// Presunção: Comércio/Indústria 8% IRPJ, 12% CSLL (Indústria) ou 9% (Comércio). 
+// Para simplificar: 8% IRPJ e 12% CSLL para Indústria.
+const presuncaoIR = (args.tipo_atividade === 'comercio' || args.tipo_atividade === 'industria') ? 0.08 : 0.32;
+const presuncaoCS = (args.tipo_atividade === 'industria') ? 0.12 : (args.tipo_atividade === 'comercio' ? 0.09 : 0.32);
+
+const baseIR = args.faturamento_mensal * presuncaoIR;
+const baseCS = args.faturamento_mensal * presuncaoCS;
+
+const irpj = baseIR * 0.15;
+const adicionalIrpj = baseIR > 20000 ? (baseIR - 20000) * 0.10 : 0;
+const csll = baseCS * 0.09;
 const pis = args.faturamento_mensal * 0.0065;
 const cofins = args.faturamento_mensal * 0.03;
-const icms = args.tipo_atividade === 'comercio' ? args.faturamento_mensal * (args.icms_percentual || 0.12) : 0;
+const icms = (args.tipo_atividade === 'comercio' || args.tipo_atividade === 'industria') ? args.faturamento_mensal * (args.icms_percentual || 0.12) : 0;
 const iss = args.tipo_atividade === 'servico' ? args.faturamento_mensal * (args.iss_percentual || 0.05) : 0;
 const totalPresumido = irpj + adicionalIrpj + csll + pis + cofins + icms + iss;
 

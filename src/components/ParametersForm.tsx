@@ -57,7 +57,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
   const [irpjRateLucroReal, setIrpjRateLucroReal] = useState<string>("15");
   const [csllRateLucroReal, setCsllRateLucroReal] = useState<string>("9");
   const [payroll, setPayroll] = useState<string>("6500");
-  const [payroll12Months, setPayroll12Months] = useState<string>("78000"); // Novo campo
+  const [payroll12Months, setPayroll12Months] = useState<string>("78000"); 
   const [inssPatronalRate, setInssPatronalRate] = useState<string>("28.8");
   const [totalStockUnits, setTotalStockUnits] = useState<string>("3000");
   const [lossPercentage, setLossPercentage] = useState<string>("1.5");
@@ -78,6 +78,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
 
   const [faturamento12Meses, setFaturamento12Meses] = useState<string>("540000");
   const [percentComercio, setPercentComercio] = useState<string>("100");
+  const [percentIndustria, setPercentIndustria] = useState<string>("0"); // NOVO
   const [percentServico, setPercentServico] = useState<string>("0");
   const [anexoSimples, setAnexoSimples] = useState<string>("Anexo I");
   const [tipoOperacao, setTipoOperacao] = useState<'Varejo' | 'Atacado'>('Varejo');
@@ -101,7 +102,6 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     if (saved) setTaxPassThrough(parseFloat(saved));
   }, []);
 
-  // Facilidade de UX: Ao atualizar folha mensal, atualiza a de 12 meses (se usuário quiser)
   const handlePayrollChange = (val: string) => {
     setPayroll(val);
     const num = parseFloat(val) || 0;
@@ -134,6 +134,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     if (type === 'simples' || type === 'hibrido') {
         setFaturamento12Meses("540000");
         setPercentComercio("100");
+        setPercentIndustria("0");
         setPercentServico("0");
         setAnexoSimples("Anexo I");
         setPayroll("6500");
@@ -148,6 +149,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     } else if (type === 'presumido') {
         setFaturamento12Meses("1800000");
         setPercentComercio("100");
+        setPercentIndustria("0");
         setPercentServico("0");
         setPayroll("18000");
         setPayroll12Months("216000");
@@ -163,6 +165,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
     } else if (type === 'real') {
         setFaturamento12Meses("4800000");
         setPercentComercio("100");
+        setPercentIndustria("0");
         setPercentServico("0");
         setPayroll("45000");
         setPayroll12Months("540000");
@@ -256,6 +259,7 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
       ibsDebitPercentage: parseFloat(ibsDebitPercentage),
       faturamento12Meses: parseFloat(faturamento12Meses) || undefined,
       percentComercio: parseFloat(percentComercio) || 0,
+      percentIndustria: parseFloat(percentIndustria) || 0,
       percentServico: parseFloat(percentServico) || 0,
       anexoSimples: anexoSimples || undefined,
       tipoOperacao: tipoOperacao,
@@ -303,12 +307,16 @@ export const ParametersForm = ({ onCalculate, disabled }: ParametersFormProps) =
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4 p-3 rounded-md bg-muted/30 border border-border/50">
-            <div className="space-y-2">
+          <div className="grid grid-cols-3 gap-2 p-3 rounded-md bg-muted/30 border border-border/50">
+            <div className="space-y-1">
               <Label className="text-[10px] uppercase font-bold">Comércio (%)</Label>
               <Input type="number" value={percentComercio} onChange={(e) => setPercentComercio(e.target.value)} disabled={disabled} className="h-8 text-xs" />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase font-bold">Indústria (%)</Label>
+              <Input type="number" value={percentIndustria} onChange={(e) => setPercentIndustria(e.target.value)} disabled={disabled} className="h-8 text-xs" />
+            </div>
+            <div className="space-y-1">
               <Label className="text-[10px] uppercase font-bold">Serviço (%)</Label>
               <Input type="number" value={percentServico} onChange={(e) => setPercentServico(e.target.value)} disabled={disabled} className="h-8 text-xs" />
             </div>

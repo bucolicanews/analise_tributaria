@@ -65,6 +65,7 @@ const Viabilidade = () => {
   const [anoBase, setAnoBase] = useState(() => getStored('viab-anoBase', '2025'));
   const [faturamentoAnual, setFaturamentoAnual] = useState(() => getStored('viab-faturamentoAnual'));
   const [percentComercio, setPercentComercio] = useState(() => getStored('viab-percentComercio', '100'));
+  const [percentIndustria, setPercentIndustria] = useState(() => getStored('viab-percentIndustria', '0'));
   const [percentServico, setPercentServico] = useState(() => getStored('viab-percentServico', '0'));
   const [fixosMensais, setFixosMensais] = useState(() => getStored('viab-fixosMensais', '3000'));
   const [variaveisPercentual, setVariaveisPercentual] = useState(() => getStored('viab-variaveisPercentual', '35'));
@@ -97,7 +98,7 @@ const Viabilidade = () => {
       'viab-razaoSocial': razaoSocial, 'viab-naturezaJuridica': naturezaJuridica, 'viab-classificacaoFiscal': classificacaoFiscal, 'viab-capital': capital,
       'viab-atividades': atividades, 'viab-numSocios': numSocios, 'viab-numFuncionarios': numFuncionarios, 'viab-folhaPagamento': folhaPagamento, 
       'viab-folha12Meses': folha12Meses, 'viab-municipio': municipio, 'viab-estado': estado, 'viab-tributacaoSugerida': tributacaoSugerida, 'viab-businessIdea': businessIdea,
-      'viab-anoBase': anoBase, 'viab-faturamentoAnual': faturamentoAnual, 'viab-percentComercio': percentComercio,
+      'viab-anoBase': anoBase, 'viab-faturamentoAnual': faturamentoAnual, 'viab-percentComercio': percentComercio, 'viab-percentIndustria': percentIndustria,
       'viab-percentServico': percentServico, 'viab-fixosMensais': fixosMensais, 'viab-variaveisPercentual': variaveisPercentual,
       'viab-aliquotaIss': aliquotaIss, 'viab-aliquotaIcms': aliquotaIcms, 'viab-sociosRetiramValores': sociosRetiramValores, 
       'viab-sociosDeclaramProlabore': sociosDeclaramProlabore, 'viab-valorProlabore': valorProlabore, 'viab-sociosRecolhemInssIr': sociosRecolhemInssIr,
@@ -107,7 +108,7 @@ const Viabilidade = () => {
     localStorage.setItem('viab-cnaes', JSON.stringify(cnaes));
     if (aiReport) localStorage.setItem('viab-aiReport', aiReport);
     else localStorage.removeItem('viab-aiReport');
-  }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, folha12Meses, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, aiReport]);
+  }, [razaoSocial, naturezaJuridica, classificacaoFiscal, capital, cnaes, atividades, numSocios, numFuncionarios, folhaPagamento, folha12Meses, municipio, estado, tributacaoSugerida, businessIdea, anoBase, faturamentoAnual, percentComercio, percentIndustria, percentServico, fixosMensais, variaveisPercentual, aliquotaIss, aliquotaIcms, sociosRetiramValores, sociosDeclaramProlabore, valorProlabore, sociosRecolhemInssIr, recebeContaPF, mesmaContaSocios, aiReport]);
 
   const addCnae = () => setCnaes([...cnaes, { id: Date.now().toString(), code: '', description: '', isPrimary: true }]);
   const removeCnae = (id: string) => { if (cnaes.length > 1) setCnaes(cnaes.filter(c => c.id !== id)); };
@@ -131,6 +132,7 @@ const Viabilidade = () => {
   const buildPayload = (environment: 'test' | 'production', webhookUrl: string) => {
     const faturamentoNum = parseFloat(faturamentoAnual) || 0;
     const percComercioNum = parseFloat(percentComercio) || 0;
+    const percIndustriaNum = parseFloat(percentIndustria) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
     
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
@@ -167,8 +169,9 @@ const Viabilidade = () => {
           legislacao: ["Sugerir via IA"]
         })),
         descricaoAtividades: atividades || "",
-        percentual_comercio_servico: {
+        percentual_comercio_industria_servico: {
           comercio: percComercioNum,
+          industria: percIndustriaNum,
           servico: percServicoNum
         }
       },
@@ -178,6 +181,7 @@ const Viabilidade = () => {
           mensal_medio: faturamentoNum / 12,
           segregacao: { 
             comercio_percent: percComercioNum, 
+            industria_percent: percIndustriaNum,
             servico_percent: percServicoNum
           }
         },
@@ -197,7 +201,7 @@ const Viabilidade = () => {
           percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0
         },
         simulacoes_tributarias: [
-          "Comparar Anexo I, III e V do Simples Nacional",
+          "Comparar Anexo I, II, III e V do Simples Nacional",
           "Comparar com Lucro Presumido",
           "Verificar impacto do fator R",
           "Simular redução legal de impostos"
@@ -460,8 +464,21 @@ const Viabilidade = () => {
                     <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
                     <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
-                    <div className="space-y-2"><Label>Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => { setPercentComercio(e.target.value); setPercentServico((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
-                    <div className="space-y-2"><Label>Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => { setPercentServico(e.target.value); setPercentComercio((100 - (parseFloat(e.target.value)||0)).toString()); }} /></div>
+                    
+                    <div className="grid grid-cols-3 gap-2 md:col-span-2 p-3 rounded-md bg-background/50 border border-border/50">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold">Comércio (%)</Label>
+                        <Input type="number" value={percentComercio} onChange={e => setPercentComercio(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold">Indústria (%)</Label>
+                        <Input type="number" value={percentIndustria} onChange={e => setPercentIndustria(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] uppercase font-bold">Serviço (%)</Label>
+                        <Input type="number" value={percentServico} onChange={e => setPercentServico(e.target.value)} className="h-8 text-xs" />
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

@@ -84,7 +84,7 @@ export interface CalculationParams {
   fixedExpenses: FixedExpense[];
   variableExpenses: VariableExpense[];
   payroll: number;
-  payroll12Months?: number; // NOVO: Folha 12 Meses exata para Fator R
+  payroll12Months?: number; 
   inssPatronalRate: number;
   totalStockUnits: number; 
   lossPercentage: number; 
@@ -111,6 +111,7 @@ export interface CalculationParams {
 
   faturamento12Meses?: number;
   percentComercio?: number; 
+  percentIndustria?: number; // NOVO
   percentServico?: number;  
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
