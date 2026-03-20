@@ -221,31 +221,40 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
         const text = await response.text();
         let html = "";
 
-        // Tenta detectar se é JSON (AllOrigins) ou HTML puro (CORSProxy)
         try {
           const json = JSON.parse(text);
           html = json.contents || text;
         } catch (e) {
-          // Se falhar o parse, é HTML puro
           html = text;
         }
 
         if (!html || html.trim().length === 0) throw new Error("Conteúdo vazio retornado.");
 
+        // USANDO DOMPARSER PARA EXTRAÇÃO PRECISA
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        
+        let targetElement: Element | null = doc.body;
+        
         if (skill.selector) {
-          const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
-          const matches = html.match(regex) || [];
-          const results = matches.map((m: string) => m.replace(/<[^>]+>/g, '').trim());
-          return { status: "sucesso", url: targetUrl, dados_extraidos: results.slice(0, 20) };
+          targetElement = doc.querySelector(skill.selector);
+          if (!targetElement) {
+            return { error: `Seletor CSS '${skill.selector}' não encontrado na página.` };
+          }
         }
 
-        const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-                              .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
-                              .replace(/<[^>]+>/g, ' ')
-                              .replace(/\s+/g, ' ')
-                              .trim();
+        // Remove scripts e estilos do elemento alvo
+        const scripts = targetElement.querySelectorAll('script, style, nav, footer, header');
+        scripts.forEach(s => s.remove());
+
+        const cleanText = targetElement.textContent || "";
+        const formattedText = cleanText.replace(/\s+/g, ' ').trim();
         
-        return { status: "sucesso", url: targetUrl, conteudo: cleanText.substring(0, 5000) };
+        return { 
+          status: "sucesso", 
+          url: targetUrl, 
+          conteudo: formattedText.substring(0, 8000) 
+        };
       } catch (e: any) {
         lastError = e.message;
         continue;
