@@ -188,12 +188,17 @@ export const saveDynamicSkills = (skills: DynamicSkill[]) => {
   localStorage.setItem('jota-dynamic-skills', JSON.stringify(skills));
 };
 
-export async function executeSkill(name: string, args: any): Promise<any> {
-  const dynamicSkills = loadDynamicSkills();
+export async function executeSkill(name: string, args: any, skillsOverride?: DynamicSkill[]): Promise<any> {
+  const dynamicSkills = skillsOverride || loadDynamicSkills();
   const skill = dynamicSkills.find(s => s.name === name);
 
-  if (!skill || !skill.isActive) {
-    return { error: "Skill '" + name + "' não encontrada ou inativa." };
+  if (!skill) {
+    return { error: "Skill '" + name + "' não encontrada." };
+  }
+
+  // Se for um teste manual (skillsOverride presente), ignoramos o check de isActive para permitir testar antes de ativar
+  if (!skillsOverride && !skill.isActive) {
+    return { error: "Skill '" + name + "' está inativa." };
   }
   
   if (skill.executionType === 'knowledge_base') {
@@ -209,14 +214,12 @@ export async function executeSkill(name: string, args: any): Promise<any> {
       const html = data.contents;
 
       if (skill.selector) {
-        // Extração básica via regex para o seletor (simulação de navegação)
         const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
         const matches = html.match(regex) || [];
         const results = matches.map((m: string) => m.replace(/<[^>]+>/g, '').trim());
         return { status: "sucesso", url: targetUrl, dados_extraidos: results.slice(0, 20) };
       }
 
-      // Se não houver seletor, retorna o texto limpo da página (primeiros 5000 caracteres)
       const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
                             .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
                             .replace(/<[^>]+>/g, ' ')

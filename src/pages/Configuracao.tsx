@@ -88,9 +88,9 @@ const Configuracao = () => {
     setIsTestingSkill(skill.id);
     const toastId = toast.loading(`Testando skill: ${skill.name}...`);
     try {
-      // Para teste, usamos parâmetros vazios ou padrão
+      // Para teste, usamos parâmetros vazios ou padrão. Passamos dynamicSkills para testar sem salvar.
       const testArgs = skill.parameters?.properties ? {} : {};
-      const result = await executeSkill(skill.name, testArgs);
+      const result = await executeSkill(skill.name, testArgs, dynamicSkills);
       
       console.log(`Resultado do teste (${skill.name}):`, result);
       
