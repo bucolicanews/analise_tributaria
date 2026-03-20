@@ -40,6 +40,15 @@ export const ChatInterface = () => {
     return () => window.removeEventListener('focus', refreshSkills);
   }, []);
 
+  // Efeito para auto-redimensionar a textarea conforme o texto aumenta
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto';
+      const newHeight = Math.min(inputRef.current.scrollHeight, 500);
+      inputRef.current.style.height = `${newHeight}px`;
+    }
+  }, [input]);
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -281,14 +290,15 @@ export const ChatInterface = () => {
               value={input}
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
-              className="flex-1 bg-background min-h-[120px] max-h-[400px] resize-none py-3 px-4 text-base"
+              className="flex-1 bg-background min-h-[44px] max-h-[500px] resize-none py-3 px-4 text-base overflow-y-auto"
               disabled={isLoading}
               autoComplete="off"
+              rows={1}
             />
             <Button 
               onClick={handleSend} 
               disabled={isLoading || !input.trim()} 
-              className="bg-primary hover:bg-primary/90 h-12 w-12 p-0 shrink-0 mb-1"
+              className="bg-primary hover:bg-primary/90 h-11 w-11 p-0 shrink-0 mb-0.5"
             >
               {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
             </Button>
