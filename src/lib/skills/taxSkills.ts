@@ -5,6 +5,7 @@ export interface DynamicSkill {
   id: string;
   name: string;
   description: string;
+  suggestedInstruction?: string; // Novo campo para ajudar o usuário
   parameters: any; 
   executionType: 'local_js' | 'webhook' | 'knowledge_base' | 'web_scraping';
   jsCode?: string;
@@ -24,6 +25,7 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
     id: 'sys-1',
     name: 'consultar_endereco_viacep',
     description: 'Consulta endereço completo via CEP.',
+    suggestedInstruction: 'Você tem acesso à ferramenta #consultar_endereco_viacep. Utilize-a para validar o endereço da empresa ou localizar o município correto sempre que um CEP for fornecido.',
     parameters: {
       type: 'object',
       properties: { cep: { type: 'string' } },
@@ -36,7 +38,8 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
     id: 'sys-2',
     name: 'comparar_regimes_tributarios',
-    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo Fator R, Indústria, Isenções e ST.',
+    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido.',
+    suggestedInstruction: 'Você tem acesso à ferramenta #comparar_regimes_tributarios. Utilize-a obrigatoriamente para realizar simulações matemáticas precisas entre Simples Nacional e Lucro Presumido, garantindo que os valores em R$ sejam exatos.',
     parameters: {
       type: 'object',
       properties: {
@@ -45,10 +48,10 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
         folha_12m: { type: 'number', description: 'Folha de pagamento acumulada dos últimos 12 meses' },
         tipo_atividade: { type: 'string', enum: ['comercio', 'servico', 'industria'] },
         icms_percentual: { type: 'number', description: 'Alíquota de ICMS (ex: 0.17)', default: 0.17 },
-        icms_isento: { type: 'boolean', description: 'Indica se há isenção de ICMS (comum em Granjas)', default: false },
-        icms_st: { type: 'boolean', description: 'Se o produto está sujeito à Substituição Tributária', default: false },
+        icms_isento: { type: 'boolean', description: 'Indica se há isenção de ICMS', default: false },
+        icms_st: { type: 'boolean', description: 'Se o produto está sujeito à ST', default: false },
         iss_percentual: { type: 'number', description: 'Alíquota de ISS (ex: 0.05)', default: 0.05 },
-        margem_lucro: { type: 'number', description: 'Margem de lucro alvo para o cálculo', default: 0.15 }
+        margem_lucro: { type: 'number', description: 'Margem de lucro alvo', default: 0.15 }
       },
       required: ['faturamento_mensal', 'faturamento_12m', 'folha_12m', 'tipo_atividade']
     },
@@ -119,7 +122,8 @@ return {
   {
     id: 'sys-3',
     name: 'calcular_pro_labore_liquido',
-    description: 'Calcula o valor líquido do pró-labore aplicando INSS (11%) e IRPF (Lei 15.270/2025 - Tabela 2026).',
+    description: 'Calcula o valor líquido do pró-labore (INSS e IRPF 2026).',
+    suggestedInstruction: 'Você tem acesso à ferramenta #calcular_pro_labore_liquido. Utilize-a para calcular o valor líquido real que o sócio receberá, aplicando as regras de INSS e IRPF 2026.',
     parameters: {
       type: 'object',
       properties: { valor_bruto: { type: 'number' } },
@@ -130,15 +134,10 @@ return {
     jsCode: `
 const bruto = args.valor_bruto;
 const inss = bruto * 0.11;
-
-// 1. Desconto Simplificado Mensal (25% da faixa isenta: 25% de 2428,80 = 607,20)
 const descontoSimplificado = 607.20;
-
-// A fonte pagadora deve considerar o que for mais vantajoso para o contribuinte
 const deducaoEfetiva = Math.max(inss, descontoSimplificado);
 const baseIR = Math.max(0, bruto - deducaoEfetiva);
 
-// 2. Tabela Progressiva 2026
 let aliq = 0, parcelaDeduzir = 0;
 if (baseIR <= 2428.80) { aliq = 0; parcelaDeduzir = 0; }
 else if (baseIR <= 2826.65) { aliq = 0.075; parcelaDeduzir = 182.16; }
@@ -147,17 +146,11 @@ else if (baseIR <= 4664.68) { aliq = 0.225; parcelaDeduzir = 675.49; }
 else { aliq = 0.275; parcelaDeduzir = 908.73; }
 
 const impostoCalculado = Math.max(0, (baseIR * aliq) - parcelaDeduzir);
-
-// 3. Redução do Imposto (Art. 3º-A da Lei 9.250/95 com redação da Lei 15.270/2025)
 let valorReducao = 0;
 if (bruto <= 5000.00) {
-  // Redução limitada ao valor do imposto, até o teto de 312,89
   valorReducao = Math.min(impostoCalculado, 312.89);
 } else if (bruto <= 7350.00) {
-  // Fórmula: R$ 978,62 – (0,133145 x rendimentos tributáveis)
   valorReducao = Math.max(0, 978.62 - (0.133145 * bruto));
-} else {
-  valorReducao = 0;
 }
 
 const irFinal = Math.max(0, impostoCalculado - valorReducao);
@@ -167,8 +160,6 @@ return {
   inss, 
   deducao_utilizada: deducaoEfetiva === inss ? "INSS (Dedução Legal)" : "Desconto Simplificado (R$ 607,20)",
   base_ir: baseIR, 
-  imposto_tabela: impostoCalculado,
-  reducao_lei_15270: valorReducao,
   ir_final: irFinal, 
   liquido: bruto - inss - irFinal,
   lei: "Lei 15.270/2025 (Vigência 2026)"
@@ -178,11 +169,12 @@ return {
   {
     id: 'sys-4',
     name: 'consultar_portal_nfe',
-    description: 'Busca os últimos Informes Técnicos e novidades diretamente no Portal Nacional da NF-e.',
+    description: 'Busca os últimos Informes Técnicos no Portal Nacional da NF-e.',
+    suggestedInstruction: 'Você tem acesso à ferramenta #consultar_portal_nfe. Utilize-a para verificar se existem Notas Técnicas recentes ou atualizações na legislação da NF-e.',
     parameters: {
       type: 'object',
       properties: {
-        termo_busca: { type: 'string', description: 'Opcional: termo para filtrar os informes (ex: 2024.001)' }
+        termo_busca: { type: 'string', description: 'Opcional: termo para filtrar os informes' }
       }
     },
     executionType: 'local_js',
@@ -191,19 +183,12 @@ return {
 try {
   const targetUrl = 'https://www.nfe.fazenda.gov.br/portal/listaConteudo.aspx?tipoConteudo=hXzemuyNHW4=';
   const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
-  
   const response = await fetch(proxyUrl);
   const data = await response.json();
   const html = data.contents;
-  
   const matches = html.match(/<span id="[^"]+" class="tituloConteudo">([^<]+)<\\/span>/g) || [];
   const results = matches.map(m => m.replace(/<[^>]+>/g, '').trim()).slice(0, 10);
-  
-  return {
-    fonte: targetUrl,
-    ultimos_informes: results,
-    aviso: "Para detalhes completos, a IA deve usar a busca do Google (Grounding) ou você deve configurar um Webhook no n8n para extrair o conteúdo dos PDFs."
-  };
+  return { fonte: targetUrl, ultimos_informes: results };
 } catch (e) {
   return { error: "Erro ao acessar o portal: " + e.message };
 }
@@ -274,12 +259,10 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
           }
         }
 
-        // Limpeza agressiva de ruídos comuns
         const noiseSelectors = 'script, style, nav, footer, header, .menu, .sidebar, #header, #footer, .breadcrumb, .social-share';
         const noise = targetElement.querySelectorAll(noiseSelectors);
         noise.forEach(n => n.remove());
 
-        // Extração preservando quebras de linha
         const rawText = (targetElement as HTMLElement).innerText || targetElement.textContent || "";
         const cleanText = rawText
           .split('\n')
