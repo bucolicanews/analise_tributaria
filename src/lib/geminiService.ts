@@ -54,6 +54,10 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 
 # 1. ANÁLISE DE CNAEs E OPERAÇÃO
+- Analise cada CNAE informado individualmente.
+- Indique o enquadramento de cada um no Simples Nacional (Anexo I, II, III, IV ou V).
+- Explique a segregação de receitas se houver CNAEs de anexos diferentes.
+
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
 # 1.2 RETENÇÃO DE INSS E ISS
 # 1.3 DETALHAMENTO EFD-REINF
@@ -63,7 +67,12 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 5. LICENCIAMENTO REGIONAL (BELÉM/PA OU INFORMADO)
 # 6. NORMAS E EQUIPAMENTOS
 # 7. INVESTIMENTO DE ABERTURA
+
 # 8. MATRIZ DE RISCOS E CONFORMIDADE (ANÁLISE CRÍTICA)
+- Analise as respostas do cliente sobre: Mistura Patrimonial, Recebimento em Conta PF e Retirada de Lucros.
+- Se houver "Mistura Patrimonial: Sim" ou "Recebe na conta PF: Sim", emita um ALERTA VERMELHO sobre desconsideração da personalidade jurídica.
+- Sugira correções imediatas para blindagem patrimonial dos sócios.
+
 # 9. IMPACTO DA REFORMA (EC 132)
 # 10. RESPOSTA À PERGUNTA DO USUÁRIO
 # 11. METODOLOGIA DE ANÁLISE
@@ -72,8 +81,9 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 # 14. FUNDAMENTAÇÃO PERICIAL
 # 15. CLÁUSULA DE REVISÃO CONTRATUAL
 # 16. TABELAS 2026 (Salário Mínimo e INSS)
+
 # 17. OBRIGAÇÕES DA EMPRESA COM A PRÓPRIA EMPRESA (GOVERNANÇA)
-# 18. OBRIGAÇÕES DA EMPRESA COM a CONTABILIDADE
+# 18. OBRIGAÇÕES DA EMPRESA COM A CONTABILIDADE
 # 19. OBRIGAÇÕES DA EMPRESA COM O FISCO (CONFORMIDADE)
 
 ---
@@ -88,7 +98,7 @@ export async function callGeminiAgent(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
@@ -109,7 +119,7 @@ export async function callGeminiAgent(
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(initialBody) });
   const data = await response.json();
   
-  if (data.error) throw new Error(`Erro API Gemini: ${data.error.message}`);
+  if (data.error) throw new Error(\`Erro API Gemini: \${data.error.message}\`);
   
   let message = data?.candidates?.[0]?.content;
   if (!message) return "Sem resposta da IA.";
@@ -152,25 +162,25 @@ export async function sendChatMessage(
   if (!apiKey) throw new Error('Chave API Gemini não configurada.');
   
   const model = localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const url = \`https://generativelanguage.googleapis.com/v1beta/models/\${model}:generateContent?key=\${apiKey}\`;
   
   const dynamicSkills = loadDynamicSkills().filter(s => s.isActive);
   const dynamicManifests = dynamicSkills.map(s => ({ name: s.name, description: s.description, parameters: s.parameters }));
   const toolsArray = dynamicManifests.length > 0 ? [{ functionDeclarations: dynamicManifests }] : undefined;
 
   // Criamos uma lista textual das skills para o prompt do sistema
-  const skillsList = dynamicSkills.map(s => `- ${s.name}: ${s.description}`).join('\n');
+  const skillsList = dynamicSkills.map(s => \`- \${s.name}: \${s.description}\`).join('\n');
 
-  const systemPrompt = `Você é o Assistente Inteligente da Jota Contabilidade. 
+  const systemPrompt = \`Você é o Assistente Inteligente da Jota Contabilidade. 
   Você tem acesso a ferramentas especializadas (Skills) configuradas pelo usuário.
   
   FERRAMENTAS DISPONÍVEIS:
-  ${skillsList || "Nenhuma ferramenta configurada no momento."}
+  \${skillsList || "Nenhuma ferramenta configurada no momento."}
 
   Sempre que o usuário perguntar algo relacionado a estas ferramentas, você DEVE chamá-las. 
   Por exemplo, se houver uma ferramenta de "tabela_cClassTrib", chame-a para obter os dados antes de responder.
   
-  Responda de forma profissional, clara e técnica. Use Markdown para formatar suas respostas.`;
+  Responda de forma profissional, clara e técnica. Use Markdown para formatar suas respostas.\`;
 
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
@@ -207,7 +217,7 @@ export async function sendChatMessage(
 }
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
-  if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
+  if (!agent.webhookUrl) throw new Error(\`Webhook não configurado.\`);
   const response = await fetch(agent.webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentName: agent.nome, data: JSON.parse(userContent), previousReports }) });
   const data = await response.json();
   return data.report || data.output || "Erro no processamento.";
