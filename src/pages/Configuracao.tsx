@@ -108,12 +108,17 @@ const Configuracao = () => {
     try {
       const mockArgs: any = {};
       if (skill.name === 'consultar_endereco_viacep') mockArgs.cep = '66910010';
-      if (skill.name === 'comparar_regimes_tributarios') {
+      
+      // Suporte para múltiplos nomes de skills de comparação tributária
+      if (skill.name === 'comparar_regimes_tributarios' || skill.name === 'calcular_presumido') {
         mockArgs.faturamento_mensal = 20000;
         mockArgs.faturamento_12m = 240000;
         mockArgs.tipo_atividade = 'comercio';
         mockArgs.folha_12m = 20000;
+        mockArgs.icms_percentual = 0.19;
+        mockArgs.icms_isento = false;
       }
+      
       if (skill.name === 'calcular_pro_labore_liquido') mockArgs.valor_bruto = 5000;
 
       const result = await executeSkill(skill.name, mockArgs);
