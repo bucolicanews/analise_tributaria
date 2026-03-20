@@ -311,7 +311,7 @@ const Configuracao = () => {
                          </DialogHeader>
                          <Textarea 
                            placeholder='{ "title": "Meu Prompt", "role": "Perito", "content": "..." }' 
-                           className="font-mono text-xs h-64"
+                           className="font-mono text-xs h-64 bg-slate-950 text-indigo-300 border-indigo-900/50"
                            value={importPromptJson}
                            onChange={e => setImportPromptJson(e.target.value)}
                          />
@@ -347,7 +347,7 @@ const Configuracao = () => {
                          </div>
                          <div className="space-y-2">
                            <Label className="text-indigo-600">Conteúdo do Prompt (Instruções de Sistema)</Label>
-                           <Textarea className="font-mono text-[11px] h-64 bg-slate-50 border-indigo-100" value={prompt.content} onChange={e => updatePrompt(prompt.id, 'content', e.target.value)} />
+                           <Textarea className="font-mono text-[11px] h-64 bg-slate-950 text-indigo-300 border-indigo-900/50" value={prompt.content} onChange={e => updatePrompt(prompt.id, 'content', e.target.value)} />
                          </div>
                          <div className="flex justify-between items-center pt-2 border-t border-border/50">
                            <div className="flex items-center gap-2"><Switch checked={prompt.isActive} onCheckedChange={v => updatePrompt(prompt.id, 'isActive', v)} /><Label>Ativo</Label></div>
@@ -385,7 +385,7 @@ const Configuracao = () => {
                          </DialogHeader>
                          <Textarea 
                            placeholder='{ "name": "minha_skill", "executionType": "local_js", ... }' 
-                           className="font-mono text-xs h-64"
+                           className="font-mono text-xs h-64 bg-slate-950 text-emerald-300 border-emerald-900/50"
                            value={importJson}
                            onChange={e => setImportJson(e.target.value)}
                          />
@@ -449,7 +449,7 @@ const Configuracao = () => {
                                  </Button>
                                </div>
                              </div>
-                             <Textarea className="font-sans text-xs h-64 bg-blue-50/30 border-blue-200" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
+                             <Textarea className="font-sans text-xs h-64 bg-slate-950 text-blue-300 border-blue-900/50" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
                            </div>
                          ) : skill.executionType === 'web_scraping' ? (
                            <div className="space-y-4">
@@ -465,7 +465,7 @@ const Configuracao = () => {
                                      <Eraser className="h-3 w-3 mr-1" /> Limpar Ruídos
                                    </Button>
                                  </div>
-                                 <Textarea readOnly className="font-sans text-xs h-48 bg-emerald-50/10 border-emerald-200/50" value={skill.knowledgeBaseText} />
+                                 <Textarea readOnly className="font-sans text-xs h-48 bg-slate-950 text-emerald-300 border-emerald-900/50" value={skill.knowledgeBaseText} />
                                </div>
                              )}
                            </div>
@@ -504,7 +504,7 @@ const Configuracao = () => {
                            <div className="space-y-2"><Label>Nome do Agente</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Webhook Opcional</Label><Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} /></div>
                          </div>
-                         <div className="space-y-2"><Label>System Prompt</Label><Textarea className="font-mono text-xs h-32" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} /></div>
+                         <div className="space-y-2"><Label>System Prompt</Label><Textarea className="font-mono text-xs h-32 bg-slate-950 text-primary border-primary/30" value={agent.systemPrompt} onChange={e => updateAgent(agent.id, 'systemPrompt', e.target.value)} /></div>
                          <div className="flex justify-end"><Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => deleteAgent(agent.id)}><Trash2 className="h-4 w-4 mr-2" /> Remover Agente</Button></div>
                        </AccordionContent>
                      </AccordionItem>
