@@ -332,6 +332,8 @@ const Configuracao = () => {
                               <li><code className="bg-muted px-1">.conteudo-post</code>: Captura classes específicas de texto.</li>
                               <li><code className="bg-muted px-1">table.tabela-taxas</code>: Captura tabelas de dados técnicos.</li>
                               <li><code className="bg-muted px-1">#main-content</code>: Captura o ID principal da página.</li>
+                              <li><code className="bg-muted px-1">#parent-fieldname-text</code>: Seletor comum em portais do Governo (Planalto).</li>
+                              <li><code className="bg-muted px-1">#content-core</code>: Seletor de conteúdo central em portais públicos.</li>
                             </ul>
                           </section>
 
