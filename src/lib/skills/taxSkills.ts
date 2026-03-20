@@ -5,7 +5,7 @@ export interface DynamicSkill {
   id: string;
   name: string;
   description: string;
-  parameters: any; // JSON Schema
+  parameters: any; 
   executionType: 'local_js' | 'webhook' | 'knowledge_base';
   jsCode?: string;
   webhookUrl?: string;
@@ -14,9 +14,10 @@ export interface DynamicSkill {
 }
 
 /**
- * Skills nativas do sistema (Lógica de Execução)
+ * ENGINE TRIBUTÁRIA PROFISSIONAL - JOTA
  */
 export const SYSTEM_SKILLS: Record<string, Function> = {
+  // 1. CONSULTA DE ENDEREÇO
   get_address_by_cep: async (args: { cep: string | number }) => {
     const cleanCep = String(args.cep).replace(/\D/g, '');
     if (cleanCep.length !== 8) return { error: "CEP inválido", status: "erro" };
@@ -29,10 +30,101 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       return { error: "Falha no serviço de CEP", status: "erro" };
     }
   },
-  calculate_simples_nacional: (args: { faturamento_12m: number; anexo: string }) => {
-    const rate = calculateSimplesNacionalEffectiveRate(args.anexo, args.faturamento_12m);
-    return { aliquota_efetiva: rate, status: "sucesso" };
+
+  // 2. COMPARADOR DE REGIMES (ENGINE PROFISSIONAL)
+  compare_tax_regimes: (args: { 
+    faturamento_mensal: number; 
+    faturamento_12m: number; 
+    tipo_atividade: 'comercio' | 'servico';
+    folha_12m: number;
+    icms_percentual?: number;
+    iss_percentual?: number;
+  }) => {
+    // A. Fator R
+    const r = args.faturamento_12m > 0 ? (args.folha_12m / args.faturamento_12m) : 0;
+    const anexoServico = r >= 0.28 ? "Anexo III" : "Anexo V";
+    const anexoFinal = args.tipo_atividade === 'comercio' ? "Anexo I" : anexoServico;
+
+    // B. Simples Nacional (Usando tabelas reais do sistema)
+    const efetivaSimples = calculateSimplesNacionalEffectiveRate(anexoFinal, args.faturamento_12m);
+    const impostoSimples = args.faturamento_mensal * (efetivaSimples / 100);
+
+    // C. Lucro Presumido (Completo)
+    const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
+    const basePresumido = args.faturamento_mensal * presuncao;
+    
+    const irpjBase = basePresumido * 0.15;
+    const adicionalIrpj = basePresumido > 20000 ? (basePresumido - 20000) * 0.10 : 0;
+    const csll = basePresumido * 0.09;
+    const pis = args.faturamento_mensal * 0.0065;
+    const cofins = args.faturamento_mensal * 0.03;
+    
+    const icms = args.tipo_atividade === 'comercio' ? args.faturamento_mensal * (args.icms_percentual || 0.18) : 0;
+    const iss = args.tipo_atividade === 'servico' ? args.faturamento_mensal * (args.iss_percentual || 0.05) : 0;
+    
+    const totalPresumido = irpjBase + adicionalIrpj + csll + pis + cofins + icms + iss;
+
+    return {
+      fator_r: {
+        valor: (r * 100).toFixed(2) + "%",
+        anexo_aplicado: anexoFinal
+      },
+      simples: {
+        aliquota_efetiva: efetivaSimples.toFixed(2) + "%",
+        imposto_mensal: impostoSimples
+      },
+      presumido: {
+        detalhe: {
+          irpj_base: irpjBase,
+          adicional_10: adicionalIrpj,
+          csll, pis, cofins, icms, iss
+        },
+        imposto_mensal: totalPresumido,
+        aliquota_efetiva: ((totalPresumido / args.faturamento_mensal) * 100).toFixed(2) + "%"
+      },
+      veredito: {
+        melhor_regime: impostoSimples < totalPresumido ? "Simples Nacional" : "Lucro Presumido",
+        economia_mensal: Math.abs(impostoSimples - totalPresumido)
+      },
+      status: "sucesso"
+    };
   },
+
+  // 3. CÁLCULO DE PRÓ-LABORE (CORRIGIDO)
+  calculate_pro_labore_net: (args: { valor_bruto: number }) => {
+    const inss = args.valor_bruto * 0.11;
+    const baseIR = args.valor_bruto - inss;
+    
+    let aliquota = 0;
+    let deducao = 0;
+
+    // Tabela 2026
+    if (baseIR <= 2428.80) {
+      aliquota = 0;
+    } else if (baseIR <= 2826.65) {
+      aliquota = 0.075; deducao = 182.16;
+    } else if (baseIR <= 3751.05) {
+      aliquota = 0.15; deducao = 394.16;
+    } else if (baseIR <= 4664.68) {
+      aliquota = 0.225; deducao = 675.49;
+    } else {
+      aliquota = 0.275; deducao = 908.73;
+    }
+
+    const ir = (baseIR * aliquota) - deducao;
+    const valorIR = Math.max(0, ir);
+
+    return {
+      bruto: args.valor_bruto,
+      desconto_inss_11: inss,
+      base_calculo_ir: baseIR,
+      imposto_renda: valorIR,
+      valor_liquido: args.valor_bruto - inss - valorIR,
+      status: "sucesso"
+    };
+  },
+
+  // 4. INFO TÉCNICA NCM
   get_ncm_technical_info: (args: { ncm: string }) => {
     const cleanNcm = String(args.ncm).replace(/\D/g, '');
     return {
@@ -41,136 +133,56 @@ export const SYSTEM_SKILLS: Record<string, Function> = {
       classe_tributaria_reforma: findCClassByNcm(cleanNcm) || "Padrão",
       status: "sucesso"
     };
-  },
-  analyze_fator_r: (args: { folha_12m: number; faturamento_12m: number }) => {
-    const ratio = args.faturamento_12m > 0 ? (args.folha_12m / args.faturamento_12m) : 0;
-    return {
-      percentual_fator_r: (ratio * 100).toFixed(2) + "%",
-      resultado_enquadramento: ratio >= 0.28 ? "Anexo III" : "Anexo V",
-      status: "sucesso"
-    };
-  },
-  calculate_irpf_prolabore: (args: { valor_pro_labore: number }) => {
-    const v = args.valor_pro_labore;
-    let imposto = 0;
-    let faixa = "Isento";
-    let aliquota = 0;
-    let deducao = 0;
-
-    if (v <= 2428.80) {
-      imposto = 0;
-    } else if (v <= 2826.65) {
-      aliquota = 7.5; deducao = 182.16; faixa = "7,5%";
-    } else if (v <= 3751.05) {
-      aliquota = 15.0; deducao = 394.16; faixa = "15%";
-    } else if (v <= 4664.68) {
-      aliquota = 22.5; deducao = 675.49; faixa = "22,5%";
-    } else {
-      aliquota = 27.5; deducao = 908.73; faixa = "27,5%";
-    }
-
-    if (aliquota > 0) {
-      imposto = (v * (aliquota / 100)) - deducao;
-    }
-
-    return {
-      valor_bruto: v,
-      imposto_devido: Math.max(0, imposto),
-      aliquota_aplicada: faixa,
-      valor_liquido: v - Math.max(0, imposto),
-      ano_base: "2026",
-      status: "sucesso"
-    };
-  },
-  calculate_lucro_presumido: (args: { faturamento_mensal: number; tipo_atividade: 'comercio' | 'servico' }) => {
-    const presuncao = args.tipo_atividade === 'comercio' ? 0.08 : 0.32;
-    const baseCalculo = args.faturamento_mensal * presuncao;
-    const irpj = baseCalculo * 0.15;
-    const csll = baseCalculo * 0.09;
-    const pis = args.faturamento_mensal * 0.0065;
-    const cofins = args.faturamento_mensal * 0.03;
-    return {
-      base_presuncao_percentual: (presuncao * 100) + "%",
-      irpj_valor: irpj,
-      csll_valor: csll,
-      pis_valor: pis,
-      cofins_valor: cofins,
-      total_tributos_federais: irpj + csll + pis + cofins,
-      aliquota_efetiva_federal: ((irpj + csll + pis + cofins) / args.faturamento_mensal) * 100,
-      status: "sucesso"
-    };
   }
 };
 
 /**
- * Manifesto de Ferramentas (O que a IA enxerga)
+ * MANIFESTO DE FERRAMENTAS (O QUE A IA ENXERGA)
  */
 export const JOTA_TOOLS_MANIFEST = [
   {
     name: "get_address_by_cep",
-    description: "Consulta o endereço completo (bairro, logradouro, cidade) a partir de um CEP. Use sempre que o usuário fornecer um CEP.",
+    description: "Consulta endereço completo via CEP.",
     parameters: {
       type: "object",
-      properties: {
-        cep: { type: "string", description: "O CEP com ou sem hífen" }
-      },
+      properties: { cep: { type: "string" } },
       required: ["cep"]
     }
   },
   {
-    name: "calculate_simples_nacional",
-    description: "Calcula a alíquota efetiva exata do Simples Nacional (LC 123/2006).",
-    parameters: {
-      type: "object",
-      properties: {
-        faturamento_12m: { type: "number" },
-        anexo: { type: "string", enum: ["Anexo I", "Anexo II", "Anexo III", "Anexo IV", "Anexo V"] }
-      },
-      required: ["faturamento_12m", "anexo"]
-    }
-  },
-  {
-    name: "get_ncm_technical_info",
-    description: "Consulta regras de NCM e Imposto Seletivo. Use SEMPRE para validar os produtos da lista.",
-    parameters: {
-      type: "object",
-      properties: { ncm: { type: "string" } },
-      required: ["ncm"]
-    }
-  },
-  {
-    name: "analyze_fator_r",
-    description: "Analisa o Fator R para empresas de serviço.",
-    parameters: {
-      type: "object",
-      properties: {
-        folha_12m: { type: "number" },
-        faturamento_12m: { type: "number" }
-      },
-      required: ["folha_12m", "faturamento_12m"]
-    }
-  },
-  {
-    name: "calculate_irpf_prolabore",
-    description: "Calcula o Imposto de Renda Pessoa Física (IRPF) sobre o valor do pró-labore mensal (Tabela 2026).",
-    parameters: {
-      type: "object",
-      properties: {
-        valor_pro_labore: { type: "number" }
-      },
-      required: ["valor_pro_labore"]
-    }
-  },
-  {
-    name: "calculate_lucro_presumido",
-    description: "Calcula os impostos federais (IRPJ, CSLL, PIS, COFINS) no regime de Lucro Presumido.",
+    name: "compare_tax_regimes",
+    description: "Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo ICMS, ISS e Adicional de IRPJ. Use sempre que precisar decidir o melhor regime.",
     parameters: {
       type: "object",
       properties: {
         faturamento_mensal: { type: "number" },
-        tipo_atividade: { type: "string", enum: ["comercio", "servico"] }
+        faturamento_12m: { type: "number" },
+        tipo_atividade: { type: "string", enum: ["comercio", "servico"] },
+        folha_12m: { type: "number" },
+        icms_percentual: { type: "number", description: "Alíquota de ICMS (ex: 0.18 para 18%)" },
+        iss_percentual: { type: "number", description: "Alíquota de ISS (ex: 0.05 para 5%)" }
       },
-      required: ["faturamento_mensal", "tipo_atividade"]
+      required: ["faturamento_mensal", "faturamento_12m", "tipo_atividade", "folha_12m"]
+    }
+  },
+  {
+    name: "calculate_pro_labore_net",
+    description: "Calcula o valor líquido do pró-labore, descontando 11% de INSS e aplicando a tabela de IRPF 2026.",
+    parameters: {
+      type: "object",
+      properties: {
+        valor_bruto: { type: "number" }
+      },
+      required: ["valor_bruto"]
+    }
+  },
+  {
+    name: "get_ncm_technical_info",
+    description: "Consulta regras de NCM e Imposto Seletivo.",
+    parameters: {
+      type: "object",
+      properties: { ncm: { type: "string" } },
+      required: ["ncm"]
     }
   }
 ];
@@ -196,34 +208,16 @@ export async function executeSkill(name: string, args: any): Promise<any> {
     return { error: `Skill '${name}' não encontrada ou inativa.` };
   }
   
-  // RAG Simples (Base de Conhecimento Embutida)
   if (skill.executionType === 'knowledge_base') {
-    return { 
-      status: "sucesso", 
-      conteudo_recuperado: skill.knowledgeBaseText || "Nenhum conteúdo cadastrado na base." 
-    };
+    return { status: "sucesso", conteudo_recuperado: skill.knowledgeBaseText || "" };
   }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
     try {
-      let url = skill.webhookUrl;
-      let method = 'POST';
-      let body: any = JSON.stringify(args);
-
-      // Suporte a substituição dinâmica na URL (ex: {{cep}})
-      const hasPlaceholders = url.includes('{{');
-      if (hasPlaceholders) {
-        Object.keys(args).forEach(key => {
-          url = url.replace(new RegExp(`{{${key}}}`, 'g'), args[key]);
-        });
-        method = 'GET'; 
-        body = undefined;
-      }
-
-      const res = await fetch(url, {
-        method,
+      const res = await fetch(skill.webhookUrl, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body
+        body: JSON.stringify(args)
       });
       return await res.json();
     } catch (e: any) {
