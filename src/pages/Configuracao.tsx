@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { 
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
-  Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download
+  Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage } from '@/lib/geminiService';
+import { AgentConfig, DEFAULT_AGENTS, DEFAULT_PRE_ANALYSIS_PROMPT, loadAgentsFromStorage, saveAgentsToStorage, PromptConfig, loadPromptsFromStorage, savePromptsToStorage, DEFAULT_PROMPTS } from '@/lib/geminiService';
 import { useAuth } from '@/contexts/AuthContext';
 import { getInssTables, saveInssTables, InssTable } from '@/lib/tax/inssData';
 import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
@@ -40,6 +40,8 @@ const Configuracao = () => {
   const [isTestingSkill, setIsTestingSkill] = useState<string | null>(null);
   const [importJson, setImportJson] = useState('');
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const [importPromptJson, setImportPromptJson] = useState('');
+  const [isImportPromptDialogOpen, setIsImportPromptDialogOpen] = useState(false);
 
   const [webhookTestUrl, setWebhookTestUrl] = useState(localStorage.getItem('jota-webhook-test') || '');
   const [webhookProdUrl, setWebhookProdUrl] = useState(localStorage.getItem('jota-webhook-prod') || '');
@@ -52,9 +54,9 @@ const Configuracao = () => {
   const [geminiKey, setGeminiKey] = useState(localStorage.getItem('jota-gemini-key') || '');
   const [geminiModel, setGeminiModel] = useState(localStorage.getItem('jota-gemini-model') || 'gemini-2.0-flash');
   const [enableGoogleSearch, setEnableGoogleSearch] = useState(localStorage.getItem('jota-gemini-search') === 'true');
-  const [preAnalysisPrompt, setPreAnalysisPrompt] = useState(localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT);
 
   const [agents, setAgents] = useState<AgentConfig[]>(() => loadAgentsFromStorage());
+  const [prompts, setPrompts] = useState<PromptConfig[]>(() => loadPromptsFromStorage());
   const [inssTables, setInssTables] = useState<InssTable[]>(() => getInssTables());
   const [irpfTables, setIrpfTables] = useState<IrpfTable[]>(() => getIrpfTables());
   const [minimumWages, setMinimumWages] = useState<MinimumWageEntry[]>(() => getMinimumWages());
@@ -71,9 +73,9 @@ const Configuracao = () => {
     localStorage.setItem('jota-gemini-key', geminiKey);
     localStorage.setItem('jota-gemini-model', geminiModel);
     localStorage.setItem('jota-gemini-search', enableGoogleSearch.toString());
-    localStorage.setItem('jota-pre-analysis-prompt', preAnalysisPrompt);
     
     saveAgentsToStorage(agents);
+    savePromptsToStorage(prompts);
     saveInssTables(inssTables);
     saveIrpfTables(irpfTables);
     saveMinimumWages(minimumWages);
@@ -81,7 +83,7 @@ const Configuracao = () => {
   }, [
     razaoSocial, cnpj, uf, webhookTestUrl, webhookProdUrl, 
     contadorNome, contadorCrc, geminiKey, geminiModel, 
-    enableGoogleSearch, preAnalysisPrompt, agents, 
+    enableGoogleSearch, agents, prompts,
     inssTables, irpfTables, minimumWages, dynamicSkills
   ]);
 
@@ -89,24 +91,27 @@ const Configuracao = () => {
     try {
       const skillData = JSON.parse(importJson);
       if (!skillData.name || !skillData.executionType) throw new Error("Campos obrigatórios ausentes.");
-      
-      const newSkill: DynamicSkill = {
-        ...skillData,
-        id: Date.now().toString(),
-        isActive: true
-      };
-      
+      const newSkill: DynamicSkill = { ...skillData, id: Date.now().toString(), isActive: true };
       setDynamicSkills([...dynamicSkills, newSkill]);
       setImportJson('');
       setIsImportDialogOpen(false);
       toast.success("Skill importada com sucesso!");
-    } catch (e: any) {
-      toast.error("Erro no JSON: " + e.message);
-    }
+    } catch (e: any) { toast.error("Erro no JSON: " + e.message); }
+  };
+
+  const handleImportPrompt = () => {
+    try {
+      const promptData = JSON.parse(importPromptJson);
+      if (!promptData.title || !promptData.content) throw new Error("Campos obrigatórios ausentes.");
+      const newPrompt: PromptConfig = { ...promptData, id: Date.now().toString(), isActive: true };
+      setPrompts([...prompts, newPrompt]);
+      setImportPromptJson('');
+      setIsImportPromptDialogOpen(false);
+      toast.success("Prompt importado com sucesso!");
+    } catch (e: any) { toast.error("Erro no JSON: " + e.message); }
   };
 
   const handleDownloadSkill = (skill: DynamicSkill) => {
-    // Remove o ID interno para que o arquivo seja um "template" limpo
     const { id, ...exportData } = skill;
     const jsonString = JSON.stringify(exportData, null, 2);
     const blob = new Blob([jsonString], { type: 'application/json' });
@@ -121,12 +126,23 @@ const Configuracao = () => {
     toast.success(`Arquivo skill_${skill.name}.json gerado!`);
   };
 
+  const handleDownloadPrompt = (prompt: PromptConfig) => {
+    const { id, ...exportData } = prompt;
+    const jsonString = JSON.stringify(exportData, null, 2);
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `prompt_${prompt.title.replace(/\s+/g, '_').toLowerCase()}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success(`Arquivo gerado!`);
+  };
+
   const cleanTextNoise = (text: string): string => {
-    return text
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => /[a-zA-Z0-9]/.test(line))
-      .join('\n');
+    return text.split('\n').map(line => line.trim()).filter(line => /[a-zA-Z0-9]/.test(line)).join('\n');
   };
 
   const handleManualCleanNoise = (skillId: string) => {
@@ -145,35 +161,26 @@ const Configuracao = () => {
     const toastId = toast.loading(`Testando skill: ${skill.name}...`);
     try {
       const result = await executeSkill(skill.name, {}, dynamicSkills);
-      if (result.error) {
-        toast.error(`Erro no teste: ${result.error}`, { id: toastId });
-      } else {
+      if (result.error) { toast.error(`Erro no teste: ${result.error}`, { id: toastId }); } 
+      else {
         toast.success("Teste concluído!", { id: toastId });
         if (skill.executionType === 'web_scraping') {
           const extractedContent = result.conteudo || (result.dados_extraidos ? result.dados_extraidos.join('\n') : "");
-          if (extractedContent) {
-            updateSkill(skill.id, 'knowledgeBaseText', extractedContent);
-          }
+          if (extractedContent) { updateSkill(skill.id, 'knowledgeBaseText', extractedContent); }
         }
       }
-    } catch (err: any) {
-      toast.error(`Falha no teste: ${err.message}`, { id: toastId });
-    } finally {
-      setIsTestingSkill(null);
-    }
+    } catch (err: any) { toast.error(`Falha no teste: ${err.message}`, { id: toastId }); } 
+    finally { setIsTestingSkill(null); }
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !activeSkillIdForUpload) return;
-
     setIsExtracting(true);
     const toastId = toast.loading(`Processando ${file.name}...`);
-
     try {
       let extractedText = "";
       const fileName = file.name.toLowerCase();
-
       if (fileName.endsWith(".pdf")) {
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
@@ -185,8 +192,7 @@ const Configuracao = () => {
           fullText += content.items.map((item: any) => item.str).join(" ") + "\n";
         }
         extractedText = fullText;
-      } 
-      else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         let fullSheetText = "";
@@ -195,41 +201,44 @@ const Configuracao = () => {
           fullSheetText += `--- PLANILHA: ${sheetName} ---\n${XLSX.utils.sheet_to_csv(worksheet)}\n\n`;
         });
         extractedText = fullSheetText;
-      }
-      else {
-        extractedText = await file.text();
-      }
-
+      } else { extractedText = await file.text(); }
       if (extractedText.trim()) {
         const cleanedText = cleanTextNoise(extractedText);
         updateSkill(activeSkillIdForUpload, 'knowledgeBaseText', cleanedText);
         toast.success("Conteúdo extraído!", { id: toastId });
       }
-    } catch (error: any) {
-      toast.error("Erro ao processar arquivo: " + error.message, { id: toastId });
-    } finally {
-      setIsExtracting(false);
-      setActiveSkillIdForUpload(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+    } catch (error: any) { toast.error("Erro ao processar arquivo: " + error.message, { id: toastId }); } 
+    finally { setIsExtracting(false); setActiveSkillIdForUpload(null); if (fileInputRef.current) fileInputRef.current.value = ""; }
   };
 
-  const triggerFileUpload = (skillId: string) => {
-    setActiveSkillIdForUpload(skillId);
-    fileInputRef.current?.click();
-  };
+  const triggerFileUpload = (skillId: string) => { setActiveSkillIdForUpload(skillId); fileInputRef.current?.click(); };
 
   const updateAgent = (id: string, field: keyof AgentConfig, value: string) => {
     setAgents(agents.map(a => a.id === id ? { ...a, [field]: value } : a));
   };
 
-  const deleteAgent = (id: string) => {
-    setAgents(agents.filter(a => a.id !== id));
+  const updatePrompt = (id: string, field: keyof PromptConfig, value: any) => {
+    setPrompts(prompts.map(p => p.id === id ? { ...p, [field]: value } : p));
   };
+
+  const deleteAgent = (id: string) => { setAgents(agents.filter(a => a.id !== id)); };
+  const deletePrompt = (id: string) => { setPrompts(prompts.filter(p => p.id !== id)); };
 
   const addAgent = () => {
     const newId = Date.now().toString();
     setAgents([...agents, { id: newId, nome: `Novo Agente`, systemPrompt: '', order: agents.length + 1 }]);
+  };
+
+  const addPrompt = () => {
+    const newPrompt: PromptConfig = {
+      id: Date.now().toString(),
+      title: 'Novo Prompt',
+      role: 'Especialista',
+      content: '',
+      isActive: true
+    };
+    setPrompts([...prompts, newPrompt]);
+    toast.success("Novo Prompt criado!");
   };
 
   const addSkill = () => {
@@ -259,8 +268,8 @@ const Configuracao = () => {
           <CardTitle className="flex items-center gap-2"><Settings className="h-6 w-6 text-primary" />Configurações do Sistema</CardTitle>
           <Button type="button" variant="outline" size="sm" onClick={() => {
             if (confirm("Deseja restaurar o padrão JOTA?")) {
-              setPreAnalysisPrompt(DEFAULT_PRE_ANALYSIS_PROMPT);
               setAgents(DEFAULT_AGENTS);
+              setPrompts(DEFAULT_PROMPTS);
               setDynamicSkills(DEFAULT_DYNAMIC_SKILLS);
               toast.info("Padrão JOTA restaurado.");
             }
@@ -281,6 +290,81 @@ const Configuracao = () => {
 
           {autenticado ? (
             <>
+              {/* BIBLIOTECA DE PROMPTS */}
+              <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
+                 <div className="flex items-center justify-between">
+                   <div className="space-y-1">
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><MessageSquareQuote className="h-5 w-5" />Biblioteca de Prompts</h3>
+                     <p className="text-xs text-indigo-700/70">Gerencie os cérebros e personas da sua IA.</p>
+                   </div>
+                   <div className="flex gap-2">
+                     <Dialog open={isImportPromptDialogOpen} onOpenChange={setIsImportPromptDialogOpen}>
+                       <DialogTrigger asChild>
+                         <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600">
+                           <Download className="h-4 w-4 mr-2" /> Importar JSON
+                         </Button>
+                       </DialogTrigger>
+                       <DialogContent className="sm:max-w-lg">
+                         <DialogHeader>
+                           <DialogTitle>Importar Prompt via JSON</DialogTitle>
+                           <DialogDescription>Cole o objeto JSON do prompt abaixo.</DialogDescription>
+                         </DialogHeader>
+                         <Textarea 
+                           placeholder='{ "title": "Meu Prompt", "role": "Perito", "content": "..." }' 
+                           className="font-mono text-xs h-64"
+                           value={importPromptJson}
+                           onChange={e => setImportPromptJson(e.target.value)}
+                         />
+                         <DialogFooter>
+                           <Button variant="outline" onClick={() => setIsImportPromptDialogOpen(false)}>Cancelar</Button>
+                           <Button onClick={handleImportPrompt} className="bg-indigo-600 text-white">Importar Agora</Button>
+                         </DialogFooter>
+                       </DialogContent>
+                     </Dialog>
+
+                     <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={addPrompt}>
+                       <Plus className="h-4 w-4 mr-2" /> Novo Prompt
+                     </Button>
+                   </div>
+                 </div>
+
+                 <Accordion type="multiple" className="w-full space-y-2">
+                   {prompts.map((prompt) => (
+                     <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4">
+                       <AccordionTrigger className="hover:no-underline py-3">
+                         <div className="flex items-center gap-3">
+                           <div className={prompt.isActive ? "text-indigo-500" : "text-muted-foreground"}>
+                             <Bot className="h-4 w-4" />
+                           </div>
+                           <span className="font-bold text-sm">{prompt.title}</span>
+                           <Badge variant="outline" className="text-[10px] opacity-70">{prompt.role}</Badge>
+                         </div>
+                       </AccordionTrigger>
+                       <AccordionContent className="pt-2 pb-4 space-y-4">
+                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                           <div className="space-y-2"><Label>Título do Prompt</Label><Input value={prompt.title} onChange={e => updatePrompt(prompt.id, 'title', e.target.value)} /></div>
+                           <div className="space-y-2"><Label>Função / Persona</Label><Input value={prompt.role} onChange={e => updatePrompt(prompt.id, 'role', e.target.value)} /></div>
+                         </div>
+                         <div className="space-y-2">
+                           <Label className="text-indigo-600">Conteúdo do Prompt (Instruções de Sistema)</Label>
+                           <Textarea className="font-mono text-[11px] h-64 bg-slate-50 border-indigo-100" value={prompt.content} onChange={e => updatePrompt(prompt.id, 'content', e.target.value)} />
+                         </div>
+                         <div className="flex justify-between items-center pt-2 border-t border-border/50">
+                           <div className="flex items-center gap-2"><Switch checked={prompt.isActive} onCheckedChange={v => updatePrompt(prompt.id, 'isActive', v)} /><Label>Ativo</Label></div>
+                           <div className="flex gap-2">
+                             <Button type="button" variant="outline" size="sm" className="text-blue-600 border-blue-200" onClick={() => handleDownloadPrompt(prompt)}>
+                               <Download className="h-4 w-4 mr-2" /> Baixar JSON
+                             </Button>
+                             <Button type="button" variant="ghost" size="sm" className="text-destructive" onClick={() => deletePrompt(prompt.id)}><Trash2 className="h-4 w-4 mr-2" /> Remover</Button>
+                           </div>
+                         </div>
+                       </AccordionContent>
+                     </AccordionItem>
+                   ))}
+                 </Accordion>
+              </div>
+
+              {/* SKILLS E FERRAMENTAS */}
               <div className="space-y-4 rounded-lg border border-emerald-500/30 p-4 bg-emerald-500/5">
                  <div className="flex items-center justify-between">
                    <div className="space-y-1">
@@ -297,7 +381,7 @@ const Configuracao = () => {
                        <DialogContent className="sm:max-w-lg">
                          <DialogHeader>
                            <DialogTitle>Importar Skill via JSON</DialogTitle>
-                           <DialogDescription>Cole o objeto JSON da skill abaixo para importá-la instantaneamente.</DialogDescription>
+                           <DialogDescription>Cole o objeto JSON da skill abaixo.</DialogDescription>
                          </DialogHeader>
                          <Textarea 
                            placeholder='{ "name": "minha_skill", "executionType": "local_js", ... }' 
@@ -373,7 +457,6 @@ const Configuracao = () => {
                                <div className="space-y-2"><Label>URL Alvo</Label><Input placeholder="https://..." value={skill.url || ''} onChange={e => updateSkill(skill.id, 'url', e.target.value)} /></div>
                                <div className="space-y-2"><Label>Seletor CSS Opcional</Label><Input placeholder="Ex: #main-content" value={skill.selector || ''} onChange={e => updateSkill(skill.id, 'selector', e.target.value)} /></div>
                              </div>
-                             
                              {skill.knowledgeBaseText && (
                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
                                  <div className="flex items-center justify-between">
@@ -382,11 +465,7 @@ const Configuracao = () => {
                                      <Eraser className="h-3 w-3 mr-1" /> Limpar Ruídos
                                    </Button>
                                  </div>
-                                 <Textarea 
-                                   readOnly 
-                                   className="font-sans text-xs h-48 bg-emerald-50/10 border-emerald-200/50" 
-                                   value={skill.knowledgeBaseText} 
-                                 />
+                                 <Textarea readOnly className="font-sans text-xs h-48 bg-emerald-50/10 border-emerald-200/50" value={skill.knowledgeBaseText} />
                                </div>
                              )}
                            </div>
@@ -396,7 +475,6 @@ const Configuracao = () => {
                              {skill.executionType === 'local_js' && <div className="space-y-2"><Label className="text-emerald-600">Código JavaScript</Label><Textarea className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" value={skill.jsCode || ''} onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} /></div>}
                            </div>
                          )}
-
                          <div className="flex justify-between items-center pt-2 border-t border-border/50">
                            <div className="flex gap-2">
                              <Button type="button" variant="outline" size="sm" className="text-emerald-600 border-emerald-200" onClick={() => handleTestSkill(skill)} disabled={isTestingSkill === skill.id}>
@@ -412,80 +490,9 @@ const Configuracao = () => {
                      </AccordionItem>
                    ))}
                  </Accordion>
-
-                 <div className="pt-4 flex justify-center">
-                   <Dialog>
-                     <DialogTrigger asChild>
-                       <Button variant="ghost" size="sm" className="text-emerald-600 hover:bg-emerald-50">
-                         <BookOpen className="h-4 w-4 mr-2" /> Guia de Construção e Padrão JSON
-                       </Button>
-                     </DialogTrigger>
-                     <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                       <DialogHeader>
-                         <DialogTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-emerald-600" /> Manual de Criação de Skills</DialogTitle>
-                         <DialogDescription>Aprenda a estruturar ferramentas para que a IA possa executar tarefas complexas.</DialogDescription>
-                       </DialogHeader>
-                       
-                       <div className="space-y-6 py-4 text-sm">
-                         <section className="space-y-2">
-                           <h4 className="font-bold text-emerald-700">1. Tipos de Execução</h4>
-                           <ul className="list-disc pl-5 space-y-1">
-                             <li><strong>JavaScript Local:</strong> Executa código no navegador. Tem acesso ao objeto <code className="bg-muted px-1">args</code> (enviado pela IA) e <code className="bg-muted px-1">helpers</code> (funções de cálculo do sistema).</li>
-                             <li><strong>Webhook (n8n):</strong> Envia os dados para uma URL externa e aguarda a resposta. Ideal para integrações com APIs ou bancos de dados.</li>
-                             <li><strong>Base de Conhecimento:</strong> Texto estático que a IA consulta para responder perguntas específicas.</li>
-                             <li>
-                               <strong>Navegação Web:</strong> Extrai texto de qualquer site público.
-                               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-md">
-                                 <p className="text-xs font-bold text-blue-700 flex items-center gap-1">
-                                   <Zap className="h-3 w-3" /> Dica para Sites do Governo:
-                                 </p>
-                                 <p className="text-[11px] text-blue-600 mt-1">
-                                   Portais como gov.br, Receita Federal e Portal da NF-e usam o padrão Plone. Para extrair apenas o texto principal desses sites, use os seletores: <code className="bg-blue-100 px-1">#parent-fieldname-text, #content-core</code>.
-                                 </p>
-                               </div>
-                             </li>
-                           </ul>
-                         </section>
-
-                         <section className="space-y-2">
-                           <h4 className="font-bold text-emerald-700">2. Padrão JSON para Importação</h4>
-                           <p className="text-xs text-muted-foreground">Você pode copiar este modelo e adaptar os campos:</p>
-                           <pre className="bg-slate-950 text-emerald-400 p-4 rounded-lg text-[10px] overflow-x-auto">
-{`{
-  "name": "nome_da_skill",
-  "description": "Explique para a IA quando usar esta ferramenta",
-  "parameters": {
-    "type": "object",
-    "properties": {
-      "parametro1": { "type": "string", "description": "O que é este dado" }
-    },
-    "required": ["parametro1"]
-  },
-  "executionType": "local_js",
-  "jsCode": "return { resultado: args.parametro1 };"
-}`}
-                           </pre>
-                         </section>
-
-                         <section className="space-y-2">
-                           <h4 className="font-bold text-emerald-700">3. Dicas de Ouro</h4>
-                           <ul className="list-disc pl-5 space-y-1">
-                             <li><strong>Nome Técnico:</strong> Use apenas letras minúsculas e sublinhados (ex: <code className="bg-muted px-1">consultar_estoque</code>).</li>
-                             <li><strong>Descrição:</strong> Seja muito claro. A IA decide usar a skill baseada apenas neste texto.</li>
-                             <li><strong>Segurança:</strong> O código JS roda em um ambiente isolado, mas evite loops infinitos.</li>
-                           </ul>
-                         </section>
-                       </div>
-                     </DialogContent>
-                   </Dialog>
-                 </div>
               </div>
 
-              <div className="space-y-4 rounded-lg border border-indigo-500/30 p-4 bg-indigo-500/5">
-                 <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><Bot className="h-5 w-5" />Cérebro da IA (Super Prompt)</h3>
-                 <Textarea className="font-mono text-[11px] h-[250px] bg-background border-indigo-200" value={preAnalysisPrompt} onChange={(e) => setPreAnalysisPrompt(e.target.value)} />
-              </div>
-
+              {/* AGENTES ESPECIALISTAS */}
               <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
                  <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas</h3><Button type="button" size="sm" onClick={addAgent}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></div>
                  <Accordion type="multiple" className="w-full space-y-2">

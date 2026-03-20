@@ -17,6 +17,14 @@ export interface AgentConfig {
   order?: number;
 }
 
+export interface PromptConfig {
+  id: string;
+  title: string;
+  role: string;
+  content: string;
+  isActive: boolean;
+}
+
 export interface ChatMessage {
   role: 'user' | 'model' | 'function';
   parts: any[];
@@ -89,6 +97,25 @@ ESTRUTURA OBRIGATÓRIA (19 REQUISITOS):
 ---
 VEREDITO PRÁTICO FINAL:
 [Sua decisão técnica aqui]`;
+
+export const DEFAULT_PROMPTS: PromptConfig[] = [
+  {
+    id: 'p-1',
+    title: 'Viabilidade e Estruturação (Padrão JOTA)',
+    role: 'Perito Tributário Sênior',
+    content: DEFAULT_PRE_ANALYSIS_PROMPT,
+    isActive: true
+  }
+];
+
+export function loadPromptsFromStorage(): PromptConfig[] {
+  const raw = localStorage.getItem('jota-prompts');
+  return raw ? JSON.parse(raw) : DEFAULT_PROMPTS;
+}
+
+export function savePromptsToStorage(prompts: PromptConfig[]): void {
+  localStorage.setItem('jota-prompts', JSON.stringify(prompts));
+}
 
 export async function callGeminiAgent(
   systemPrompt: string,

@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown, Copy, Check } from 'lucide-react';
+import { Send, Sparkles, ChevronDown, RefreshCw, Building2, ShieldQuestion, Gavel, Loader2, Trash2, Plus, ListChecks, Calendar, Bot, AlertTriangle, Printer, FileDown, Copy, Check, MessageSquareQuote } from 'lucide-react';
 import { AiAnalysisReport } from '@/components/AiAnalysisReport';
 import { AnalysisProgress, ProgressStep } from '@/components/AnalysisProgress';
 import { getInssTables } from '@/lib/tax/inssData';
@@ -15,7 +15,7 @@ import { getMinimumWages } from '@/lib/tax/minimumWageData';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader as UIDialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { callGeminiAgent, DEFAULT_PRE_ANALYSIS_PROMPT } from '@/lib/geminiService';
+import { callGeminiAgent, loadPromptsFromStorage, PromptConfig } from '@/lib/geminiService';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -78,6 +78,9 @@ const Viabilidade = () => {
   const [recebeContaPF, setRecebeContaPF] = useState(() => getStored('viab-recebeContaPF', 'Não'));
   const [mesmaContaSocios, setMesmaContaSocios] = useState(() => getStored('viab-mesmaContaSocios', 'Sim'));
   
+  const [prompts, setPrompts] = useState<PromptConfig[]>([]);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>('');
+
   const [aiReport, setAiReport] = useState<string | null>(() => localStorage.getItem('viab-aiReport'));
   const [isLoading, setIsLoading] = useState(false);
   const [progressStep, setProgressStep] = useState<ProgressStep>('idle');
@@ -87,13 +90,17 @@ const Viabilidade = () => {
   const [preAnalysisReport, setPreAnalysisReport] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  useEffect(() => {
+    const loadedPrompts = loadPromptsFromStorage().filter(p => p.isActive);
+    setPrompts(loadedPrompts);
+    if (loadedPrompts.length > 0) setSelectedPromptId(loadedPrompts[0].id);
+  }, []);
+
   const handleFolhaMensalChange = (val: string) => {
     setFolhaPagamento(val);
     const num = parseFloat(val) || 0;
-    setPayroll12Months((num * 12).toString());
+    setFolha12Meses((num * 12).toString());
   };
-
-  const setPayroll12Months = (val: string) => setFolha12Meses(val);
 
   useEffect(() => {
     const data: Record<string, string> = {
@@ -136,174 +143,91 @@ const Viabilidade = () => {
     const percComercioNum = parseFloat(percentComercio) || 0;
     const percIndustriaNum = parseFloat(percentIndustria) || 0;
     const percServicoNum = parseFloat(percentServico) || 0;
-    
     const folha12mNum = parseFloat(folha12Meses) || ((parseFloat(folhaPagamento) || 0) + (parseFloat(valorProlabore) || 0)) * 12;
 
     return {
       meta: { webhookUrl, executionMode: environment },
       agentName: "Diagnóstico Tributário e Planejamento Empresarial",
-      contexto: { 
-        anoBase, 
-        objetivo: "Análise de Viabilidade, Planejamento Tributário, Blindagem Patrimonial e Orientação Contábil" 
-      },
+      contexto: { anoBase, objetivo: "Análise de Viabilidade, Planejamento Tributário, Blindagem Patrimonial e Orientação Contábil" },
       empresa: {
         razaoSocial: razaoSocial || "Não Informada",
         naturezaJuridica: naturezaJuridica || "Não Informada",
         classificacaoFiscal: classificacaoFiscal || "ME",
         capitalSocial: parseFloat(capital) || 0,
         numSocios: parseInt(numSocios) || 1,
-        localizacao: { 
-          municipio: formatCityName(municipio), 
-          estado: estado || "PA"
-        },
+        localizacao: { municipio: formatCityName(municipio), estado: estado || "PA" },
         tributacaoPretendida: tributacaoSugerida || "Simples Nacional"
       },
       operacional: {
-        cnaes: cnaes.map(c => ({
-          codigo_formatado: c.code.trim(),
-          codigo_limpo: c.code.replace(/\D/g, ''),
-          descricao: c.description.trim(),
-          tipo: c.isPrimary ? 'Principal' : 'Secundário'
-        })),
+        cnaes: cnaes.map(c => ({ codigo_formatado: c.code.trim(), codigo_limpo: c.code.replace(/\D/g, ''), descricao: c.description.trim(), tipo: c.isPrimary ? 'Principal' : 'Secundário' })),
         descricaoAtividades: atividades || "",
-        percentual_comercio_industria_servico: {
-          comercio: percComercioNum,
-          industria: percIndustriaNum,
-          servico: percServicoNum
-        }
+        percentual_comercio_industria_servico: { comercio: percComercioNum, industria: percIndustriaNum, servico: percServicoNum }
       },
       financeiro: {
-        faturamento: {
-          anual_total: faturamentoNum,
-          mensal_medio: faturamentoNum / 12,
-          segregacao: { 
-            comercio_percent: percComercioNum, 
-            industria_percent: percIndustriaNum,
-            servico_percent: percServicoNum
-          }
-        },
-        custos_operacionais: {
-          fixos_mensais: parseFloat(fixosMensais) || 0,
-          variaveis_percentual: parseFloat(variaveisPercentual) || 0
-        },
-        fator_r: {
-          folha_12_meses: folha12mNum,
-          faturamento_12_meses: faturamentoNum,
-          percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0
-        }
+        faturamento: { anual_total: faturamentoNum, mensal_medio: faturamentoNum / 12, segregacao: { comercio_percent: percComercioNum, industria_percent: percIndustriaNum, servico_percent: percServicoNum } },
+        custos_operacionais: { fixos_mensais: parseFloat(fixosMensais) || 0, variaveis_percentual: parseFloat(variaveisPercentual) || 0 },
+        fator_r: { folha_12_meses: folha12mNum, faturamento_12_meses: faturamentoNum, percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0 }
       },
       societario_trabalhista: {
-        quadro_pessoal: {
-          num_funcionarios: parseInt(numFuncionarios) || 0,
-          folha_salarial_mensal: parseFloat(folhaPagamento) || 0
-        },
-        pro_labore: {
-          declara_prolabore: sociosDeclaramProlabore === 'Sim',
-          valor_declarado: parseFloat(valorProlabore) || 0,
-          recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
-        },
+        quadro_pessoal: { num_funcionarios: parseInt(numFuncionarios) || 0, folha_salarial_mensal: parseFloat(folhaPagamento) || 0 },
+        pro_labore: { declara_prolabore: sociosDeclaramProlabore === 'Sim', valor_declarado: parseFloat(valorProlabore) || 0, recolhe_inss_ir: sociosRecolhemInssIr === 'Sim' },
         retira_valores_pf: sociosRetiramValores === 'Sim'
       },
       conformidade_riscos: {
-        respostas_originais: {
-          recebe_vendas_conta_pf: recebeContaPF,
-          mistura_patrimonial_declarada: mesmaContaSocios,
-          socios_retiram_lucros: sociosRetiramValores,
-          declara_prolabore: sociosDeclaramProlabore,
-          recolhe_inss_ir_socio: sociosRecolhemInssIr
-        },
-        alertas_criticos: {
-          confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
-          retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
-          risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
-        }
+        respostas_originais: { recebe_vendas_conta_pf: recebeContaPF, mistura_patrimonial_declarada: mesmaContaSocios, socios_retiram_lucros: sociosRetiramValores, declara_prolabore: sociosDeclaramProlabore, recolhe_inss_ir_socio: sociosRecolhemInssIr },
+        alertas_criticos: { confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim', retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim', risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim' }
       }
     };
   };
 
   const handlePreAnalysis = async () => {
     const apiKey = localStorage.getItem('jota-gemini-key');
-    if (!apiKey) {
-      toast.error("Chave API do Gemini não configurada.");
-      return;
-    }
+    if (!apiKey) return toast.error("Chave API do Gemini não configurada.");
+    
+    const selectedPrompt = prompts.find(p => p.id === selectedPromptId);
+    if (!selectedPrompt) return toast.error("Selecione um prompt da biblioteca.");
 
     setIsPreAnalyzing(true);
     setProgressStep('validating_data');
-    
     try {
       const payload = buildPayload('test', '');
-      const systemPrompt = localStorage.getItem('jota-pre-analysis-prompt') || DEFAULT_PRE_ANALYSIS_PROMPT;
-
       await new Promise(r => setTimeout(r, 800));
       setProgressStep('analyzing');
-      
       const cnaeContext = payload.operacional.cnaes.map(c => `CNAE ${c.tipo}: ${c.codigo_formatado} - ${c.descricao}`).join('\n');
       const userPrompt = `DADOS DO CLIENTE PARA ANÁLISE:\n\nCONTEXTO OPERACIONAL:\n${cnaeContext}\n\nDESCRIÇÃO DE ATIVIDADES:\n${payload.operacional.descricaoAtividades}\n\nJSON COMPLETO:\n${JSON.stringify(payload, null, 2)}`;
-
-      const result = await callGeminiAgent(systemPrompt, userPrompt, apiKey);
-      
+      const result = await callGeminiAgent(selectedPrompt.content, userPrompt, apiKey);
       setProgressStep('auditing');
       await new Promise(r => setTimeout(r, 1000));
-      
       setProgressStep('completed');
       await new Promise(r => setTimeout(r, 500));
-      
       setPreAnalysisReport(result);
-    } catch (e: any) {
-      toast.error("Erro na pré-análise: " + e.message);
-    } finally {
-      setIsPreAnalyzing(false);
-      setProgressStep('idle');
-    }
+    } catch (e: any) { toast.error("Erro na pré-análise: " + e.message); } 
+    finally { setIsPreAnalyzing(false); setProgressStep('idle'); }
   };
 
   const handleSendToAI = async (environment: 'test' | 'production') => {
     if (!atividades.trim() || !municipio.trim()) return toast.error("Preencha Atividades e Município.");
     const webhookUrl = environment === 'test' ? localStorage.getItem('jota-webhook-test') : localStorage.getItem('jota-webhook-prod');
     if (!webhookUrl) return toast.error(`Webhook de ${environment} não configurado.`);
-
     setIsLoading(true);
     setProgressStep('validating_data');
     const startTime = performance.now();
-    
     try {
       await new Promise(r => setTimeout(r, 800));
       setProgressStep('analyzing');
-      
       const payload = buildPayload(environment, webhookUrl);
-      const response = await fetch(webhookUrl, { 
-        method: 'POST', 
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, 
-        body: JSON.stringify(payload) 
-      });
-      
+      const response = await fetch(webhookUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(payload) });
       if (!response.ok) throw new Error(`Erro n8n: ${response.status}`);
-      
       setProgressStep('auditing');
       const data = await response.json();
-      
       setProgressStep('validating_audit');
       await new Promise(r => setTimeout(r, 1200));
-
       let reportText = data.report || data.output || data.text || "";
       if (!reportText && data.content?.parts) reportText = data.content.parts.map((p: any) => p.text || "").join("\n\n");
-      
-      if (reportText) {
-        setProgressStep('completed');
-        await new Promise(r => setTimeout(r, 500));
-        setAiReport(reportText);
-        toast.success(`Diagnóstico concluído!`);
-      } else {
-        toast.info("Dados enviados, mas sem texto de resposta.");
-      }
-    } catch (error: any) {
-      toast.error("Falha no envio. Erro: " + error.message);
-    } finally {
-      setIsLoading(false);
-      setProgressStep('idle');
-      setExecutionTime((performance.now() - startTime) / 1000);
-    }
+      if (reportText) { setProgressStep('completed'); await new Promise(r => setTimeout(r, 500)); setAiReport(reportText); toast.success(`Diagnóstico concluído!`); } 
+      else { toast.info("Dados enviados, mas sem texto de resposta."); }
+    } catch (error: any) { toast.error("Falha no envio. Erro: " + error.message); } 
+    finally { setIsLoading(false); setProgressStep('idle'); setExecutionTime((performance.now() - startTime) / 1000); }
   };
 
   return (
@@ -314,74 +238,27 @@ const Viabilidade = () => {
             <UIDialogHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <DialogTitle className="flex items-center gap-2 text-primary">
-                    <Bot className="h-5 w-5" /> Parecer Técnico Prévio (IA Local)
-                  </DialogTitle>
+                  <DialogTitle className="flex items-center gap-2 text-primary"><Bot className="h-5 w-5" /> Parecer Técnico Prévio (IA Local)</DialogTitle>
                   <DialogDescription>Análise técnica preliminar baseada nos dados informados.</DialogDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleCopy}
-                    className="border-primary/30 text-primary hover:bg-primary/10"
-                  >
-                    {copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}
-                    {copied ? "Copiado!" : "Copiar Texto"}
-                  </Button>
-
-                  <PDFDownloadLink 
-                    document={
-                      <ViabilityReportPDF 
-                        reportMarkdown={preAnalysisReport || ""}
-                        clientName={razaoSocial || "Interessado"}
-                        clientCity={municipio || ""}
-                        clientState={estado || ""}
-                        companyName={localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade'}
-                        accountantName={localStorage.getItem('jota-contador-nome') || ''}
-                        accountantCrc={localStorage.getItem('jota-contador-crc') || ''}
-                        qrCodeDataUrl=""
-                      />
-                    } 
-                    fileName={`parecer_previo_${(razaoSocial || 'viabilidade').toLowerCase()}.pdf`}
-                  >
-                    {({ loading }) => (
-                      <Button variant="outline" size="sm" disabled={loading} className="text-primary border-primary/30 hover:bg-primary/10">
-                        <Printer className="h-4 w-4 mr-2" />
-                        {loading ? 'Gerando...' : 'Imprimir Parecer'}
-                      </Button>
-                    )}
+                  <Button variant="outline" size="sm" onClick={handleCopy} className="border-primary/30 text-primary hover:bg-primary/10">{copied ? <Check className="h-4 w-4 mr-2" /> : <Copy className="h-4 w-4 mr-2" />}{copied ? "Copiado!" : "Copiar Texto"}</Button>
+                  <PDFDownloadLink document={<ViabilityReportPDF reportMarkdown={preAnalysisReport || ""} clientName={razaoSocial || "Interessado"} clientCity={municipio || ""} clientState={estado || ""} companyName={localStorage.getItem('jota-razaoSocial') || 'Jota Contabilidade'} accountantName={localStorage.getItem('jota-contador-nome') || ''} accountantCrc={localStorage.getItem('jota-contador-crc') || ''} qrCodeDataUrl="" />} fileName={`parecer_previo_${(razaoSocial || 'viabilidade').toLowerCase()}.pdf`}>
+                    {({ loading }) => (<Button variant="outline" size="sm" disabled={loading} className="text-primary border-primary/30 hover:bg-primary/10"><Printer className="h-4 w-4 mr-2" />{loading ? 'Gerando...' : 'Imprimir Parecer'}</Button>)}
                   </PDFDownloadLink>
                 </div>
               </div>
             </UIDialogHeader>
           </div>
-          <ScrollArea className="flex-1 p-6">
-            <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{preAnalysisReport || ""}</ReactMarkdown>
-            </div>
-          </ScrollArea>
-          <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" /></Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
+          <ScrollArea className="flex-1 p-6"><div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary"><ReactMarkdown remarkPlugins={[remarkGfm]}>{preAnalysisReport || ""}</ReactMarkdown></div></ScrollArea>
+          <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2"><Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button><DropdownMenu><DropdownMenuTrigger asChild><Button className="bg-primary text-primary-foreground hover:bg-primary/90">Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
         </DialogContent>
       </Dialog>
 
       <Card className="shadow-card"><CardHeader className="flex flex-row items-center justify-between"><CardTitle className="flex items-center gap-3 text-primary"><Sparkles className="h-6 w-6" /> Análise de Viabilidade</CardTitle><Button variant="outline" size="sm" onClick={() => { localStorage.clear(); window.location.reload(); }}><RefreshCw className="h-4 w-4 mr-2" /> Nova Consulta</Button></CardHeader></Card>
 
       {isLoading || isPreAnalyzing ? (
-        <div className="py-12">
-          <AnalysisProgress step={progressStep} />
-        </div>
+        <div className="py-12"><AnalysisProgress step={progressStep} /></div>
       ) : (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -409,10 +286,7 @@ const Viabilidade = () => {
                     {cnaes.map((cnae) => (
                       <div key={cnae.id} className="p-3 border rounded-md bg-muted/20 space-y-3">
                         <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={cnae.isPrimary ? "default" : "outline"} className="text-[10px]">{cnae.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>
-                            {!cnae.isPrimary && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => updateCnae(cnae.id, 'isPrimary', true)}>Tornar Principal</Button>}
-                          </div>
+                          <div className="flex items-center gap-2"><Badge variant={cnae.isPrimary ? "default" : "outline"} className="text-[10px]">{cnae.isPrimary ? "PRINCIPAL" : "SECUNDÁRIO"}</Badge>{!cnae.isPrimary && <Button variant="ghost" size="sm" className="h-6 text-[10px]" onClick={() => updateCnae(cnae.id, 'isPrimary', true)}>Tornar Principal</Button>}</div>
                           {cnaes.length > 1 && <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeCnae(cnae.id)}><Trash2 className="h-4 w-4" /></Button>}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -435,20 +309,10 @@ const Viabilidade = () => {
                     <div className="space-y-2 md:col-span-2"><Label>Faturamento Anual (R$)</Label><Input type="number" value={faturamentoAnual} onChange={e => setFaturamentoAnual(e.target.value)} /></div>
                     <div className="space-y-2"><Label>Custos Fixos Mensais (R$)</Label><Input type="number" value={fixosMensais} onChange={e => setFixosMensais(e.target.value)} className="font-bold text-primary" /></div>
                     <div className="space-y-2"><Label>Custos Variáveis (%)</Label><Input type="number" value={variaveisPercentual} onChange={e => setVariaveisPercentual(e.target.value)} className="font-bold text-primary" /></div>
-                    
                     <div className="grid grid-cols-3 gap-2 md:col-span-2 p-3 rounded-md bg-background/50 border border-border/50">
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold">Comércio (%)</Label>
-                        <Input type="number" value={percentComercio} onChange={e => setPercentComercio(e.target.value)} className="h-8 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold">Indústria (%)</Label>
-                        <Input type="number" value={percentIndustria} onChange={e => setPercentIndustria(e.target.value)} className="h-8 text-xs" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-[10px] uppercase font-bold">Serviço (%)</Label>
-                        <Input type="number" value={percentServico} onChange={e => setPercentServico(e.target.value)} className="h-8 text-xs" />
-                      </div>
+                      <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">Comércio (%)</Label><Input type="number" value={percentComercio} onChange={e => setPercentComercio(e.target.value)} className="h-8 text-xs" /></div>
+                      <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">Indústria (%)</Label><Input type="number" value={percentIndustria} onChange={e => setPercentIndustria(e.target.value)} className="h-8 text-xs" /></div>
+                      <div className="space-y-1"><Label className="text-[10px] uppercase font-bold">Serviço (%)</Label><Input type="number" value={percentServico} onChange={e => setPercentServico(e.target.value)} className="h-8 text-xs" /></div>
                     </div>
                   </div>
                 </CardContent>
@@ -475,24 +339,32 @@ const Viabilidade = () => {
 
           <div className="mt-6 space-y-2"><Label className="font-semibold">Descrição Detalhada das Atividades</Label><Textarea value={atividades} onChange={(e) => setAtividades(e.target.value)} className="min-h-[100px]" /></div>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Button variant="outline" size="lg" onClick={handlePreAnalysis} disabled={isLoading || isPreAnalyzing} className="text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50">
-              <Bot className="h-5 w-5 mr-2" />
-              {isPreAnalyzing ? 'Validando...' : 'Pré-Validação com IA Local'}
-            </Button>
+          <div className="mt-8 p-6 border-2 border-indigo-500/20 bg-indigo-500/5 rounded-xl space-y-6">
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="space-y-1">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-indigo-600"><MessageSquareQuote className="h-5 w-5" />Configuração da Inteligência</h3>
+                <p className="text-xs text-indigo-700/70">Selecione qual especialista da sua biblioteca deve realizar esta análise.</p>
+              </div>
+              <div className="w-full md:w-72">
+                <Label className="text-[10px] uppercase font-bold text-indigo-600 mb-1 block">Especialista Selecionado</Label>
+                <Select value={selectedPromptId} onValueChange={setSelectedPromptId}>
+                  <SelectTrigger className="bg-background border-indigo-200"><SelectValue placeholder="Selecione um prompt..." /></SelectTrigger>
+                  <SelectContent>
+                    {prompts.map(p => <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="lg" disabled={isLoading || isPreAnalyzing} className="bg-accent px-12 text-white">
-                  {isLoading ? "Processando..." : "Gerar Diagnóstico Oficial"}
-                  <ChevronDown className="h-4 w-4 ml-2" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="center">
-                <DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 border-t border-indigo-500/10">
+              <Button variant="outline" size="lg" onClick={handlePreAnalysis} disabled={isLoading || isPreAnalyzing || !selectedPromptId} className="text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-50">
+                <Bot className="h-5 w-5 mr-2" />{isPreAnalyzing ? 'Validando...' : 'Pré-Validação com IA Local'}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild><Button size="lg" disabled={isLoading || isPreAnalyzing} className="bg-accent px-12 text-white">{isLoading ? "Processando..." : "Gerar Diagnóstico Oficial"}<ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger>
+                <DropdownMenuContent align="center"><DropdownMenuItem onClick={() => handleSendToAI('test')}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => handleSendToAI('production')}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem></DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </>
       )}
