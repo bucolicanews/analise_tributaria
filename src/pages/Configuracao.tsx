@@ -189,6 +189,106 @@ const Configuracao = () => {
     toast.success("Ruídos removidos!");
   };
 
+  const SkillInstructionsModal = () => (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="outline" className="border-orange-200 text-orange-600 bg-orange-50/50 hover:bg-orange-50">
+          <HelpCircle className="h-4 w-4 mr-2" /> Instruções
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-orange-600">
+            <Lightbulb className="h-5 w-5" /> Guia de Treinamento de Skills
+          </DialogTitle>
+          <DialogDescription>
+            Aprenda a usar o campo "Instrução de Uso (Prompt)" para ensinar seus Agentes.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <h4 className="font-bold text-sm mb-2">O que é a Instrução de Uso?</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              É o "manual" que a IA lê para saber que esta ferramenta existe. Sem uma boa instrução, a IA pode ignorar a Skill mesmo que ela seja necessária.
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <h4 className="font-bold text-sm">Modelo Sugerido:</h4>
+            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-emerald-400 border border-emerald-900/50">
+              "Você tem acesso à ferramenta #nome_da_skill. Utilize-a obrigatoriamente sempre que [CONDIÇÃO]. Ela serve para [OBJETIVO] e retorna [RESULTADO]."
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="font-bold text-sm">Exemplo Prático:</h4>
+            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50">
+              "Você tem acesso à ferramenta #consultar_viacep. Utilize-a para validar o endereço sempre que o usuário fornecer um CEP. Não tente adivinhar o endereço, use a skill."
+            </div>
+          </div>
+
+          <Alert className="bg-primary/5 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-xs font-bold">Dica de Ouro</AlertTitle>
+            <AlertDescription className="text-[10px]">
+              Após escrever a instrução na Skill, **copie e cole** esse mesmo texto no "System Prompt" do seu Agente. Isso reforça o comportamento da IA.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  const PromptInstructionsModal = () => (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600 bg-indigo-50/50 hover:bg-indigo-50">
+          <HelpCircle className="h-4 w-4 mr-2" /> Instruções
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-indigo-600">
+            <Lightbulb className="h-5 w-5" /> Guia de Treinamento de Prompts
+          </DialogTitle>
+          <DialogDescription>
+            Aprenda a estruturar os cérebros da sua IA usando variáveis de contexto.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="p-4 rounded-lg bg-muted/50 border border-border">
+            <h4 className="font-bold text-sm mb-2">O que são Prompts de Sistema?</h4>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              São as instruções mestre que definem a personalidade, o conhecimento e as regras que a IA deve seguir ao analisar os dados do cliente.
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <h4 className="font-bold text-sm">Modelo Sugerido:</h4>
+            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-indigo-400 border border-indigo-900/50">
+              "Você é um [PERSONA]. Sua missão é analisar os dados de @empresa.razaoSocial e fornecer um relatório sobre [OBJETIVO]. Siga as regras: 1. [REGRA 1]..."
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <h4 className="font-bold text-sm">Exemplo Prático:</h4>
+            <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50">
+              "Você é o Perito da Jota. Analise o faturamento de @financeiro.faturamento.anual_total e verifique se o enquadramento em @emp.tributacaoPretendida é viável."
+            </div>
+          </div>
+
+          <Alert className="bg-primary/5 border-primary/20">
+            <Info className="h-4 w-4 text-primary" />
+            <AlertTitle className="text-xs font-bold">Dica de Ouro</AlertTitle>
+            <AlertDescription className="text-[10px]">
+              Use o símbolo **@** para abrir o menu de variáveis automáticas. Isso permite que o prompt seja dinâmico para cada cliente.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   return (
     <div className="container mx-auto px-4 py-8">
       <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
@@ -234,6 +334,7 @@ const Configuracao = () => {
                      <p className="text-xs text-indigo-700/70">Gerencie os cérebros e personas da sua IA.</p>
                    </div>
                    <div className="flex gap-2">
+                     <PromptInstructionsModal />
                      <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={() => setIsImportPromptDialogOpen(true)}><Download className="h-4 w-4 mr-2" /> Importar</Button>
                      <Button type="button" size="sm" variant="outline" className="border-indigo-200 text-indigo-600" onClick={addPrompt}><Plus className="h-4 w-4 mr-2" /> Novo Prompt</Button>
                    </div>
@@ -282,53 +383,7 @@ const Configuracao = () => {
                      <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos.</p>
                    </div>
                    <div className="flex gap-2">
-                     <Dialog>
-                       <DialogTrigger asChild>
-                         <Button type="button" size="sm" variant="outline" className="border-orange-200 text-orange-600 bg-orange-50/50 hover:bg-orange-50">
-                           <HelpCircle className="h-4 w-4 mr-2" /> Instruções
-                         </Button>
-                       </DialogTrigger>
-                       <DialogContent className="max-w-2xl">
-                         <DialogHeader>
-                           <DialogTitle className="flex items-center gap-2 text-orange-600">
-                             <Lightbulb className="h-5 w-5" /> Guia de Treinamento de Skills
-                           </DialogTitle>
-                           <DialogDescription>
-                             Aprenda a usar o campo "Instrução de Uso (Prompt)" para ensinar seus Agentes.
-                           </DialogDescription>
-                         </DialogHeader>
-                         <div className="space-y-4 py-4">
-                           <div className="p-4 rounded-lg bg-muted/50 border border-border">
-                             <h4 className="font-bold text-sm mb-2">O que é a Instrução de Uso?</h4>
-                             <p className="text-xs text-muted-foreground leading-relaxed">
-                               É o "manual" que a IA lê para saber que esta ferramenta existe. Sem uma boa instrução, a IA pode ignorar a Skill mesmo que ela seja necessária.
-                             </p>
-                           </div>
-                           
-                           <div className="space-y-2">
-                             <h4 className="font-bold text-sm">Modelo Sugerido:</h4>
-                             <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-emerald-400 border border-emerald-900/50">
-                               "Você tem acesso à ferramenta #nome_da_skill. Utilize-a obrigatoriamente sempre que [CONDIÇÃO]. Ela serve para [OBJETIVO] e retorna [RESULTADO]."
-                             </div>
-                           </div>
-
-                           <div className="space-y-2">
-                             <h4 className="font-bold text-sm">Exemplo Prático:</h4>
-                             <div className="p-3 rounded bg-slate-950 font-mono text-[10px] text-blue-300 border border-blue-900/50">
-                               "Você tem acesso à ferramenta #consultar_viacep. Utilize-a para validar o endereço sempre que o usuário fornecer um CEP. Não tente adivinhar o endereço, use a skill."
-                             </div>
-                           </div>
-
-                           <Alert className="bg-primary/5 border-primary/20">
-                             <Info className="h-4 w-4 text-primary" />
-                             <AlertTitle className="text-xs font-bold">Dica de Ouro</AlertTitle>
-                             <AlertDescription className="text-[10px]">
-                               Após escrever a instrução na Skill, **copie e cole** esse mesmo texto no "System Prompt" do seu Agente. Isso reforça o comportamento da IA.
-                             </AlertDescription>
-                           </Alert>
-                         </div>
-                       </DialogContent>
-                     </Dialog>
+                     <SkillInstructionsModal />
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={() => setIsImportDialogOpen(true)}><Download className="h-4 w-4 mr-2" /> Importar</Button>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600" onClick={addSkill}><Plus className="h-4 w-4 mr-2" /> Nova Skill</Button>
                    </div>
