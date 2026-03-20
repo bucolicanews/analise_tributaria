@@ -30,7 +30,6 @@ export const ChatInterface = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   
   const scrollRef = useRef<HTMLDivElement>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const lastHeightRef = useRef<number>(0);
 
@@ -143,10 +142,13 @@ export const ChatInterface = () => {
     }
   }, [input]);
 
-  // Lógica de rolagem automática aprimorada
+  // Lógica de rolagem manual no container para evitar scroll na página inteira
   const scrollToBottom = () => {
-    if (messagesEndRef.current) {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({
+        top: scrollRef.current.scrollHeight,
+        behavior: "smooth"
+      });
     }
   };
 
@@ -350,9 +352,6 @@ export const ChatInterface = () => {
                   </div>
                 </div>
               )}
-              
-              {/* Marcador de fim de conversa para rolagem automática */}
-              <div ref={messagesEndRef} className="h-px w-full" />
             </div>
           </ScrollArea>
 
