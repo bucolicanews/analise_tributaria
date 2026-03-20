@@ -234,7 +234,7 @@ const Viabilidade = () => {
     <div className="container mx-auto px-4 py-8 space-y-6">
       <Dialog open={!!preAnalysisReport} onOpenChange={(open) => !open && setPreAnalysisReport(null)}>
         <DialogContent className="max-w-4xl h-[85vh] flex flex-col border-primary/20 bg-card p-0 overflow-hidden">
-          <div className="p-6 border-b border-border bg-muted/20">
+          <div className="p-6 border-b border-border bg-muted/20 shrink-0">
             <UIDialogHeader>
               <div className="flex items-center justify-between">
                 <div>
@@ -250,8 +250,25 @@ const Viabilidade = () => {
               </div>
             </UIDialogHeader>
           </div>
-          <ScrollArea className="flex-1 p-6"><div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary"><ReactMarkdown remarkPlugins={[remarkGfm]}>{preAnalysisReport || ""}</ReactMarkdown></div></ScrollArea>
-          <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2"><Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button><DropdownMenu><DropdownMenuTrigger asChild><Button className="bg-primary text-primary-foreground hover:bg-primary/90">Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" /></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem><DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div>
+          
+          <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+            <div className="prose prose-sm max-w-none prose-invert prose-p:leading-relaxed prose-li:marker:text-primary">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{preAnalysisReport || ""}</ReactMarkdown>
+            </div>
+          </div>
+
+          <div className="p-4 border-t border-border bg-muted/10 flex justify-end gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setPreAnalysisReport(null)}>Corrigir Dados</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="bg-primary text-primary-foreground hover:bg-primary/90">Gerar Diagnóstico Oficial <ChevronDown className="h-4 w-4 ml-2" /></Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('test'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Teste</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => { setPreAnalysisReport(null); handleSendToAI('production'); }}><Send className="h-4 w-4 mr-2" /> Ambiente Produção</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </DialogContent>
       </Dialog>
 
