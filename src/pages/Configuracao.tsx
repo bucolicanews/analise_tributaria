@@ -241,7 +241,7 @@ const Configuracao = () => {
 
                  <Accordion type="multiple" className="w-full space-y-2">
                    {prompts.map((prompt) => (
-                     <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4">
+                     <AccordionItem key={prompt.id} value={prompt.id} className="border rounded-md bg-background px-4 !overflow-visible">
                        <AccordionTrigger className="hover:no-underline py-3">
                          <div className="flex items-center gap-3">
                            <div className={prompt.isActive ? "text-indigo-500" : "text-muted-foreground"}><Bot className="h-4 w-4" /></div>
@@ -249,7 +249,7 @@ const Configuracao = () => {
                            <Badge variant="outline" className="text-[10px] opacity-70">{prompt.role}</Badge>
                          </div>
                        </AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4">
+                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Título</Label><Input value={prompt.title} onChange={e => updatePrompt(prompt.id, 'title', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Persona</Label><Input value={prompt.role} onChange={e => updatePrompt(prompt.id, 'role', e.target.value)} /></div>
@@ -289,7 +289,7 @@ const Configuracao = () => {
 
                  <Accordion type="multiple" className="w-full space-y-2">
                    {dynamicSkills.map((skill) => (
-                     <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4">
+                     <AccordionItem key={skill.id} value={skill.id} className="border rounded-md bg-background px-4 !overflow-visible">
                        <AccordionTrigger className="hover:no-underline py-3">
                          <div className="flex items-center gap-3">
                            <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
@@ -298,7 +298,7 @@ const Configuracao = () => {
                            <span className="font-bold text-sm">{skill.name}</span>
                          </div>
                        </AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4">
+                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                            <div className="space-y-2"><Label>Nome Técnico</Label><Input value={skill.name} onChange={e => updateSkill(skill.id, 'name', e.target.value)} /></div>
                            <div className="space-y-2">
@@ -373,9 +373,9 @@ const Configuracao = () => {
                  <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas (Timeline)</h3><Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1 }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></div>
                  <Accordion type="multiple" className="w-full space-y-2">
                    {agents.sort((a,b) => (a.order||0)-(b.order||0)).map((agent) => (
-                     <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4">
+                     <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4 !overflow-visible">
                        <AccordionTrigger className="hover:no-underline py-3"><div className="flex items-center gap-3"><Badge variant="outline" className="font-mono">{agent.order}</Badge><span className="font-bold text-sm">{agent.nome}</span></div></AccordionTrigger>
-                       <AccordionContent className="pt-2 pb-4 space-y-4">
+                       <AccordionContent className="pt-2 pb-4 space-y-4 !overflow-visible">
                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                            <div className="space-y-2"><Label>Nome</Label><Input value={agent.nome} onChange={e => updateAgent(agent.id, 'nome', e.target.value)} /></div>
                            <div className="space-y-2"><Label>Webhook n8n</Label><Input placeholder="https://..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} /></div>

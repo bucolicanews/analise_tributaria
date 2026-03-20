@@ -34,20 +34,7 @@ interface AgentPromptEditorProps {
 export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onChange, prompts, skills, className }) => {
   const [menu, setMenu] = useState<{ type: 'prompt_or_var' | 'skill', filter: string } | null>(null);
   const [selectedIndex, setSelectedIndex] = useState(0);
-  const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 0 });
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Calcula a posição do menu em relação à tela sempre que ele abrir
-  useEffect(() => {
-    if (menu && textareaRef.current) {
-      const rect = textareaRef.current.getBoundingClientRect();
-      setMenuPos({
-        top: rect.top - 8, // Aparece logo acima do textarea
-        left: rect.left,
-        width: rect.width
-      });
-    }
-  }, [menu]);
 
   const getFilteredItems = () => {
     if (!menu) return [];
@@ -133,63 +120,59 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
         <Badge variant="outline" className="text-[9px] uppercase bg-primary/5 border-primary/20 text-primary">Dica: Use @ para Variáveis/Prompts e # para Skills</Badge>
       </div>
       
-      <Textarea
-        ref={textareaRef}
-        value={value}
-        onChange={handleInput}
-        onKeyDown={handleKeyDown}
-        className={cn(
-          "font-mono text-[11px] h-48 bg-slate-950 text-primary border-primary/30 resize-y focus-visible:ring-primary/50",
-          className
-        )}
-        placeholder="Construa o Agente... Ex: Você tem acesso à skill #comparar_regimes. Analise a @empresa.razaoSocial..."
-      />
+      <div className="relative">
+        <Textarea
+          ref={textareaRef}
+          value={value}
+          onChange={handleInput}
+          onKeyDown={handleKeyDown}
+          className={cn(
+            "font-mono text-[11px] h-48 bg-slate-950 text-primary border-primary/30 resize-y focus-visible:ring-primary/50",
+            className
+          )}
+          placeholder="Construa o Agente... Ex: Você tem acesso à skill #comparar_regimes. Analise a @empresa.razaoSocial..."
+        />
 
-      {menu && filteredItems.length > 0 && (
-        <div 
-          className="fixed z-[9999] bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 flex flex-col"
-          style={{ 
-            top: `${menuPos.top}px`, 
-            left: `${menuPos.left}px`, 
-            width: `${Math.max(menuPos.width, 320)}px`,
-            transform: 'translateY(-100%)' // Joga o menu para cima do ponto de ancoragem
-          }}
-        >
-          <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
-            <Terminal className="h-3 w-3 text-primary" />
-            <span className="text-[9px] font-bold uppercase text-muted-foreground">
-              {menu.type === 'prompt_or_var' ? 'Prompts e Variáveis' : 'Minhas Skills'}
-            </span>
-          </div>
-          <div className="max-h-60 overflow-y-auto bg-background/95 backdrop-blur-sm">
-            {filteredItems.map((item: any, idx) => (
-              <div
-                key={idx}
-                className={cn(
-                  "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors border-l-4",
-                  idx === selectedIndex 
-                    ? "bg-primary/10 border-primary" 
-                    : "hover:bg-muted/50 border-transparent"
-                )}
-                onClick={() => insertItem(item)}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <item.icon className="h-3 w-3 opacity-50" />
-                    <span className="text-[11px] font-bold text-foreground">{item.display}</span>
+        {menu && filteredItems.length > 0 && (
+          <div 
+            className="absolute z-50 bottom-full left-0 mb-2 w-full max-w-[400px] bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 flex flex-col"
+          >
+            <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
+              <Terminal className="h-3 w-3 text-primary" />
+              <span className="text-[9px] font-bold uppercase text-muted-foreground">
+                {menu.type === 'prompt_or_var' ? 'Prompts e Variáveis' : 'Minhas Skills'}
+              </span>
+            </div>
+            <div className="max-h-60 overflow-y-auto bg-background/95 backdrop-blur-sm">
+              {filteredItems.map((item: any, idx) => (
+                <div
+                  key={idx}
+                  className={cn(
+                    "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors border-l-4",
+                    idx === selectedIndex 
+                      ? "bg-primary/10 border-primary" 
+                      : "hover:bg-muted/50 border-transparent"
+                  )}
+                  onClick={() => insertItem(item)}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <item.icon className="h-3 w-3 opacity-50" />
+                      <span className="text-[11px] font-bold text-foreground">{item.display}</span>
+                    </div>
+                    <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">
+                      {item.typeLabel}
+                    </Badge>
                   </div>
-                  <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">
-                    {item.typeLabel}
-                  </Badge>
+                  <p className="text-[9px] text-muted-foreground line-clamp-1">
+                    {item.role || item.desc || item.description}
+                  </p>
                 </div>
-                <p className="text-[9px] text-muted-foreground line-clamp-1">
-                  {item.role || item.desc || item.description}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
