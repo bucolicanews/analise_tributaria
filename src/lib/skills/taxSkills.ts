@@ -206,7 +206,6 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
 
   if (skill.executionType === 'web_scraping' && skill.url) {
     const targetUrl = skill.url;
-    // Lista de proxies para tentar em sequência
     const proxies = [
       (url: string) => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
       (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`
@@ -219,11 +218,19 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
         const response = await fetch(getProxyUrl(targetUrl));
         if (!response.ok) throw new Error(`Status: ${response.status}`);
         
-        const data = await response.json();
-        // AllOrigins retorna em .contents, corsproxy.io retorna o texto direto ou json
-        const html = data.contents || (typeof data === 'string' ? data : JSON.stringify(data));
+        const text = await response.text();
+        let html = "";
 
-        if (!html) throw new Error("Conteúdo vazio retornado pelo proxy.");
+        // Tenta detectar se é JSON (AllOrigins) ou HTML puro (CORSProxy)
+        try {
+          const json = JSON.parse(text);
+          html = json.contents || text;
+        } catch (e) {
+          // Se falhar o parse, é HTML puro
+          html = text;
+        }
+
+        if (!html || html.trim().length === 0) throw new Error("Conteúdo vazio retornado.");
 
         if (skill.selector) {
           const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
@@ -241,11 +248,11 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
         return { status: "sucesso", url: targetUrl, conteudo: cleanText.substring(0, 5000) };
       } catch (e: any) {
         lastError = e.message;
-        continue; // Tenta o próximo proxy
+        continue;
       }
     }
 
-    return { error: `Falha na navegação web após tentar múltiplos proxies. Último erro: ${lastError}. Verifique se a URL está correta e acessível publicamente.` };
+    return { error: `Falha na navegação web. Último erro: ${lastError}` };
   }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
