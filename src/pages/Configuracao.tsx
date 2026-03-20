@@ -17,12 +17,15 @@ import { getIrpfTables, saveIrpfTables, IrpfTable } from '@/lib/tax/irpfData';
 import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/minimumWageData';
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
 
-// Importação correta do PDF.js para o Vite
+// Importações para PDF e Excel
 import * as pdfjsLib from 'pdfjs-dist';
-import pdfWorker from 'pdfjs-dist/build/pdf.worker.mjs?url';
+import * as XLSX from 'xlsx';
 
-// Configura o worker usando o arquivo local da node_modules via Vite
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+// Configuração do worker do PDF.js usando a versão local do pacote
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString();
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
@@ -78,12 +81,13 @@ const Configuracao = () => {
     if (!file || !activeSkillIdForUpload) return;
 
     setIsExtracting(true);
-    const toastId = toast.loading(`Extraindo conteúdo de ${file.name}...`);
+    const toastId = toast.loading(`Processando ${file.name}...`);
 
     try {
       let extractedText = "";
+      const fileName = file.name.toLowerCase();
 
-      if (file.type === "application/pdf") {
+      if (fileName.endsWith(".pdf")) {
         const arrayBuffer = await file.arrayBuffer();
         const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
         const pdf = await loadingTask.promise;
@@ -96,7 +100,22 @@ const Configuracao = () => {
           fullText += strings.join(" ") + "\n";
         }
         extractedText = fullText;
-      } else {
+      } 
+      else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
+        const arrayBuffer = await file.arrayBuffer();
+        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+        
+        let fullSheetText = "";
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          // Converte para CSV para manter a estrutura de dados legível para a IA
+          const csv = XLSX.utils.sheet_to_csv(worksheet);
+          fullSheetText += `--- PLANILHA: ${sheetName} ---\n${csv}\n\n`;
+        });
+        extractedText = fullSheetText;
+      }
+      else {
+        // TXT, XML, JSON, etc.
         extractedText = await file.text();
       }
 
@@ -159,7 +178,7 @@ const Configuracao = () => {
         type="file" 
         ref={fileInputRef} 
         className="hidden" 
-        accept=".pdf,.txt,.xml,.json" 
+        accept=".pdf,.txt,.xml,.json,.xlsx,.xls,.csv" 
         onChange={handleFileUpload} 
       />
 
@@ -195,7 +214,7 @@ const Configuracao = () => {
                    <div className="flex items-center justify-between">
                      <div className="space-y-1">
                        <h3 className="text-lg font-bold flex items-center gap-2 text-emerald-600"><Wrench className="h-5 w-5" />Skills e Ferramentas</h3>
-                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos (PDF/XML/TXT).</p>
+                       <p className="text-xs text-emerald-700/70">Crie ferramentas de consulta ou importe arquivos (PDF/Excel/XML/TXT).</p>
                      </div>
                      <Button type="button" size="sm" variant="outline" className="border-emerald-200 text-emerald-600 hover:bg-emerald-50" onClick={addSkill}>
                        <Plus className="h-4 w-4 mr-2" /> Nova Skill
@@ -255,7 +274,7 @@ const Configuracao = () => {
                                    disabled={isExtracting}
                                  >
                                    {isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />}
-                                   Importar PDF/XML/TXT
+                                   Importar PDF/Excel/XML/TXT
                                  </Button>
                                </div>
                                <Textarea 
