@@ -74,49 +74,67 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
               <div
                 key={session.id}
                 className={cn(
-                  "group flex items-center gap-2 px-3 py-2.5 rounded-md cursor-pointer transition-colors relative overflow-hidden",
+                  "group flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer transition-all relative overflow-hidden border border-transparent",
                   activeSessionId === session.id 
-                    ? "bg-primary/10 text-primary" 
-                    : "hover:bg-muted text-muted-foreground hover:text-foreground"
+                    ? "bg-primary/10 border-primary/20 text-primary" 
+                    : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
                 )}
                 onClick={() => !editingId && onSelectSession(session.id)}
               >
-                <MessageSquare className="h-4 w-4 shrink-0 opacity-70" />
+                <MessageSquare className={cn(
+                  "h-4 w-4 shrink-0",
+                  activeSessionId === session.id ? "text-primary" : "opacity-50"
+                )} />
                 
-                <div className="flex-1 min-w-0 pr-12">
+                <div className="flex-1 min-w-0 pr-2">
                   {editingId === session.id ? (
                     <div className="flex items-center gap-1">
                       <Input
                         value={editValue}
                         onChange={(e) => setEditValue(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && saveEdit(e)}
-                        className="h-6 text-xs py-0 px-1 bg-background"
+                        className="h-7 text-xs py-0 px-2 bg-background border-primary/30 focus-visible:ring-primary"
                         autoFocus
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
                   ) : (
-                    <>
-                      <p className="text-xs font-medium truncate leading-tight">{session.title}</p>
-                      <p className="text-[9px] opacity-50 flex items-center gap-1 mt-0.5">
-                        <Clock className="h-2 w-2" />
+                    <div className="flex flex-col gap-0.5">
+                      <p className="text-xs font-semibold truncate leading-tight">
+                        {session.title}
+                      </p>
+                      <p className="text-[9px] opacity-60 flex items-center gap-1">
+                        <Clock className="h-2.5 w-2.5" />
                         {new Date(session.createdAt).toLocaleDateString('pt-BR')}
                       </p>
-                    </>
+                    </div>
                   )}
                 </div>
 
+                {/* Container de Botões com fundo sólido no hover para não vazar o texto atrás */}
                 <div className={cn(
-                  "absolute right-1 flex items-center gap-0.5 bg-inherit pl-2 transition-opacity",
-                  editingId === session.id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  "flex items-center gap-1 transition-opacity duration-200",
+                  editingId === session.id 
+                    ? "opacity-100" 
+                    : "opacity-0 group-hover:opacity-100"
                 )}>
                   {editingId === session.id ? (
                     <>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-success hover:text-success hover:bg-success/10" onClick={saveEdit}>
-                        <Check className="h-3.5 w-3.5" />
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-7 w-7 text-success hover:text-success hover:bg-success/10" 
+                        onClick={saveEdit}
+                      >
+                        <Check className="h-4 w-4" />
                       </Button>
-                      <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground" onClick={cancelEdit}>
-                        <X className="h-3.5 w-3.5" />
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-7 w-7 text-muted-foreground hover:bg-muted" 
+                        onClick={cancelEdit}
+                      >
+                        <X className="h-4 w-4" />
                       </Button>
                     </>
                   ) : (
@@ -126,6 +144,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                         variant="ghost" 
                         className="h-7 w-7 hover:text-primary hover:bg-primary/10" 
                         onClick={(e) => startEditing(e, session)}
+                        title="Editar título"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -137,6 +156,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
                           e.stopPropagation();
                           onDeleteSession(session.id);
                         }}
+                        title="Excluir conversa"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
