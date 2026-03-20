@@ -6,10 +6,12 @@ export interface DynamicSkill {
   name: string;
   description: string;
   parameters: any; 
-  executionType: 'local_js' | 'webhook' | 'knowledge_base';
+  executionType: 'local_js' | 'webhook' | 'knowledge_base' | 'web_scraping';
   jsCode?: string;
   webhookUrl?: string;
   knowledgeBaseText?: string;
+  url?: string;
+  selector?: string;
   isActive: boolean;
 }
 
@@ -162,7 +164,6 @@ try {
   const data = await response.json();
   const html = data.contents;
   
-  // Extração simples via Regex (já que não temos DOMParser completo no ambiente de sandbox da skill)
   const matches = html.match(/<span id="[^"]+" class="tituloConteudo">([^<]+)<\\/span>/g) || [];
   const results = matches.map(m => m.replace(/<[^>]+>/g, '').trim()).slice(0, 10);
   
@@ -197,6 +198,35 @@ export async function executeSkill(name: string, args: any): Promise<any> {
   
   if (skill.executionType === 'knowledge_base') {
     return { status: "sucesso", conteudo_recuperado: skill.knowledgeBaseText || "" };
+  }
+
+  if (skill.executionType === 'web_scraping' && skill.url) {
+    try {
+      const targetUrl = skill.url;
+      const proxyUrl = 'https://api.allorigins.win/get?url=' + encodeURIComponent(targetUrl);
+      const response = await fetch(proxyUrl);
+      const data = await response.json();
+      const html = data.contents;
+
+      if (skill.selector) {
+        // Extração básica via regex para o seletor (simulação de navegação)
+        const regex = new RegExp(skill.selector + '[^>]*>([^<]+)<', 'gi');
+        const matches = html.match(regex) || [];
+        const results = matches.map((m: string) => m.replace(/<[^>]+>/g, '').trim());
+        return { status: "sucesso", url: targetUrl, dados_extraidos: results.slice(0, 20) };
+      }
+
+      // Se não houver seletor, retorna o texto limpo da página (primeiros 5000 caracteres)
+      const cleanText = html.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+                            .replace(/<style\b[^>]*>([\s\S]*?)<\/style>/gim, "")
+                            .replace(/<[^>]+>/g, ' ')
+                            .replace(/\s+/g, ' ')
+                            .trim();
+      
+      return { status: "sucesso", url: targetUrl, conteudo: cleanText.substring(0, 5000) };
+    } catch (e: any) {
+      return { error: "Falha na navegação web: " + e.message };
+    }
   }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {

@@ -256,7 +256,7 @@ const Configuracao = () => {
                          <AccordionTrigger className="hover:no-underline py-3">
                            <div className="flex items-center gap-3">
                              <div className={skill.isActive ? "text-emerald-500" : "text-muted-foreground"}>
-                               {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : <Book className="h-4 w-4" />}
+                               {skill.executionType === 'webhook' ? <Globe className="h-4 w-4" /> : skill.executionType === 'local_js' ? <Code className="h-4 w-4" /> : skill.executionType === 'web_scraping' ? <Search className="h-4 w-4" /> : <Book className="h-4 w-4" />}
                              </div>
                              <span className="font-bold text-sm">{skill.name}</span>
                              {!skill.isActive && <Badge variant="outline" className="text-[8px]">INATIVA</Badge>}
@@ -276,6 +276,7 @@ const Configuracao = () => {
                                    <SelectItem value="local_js">JavaScript Local</SelectItem>
                                    <SelectItem value="webhook">Webhook (n8n)</SelectItem>
                                    <SelectItem value="knowledge_base">Base de Conhecimento (Arquivo/Texto)</SelectItem>
+                                   <SelectItem value="web_scraping">Navegação Web (Scraping)</SelectItem>
                                  </SelectContent>
                                </Select>
                              </div>
@@ -334,6 +335,25 @@ const Configuracao = () => {
                                  value={skill.knowledgeBaseText || ''} 
                                  onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} 
                                />
+                             </div>
+                           ) : skill.executionType === 'web_scraping' ? (
+                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                               <div className="space-y-2">
+                                 <Label>URL Alvo</Label>
+                                 <Input 
+                                   placeholder="https://exemplo.com.br" 
+                                   value={skill.url || ''} 
+                                   onChange={e => updateSkill(skill.id, 'url', e.target.value)} 
+                                 />
+                               </div>
+                               <div className="space-y-2">
+                                 <Label>Seletor CSS Opcional (ex: .titulo, h1)</Label>
+                                 <Input 
+                                   placeholder="Deixe vazio para extrair todo o texto" 
+                                   value={skill.selector || ''} 
+                                   onChange={e => updateSkill(skill.id, 'selector', e.target.value)} 
+                                 />
+                               </div>
                              </div>
                            ) : (
                              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
