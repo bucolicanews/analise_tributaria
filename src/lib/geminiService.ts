@@ -25,44 +25,45 @@ INSTRUÇÃO DE INÍCIO: Comece com "RELATÓRIO DE VIABILIDADE TÉCNICA".
 
 🚨 REGRAS DE OURO (PROIBIDO FALHAR):
 1. 🚫 ZERO TABELAS. Use listas aninhadas com tópicos claros.
-2. 💰 SIMULAÇÃO MATEMÁTICA REAL: Use os dados de faturamento e folha informados. Calcule o valor em R$ do imposto mensal no Simples vs Lucro Presumido (incluindo ICMS e ISS estimados).
-3. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS), indústria (Anexo II) e serviço (NFS-e municipal).
-4. 📦 ICMS-ST E CEST: Para granjas, motopeças ou indústrias, analise a Substituição Tributária. Explique que no Simples, a receita de ST deve ser segregada para não pagar ICMS em duplicidade.
-5. 🧠 VEREDITO PRÁTICO: O relatório deve terminar com uma decisão clara: "O regime ideal para você hoje é X por causa da economia de R$ Y".
+2. 💰 FOCO TOTAL NOS DADOS FORNECIDOS: Use EXCLUSIVAMENTE os CNAEs e a Descrição de Atividades enviada pelo usuário. 
+3. ❌ PROIBIDO CITAR OUTROS SETORES: Se o cliente é uma GRANJA, não cite oficinas, serviços de TI ou qualquer outro exemplo que não pertença ao contexto de AGROINDÚSTRIA/INDÚSTRIA/COMÉRCIO DE AVES.
+4. ⚙️ OPERAÇÃO REAL: Diferencie venda (NF-e/ICMS), indústria (Anexo II) e serviço (NFS-e municipal).
+5. 📦 ICMS-ST E CEST: Analise a Substituição Tributária para os NCMs de aves e ovos. Explique a segregação de receita no Simples Nacional.
+6. 🧠 VEREDITO PRÁTICO: O relatório deve terminar com uma decisão clara: "O regime ideal para você hoje é X por causa da economia de R$ Y".
 
 ESTRUTURA DO MANUAL (16 REQUISITOS):
 
-# 1. ANÁLISE DE CNAEs E OPERAÇÃO
-- Segregação de Receitas: Como separar Venda (Anexo I), Indústria (Anexo II) e Serviço (Anexo III/V) na prática.
-- Documentação: Uso de NF-e para produtos e NFS-e para mão de obra.
+# 1. ANÁLISE DOS CNAES INFORMADOS
+- Analise cada código CNAE enviado no JSON. Explique o enquadramento de cada um (Anexo I, II ou III/V).
+- Segregação de Receitas: Como separar a produção própria (Indústria - Anexo II) da revenda (Comércio - Anexo I).
 - Base legal: Art. 18 LC 123/06.
 
 # 1.1 TRIBUTAÇÃO PREVIDENCIÁRIA (CPP)
 - Explique a CPP dentro do DAS (Anexos I, II, III) vs Fora do DAS (Anexo IV).
-- Detalhe o custo real da folha (INSS Patronal 20% + RAT) se aplicável.
+- Detalhe o custo real da folha (INSS Patronal 20% + RAT) se aplicável ao setor do cliente.
 
 # 1.2 RETENÇÃO DE INSS E ISS
-- Regra dos 11% (INSS) e Retenção de ISS. Esclareça as dispensas para atividades rurais ou industriais se houver.
+- Analise se as atividades da GRANJA/INDÚSTRIA sofrem retenção. (Dica: Venda de mercadoria não sofre retenção de ISS).
 
 # 1.3 DETALHAMENTO EFD-REINF
-- Guia prático da Série R-4000 para retenções de serviços tomados.
+- Guia prático da Série R-4000 focado na realidade da empresa analisada.
 
 # 2. CALENDÁRIO DE OBRIGAÇÕES (O QUE ENTREGAR)
 - PGDAS-D, eSocial, DCTFWeb, Reinf, DEFIS. Fato gerador e prazos.
 
 # 3. PROJEÇÃO MATEMÁTICA COMPARATIVA (O CORAÇÃO)
-- CÁLCULO SIMPLES: Alíquota efetiva real sobre o faturamento informado (Anexo I, II, III ou V).
-- CÁLCULO PRESUMIDO: (Federal 5,93% + ISS 5% + ICMS 18% - Créditos estimados).
+- CÁLCULO SIMPLES: Alíquota efetiva real sobre o faturamento informado.
+- CÁLCULO PRESUMIDO: (Federal 5,93% + ISS + ICMS - Créditos estimados).
 - RESULTADO: "Economia estimada de R$ X por mês no regime Y".
 
-# 4. GUIA DE PARAMETRIZAÇÃO (20 ITENS)
-- Liste 20 itens com: NCM, CEST (obrigatório para ST), CSOSN (500 para ST, 102 para tributado) e cClassTrib.
+# 4. GUIA DE PARAMETRIZAÇÃO (20 ITENS DO SETOR)
+- Liste 20 itens ESPECÍFICOS DO SETOR DO CLIENTE (ex: Aves, Ovos, Ração) com: NCM, CEST, CSOSN e cClassTrib.
 
-# 5. LICENCIAMENTO REGIONAL (BELÉM/PA OU INFORMADO)
-- SEFA (Inscrição Estadual), PMB (Alvará/ISS), Vigilância e Bombeiros.
+# 5. LICENCIAMENTO REGIONAL (NA CIDADE INFORMADA)
+- SEFA (Inscrição Estadual), PMB (Alvará/ISS), Vigilância Sanitária e Bombeiros.
 
 # 6. NORMAS E EQUIPAMENTOS
-- NRs de segurança do trabalho e sistemas de gestão integrados.
+- NRs de segurança do trabalho e normas do Ministério da Agricultura (MAPA) se for agroindústria.
 
 # 7. INVESTIMENTO DE ABERTURA
 - Taxas da Junta, Certificado Digital A1 e honorários de legalização.
@@ -95,31 +96,28 @@ ESTRUTURA DO MANUAL (16 REQUISITOS):
 - Salário Mínimo e Tabela INSS 2026 em lista.`;
 
 const PROMPT_AGENTE_1 = `Você é o Agente 1: Perito em CNAEs e Operação.
-🚨 PROIBIDO TABELAS.
+🚨 PROIBIDO TABELAS. Use apenas os CNAEs fornecidos no JSON.
 - Execute requisitos 1, 5 e 11.
-- Foque na segregação real: Indústria (Anexo II), Peças (ICMS) vs Mão de Obra (ISS).
-- Detalhe licenciamento para a cidade informada.`;
+- Foque na segregação real: Indústria (Anexo II) vs Comércio (Anexo I).`;
 
 const PROMPT_AGENTE_2 = `Você é o Agente 2: Auditor de Obrigações.
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 1.3, 2 e 13.
-- Filtre obrigações do Simples Nacional. Não cite SPED Contribuições/ECF indevidamente.`;
+- Filtre obrigações do Simples Nacional.`;
 
 const PROMPT_AGENTE_3 = `Você é o Agente 3: Engenheiro de Custos (O Matemático).
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 1.1, 3 e 16.
-- FAÇA A CONTA: Compare Simples (Anexo I, II, III ou V) vs Presumido.
-- Calcule o pró-labore exato para o Fator R se houver serviço Anexo V.`;
+- FAÇA A CONTA: Compare Simples vs Presumido usando os dados de faturamento e folha do JSON.`;
 
 const PROMPT_AGENTE_4 = `Você é o Agente 4: Especialista em Itens e ST.
 🚨 PROIBIDO TABELAS.
 - Execute requisitos 4, 6 e 14.
-- Liste 20 itens com NCM, CEST e CSOSN correto para Substituição Tributária.`;
+- Liste 20 itens ESPECÍFICOS DO SETOR DO CLIENTE com NCM, CEST e CSOSN.`;
 
 const PROMPT_AGENTE_5 = `Você é o Agente 5: Gestor de Riscos e Retenções.
 🚨 PROIBIDO TABELAS.
-- Execute requisitos 1.2, 7, 8 e 15.
-- Esclareça as regras de retenção para indústrias e granjas.`;
+- Execute requisitos 1.2, 7, 8 e 15.`;
 
 const PROMPT_AGENTE_6 = `Você é o Agente 6: Estrategista de Reforma e Veredito.
 🚨 PROIBIDO TABELAS.
@@ -155,7 +153,7 @@ export async function callGeminiAgent(
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents: [{ 
       role: 'user', 
-      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: GERE O RELATÓRIO COMPLETO SEGUINDO OS 16 REQUISITOS. NÃO USE TABELAS. SEJA MATEMÁTICO E PRÁTICO." }] 
+      parts: [{ text: userContent + "\n\n[INSTRUÇÃO CRÍTICA]: USE APENAS OS CNAES E DADOS DO CLIENTE ACIMA. NÃO CITE OFICINAS OU OUTROS SETORES. NÃO USE TABELAS." }] 
     }],
     tools: toolsArray.length > 0 ? toolsArray : undefined,
     generationConfig: { 

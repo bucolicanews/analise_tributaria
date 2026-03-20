@@ -164,9 +164,7 @@ const Viabilidade = () => {
           codigo_formatado: c.code.trim(),
           codigo_limpo: c.code.replace(/\D/g, ''),
           descricao: c.description.trim(),
-          tipo: c.isPrimary ? 'Principal' : 'Secundário',
-          obrigações_acessorias: ["Sugerir via IA"],
-          legislacao: ["Sugerir via IA"]
+          tipo: c.isPrimary ? 'Principal' : 'Secundário'
         })),
         descricaoAtividades: atividades || "",
         percentual_comercio_industria_servico: {
@@ -195,17 +193,10 @@ const Viabilidade = () => {
           INSS_IR_recolhido: sociosRecolhemInssIr === 'Sim'
         },
         fator_r: {
-          sujeito_fator_r: "A definir pela IA com base nos CNAEs e folha",
           folha_12_meses: folha12mNum,
           faturamento_12_meses: faturamentoNum,
           percentual_atual: faturamentoNum > 0 ? Number(((folha12mNum / faturamentoNum) * 100).toFixed(2)) : 0
-        },
-        simulacoes_tributarias: [
-          "Comparar Anexo I, II, III e V do Simples Nacional",
-          "Comparar com Lucro Presumido",
-          "Verificar impacto do fator R",
-          "Simular redução legal de impostos"
-        ]
+        }
       },
       societario_trabalhista: {
         pro_labore: {
@@ -214,41 +205,12 @@ const Viabilidade = () => {
           recolhe_inss_ir: sociosRecolhemInssIr === 'Sim',
         },
         retira_valores_pf: sociosRetiramValores === 'Sim',
-        num_empregados: parseInt(numFuncionarios) || 0,
-        contratos: "Todos regulares, sem terceirizações não declaradas"
+        num_empregados: parseInt(numFuncionarios) || 0
       },
       conformidade_riscos: {
         confusao_patrimonial: mesmaContaSocios === 'Sim' || recebeContaPF === 'Sim',
         retirada_informal: sociosRetiramValores === 'Sim' && sociosDeclaramProlabore !== 'Sim',
-        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim',
-        riscos_fiscais: [
-          "Multas por não declarar pró-labore",
-          "Autuação por fator R incorreto",
-          "Obrigações acessórias não entregues"
-        ],
-        recomendacoes: [
-          "Separar contas pessoais e da empresa",
-          "Formalizar retiradas de sócios",
-          "Planejamento de folha e pró-labore"
-        ]
-      },
-      engine: {
-        analises_requeridas: [
-          "enquadramento_simples",
-          "calculo_carga_tributaria",
-          "analise_fator_r",
-          "diagnostico_risco",
-          "viabilidade_financeira",
-          "planejamento_tributario",
-          "orientacao_contador",
-          "simulacao_cenarios_tributarios"
-        ],
-        output_config: {
-          formato: "relatorio_consultivo",
-          detalhes_para_contador: true,
-          incluir_legislacao_e_codigos: true,
-          simulacoes_de_reducao: true
-        }
+        risco_previdenciario: sociosDeclaramProlabore !== 'Sim' || sociosRecolhemInssIr !== 'Sim'
       }
     };
   };
@@ -270,7 +232,11 @@ const Viabilidade = () => {
       await new Promise(r => setTimeout(r, 800));
       setProgressStep('analyzing');
       
-      const result = await callGeminiAgent(systemPrompt, JSON.stringify(payload, null, 2), apiKey);
+      // Criamos um contexto textual muito forte para a IA não ignorar os CNAEs
+      const cnaeContext = payload.operacional.cnaes.map(c => `CNAE ${c.tipo}: ${c.codigo_formatado} - ${c.descricao}`).join('\n');
+      const userPrompt = `DADOS DO CLIENTE PARA ANÁLISE:\n\nCONTEXTO OPERACIONAL:\n${cnaeContext}\n\nDESCRIÇÃO DE ATIVIDADES:\n${payload.operacional.descricaoAtividades}\n\nJSON COMPLETO:\n${JSON.stringify(payload, null, 2)}`;
+
+      const result = await callGeminiAgent(systemPrompt, userPrompt, apiKey);
       
       setProgressStep('auditing');
       await new Promise(r => setTimeout(r, 1000));
