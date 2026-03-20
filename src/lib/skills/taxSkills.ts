@@ -16,7 +16,7 @@ export interface DynamicSkill {
 export const JOTA_TOOLS_MANIFEST: any[] = [];
 
 /**
- * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA
+ * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA - SOMENTE AS 3 ESSENCIAIS
  */
 export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
