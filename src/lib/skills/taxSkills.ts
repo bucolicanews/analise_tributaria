@@ -19,7 +19,7 @@ export const JOTA_TOOLS_MANIFEST: any[] = [];
 const AsyncFunction = (async () => {}).constructor as any;
 
 /**
- * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA - SOMENTE AS 3 ESSENCIAIS
+ * ENGINE TRIBUTÁRIA PROFISSIONAL JOTA - AS 3 ESSENCIAIS
  */
 export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
@@ -163,8 +163,19 @@ export async function executeSkill(name: string, args: any): Promise<any> {
         checkIfNcmHasSelectiveTax 
       };
       
-      // Uso seguro do construtor dinâmico
-      const fn = new AsyncFunction('args', 'helpers', skill.jsCode);
+      let codeToExecute = skill.jsCode.trim();
+      
+      // Se o código começa com "async function" ou "function", tentamos extrair o corpo ou avisar
+      if (codeToExecute.startsWith('async function') || codeToExecute.startsWith('function')) {
+          // Tenta extrair o que está entre as primeiras chaves { e a última }
+          const firstBrace = codeToExecute.indexOf('{');
+          const lastBrace = codeToExecute.lastIndexOf('}');
+          if (firstBrace !== -1 && lastBrace !== -1) {
+              codeToExecute = codeToExecute.substring(firstBrace + 1, lastBrace);
+          }
+      }
+
+      const fn = new AsyncFunction('args', 'helpers', codeToExecute);
       return await fn(args, helpers);
     } catch (e: any) {
       return { error: "Erro no JS da Skill: " + e.message };
