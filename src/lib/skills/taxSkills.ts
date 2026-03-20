@@ -38,66 +38,90 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
     id: 'sys-2',
     name: 'comparar_regimes_tributarios',
-    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo Fator R e Indústria.',
+    description: 'Realiza o comparativo matemático real entre Simples Nacional e Lucro Presumido, incluindo Fator R, Indústria, Isenções e ST.',
     parameters: {
       type: 'object',
       properties: {
-        faturamento_mensal: { type: 'number' },
-        faturamento_12m: { type: 'number' },
-        folha_12m: { type: 'number' },
+        faturamento_mensal: { type: 'number', description: 'Receita mensal da empresa' },
+        faturamento_12m: { type: 'number', description: 'Faturamento acumulado dos últimos 12 meses' },
+        folha_12m: { type: 'number', description: 'Folha de pagamento acumulada dos últimos 12 meses' },
         tipo_atividade: { type: 'string', enum: ['comercio', 'servico', 'industria'] },
-        icms_percentual: { type: 'number', description: 'Ex: 0.12 para 12%' },
-        iss_percentual: { type: 'number', description: 'Ex: 0.05 para 5%' }
+        icms_percentual: { type: 'number', description: 'Alíquota de ICMS (ex: 0.17)', default: 0.17 },
+        icms_isento: { type: 'boolean', description: 'Indica se há isenção de ICMS (comum em Granjas)', default: false },
+        icms_st: { type: 'boolean', description: 'Se o produto está sujeito à Substituição Tributária', default: false },
+        iss_percentual: { type: 'number', description: 'Alíquota de ISS (ex: 0.05)', default: 0.05 },
+        margem_lucro: { type: 'number', description: 'Margem de lucro alvo para o cálculo', default: 0.15 }
       },
       required: ['faturamento_mensal', 'faturamento_12m', 'folha_12m', 'tipo_atividade']
     },
     executionType: 'local_js',
     isActive: true,
     jsCode: `
-// 1. CÁLCULO FATOR R (Apenas para serviços específicos)
-const r = args.folha_12m / args.faturamento_12m;
-const anexoCalculado = r >= 0.28 ? "Anexo III" : "Anexo V";
+const faturamento = args.faturamento_mensal || 0;
+const faturamento12m = args.faturamento_12m || (faturamento * 12);
+const folha12m = args.folha_12m || 0;
+const tipo = args.tipo_atividade || "comercio";
 
-let anexoFinal = "Anexo I";
-if (args.tipo_atividade === 'servico') anexoFinal = anexoCalculado;
-else if (args.tipo_atividade === 'industria') anexoFinal = "Anexo II";
+if (faturamento <= 0) return { error: "Faturamento inválido" };
 
-// 2. SIMPLES NACIONAL
-const tabelaSimples = {
-  "Anexo I": { aliquota: 0.073, deducao: 5940 },
-  "Anexo II": { aliquota: 0.078, deducao: 5940 },
-  "Anexo III": { aliquota: 0.06, deducao: 0 },
-  "Anexo V": { aliquota: 0.155, deducao: 6250 }
-};
-const t = tabelaSimples[anexoFinal];
-const efetivaSimples = ((args.faturamento_12m * t.aliquota) - t.deducao) / args.faturamento_12m;
-const impostoSimples = args.faturamento_mensal * efetivaSimples;
+// --- 1. SIMPLES NACIONAL ---
+let anexo = "Anexo I";
+if (tipo === 'servico') {
+  const r = folha12m / faturamento12m;
+  anexo = r >= 0.28 ? "Anexo III" : "Anexo V";
+} else if (tipo === 'industria') {
+  anexo = "Anexo II";
+}
 
-// 3. LUCRO PRESUMIDO
-// Presunção: Comércio/Indústria 8% IRPJ, 12% CSLL (Indústria) ou 9% (Comércio). 
-// Para simplificar: 8% IRPJ e 12% CSLL para Indústria.
-const presuncaoIR = (args.tipo_atividade === 'comercio' || args.tipo_atividade === 'industria') ? 0.08 : 0.32;
-const presuncaoCS = (args.tipo_atividade === 'industria') ? 0.12 : (args.tipo_atividade === 'comercio' ? 0.09 : 0.32);
+const efetivaSimples = helpers.calculateSimplesNacionalEffectiveRate(anexo, faturamento12m);
+let impostoSimples = faturamento * (efetivaSimples / 100);
 
-const baseIR = args.faturamento_mensal * presuncaoIR;
-const baseCS = args.faturamento_mensal * presuncaoCS;
+// Ajuste Simples para ST/Isenção (Segregação de Receita)
+if (args.icms_st || args.icms_isento) {
+  // No Simples, se for ST ou Isento, removemos o percentual de ICMS do DAS (aprox 34% do valor da faixa)
+  impostoSimples = impostoSimples * 0.66; 
+}
 
-const irpj = baseIR * 0.15;
-const adicionalIrpj = baseIR > 20000 ? (baseIR - 20000) * 0.10 : 0;
-const csll = baseCS * 0.09;
-const pis = args.faturamento_mensal * 0.0065;
-const cofins = args.faturamento_mensal * 0.03;
-const icms = (args.tipo_atividade === 'comercio' || args.tipo_atividade === 'industria') ? args.faturamento_mensal * (args.icms_percentual || 0.12) : 0;
-const iss = args.tipo_atividade === 'servico' ? args.faturamento_mensal * (args.iss_percentual || 0.05) : 0;
-const totalPresumido = irpj + adicionalIrpj + csll + pis + cofins + icms + iss;
+// --- 2. LUCRO PRESUMIDO ---
+// Presunção IRPJ: Comércio/Indústria 8%, Serviço 32%
+const presuncaoIRPJ = (tipo === 'comercio' || tipo === 'industria') ? 0.08 : 0.32;
+const baseIRPJ = faturamento * presuncaoIRPJ;
+
+// Presunção CSLL: Indústria 12%, Comércio 12%, Serviço 32%
+const presuncaoCSLL = (tipo === 'comercio' || tipo === 'industria') ? 0.12 : 0.32;
+const baseCSLL = faturamento * presuncaoCSLL;
+
+const irpj = baseIRPJ * 0.15;
+const adicional = baseIRPJ > 20000 ? (baseIRPJ - 20000) * 0.10 : 0;
+const csll = baseCSLL * 0.09;
+const pis = faturamento * 0.0065;
+const cofins = faturamento * 0.03;
+
+const icms = (tipo !== 'servico' && !args.icms_isento && !args.icms_st) ? faturamento * (args.icms_percentual || 0.17) : 0;
+const iss = tipo === 'servico' ? faturamento * (args.iss_percentual || 0.05) : 0;
+
+const totalPresumido = irpj + adicional + csll + pis + cofins + icms + iss;
 
 return {
-  fator_r: { valor: (r * 100).toFixed(2) + "%", anexo: anexoFinal },
-  simples: { aliquota_efetiva: (efetivaSimples * 100).toFixed(2) + "%", valor_mensal: impostoSimples },
-  presumido: { aliquota_efetiva: ((totalPresumido / args.faturamento_mensal) * 100).toFixed(2) + "%", valor_mensal: totalPresumido },
+  fator_r: tipo === 'servico' ? { percentual: ((folha12m/faturamento12m)*100).toFixed(2) + "%", anexo } : "N/A",
+  simples: {
+    anexo,
+    aliquota_efetiva: efetivaSimples.toFixed(2) + "%",
+    valor_mensal: impostoSimples,
+    observacao: (args.icms_st || args.icms_isento) ? "Cálculo com segregação de ICMS (ST/Isento)" : "Tributação integral no DAS"
+  },
+  presumido: {
+    presuncao: { irpj: (presuncaoIRPJ*100)+"%", csll: (presuncaoCSLL*100)+"%" },
+    detalhamento: { irpj: irpj + adicional, csll, pis_cofins: pis + cofins, icms, iss },
+    total: totalPresumido,
+    aliquota_efetiva: ((totalPresumido / faturamento) * 100).toFixed(2) + "%"
+  },
   veredito: {
     melhor_regime: impostoSimples < totalPresumido ? "Simples Nacional" : "Lucro Presumido",
-    economia_mensal: Math.abs(impostoSimples - totalPresumido)
+    economia_mensal: Math.abs(impostoSimples - totalPresumido),
+    recomendacao: impostoSimples < totalPresumido 
+      ? "O Simples Nacional é mais vantajoso para este nível de faturamento." 
+      : "O Lucro Presumido apresenta vantagem tributária, principalmente devido aos créditos ou isenções de ICMS."
   }
 };
     `
