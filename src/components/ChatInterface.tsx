@@ -35,7 +35,6 @@ export const ChatInterface = () => {
 
   const apiKey = localStorage.getItem('jota-gemini-key') || '';
 
-  // Carregar sessões do localStorage
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) {
@@ -54,18 +53,16 @@ export const ChatInterface = () => {
     setAvailableSkills(skills);
   }, []);
 
-  // Salvar mensagens da sessão ativa sempre que mudarem
   useEffect(() => {
     if (activeSessionId && messages.length > 0) {
       localStorage.setItem(`jota-chat-msg-${activeSessionId}`, JSON.stringify(messages));
       
-      // Atualizar título da sessão se for a primeira mensagem
       setSessions(prev => prev.map(s => {
         if (s.id === activeSessionId && s.title === 'Nova Conversa' && messages.length > 0) {
           const firstUserMsg = messages.find(m => m.role === 'user');
           if (firstUserMsg) {
             const text = firstUserMsg.parts[0].text;
-            return { ...s, title: text.substring(0, 30) + (text.length > 30 ? '...' : '') };
+            return { ...s, title: text.substring(0, 40) + (text.length > 40 ? '...' : '') };
           }
         }
         return s;
@@ -73,7 +70,6 @@ export const ChatInterface = () => {
     }
   }, [messages, activeSessionId]);
 
-  // Persistir lista de sessões
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sessions));
   }, [sessions]);
@@ -97,6 +93,7 @@ export const ChatInterface = () => {
   };
 
   const deleteSession = (id: string) => {
+    if (!confirm("Excluir esta conversa permanentemente?")) return;
     setSessions(prev => prev.filter(s => s.id !== id));
     localStorage.removeItem(`jota-chat-msg-${id}`);
     if (activeSessionId === id) {
@@ -107,6 +104,10 @@ export const ChatInterface = () => {
         createNewChat();
       }
     }
+  };
+
+  const updateSessionTitle = (id: string, newTitle: string) => {
+    setSessions(prev => prev.map(s => s.id === id ? { ...s, title: newTitle } : s));
   };
 
   useLayoutEffect(() => {
@@ -242,22 +243,23 @@ export const ChatInterface = () => {
         onSelectSession={loadSession}
         onNewChat={createNewChat}
         onDeleteSession={deleteSession}
+        onUpdateTitle={updateSessionTitle}
       />
 
-      <div className="flex-1 flex flex-col bg-background">
+      <div className="flex-1 flex flex-col bg-background min-w-0">
         <CardHeader className="border-b border-border/50 bg-muted/20 py-3 flex flex-row items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-primary/10 rounded-full">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="p-2 bg-primary/10 rounded-full shrink-0">
               <Bot className="h-5 w-5 text-primary" />
             </div>
-            <div>
-              <CardTitle className="text-sm font-bold">
+            <div className="min-w-0">
+              <CardTitle className="text-sm font-bold truncate">
                 {sessions.find(s => s.id === activeSessionId)?.title || 'Consultor JOTA AI'}
               </CardTitle>
               <p className="text-[10px] text-muted-foreground">Conectado às suas Skills e Ferramentas</p>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 shrink-0">
             {availableSkills.length > 0 && (
               <div className="hidden md:flex items-center gap-1.5">
                 <span className="text-[9px] font-bold text-muted-foreground uppercase">Skills Ativas:</span>
