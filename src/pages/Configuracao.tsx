@@ -381,7 +381,7 @@ const Configuracao = () => {
                      <p className="text-xs text-primary/70">Configure a sequência de inteligência autônoma.</p>
                    </div>
                    <div className="flex gap-2">
-                     <Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1, selectedSkills: [], enableMonitoring: false, monitoringInterval: 60, useN8n: false, n8nResponseUrl: '' }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
+                     <Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1, selectedSkills: [], enableMonitoring: false, monitoringInterval: 60, useN8n: false, n8nResponseUrl: 'http://localhost:3001/agent-result' }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
                    </div>
                  </div>
 
@@ -408,7 +408,8 @@ const Configuracao = () => {
                              </div>
                              <div className="space-y-2">
                                <Label>Webhook n8n (Execução)</Label>
-                               <Input placeholder="https://n8n.seu-servidor.com/..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} />
+                               <Input placeholder="https://n8n.seu-servidor.com/webhook/..." value={agent.webhookUrl || ''} onChange={e => updateAgent(agent.id, 'webhookUrl', e.target.value)} />
+                               <p className="text-[9px] text-muted-foreground">URL do nó Webhook que inicia o fluxo no n8n.</p>
                              </div>
                            </div>
 
@@ -424,10 +425,11 @@ const Configuracao = () => {
                                <Label className="text-orange-700 flex items-center gap-2"><Link2 className="h-3 w-3" /> URL de Resposta do n8n</Label>
                                <Input 
                                  disabled={!agent.useN8n}
-                                 placeholder="URL para onde o n8n deve devolver o resultado" 
+                                 placeholder="http://localhost:3001/agent-result" 
                                  value={agent.n8nResponseUrl || ''} 
                                  onChange={e => updateAgent(agent.id, 'n8nResponseUrl', e.target.value)} 
                                />
+                               <p className="text-[9px] text-muted-foreground">URL onde o n8n deve postar o resultado final (Relay).</p>
                              </div>
                            </div>
                          </div>

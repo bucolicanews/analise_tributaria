@@ -15,6 +15,11 @@ export interface AgentConfig {
   systemPrompt: string;
   webhookUrl?: string;
   order?: number;
+  selectedSkills?: string[]; 
+  enableMonitoring?: boolean;
+  monitoringInterval?: number; 
+  useN8n?: boolean;
+  n8nResponseUrl?: string;
 }
 
 export interface PromptConfig {
@@ -35,13 +40,17 @@ export const DEFAULT_AGENTS: AgentConfig[] = [
     id: 'agent-1',
     nome: 'Perito Tributário Sênior',
     systemPrompt: 'Você é o Perito Tributário Sênior da Jota Contabilidade. Sua missão é realizar auditorias profundas e encontrar economias fiscais. Utilize a skill #comparar_regimes_tributarios para validações matemáticas.',
-    order: 1
+    order: 1,
+    useN8n: false,
+    n8nResponseUrl: 'http://localhost:3001/agent-result'
   },
   {
     id: 'agent-2',
     nome: 'Analista de Viabilidade',
     systemPrompt: 'Você é um Analista de Viabilidade especializado em novos negócios e enquadramento no Simples Nacional. Foque na análise de CNAEs e riscos operacionais.',
-    order: 2
+    order: 2,
+    useN8n: false,
+    n8nResponseUrl: 'http://localhost:3001/agent-result'
   }
 ];
 
@@ -151,7 +160,6 @@ export async function callGeminiAgent(
   let message = data?.candidates?.[0]?.content;
   if (!message) return "Sem resposta da IA.";
 
-  // Loop de execução de ferramentas
   if (message.parts?.some((p: any) => p.functionCall)) {
     const toolResults: any[] = [];
     for (const part of message.parts) {
@@ -243,9 +251,26 @@ export async function sendChatMessage(
 
 export async function callAgentWebhook(agent: AgentConfig, userContent: string, previousReports?: Record<string, string>): Promise<string> {
   if (!agent.webhookUrl) throw new Error(`Webhook não configurado.`);
-  const response = await fetch(agent.webhookUrl.trim(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ agentName: agent.nome, data: JSON.parse(userContent), previousReports }) });
+  
+  // Gera um ID de sessão único para que o relay saiba de quem é o resultado
+  const sessionId = localStorage.getItem('jota-session-id') || Math.random().toString(36).substring(7);
+  localStorage.setItem('jota-session-id', sessionId);
+
+  const response = await fetch(agent.webhookUrl.trim(), { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ 
+      agentName: agent.nome, 
+      sessionId: sessionId,
+      responseUrl: agent.n8nResponseUrl || 'http://localhost:3001/agent-result',
+      data: JSON.parse(userContent), 
+      previousReports 
+    }) 
+  });
+  
   const data = await response.json();
-  return data.report || data.output || "Erro no processamento.";
+  // Se o n8n responder sincronamente, usamos o report. Se for assíncrono, o frontend vai buscar no relay.
+  return data.report || data.output || "Processamento iniciado no n8n...";
 }
 
 export function loadAgentsFromStorage(): AgentConfig[] {
