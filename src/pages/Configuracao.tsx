@@ -151,6 +151,7 @@ const Configuracao = () => {
     const file = event.target.files?.[0];
     if (!file || !activeSkillIdForUpload) return;
     setIsExtracting(true);
+    
     try {
       let text = "";
       const fileName = file.name.toLowerCase();
@@ -158,17 +159,22 @@ const Configuracao = () => {
       if (fileName.endsWith(".pdf")) {
         if (!pdfjsLib) {
           pdfjsLib = await import('pdfjs-dist');
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+          // Fix para versões do PDF.js > 3.x que usam worker com extensão .mjs
+          const pdfVersion = pdfjsLib.version || '4.0.379';
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfVersion}/pdf.worker.min.mjs`;
         }
-        const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
+        const arrayBuffer = await file.arrayBuffer();
+        const typedarray = new Uint8Array(arrayBuffer);
+        const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+        
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const content = await page.getTextContent();
           text += content.items.map((item: any) => item.str).join(" ") + "\n";
         }
-      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls") || fileName.endsWith(".csv")) {
         const data = await file.arrayBuffer();
-        const workbook = XLSX.read(data);
+        const workbook = XLSX.read(data, { type: 'array' });
         workbook.SheetNames.forEach(sheetName => {
           const worksheet = workbook.Sheets[sheetName];
           text += `--- Planilha: ${sheetName} ---\n`;
@@ -182,10 +188,17 @@ const Configuracao = () => {
       updateSkill(activeSkillIdForUpload, 'knowledgeBaseText', cleanedText);
       toast.success("Conteúdo extraído e limpo com sucesso!");
     } catch (error: any) { 
-      console.error(error);
-      toast.error("Erro ao processar arquivo. Verifique o formato."); 
+      console.error("Erro no processamento do arquivo:", error);
+      toast.error(`Erro na extração: ${error.message || "Formato não suportado."}`); 
     } 
-    finally { setIsExtracting(false); setActiveSkillIdForUpload(null); }
+    finally { 
+      setIsExtracting(false); 
+      setActiveSkillIdForUpload(null);
+      // Limpa o input para permitir enviar o mesmo arquivo logo em seguida
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
   };
 
   const updateAgent = (id: string, field: keyof AgentConfig, value: any) => {
@@ -215,7 +228,7 @@ const Configuracao = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.xlsx,.xls,.txt,.csv" />
+      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.xlsx,.xls,.csv,.txt" />
 
       <Card className="shadow-card">
         <CardHeader className="flex flex-row items-center justify-between">
