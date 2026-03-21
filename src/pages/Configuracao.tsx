@@ -159,8 +159,8 @@ const Configuracao = () => {
       if (fileName.endsWith(".pdf")) {
         if (!pdfjsLib) {
           pdfjsLib = await import('pdfjs-dist');
-          // A VERSÃO 5.x DO PDF.JS REQUER O ARQUIVO MIN.MJS COMO WORKER!
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+          // Utilizando o UNPKG para garantir que o arquivo .mjs oficial seja carregado
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.mjs`;
         }
         const arrayBuffer = await file.arrayBuffer();
         const typedarray = new Uint8Array(arrayBuffer);
