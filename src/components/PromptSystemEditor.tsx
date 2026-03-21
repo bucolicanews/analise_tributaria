@@ -143,7 +143,7 @@ export const PromptSystemEditor: React.FC<PromptSystemEditorProps> = ({ value, o
               >
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-foreground">{v.name}</span>
-                  <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Var</Badge>
+                  <Badge variant="outline" className="text-[8px] h-3 px-1 uppercase opacity-50">Variável</Badge>
                 </div>
                 <p className="text-[9px] text-muted-foreground line-clamp-1">{v.desc}</p>
               </div>

@@ -401,7 +401,7 @@ const Configuracao = () => {
                           </section>
 
                           <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1 text-blue-600">3. Placeholders Dinâmicos ({{var}})</h4>
+                            <h4 className="font-bold text-sm border-b pb-1 text-blue-600">3. Placeholders Dinâmicos {"{{var}}"}</h4>
                             <p className="text-xs text-muted-foreground">Você pode tornar a URL da Skill dinâmica usando os parâmetros definidos no JSON.</p>
                             <div className="bg-slate-950 p-3 rounded-md border border-blue-900/50">
                               <p className="text-[10px] text-blue-300 font-mono leading-relaxed">
