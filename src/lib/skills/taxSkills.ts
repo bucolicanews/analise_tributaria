@@ -222,17 +222,16 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
   }
 
   if (skill.executionType === 'web_scraping' && skill.url) {
-    // Lógica de URL Dinâmica: substitui {{variavel}} pelos valores em args
     let targetUrl = skill.url;
     if (args) {
       Object.entries(args).forEach(([key, val]) => {
-        targetUrl = targetUrl.replace(new RegExp(\`{{\${key}}}\`, 'g'), String(val));
+        targetUrl = targetUrl.replace(new RegExp('{{' + key + '}}', 'g'), String(val));
       });
     }
 
     const proxies = [
-      (url: string) => \`https://api.allorigins.win/get?url=\${encodeURIComponent(url)}\`,
-      (url: string) => \`https://corsproxy.io/?\${encodeURIComponent(url)}\`
+      (url: string) => 'https://api.allorigins.win/get?url=' + encodeURIComponent(url),
+      (url: string) => 'https://corsproxy.io/?' + encodeURIComponent(url)
     ];
 
     let lastError = "";
@@ -240,7 +239,7 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
     for (const getProxyUrl of proxies) {
       try {
         const response = await fetch(getProxyUrl(targetUrl));
-        if (!response.ok) throw new Error(\`Status: \${response.status}\`);
+        if (!response.ok) throw new Error('Status: ' + response.status);
         
         const text = await response.text();
         let html = "";
@@ -262,7 +261,7 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
         if (skill.selector) {
           targetElement = doc.querySelector(skill.selector);
           if (!targetElement) {
-            return { error: \`Seletor CSS '\${skill.selector}' não encontrado na página.\` };
+            return { error: "Seletor CSS '" + skill.selector + "' não encontrado na página." };
           }
         }
 
@@ -272,10 +271,10 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
 
         const rawText = (targetElement as HTMLElement).innerText || targetElement.textContent || "";
         const cleanText = rawText
-          .split('\\n')
+          .split('\n')
           .map(line => line.trim())
           .filter(line => line.length > 0)
-          .join('\\n');
+          .join('\n');
         
         return { 
           status: "sucesso", 
@@ -288,7 +287,7 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
       }
     }
 
-    return { error: \`Falha na navegação web. Último erro: \${lastError}\` };
+    return { error: "Falha na navegação web. Último erro: " + lastError };
   }
 
   if (skill.executionType === 'webhook' && skill.webhookUrl) {
