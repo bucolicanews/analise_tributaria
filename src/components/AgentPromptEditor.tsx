@@ -48,7 +48,6 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
           display: s.name, 
           typeLabel: 'Skill', 
           icon: Wrench,
-          // Formato solicitado: NOME DA SKILL: INSTRUÇÃO
           contentToInsert: `${s.name}: ${s.suggestedInstruction || ''}`
         }));
     } else {
@@ -91,7 +90,6 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
     const lastTrigger = Math.max(textBefore.lastIndexOf('@'), textBefore.lastIndexOf('#'));
     
     const contentToInsert = item.contentToInsert || "";
-    
     const newValue = value.substring(0, lastTrigger) + contentToInsert + " " + textAfter;
     onChange(newValue);
     setMenu(null);
@@ -142,10 +140,7 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
         {menu && filteredItems.length > 0 && (
           <div 
             className="absolute z-[100] w-full max-w-[320px] bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 flex flex-col"
-            style={{ 
-              bottom: '20px',
-              left: '10px',
-            }}
+            style={{ bottom: '20px', left: '10px' }}
           >
             <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
               <Terminal className="h-3 w-3 text-primary" />
@@ -159,9 +154,7 @@ export const AgentPromptEditor: React.FC<AgentPromptEditorProps> = ({ value, onC
                   key={idx}
                   className={cn(
                     "px-3 py-2 cursor-pointer flex flex-col gap-0.5 transition-colors border-l-4",
-                    idx === selectedIndex 
-                      ? "bg-primary/10 border-primary" 
-                      : "hover:bg-muted/50 border-transparent"
+                    idx === selectedIndex ? "bg-primary/10 border-primary" : "hover:bg-muted/50 border-transparent"
                   )}
                   onClick={() => insertItem(item)}
                 >

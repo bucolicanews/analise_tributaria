@@ -122,10 +122,7 @@ export const PromptSystemEditor: React.FC<PromptSystemEditorProps> = ({ value, o
       {showMenu && filteredVars.length > 0 && (
         <div 
           className="absolute z-[100] w-full max-w-[320px] bg-card border border-border rounded-lg shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2"
-          style={{ 
-            bottom: '20px', // Posiciona dentro da área visível do textarea
-            left: '10px',
-          }}
+          style={{ bottom: '20px', left: '10px' }}
         >
           <div className="bg-muted/90 px-3 py-1.5 border-b border-border flex items-center gap-2">
             <Terminal className="h-3 w-3 text-primary" />
