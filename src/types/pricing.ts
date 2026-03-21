@@ -111,7 +111,7 @@ export interface CalculationParams {
 
   faturamento12Meses?: number;
   percentComercio?: number; 
-  percentIndustria?: number; // NOVO
+  percentIndustria?: number; 
   percentServico?: number;  
   anexoSimples?: string;
   tipoOperacao?: 'Varejo' | 'Atacado';
@@ -178,4 +178,18 @@ export interface CalculatedProduct extends Product {
 
   cClassTrib?: number;
   strategicData?: StrategicData;
+}
+
+export interface AgentConfig {
+  id: string;
+  nome: string;
+  systemPrompt: string;
+  webhookUrl?: string;
+  order?: number;
+  // Novos campos solicitados
+  selectedSkills?: string[]; // IDs das skills vinculadas
+  enableMonitoring?: boolean;
+  monitoringInterval?: number; // Tempo em minutos
+  useN8n?: boolean;
+  n8nResponseUrl?: string;
 }
