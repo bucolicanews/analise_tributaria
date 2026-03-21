@@ -223,10 +223,15 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
 
   if (skill.executionType === 'web_scraping' && skill.url) {
     let targetUrl = skill.url;
-    if (args) {
-      Object.entries(args).forEach(([key, val]) => {
-        targetUrl = targetUrl.replace(new RegExp('{{' + key + '}}', 'g'), String(val));
-      });
+    
+    // Substituição segura de placeholders sem usar RegExp complexo ou template literals aninhados
+    if (args && typeof args === 'object') {
+      for (const key in args) {
+        const placeholder = '{{' + key + '}}';
+        const value = String(args[key]);
+        // Faz o split e join para substituir todas as ocorrências de forma segura
+        targetUrl = targetUrl.split(placeholder).join(value);
+      }
     }
 
     const proxies = [
