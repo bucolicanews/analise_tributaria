@@ -159,9 +159,8 @@ const Configuracao = () => {
       if (fileName.endsWith(".pdf")) {
         if (!pdfjsLib) {
           pdfjsLib = await import('pdfjs-dist');
-          // Fix para versões do PDF.js > 3.x que usam worker com extensão .mjs
-          const pdfVersion = pdfjsLib.version || '4.0.379';
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfVersion}/pdf.worker.min.mjs`;
+          // A VERSÃO 5.x DO PDF.JS REQUER O ARQUIVO MIN.MJS COMO WORKER!
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
         }
         const arrayBuffer = await file.arrayBuffer();
         const typedarray = new Uint8Array(arrayBuffer);
@@ -194,7 +193,6 @@ const Configuracao = () => {
     finally { 
       setIsExtracting(false); 
       setActiveSkillIdForUpload(null);
-      // Limpa o input para permitir enviar o mesmo arquivo logo em seguida
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
