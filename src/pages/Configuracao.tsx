@@ -25,12 +25,8 @@ import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/m
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
 import { AgentPromptEditor } from '@/components/AgentPromptEditor';
 
-import * as pdfjsLib from 'pdfjs-dist';
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.mjs',
-  import.meta.url
-).toString();
+// Importação dinâmica do PDFJS para evitar erros de build
+let pdfjsLib: any = null;
 
 const UFs = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
 
@@ -146,6 +142,10 @@ const Configuracao = () => {
     try {
       let text = "";
       if (file.name.toLowerCase().endsWith(".pdf")) {
+        if (!pdfjsLib) {
+          pdfjsLib = await import('pdfjs-dist');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+        }
         const pdf = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);

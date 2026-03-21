@@ -18,7 +18,8 @@ export interface DynamicSkill {
 
 export const JOTA_TOOLS_MANIFEST: any[] = [];
 
-const AsyncFunction = (async () => {}).constructor as any;
+// Construtor seguro para funções assíncronas dinâmicas
+const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 
 export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
   {
@@ -33,7 +34,7 @@ export const DEFAULT_DYNAMIC_SKILLS: DynamicSkill[] = [
     },
     executionType: 'local_js',
     isActive: true,
-    jsCode: "const cleanCep = String(args.cep).replace(/\\D/g, '');\nif (cleanCep.length !== 8) return { error: 'CEP inválido' };\ntry {\n  const response = await fetch('https://viacep.com.br/ws/' + cleanCep + '/json/');\n  const data = await response.json();\n  return data.erro ? { error: 'CEP não localizado' } : data;\n} catch (e) {\n  return { error: 'Falha no serviço de CEP' };\n}"
+    jsCode: "const cleanCep = String(args.cep).replace(/\\D/g, ''); if (cleanCep.length !== 8) return { error: 'CEP inválido' }; try { const response = await fetch('https://viacep.com.br/ws/' + cleanCep + '/json/'); const data = await response.json(); return data.erro ? { error: 'CEP não localizado' } : data; } catch (e) { return { error: 'Falha no serviço de CEP' }; }"
   },
   {
     id: 'sys-2',
@@ -224,12 +225,10 @@ export async function executeSkill(name: string, args: any, skillsOverride?: Dyn
   if (skill.executionType === 'web_scraping' && skill.url) {
     let targetUrl = skill.url;
     
-    // Substituição segura de placeholders sem usar RegExp complexo ou template literals aninhados
     if (args && typeof args === 'object') {
       for (const key in args) {
         const placeholder = '{{' + key + '}}';
         const value = String(args[key]);
-        // Faz o split e join para substituir todas as ocorrências de forma segura
         targetUrl = targetUrl.split(placeholder).join(value);
       }
     }
