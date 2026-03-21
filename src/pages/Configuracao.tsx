@@ -26,6 +26,7 @@ import { getMinimumWages, saveMinimumWages, MinimumWageEntry } from '@/lib/tax/m
 import { DynamicSkill, loadDynamicSkills, saveDynamicSkills, DEFAULT_DYNAMIC_SKILLS, executeSkill } from '@/lib/skills/taxSkills';
 import { AgentPromptEditor } from '@/components/AgentPromptEditor';
 import { PromptSystemEditor } from '@/components/PromptSystemEditor';
+import * as XLSX from 'xlsx';
 
 // Importação dinâmica do PDFJS para evitar erros de build
 let pdfjsLib: any = null;
@@ -80,6 +81,15 @@ const Configuracao = () => {
     enableGoogleSearch, agents, prompts, dynamicSkills
   ]);
 
+  const cleanTextNoise = (text: string) => {
+    return text
+      .replace(/[^\x20-\x7E\xA0-\xFF\n\r\t]/g, " ") // Remove caracteres não imprimíveis/estranhos
+      .replace(/\t/g, " ") // Tabs para espaços
+      .replace(/ +/g, " ") // Múltiplos espaços para um só
+      .replace(/\n\s*\n/g, "\n\n") // Múltiplas quebras de linha para no máximo duas
+      .trim();
+  };
+
   const handleImportSkill = () => {
     try {
       const skillData = JSON.parse(importJson);
@@ -130,7 +140,7 @@ const Configuracao = () => {
       else {
         toast.success("Teste concluído!");
         if (skill.executionType === 'web_scraping' && result.conteudo) {
-          updateSkill(skill.id, 'knowledgeBaseText', result.conteudo);
+          updateSkill(skill.id, 'knowledgeBaseText', cleanTextNoise(result.conteudo));
         }
       }
     } catch (err: any) { toast.error(`Falha: ${err.message}`); } 
@@ -143,7 +153,9 @@ const Configuracao = () => {
     setIsExtracting(true);
     try {
       let text = "";
-      if (file.name.toLowerCase().endsWith(".pdf")) {
+      const fileName = file.name.toLowerCase();
+
+      if (fileName.endsWith(".pdf")) {
         if (!pdfjsLib) {
           pdfjsLib = await import('pdfjs-dist');
           pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
@@ -154,10 +166,25 @@ const Configuracao = () => {
           const content = await page.getTextContent();
           text += content.items.map((item: any) => item.str).join(" ") + "\n";
         }
-      } else { text = await file.text(); }
-      updateSkill(activeSkillIdForUpload, 'knowledgeBaseText', text);
-      toast.success("Conteúdo extraído!");
-    } catch (error: any) { toast.error("Erro no arquivo"); } 
+      } else if (fileName.endsWith(".xlsx") || fileName.endsWith(".xls")) {
+        const data = await file.arrayBuffer();
+        const workbook = XLSX.read(data);
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          text += `--- Planilha: ${sheetName} ---\n`;
+          text += XLSX.utils.sheet_to_txt(worksheet) + "\n\n";
+        });
+      } else { 
+        text = await file.text(); 
+      }
+
+      const cleanedText = cleanTextNoise(text);
+      updateSkill(activeSkillIdForUpload, 'knowledgeBaseText', cleanedText);
+      toast.success("Conteúdo extraído e limpo com sucesso!");
+    } catch (error: any) { 
+      console.error(error);
+      toast.error("Erro ao processar arquivo. Verifique o formato."); 
+    } 
     finally { setIsExtracting(false); setActiveSkillIdForUpload(null); }
   };
 
@@ -188,7 +215,7 @@ const Configuracao = () => {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} />
+      <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileUpload} accept=".pdf,.xlsx,.xls,.txt,.csv" />
 
       <Card className="shadow-card">
         <CardHeader className="flex flex-row items-center justify-between">
@@ -326,6 +353,7 @@ const Configuracao = () => {
                              <div className="flex items-center justify-between">
                                <Label className="flex items-center gap-2 text-blue-600"><Book className="h-3 w-3" /> Conteúdo da Base</Label>
                                <div className="flex gap-2">
+                                 <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-amber-200 text-amber-600" onClick={() => { const cleaned = cleanTextNoise(skill.knowledgeBaseText || ''); updateSkill(skill.id, 'knowledgeBaseText', cleaned); toast.success("Ruído removido!"); }}><Eraser className="h-3 w-3 mr-1" /> Limpar Ruído</Button>
                                  <Button type="button" variant="outline" size="sm" className="h-7 text-[10px] border-blue-200 text-blue-600" onClick={() => { setActiveSkillIdForUpload(skill.id); fileInputRef.current?.click(); }} disabled={isExtracting}>{isExtracting ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Upload className="h-3 w-3 mr-1" />} Importar Arquivo</Button>
                                </div>
                              </div>
