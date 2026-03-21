@@ -508,9 +508,32 @@ return {
                              <Textarea className="font-sans text-xs h-64 bg-slate-950 text-blue-300 border-blue-900/50" value={skill.knowledgeBaseText || ''} onChange={e => updateSkill(skill.id, 'knowledgeBaseText', e.target.value)} />
                            </div>
                          ) : (
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                             <div className="space-y-2"><Label>Parâmetros JSON</Label><Textarea className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} onChange={e => { try { updateSkill(skill.id, 'parameters', JSON.parse(e.target.value)); } catch (err) { updateSkill(skill.id, 'parameters', e.target.value); } }} /></div>
-                             {skill.executionType === 'local_js' && <div className="space-y-2"><Label className="text-emerald-600">Código JavaScript</Label><Textarea className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" value={skill.jsCode || ''} onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} /></div>}
+                           <div className="space-y-4">
+                             {skill.executionType === 'web_scraping' && (
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-3 border rounded-md bg-blue-500/5 border-blue-500/20">
+                                 <div className="space-y-2">
+                                   <Label className="text-blue-600 flex items-center gap-2"><Globe className="h-3 w-3" /> URL do Site</Label>
+                                   <Input 
+                                     placeholder="https://www.nfe.fazenda.gov.br/..." 
+                                     value={skill.url || ''} 
+                                     onChange={e => updateSkill(skill.id, 'url', e.target.value)} 
+                                   />
+                                 </div>
+                                 <div className="space-y-2">
+                                   <Label className="text-blue-600 flex items-center gap-2"><Search className="h-3 w-3" /> Seletor CSS (Opcional)</Label>
+                                   <Input 
+                                     placeholder="article, #main-content, .texto-lei" 
+                                     value={skill.selector || ''} 
+                                     onChange={e => updateSkill(skill.id, 'selector', e.target.value)} 
+                                   />
+                                 </div>
+                               </div>
+                             )}
+                             
+                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                               <div className="space-y-2"><Label>Parâmetros JSON</Label><Textarea className="font-mono text-[10px] h-48 bg-slate-900 text-blue-300" value={typeof skill.parameters === 'string' ? skill.parameters : JSON.stringify(skill.parameters, null, 2)} onChange={e => { try { updateSkill(skill.id, 'parameters', JSON.parse(e.target.value)); } catch (err) { updateSkill(skill.id, 'parameters', e.target.value); } }} /></div>
+                               {skill.executionType === 'local_js' && <div className="space-y-2"><Label className="text-emerald-600">Código JavaScript</Label><Textarea className="font-mono text-[11px] h-48 bg-slate-950 text-emerald-400" value={skill.jsCode || ''} onChange={e => updateSkill(skill.id, 'jsCode', e.target.value)} /></div>}
+                             </div>
                            </div>
                          )}
                          <div className="flex justify-between items-center pt-2 border-t border-border/50">
