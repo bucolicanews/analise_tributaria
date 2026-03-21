@@ -4,7 +4,7 @@ import {
   Settings, Building, KeyRound, Bot, Trash2, Plus, Zap, 
   Code, Globe, RotateCcw, Search, FileText, ChevronDown, 
   Wrench, Play, Lock, Book, Upload, Loader2, Eraser, Info, BookOpen, Copy, Check, Download, MessageSquareQuote,
-  Lightbulb, Terminal, Cpu, HelpCircle
+  Lightbulb, Terminal, Cpu, HelpCircle, Workflow
 } from 'lucide-react';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -401,7 +401,19 @@ const Configuracao = () => {
                           </section>
 
                           <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1">3. Contexto de Execução JavaScript</h4>
+                            <h4 className="font-bold text-sm border-b pb-1 text-blue-600">3. Placeholders Dinâmicos ({{var}})</h4>
+                            <p className="text-xs text-muted-foreground">Você pode tornar a URL da Skill dinâmica usando os parâmetros definidos no JSON.</p>
+                            <div className="bg-slate-950 p-3 rounded-md border border-blue-900/50">
+                              <p className="text-[10px] text-blue-300 font-mono leading-relaxed">
+                                URL: <span className="text-white">https://site.com/consulta?codigo=</span><span className="text-yellow-400 font-bold">{"{{ncm}}"}</span><br/>
+                                <br/>
+                                No JSON de parâmetros, defina a propriedade "ncm". A IA preencherá o valor automaticamente antes de acessar o site.
+                              </p>
+                            </div>
+                          </section>
+
+                          <section className="space-y-2">
+                            <h4 className="font-bold text-sm border-b pb-1">4. Contexto de Execução JavaScript</h4>
                             <p className="text-xs text-muted-foreground">Seu código roda em um ambiente isolado com acesso a:</p>
                             <ul className="list-disc pl-4 space-y-1 text-[11px]">
                               <li><strong>args:</strong> Objeto com os valores preenchidos pela IA (ex: <code className="bg-muted px-1">args.ncm</code>).</li>
@@ -424,7 +436,7 @@ return {
                           </section>
 
                           <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1">4. Estrutura JSON para Importação/Exportação</h4>
+                            <h4 className="font-bold text-sm border-b pb-1">5. Estrutura JSON para Importação/Exportação</h4>
                             <p className="text-xs text-muted-foreground">Use este formato para compartilhar ou fazer backup de suas ferramentas completas:</p>
                             <pre className="bg-slate-950 text-orange-300 p-3 rounded-md text-[10px] font-mono overflow-x-auto">
 {`{
@@ -443,7 +455,7 @@ return {
                           </section>
 
                           <section className="space-y-2">
-                            <h4 className="font-bold text-sm border-b pb-1 text-emerald-600">5. Instrução Sugerida para o Agente</h4>
+                            <h4 className="font-bold text-sm border-b pb-1 text-emerald-600">6. Instrução Sugerida para o Agente</h4>
                             <p className="text-xs text-muted-foreground">Este texto orienta a IA sobre como e quando utilizar a ferramenta. É o que será inserido no Agente ao usar o atalho #.</p>
                             <div className="bg-slate-950 p-3 rounded-md border border-emerald-900/50">
                               <p className="text-[11px] text-emerald-300 font-mono leading-relaxed">
@@ -551,7 +563,92 @@ return {
 
               {/* 5. AGENTES ESPECIALISTAS */}
               <div className="space-y-4 rounded-lg border border-primary/30 p-4 bg-primary/5">
-                 <div className="flex items-center justify-between"><h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas (Timeline)</h3><Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1 }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button></div>
+                 <div className="flex items-center justify-between">
+                   <div className="space-y-1">
+                     <h3 className="text-lg font-bold flex items-center gap-2 text-primary"><Zap className="h-5 w-5" />Agentes Especialistas (Timeline)</h3>
+                     <p className="text-xs text-primary/70">Configure a sequência de inteligência autônoma.</p>
+                   </div>
+                   <div className="flex gap-2">
+                     <Dialog>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="border-primary/30 text-primary hover:bg-primary/10">
+                            <Workflow className="h-4 w-4 mr-2" /> Manual de Agentes Autônomos
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-primary"><Cpu className="h-5 w-5" /> Manual de Engenharia de Agentes Autônomos</DialogTitle>
+                            <DialogDescription>Como criar inteligências que utilizam ferramentas e dados dinâmicos.</DialogDescription>
+                          </DialogHeader>
+                          
+                          <div className="space-y-8 py-4">
+                            <section className="space-y-3">
+                              <h4 className="font-bold text-sm border-b border-primary/10 pb-1 text-primary uppercase tracking-wider">1. O CONCEITO DE AGENTE AUTÔNOMO</h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Um Agente Autônomo não é apenas um prompt de texto. Ele é a combinação de:
+                              </p>
+                              <ul className="list-disc pl-4 space-y-2 text-[11px]">
+                                <li><strong>Persona (Role):</strong> Quem a IA finge ser (ex: Perito Tributário).</li>
+                                <li><strong>Contexto (@):</strong> Dados reais da empresa injetados no prompt.</li>
+                                <li><strong>Skills (#):</strong> Ferramentas que a IA decide usar para obter dados externos ou fazer cálculos.</li>
+                              </ul>
+                            </section>
+
+                            <section className="space-y-3">
+                              <h4 className="font-bold text-sm border-b border-primary/10 pb-1 text-primary uppercase tracking-wider">2. VINCULANDO SKILLS (O GATILHO #)</h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                No editor de prompt do Agente, use o atalho <span className="font-bold text-primary">#</span> para listar suas Skills.
+                                Ao selecionar uma, o sistema insere a <strong>Instrução Sugerida</strong> daquela ferramenta.
+                              </p>
+                              <div className="bg-slate-950 p-3 rounded-md border border-primary/20">
+                                <p className="text-[10px] text-primary font-mono">
+                                  "Você tem acesso à ferramenta <span className="text-white">#consultar_portal_nfe</span>. <br/>
+                                  Sempre que o usuário perguntar sobre legislação, use-a para validar se há mudanças."
+                                </p>
+                              </div>
+                            </section>
+
+                            <section className="space-y-3">
+                              <h4 className="font-bold text-sm border-b border-primary/10 pb-1 text-primary uppercase tracking-wider">3. INJETANDO DADOS (O GATILHO @)</h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Use o atalho <span className="font-bold text-primary">@</span> para inserir variáveis de contexto. 
+                                Isso permite que o Agente saiba exatamente de qual empresa está falando sem que você precise digitar.
+                              </p>
+                              <div className="bg-slate-950 p-3 rounded-md border border-primary/20">
+                                <p className="text-[10px] text-primary font-mono">
+                                  "Analise a viabilidade da empresa <span className="text-white">@empresa.razaoSocial</span> <br/>
+                                  localizada em <span className="text-white">@empresa.localizacao.municipio</span>."
+                                </p>
+                              </div>
+                            </section>
+
+                            <section className="space-y-3">
+                              <h4 className="font-bold text-sm border-b border-primary/10 pb-1 text-primary uppercase tracking-wider">4. FLUXO DE EXECUÇÃO (TIMELINE)</h4>
+                              <p className="text-xs text-muted-foreground leading-relaxed">
+                                Os agentes rodam em sequência (Ordem 1, 2, 3...). <br/>
+                                <strong>Importante:</strong> O Agente 2 recebe o relatório gerado pelo Agente 1 como contexto adicional. 
+                                Isso permite criar cadeias de pensamento:
+                              </p>
+                              <ol className="list-decimal pl-4 space-y-1 text-[11px]">
+                                <li><strong>Agente 1:</strong> Coleta dados e faz o cálculo matemático.</li>
+                                <li><strong>Agente 2:</strong> Lê o cálculo do Agente 1 e faz a análise jurídica.</li>
+                                <li><strong>Agente 3:</strong> Consolida tudo em um parecer final para o cliente.</li>
+                              </ol>
+                            </section>
+
+                            <section className="space-y-3 pt-4">
+                              <h4 className="font-bold text-sm text-orange-600 flex items-center gap-2"><Lightbulb className="h-4 w-4" /> Dica de Ouro: Autonomia Real</h4>
+                              <p className="text-xs text-muted-foreground italic">
+                                "Não diga à IA para 'fazer o cálculo'. Diga: 'Se você identificar que o faturamento é alto, use a skill #comparar_regimes para validar a melhor opção'. Isso dá autonomia de decisão ao Agente."
+                              </p>
+                            </section>
+                          </div>
+                        </DialogContent>
+                      </Dialog>
+                     <Button type="button" size="sm" onClick={() => setAgents([...agents, { id: Date.now().toString(), nome: 'Novo Agente', systemPrompt: '', order: agents.length + 1 }])}><Plus className="h-4 w-4 mr-2" /> Novo Agente</Button>
+                   </div>
+                 </div>
+
                  <Accordion type="multiple" className="w-full space-y-2">
                    {agents.sort((a,b) => (a.order||0)-(b.order||0)).map((agent) => (
                      <AccordionItem key={agent.id} value={agent.id} className="border rounded-md bg-background px-4">
