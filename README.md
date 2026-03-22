@@ -1,7 +1,7 @@
 # JOTA - Sistema de Precificação Inteligente
 
 simples e presumido , lucro real e simples hibrido!
-VERSÃO AI 1.00
+VERSÃO AI 1.000
 
 # Sistema para Análise Tributária
 
